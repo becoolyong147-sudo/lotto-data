@@ -272,6 +272,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="permtrend" onclick="switchSubtab(this)">🎲 打数走势</div>
     <div class="subtab" data-tab="digitlock" onclick="switchSubtab(this)">🔒 位数锁定</div>
     <div class="subtab" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
+    <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
   </div>
 </div>
 
@@ -1083,6 +1084,23 @@ tr:hover td{background:#fafaf5}
     </div>
   </div>
 
+  <!-- Row 5g: 冷热档（与结果分类列一致） -->
+  <div style="margin-top:8px;background:#f0f4fa;border-radius:7px;padding:10px;border:1px solid #bfdbfe">
+    <div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:8px">🌡️ 冷热档（可多选）— 与结果「分类」列完全一致</div>
+    <div id="flt-freq-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#f0f4fa;border:2px solid transparent;border-radius:5px;padding:4px 11px;font-size:13px;font-weight:700;color:#1e3a5f;transition:all .15s" id="freq-lbl-热门"><input type="checkbox" id="flt-freq-热门" value="热门" onchange="updateChipStyle('freq','热门')" style="display:none">🔥 热门</label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#f0f4fa;border:2px solid transparent;border-radius:5px;padding:4px 11px;font-size:13px;font-weight:700;color:#1e3a5f;transition:all .15s" id="freq-lbl-中性"><input type="checkbox" id="flt-freq-中性" value="中性" onchange="updateChipStyle('freq','中性')" style="display:none">🔵 中性</label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#f0f4fa;border:2px solid transparent;border-radius:5px;padding:4px 11px;font-size:13px;font-weight:700;color:#1e3a5f;transition:all .15s" id="freq-lbl-冷门"><input type="checkbox" id="flt-freq-冷门" value="冷门" onchange="updateChipStyle('freq','冷门')" style="display:none">❄️ 冷门</label>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('freq')">全选</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('freq')">清除</button>
+    </div>
+    <div class="warn" style="margin-top:6px;font-size:11px">
+      与结果分类列完全一致：<b>🔥热门</b> = 最近出现比均值早（ratio ≤ 0.5）；<b>🔵中性</b> = 正常范围；<b>❄️冷门</b> = 已久未出现（ratio ≥ 1.5）。
+    </div>
+  </div>
+
   <!-- Row 6: 形态 + 包含数字 -->
   <div style="margin-top:8px" class="g2">
     <div class="ig"><label>形态条件（可多个，用 / 分开）</label><input type="text" id="flt-patterns" placeholder="如 双双xx / x双小x / 小xx单"></div>
@@ -1769,7 +1787,10 @@ function updateColdForNew(market, entry){
     if(!/^\d{4}$/.test(num)) return;
     const idx=recs.findIndex(r=>r.date===entry.date);
     if(!COLD_BASE[market][num]){
-      COLD_BASE[market][num]={count:1,avg:500,max:500,min:500,curr:idx,ratio:idx/500,last:entry.date,pts:ds(num),root:dr(ds(num))};
+      // Find previous occurrence to compute real gap instead of hardcoded 500
+      const prevIdx = recs.slice(1).findIndex(r => (r.nums||[]).some(n=>String(n).padStart(4,'0')===num));
+      const realGap = prevIdx >= 0 ? prevIdx + 1 : Math.max(idx, 10);
+      COLD_BASE[market][num]={count:1,avg:realGap,max:realGap,min:realGap,curr:idx,ratio:realGap>0?Math.round(idx/realGap*100)/100:0,last:entry.date,pts:ds(num),root:dr(ds(num))};
     } else {
       const old=COLD_BASE[market][num];
       old.last=entry.date;
@@ -3864,7 +3885,8 @@ function updateChipStyle(prefix,r){
     r4d:{on:'#1e3a5f',onBorder:'#0f1d2f',off:'#dbeafe',offColor:'#1e3a5f'},  // V27 4D 数根
     m2r:{on:'#0891b2',onBorder:'#155e75',off:'#cffafe',offColor:'#155e75'},  // V27 中2D 数根
     b2r:{on:'#ea580c',onBorder:'#9a3412',off:'#ffedd5',offColor:'#9a3412'},  // V27 后2D 数根
-    perm:{on:'#d97706',onBorder:'#78350f',off:'#fef3c7',offColor:'#78350f'}  // V48 号码打数
+    perm:{on:'#d97706',onBorder:'#78350f',off:'#fef3c7',offColor:'#78350f'},  // V48 号码打数
+    freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'}  // 频率档
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -3872,11 +3894,16 @@ function updateChipStyle(prefix,r){
     lbl.style.background=cfg.off;lbl.style.color=cfg.offColor;lbl.style.borderColor='transparent';
   }
 }
+const FREQ_TIER_KEYS = ['热门','中性','冷门'];
 function getSelectedRoots(prefix){
-  // V48: perm uses different IDs (24,12,6,4,1) not 1..9
   if(prefix==='perm'){
     const sel=[];
     [24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb&&cb.checked)sel.push(v);});
+    return sel;
+  }
+  if(prefix==='freq'){
+    const sel=[];
+    FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb&&cb.checked)sel.push(v);});
     return sel;
   }
   const sel=[];
@@ -3885,10 +3912,12 @@ function getSelectedRoots(prefix){
 }
 function selectAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=true;updateChipStyle('perm',v);}});return;}
+  if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=true;updateChipStyle('freq',v);}});return;}
   for(let r=1;r<=9;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=true;updateChipStyle(prefix,r);}}
 }
 function clearAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=false;updateChipStyle('perm',v);}});return;}
+  if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=false;updateChipStyle('freq',v);}});return;}
   for(let r=1;r<=9;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=false;updateChipStyle(prefix,r);}}
 }
 // V48: 计算4D号码的"打数"（排列数 / 分身数量）
@@ -4154,6 +4183,7 @@ function clearAdvancedFilter(){
   clearAllRoots('f2r');clearAllRoots('f3r');clearAllRoots('b3r');
   clearAllRoots('m2r');clearAllRoots('b2r');clearAllRoots('r4d');  // V27
   clearAllRoots('perm');  // V48 号码打数
+  clearAllRoots('freq');  // 频率档
   clearPts4();clearPts3b();clearPts3f();
   document.getElementById('filter-result').innerHTML='';
 }
@@ -4230,6 +4260,7 @@ function runAdvancedFilter(){
   const back2Roots=getSelectedRoots('b2r');    // V27 后2D 数根
   const root4Ds=getSelectedRoots('r4d');       // V27 4D 数根
   const permTypes=getSelectedRoots('perm');    // V48 号码打数
+  const freqTiers=getSelectedRoots('freq');    // 频率档
   const pts4Range=getRangeFromDropdowns('flt-pts4-from','flt-pts4-to');
   const pts3fRange=getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to');
   const pts3bRange=getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to');
@@ -4239,6 +4270,8 @@ function runAdvancedFilter(){
   const containsDigits=containsDigitsRaw.replace(/[^0-9]/g,'').split('').filter(Boolean);
   const posPattern=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().replace(/[^0-9x]/g,'');
   const recs=DB[market]||[];
+  // 冷热档：直接复用 fltGetCategory（与结果分类列完全一致）
+  const _freqTierFn = freqTiers.length ? (num=>fltGetCategory(market,pz(num)).tier) : null;
   const rows=[];
   const sumPts={},sumRoot={},sumPrize={0:0,1:0,2:0};
   const sumF2Root={},sumF3Root={},sumB3Root={},sumPts3f={},sumPts3b={};
@@ -4273,6 +4306,7 @@ function runAdvancedFilter(){
       if(patterns.length&&!patterns.some(p=>matchPattern(num,p)))return;
       if(containsDigits.length&&!containsDigits.some(d=>num.includes(d)))return;
       if(posPattern&&!matchPosPattern(num,posPattern))return;
+      if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
       sumRoot[a.root4d]=(sumRoot[a.root4d]||0)+1;
@@ -4438,6 +4472,64 @@ function copyFilterNums(sep){
     }, 1800);
   }).catch(()=>{
     // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert(`✅ 已复制 ${nums.length} 个号码`);
+  });
+}
+
+function toggleQuickNum(el){
+  const on = el.classList.toggle('qn-selected');
+  el.style.background = on ? '#dcfce7' : '#f0f4fa';
+  el.style.borderColor = on ? '#16a34a' : '#dce8f5';
+  el.querySelector('div').style.color = on ? '#15803d' : '#1e3a5f';
+  _updateQuickSelCount();
+}
+
+function _updateQuickSelCount(){
+  const items = document.querySelectorAll('.qn-item.qn-selected');
+  const el = document.getElementById('qn-sel-count');
+  if(el) el.textContent = items.length ? `已选 ${items.length} 个号码` : '';
+  const btn = document.getElementById('qn-selall');
+  const all = document.querySelectorAll('.qn-item');
+  if(btn) btn.textContent = items.length===all.length && all.length>0 ? '☐ 取消全选' : '☑ 全选';
+}
+
+function quickSelectAll(){
+  const all = document.querySelectorAll('.qn-item');
+  const selected = document.querySelectorAll('.qn-item.qn-selected');
+  const doSelect = selected.length < all.length;
+  all.forEach(el=>{
+    const on = doSelect;
+    el.classList.toggle('qn-selected', on);
+    el.style.background = on ? '#dcfce7' : '#f0f4fa';
+    el.style.borderColor = on ? '#16a34a' : '#dce8f5';
+    el.querySelector('div').style.color = on ? '#15803d' : '#1e3a5f';
+  });
+  _updateQuickSelCount();
+}
+
+function copyQuickNums(sep){
+  const selected = document.querySelectorAll('.qn-item.qn-selected');
+  const nums = selected.length > 0
+    ? Array.from(selected).map(el=>el.dataset.num)
+    : (window._lastQuickNums||[]);
+  if(!nums||nums.length===0){ alert('请先点选号码，或点「全选」再复制'); return; }
+  const sepChar = sep==='newline'?'\n':sep==='comma'?', ':' ';
+  const text = nums.join(sepChar);
+  navigator.clipboard.writeText(text).then(()=>{
+    const btns = document.querySelectorAll('[onclick^="copyQuickNums"]');
+    btns.forEach(b=>{ b.style.background='#16a34a'; b.textContent='✅ 已复制！'; });
+    setTimeout(()=>{
+      const labels = ['📋 复制选中（空格）','📋 复制选中（换行）','📋 复制选中（逗号）'];
+      btns.forEach((b,i)=>{ b.style.background=''; b.textContent=labels[i]; });
+    }, 1800);
+  }).catch(()=>{
     const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position='fixed'; ta.style.opacity='0';
@@ -6479,6 +6571,49 @@ function doBacktest(){
   </div>
 </div>
 <div id="season-cross-result"></div>
+</div>
+
+<!-- TAB: 大奖体质分析 -->
+<div id="tab-prizeprofile" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#1e40af 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🏆 大奖体质分析</div>
+    <div style="font-size:12px;color:#93c5fd;margin-top:2px">赢奖号码是热门频繁出现的？还是冷僻稀客？分身多还是少？实际 vs 期望</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="pp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>奖位</label>
+      <select id="pp-prize">
+        <option value="all">头二三全部</option>
+        <option value="0">只看头奖</option>
+        <option value="1">只看二奖</option>
+        <option value="2">只看三奖</option>
+      </select>
+    </div>
+    <div class="ig"><label>样本期数</label>
+      <select id="pp-sample">
+        <option value="100">最近100期</option>
+        <option value="300">最近300期</option>
+        <option value="500">最近500期</option>
+        <option value="0">全部历史</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doPrizeProfile()">🔍 分析</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>如何解读</b>：<b>实际%</b> = 赢奖号码中该类占比；<b>期望%</b> = 全部历史开奖中该类号码的占比（公平基准）；<b>偏差</b> = 实际 − 期望。<br>
+    偏差接近 0 = 随机，偏差 <b>持续 &gt;+5%</b> 才值得留意。<br>
+    🎭 打数额外对比<b>数学理论值</b>（10000个号码的结构比例）。
+  </div>
+</div>
+<div id="pp-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -11899,13 +12034,14 @@ window.drQuickAnalysis=function(){
     const sp1d=_analyze1D(special);
     h+='<div class="card"><h3>特别奖 1D 分析</h3>'+_renderSp1D(sp1d)+'</div>';
     const leads=sp1d.leads();
-    h+='<div class="card"><h3>🎯 推荐号码（含理由）</h3>';
+    window._lastQuickNums=[];
+    h+='<div class="card" id="qn-card"><div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px"><h3 style="margin-bottom:0;border:none;padding:0">🎯 推荐号码（点击选号）</h3><div style="display:flex;gap:6px;flex-wrap:wrap"><button id="qn-selall" class="btn" style="padding:5px 12px;font-size:11px;background:#475569" onclick="quickSelectAll()">☑ 全选</button><button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyQuickNums(\'space\')">📋 复制选中（空格）</button><button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyQuickNums(\'newline\')">📋 复制选中（换行）</button><button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyQuickNums(\'comma\')">📋 复制选中（逗号）</button></div></div><div id="qn-sel-count" style="font-size:11px;color:#16a34a;font-weight:700;margin-bottom:6px;min-height:16px"></div>';
     let any=false;
     leads.forEach(lead=>{
       const nums=_gen4D(lead,S.useF2,S.useB3,S.pLow,S.pHigh,S.last.f2);
       if(!nums.length)return;any=true;
       h+='<div style="margin-bottom:10px"><span style="font-size:11px;font-weight:700;color:#444">首位 <span style="background:#1e3a5f;color:#fff;padding:1px 6px;border-radius:3px;font-family:monospace">'+lead+'x</span>（'+(_big(lead)?'大':'小')+'·'+(_odd(lead)?'单':'双')+'）</span><div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">';
-      nums.forEach(n=>{h+='<div style="background:#f0f4fa;border:1px solid #dce8f5;border-radius:6px;padding:4px 8px"><div style="font-family:monospace;font-size:15px;font-weight:700;color:#1e3a5f">'+n.num+'</div><div style="font-size:9px;color:#666;margin-top:2px">'+n.reasons.join(' · ')+'</div></div>';});
+      nums.forEach(n=>{window._lastQuickNums.push(n.num);h+='<div class="qn-item" data-num="'+n.num+'" onclick="toggleQuickNum(this)" style="background:#f0f4fa;border:2px solid #dce8f5;border-radius:6px;padding:4px 8px;cursor:pointer;user-select:none;transition:all 0.15s"><div style="font-family:monospace;font-size:15px;font-weight:700;color:#1e3a5f">'+n.num+'</div><div style="font-size:9px;color:#666;margin-top:2px">'+n.reasons.join(' · ')+'</div></div>';});
       h+='</div></div>';
     });
     if(!any)h+='<div class="warn">无符合号码，尝试放宽期数。</div>';
@@ -12369,6 +12505,204 @@ function sortFilterResult(by){
   };
 
 })();
+</script>
+
+<script>
+// ===== 大奖体质分析 =====
+function doPrizeProfile() {
+  const market = document.getElementById('pp-market').value;
+  const prizeFilter = document.getElementById('pp-prize').value;
+  const sampleN = parseInt(document.getElementById('pp-sample').value) || 0;
+  const recs = (DB[market] || []).slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  if (recs.length < 30) {
+    document.getElementById('pp-out').innerHTML = '<div class="error">数据不足，需要至少30期历史记录</div>';
+    return;
+  }
+
+  // Fast permutation count (1/4/6/12/24)
+  function permCount(num) {
+    const f = {};
+    String(num).split('').forEach(d => f[d] = (f[d]||0)+1);
+    const v = Object.values(f);
+    const fact = [1,1,2,6,24];
+    return fact[4] / v.reduce((a,c) => a * fact[c], 1);
+  }
+
+  // ── Build full-history frequency map ──────────────────────────────
+  const numCount = {};  // num -> total appearances across all prizes & draws
+  recs.forEach(r => {
+    (r.nums||[]).forEach(raw => {
+      const num = String(raw).padStart(4,'0');
+      if (!/^\d{4}$/.test(num)) return;
+      numCount[num] = (numCount[num]||0) + 1;
+    });
+  });
+
+  // Percentile thresholds (by count, descending)
+  const sortedCounts = Object.values(numCount).sort((a,b) => b-a);
+  const nc = sortedCounts.length;
+  const p25 = sortedCounts[Math.floor(nc * 0.25)] ?? 1;
+  const p50 = sortedCounts[Math.floor(nc * 0.50)] ?? 1;
+  const p75 = sortedCounts[Math.floor(nc * 0.75)] ?? 1;
+
+  // 4 frequency tiers
+  const FREQ_CATS = [
+    { key:'hot',  label:'🔥 热门', color:'#dc2626', bg:'#fee2e2', desc:'历史出现 Top 25%' },
+    { key:'warm', label:'☀️ 偏热', color:'#ea580c', bg:'#ffedd5', desc:'25–50%' },
+    { key:'cool', label:'🌤️ 偏冷', color:'#2563eb', bg:'#dbeafe', desc:'50–75%' },
+    { key:'cold', label:'❄️ 冷门', color:'#1e40af', bg:'#ede9fe', desc:'Bottom 25%' },
+  ];
+  function freqTier(num) {
+    const c = numCount[num] || 0;
+    if (c >= p25) return 'hot';
+    if (c >= p50) return 'warm';
+    if (c >= p75) return 'cool';
+    return 'cold';
+  }
+
+  // 5 permutation tiers
+  const PERM_CATS = [
+    { key:24, label:'24打', color:'#d97706', bg:'#fef3c7', theory:50.4 },
+    { key:12, label:'12打', color:'#0891b2', bg:'#cffafe', theory:43.2 },
+    { key:6,  label:'6打',  color:'#7c3aed', bg:'#ede9fe', theory:2.7  },
+    { key:4,  label:'4打',  color:'#16a34a', bg:'#dcfce7', theory:3.6  },
+    { key:1,  label:'1打',  color:'#6b7280', bg:'#f3f4f6', theory:0.1  },
+  ];
+
+  // ── Baseline: full-history draw share per tier ─────────────────────
+  // (all prize slots, not just sample)
+  const freqBase = { hot:0, warm:0, cool:0, cold:0 };
+  const permBase = { 24:0, 12:0, 6:0, 4:0, 1:0 };
+  let baseTotal = 0;
+  recs.forEach(r => {
+    (r.nums||[]).forEach(raw => {
+      const num = String(raw).padStart(4,'0');
+      if (!/^\d{4}$/.test(num)) return;
+      freqBase[freqTier(num)]++;
+      const pc = permCount(num);
+      permBase[pc] = (permBase[pc]||0) + 1;
+      baseTotal++;
+    });
+  });
+
+  // ── Sample: winner analysis ────────────────────────────────────────
+  const sample = sampleN > 0 ? recs.slice(0, sampleN) : recs;
+  const prizeIndices = prizeFilter === 'all' ? [0,1,2] : [parseInt(prizeFilter)];
+
+  const freqWin = { hot:0, warm:0, cool:0, cold:0 };
+  const permWin = { 24:0, 12:0, 6:0, 4:0, 1:0 };
+  let winTotal = 0;
+  const recentRows = [];
+
+  sample.forEach((rec, i) => {
+    prizeIndices.forEach(pi => {
+      const raw = (rec.nums||[])[pi];
+      const num = raw ? String(raw).padStart(4,'0') : null;
+      if (!num || !/^\d{4}$/.test(num)) return;
+      const ft = freqTier(num);
+      const pc = permCount(num);
+      freqWin[ft]++;
+      permWin[pc] = (permWin[pc]||0) + 1;
+      winTotal++;
+      if (i < 50) recentRows.push({ date:rec.date, num, prize:pi, ft, pc, cnt:numCount[num]||0 });
+    });
+  });
+
+  if (!winTotal) {
+    document.getElementById('pp-out').innerHTML = '<div class="error">没有有效数据</div>';
+    return;
+  }
+
+  // ── Render helpers ────────────────────────────────────────────────
+  const prizeEmoji = ['🥇','🥈','🥉'];
+  const prizeLabel = ['头奖','二奖','三奖'];
+
+  function diffBadge(diff) {
+    if (diff > 5)  return `<span style="color:#16a34a;font-weight:700">+${diff.toFixed(1)}% ▲</span>`;
+    if (diff < -5) return `<span style="color:#dc2626;font-weight:700">${diff.toFixed(1)}% ▼</span>`;
+    return `<span style="color:#6b7280">${diff>0?'+':''}${diff.toFixed(1)}%</span>`;
+  }
+
+  // ── Section 1: 频率体质 ────────────────────────────────────────────
+  let freqRows = '';
+  FREQ_CATS.forEach(c => {
+    const actual   = freqWin[c.key] / winTotal * 100;
+    const expected = baseTotal ? freqBase[c.key] / baseTotal * 100 : 0;
+    const diff     = actual - expected;
+    freqRows += `<tr>
+      <td><span style="background:${c.bg};color:${c.color};padding:2px 9px;border-radius:4px;font-size:11px;font-weight:700">${c.label}</span></td>
+      <td style="font-size:11px;color:#666">${c.desc}</td>
+      <td style="font-weight:800;color:${c.color};font-size:14px">${actual.toFixed(1)}%</td>
+      <td style="color:#555">${expected.toFixed(1)}%</td>
+      <td>${diffBadge(diff)}</td>
+      <td style="color:#888;font-size:11px">${freqWin[c.key]} 期</td>
+    </tr>`;
+  });
+
+  // ── Section 2: 打数体质 ────────────────────────────────────────────
+  let permRows = '';
+  PERM_CATS.forEach(c => {
+    const actual  = (permWin[c.key]||0) / winTotal * 100;
+    const hist    = baseTotal ? (permBase[c.key]||0) / baseTotal * 100 : 0;
+    const diff    = actual - hist;
+    permRows += `<tr>
+      <td><span style="background:${c.bg};color:${c.color};padding:2px 9px;border-radius:4px;font-size:11px;font-weight:700">${c.label}</span></td>
+      <td style="font-weight:800;color:${c.color};font-size:14px">${actual.toFixed(1)}%</td>
+      <td style="color:#555">${hist.toFixed(1)}%</td>
+      <td style="color:#888">${c.theory}%</td>
+      <td>${diffBadge(diff)}</td>
+      <td style="color:#888;font-size:11px">${permWin[c.key]||0} 期</td>
+    </tr>`;
+  });
+
+  // ── Section 3: 近期明细 ────────────────────────────────────────────
+  const fcMap = Object.fromEntries(FREQ_CATS.map(c=>[c.key,c]));
+  const pcMap = Object.fromEntries(PERM_CATS.map(c=>[c.key,c]));
+  const detailRows = recentRows.map(r => {
+    const fc = fcMap[r.ft], pc = pcMap[r.pc];
+    return `<tr>
+      <td style="font-size:11px;color:#555">${r.date}</td>
+      <td>${prizeEmoji[r.prize]}</td>
+      <td><span class="nc nc-sm">${r.num}</span></td>
+      <td><span style="background:${fc.bg};color:${fc.color};padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700">${fc.label}</span></td>
+      <td style="font-size:11px;color:#666">${r.cnt}次</td>
+      <td><span style="background:${pc.bg};color:${pc.color};padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700">${pc.label}</span></td>
+    </tr>`;
+  }).join('');
+
+  const sampleLabel = sampleN > 0 ? `最近${sampleN}期` : '全部历史';
+
+  document.getElementById('pp-out').innerHTML = `
+    <div class="card">
+      <h3>📊 频率体质 — 赢奖号码在历史上属于常客还是稀客？（${sampleLabel} · ${winTotal} 个获奖号码）</h3>
+      <div class="ot"><table>
+        <tr><th>档位</th><th>定义</th><th>实际赢奖%</th><th>期望%</th><th>偏差</th><th>数量</th></tr>
+        ${freqRows}
+      </table></div>
+      <div class="warn" style="margin-top:8px;font-size:11px">
+        <b>期望%</b> = 全部历史开奖中该档位号码的总占比。偏差持续 &gt;+5% 才有参考价值，样本越大越可信。
+      </div>
+    </div>
+    <div class="card">
+      <h3>🎭 打数体质 — 赢奖号码的分身数量分布</h3>
+      <div class="ot"><table>
+        <tr><th>打数</th><th>实际赢奖%</th><th>历史出现%</th><th>数学理论%</th><th>偏差(实-历史)</th><th>数量</th></tr>
+        ${permRows}
+      </table></div>
+      <div class="warn" style="margin-top:8px;font-size:11px">
+        <b>数学理论%</b> = 0000–9999 共10000个号码中该打数的结构占比（完全随机时的基准）。<br>
+        实际赢奖% ≈ 历史出现% ≈ 理论% → 无规律。三者差距大才值得关注。
+      </div>
+    </div>
+    <div class="card">
+      <h3>📋 近期明细（最近 ${recentRows.length} 期）</h3>
+      <div class="ot"><table>
+        <tr><th>日期</th><th>奖位</th><th>号码</th><th>频率档</th><th>历史次数</th><th>打数</th></tr>
+        ${detailRows || '<tr><td colspan="6" style="text-align:center;color:#888;padding:16px">暂无数据</td></tr>'}
+      </table></div>
+    </div>`;
+}
 </script>
 
 </body>
