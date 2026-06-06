@@ -9626,7 +9626,14 @@ function wizCopy(){
   const nums = WIZ.finalCandidates.map(c=>c.num).join(' ');
   navigator.clipboard.writeText(nums).then(()=>{
     const btn=event.target; btn.textContent='✅ 已复制！'; btn.style.background='#166534';
-    setTimeout(()=>{ btn.textContent='📋 复制全部号码'; btn.style.background=''; },1800);
+    setTimeout(()=>{ btn.textContent='📋 复制全部（空格）'; btn.style.background=''; },1800);
+  });
+}
+function wizCopyNewline(){
+  const nums = WIZ.finalCandidates.map(c=>c.num).join('\n');
+  navigator.clipboard.writeText(nums).then(()=>{
+    const btn=event.target; btn.textContent='✅ 已复制！'; btn.style.background='#166534';
+    setTimeout(()=>{ btn.textContent='📋 复制全部（换行）'; btn.style.background=''; },1800);
   });
 }
 
