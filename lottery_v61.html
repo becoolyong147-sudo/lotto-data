@@ -9572,6 +9572,17 @@ function wizStep4(){
   }).join('');
 
   const numList=candidates.map(c=>c.num).join(' ');
+
+  // 解说：汇总本次选号逻辑
+  const selG = (WIZ.selectedG||[]).join('、');
+  const selRoots = (WIZ.selectedRoots||[]).join('、');
+  const selB3D = (WIZ.selectedB3D||[]).join('、');
+  const top3 = candidates.slice(0,3).map((c,i)=>{
+    const lm=LABEL_META[c.label]||{color:'#64748b'};
+    const avgStr=c.avgGap?`平均每 ${Math.round(c.avgGap)} 期出现一次，距今 ${c.agoPeriods} 期`:'无回归数据';
+    return `<li style="margin-bottom:6px"><b style="font-size:15px;color:#1e3a5f">${c.num}</b> — 首位 <b>${c.first}</b> 与后3D <b>${c.b3d}</b> 配对率 <b>${c.pairPct}%</b>；后3D 状态 <span style="color:${lm.color};font-weight:700">${c.label}</span>（${avgStr}）</li>`;
+  }).join('');
+
   document.getElementById('wiz-s4-body').innerHTML=`
     <div style="font-size:12px;color:#64748b;margin-bottom:10px">共 <b>${candidates.length}</b> 个候选号码，按综合评分排序（规律性权重×配对频率）</div>
     <div style="overflow-x:auto;margin-bottom:12px"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:500px">
@@ -9586,10 +9597,25 @@ function wizStep4(){
         <th style="padding:7px 10px;text-align:center">配对率</th>
       </tr></thead><tbody>${rows}</tbody>
     </table></div>
+    <div style="background:#eff6ff;border-radius:8px;padding:12px;border:1px solid #bfdbfe;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:800;color:#1e3a5f;margin-bottom:8px">🧠 为什么选这些号码？</div>
+      <div style="font-size:12px;color:#334155;line-height:1.8;margin-bottom:8px">
+        <b>第一步：</b>当前数根属于 <b>${WIZ.seq?WIZ.seq[0].g:'—'}</b>，
+        转移概率最高指向 <b>${selG}</b>，对应数根值 <b>${selRoots}</b>。<br>
+        <b>第二步：</b>从历史数据筛出符合上述数根的后3D候选，选定 <b>${selB3D||'—'}</b>。<br>
+        <b>第三步：</b>分析首位与后3D的历史配对频率，选出高频首位组合。<br>
+        <b>综合排序：</b>后3D规律性越强（⭐活跃）+ 配对率越高，排名越前。
+      </div>
+      <div style="font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:4px">前三名解说：</div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;color:#334155">${top3}</ul>
+    </div>
     <div style="background:#dcfce7;border-radius:8px;padding:12px;border:1px solid #86efac">
       <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:6px">📋 号码列表</div>
       <div style="font-family:monospace;font-size:14px;font-weight:700;color:#1e3a5f;word-break:break-all;margin-bottom:8px">${numList}</div>
-      <button class="btn btn-green" onclick="wizCopy()" style="padding:7px 16px;font-size:12px">📋 复制全部号码</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-green" onclick="wizCopy()" style="padding:7px 16px;font-size:12px">📋 复制全部（空格）</button>
+        <button class="btn btn-green" onclick="wizCopyNewline()" style="padding:7px 16px;font-size:12px">📋 复制全部（换行）</button>
+      </div>
     </div>`;
 
   document.getElementById('wiz-s4').style.display='block';
