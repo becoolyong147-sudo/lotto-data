@@ -9576,7 +9576,7 @@ function wizStep4(){
   // 解说：汇总本次选号逻辑
   const selG = (WIZ.selectedG||[]).join('、');
   const selRoots = (WIZ.selectedRoots||[]).join('、');
-  const selB3D = (WIZ.selectedB3D||[]).join('、');
+  const selB3D = [...(WIZ.selectedB3D||[])].join('、');
   const top3 = candidates.slice(0,3).map((c,i)=>{
     const lm=LABEL_META[c.label]||{color:'#64748b'};
     const avgStr=c.avgGap?`平均每 ${Math.round(c.avgGap)} 期出现一次，距今 ${c.agoPeriods} 期`:'无回归数据';
