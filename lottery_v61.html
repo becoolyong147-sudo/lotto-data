@@ -9325,7 +9325,7 @@ function wizStep1(){
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
       ${['G1','G2','G3'].map(g=>{
         const r = recommended.find(x=>x.g===g);
-        const isRec = g===recG;
+        const isRec = WIZ._handoffG ? WIZ._handoffG.includes(g) : g===recG;
         return `<span id="wiz-chip-${g}" data-on="${isRec?1:0}" onclick="wizToggleG('${g}')"
           style="padding:8px 18px;border-radius:20px;cursor:pointer;font-size:14px;font-weight:800;
           background:${isRec?GC[g]:'#f1f5f9'};color:${isRec?'#fff':'#64748b'};border:2px solid ${isRec?GC[g]:'#e2e8f0'};transition:all .15s">
