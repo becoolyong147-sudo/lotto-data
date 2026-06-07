@@ -6873,6 +6873,20 @@ function doBacktest(){
       比如头奖填 5、二奖填 6、三奖填 4，就是查"头根5 + 二根6 + 三根4"同时出现在同一期的历史记录。
     </div>
   </div>
+  <div class="row" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:6px;align-items:flex-end">
+    <div class="ig"><label>开奖次数筛选（可选）</label>
+      <select id="qq-occ-cmp" style="width:70px">
+        <option value="gte">≥</option>
+        <option value="lte">≤</option>
+        <option value="eq">=</option>
+      </select>
+      <input type="number" id="qq-occ-n" min="0" placeholder="次数" style="width:80px"/>
+    </div>
+    <div style="font-size:12px;color:#888;max-width:480px">
+      只保留「这个号码在历史上一共开出过 N 次」符合条件的匹配结果（按市场+奖位统计该号码的历史总出现次数，跟你填的次数比较）。
+      留空 = 不筛选。模式A 按窗口最后一期号码统计；模式B 按头奖号码统计。
+    </div>
+  </div>
   <button class="btn btn-blue" style="margin-top:12px" onclick="runQuickQuery()">🔍 查询历史</button>
   <div id="qq-result" style="margin-top:16px"></div>
 </div>
