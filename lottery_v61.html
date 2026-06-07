@@ -6970,6 +6970,7 @@ function runMixQuery(){
   }
 
   const markets = marketSel==='all' ? ['万能','跑马','多多','新加坡','豪龙'] : [marketSel];
+  const occFilter = qqReadOccFilter();
   const hits = [];
   const nextDist = {G1:0,G2:0,G3:0,G0:0,'?':0};
   const repeatDist = {0:0,1:0,2:0,3:0};
@@ -6982,6 +6983,11 @@ function runMixQuery(){
       const roots = segs.map(s=>digitalRootFromStr(s));
       const ok = targets.every((t,idx)=> t===null || roots[idx]===t);
       if(!ok) continue;
+      // 开奖次数筛选：按头奖号码在该市场历史上的总出现次数比对
+      if(occFilter){
+        const occCount = qqOccurrenceCount(market, 0, pz(r.nums[0]));
+        if(!qqOccPass(occFilter, occCount)) continue;
+      }
 
       let nextInfo = null;
       let repeatCount = null;
