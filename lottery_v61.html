@@ -9643,6 +9643,14 @@ function wizCopy(){
     setTimeout(()=>{ btn.textContent='📋 复制全部（空格）'; btn.style.background=''; },1800);
   });
 }
+function wizCopyByDigit(d){
+  const nums = (WIZ.finalCandidates||[]).filter(c=>c.first===d).map(c=>c.num);
+  const status = document.getElementById('wiz-bydigit-status');
+  if(!nums.length){ if(status) status.textContent = `没有 ${d}打 的号码`; return; }
+  navigator.clipboard.writeText(nums.join('\n')).then(()=>{
+    if(status) status.textContent = `✅ 已复制 ${d}打 共 ${nums.length} 个号码：${nums.join(' ')}`;
+  });
+}
 function wizCopyNewline(){
   const nums = WIZ.finalCandidates.map(c=>c.num).join('\n');
   navigator.clipboard.writeText(nums).then(()=>{
