@@ -820,17 +820,8 @@ function renderHuazTrend(){
   linkOut.innerHTML = lhtml;
 }
 
-// 首次进入 tab 时渲染
-(function(){
-  const origSwitch = window.switchSubtab;
-  if(typeof origSwitch === 'function'){
-    window.switchSubtab = function(el){
-      origSwitch(el);
-      if(el && el.dataset && el.dataset.tab === 'huaz-trend') renderHuazTrend();
-    };
-  }
-})();
-setTimeout(()=>{ if(document.getElementById('hz-trend-out')) renderHuazTrend(); }, 350);
+// 首次加载时若该 tab 恰好是 active 状态，先渲染一次（一般不会，但保险起见）
+setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getElementById('tab-huaz-trend').classList.contains('active')) renderHuazTrend(); }, 350);
 </script>
 
 <!-- TAB: 一键总览 (V53 新增) -->
