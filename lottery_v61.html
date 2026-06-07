@@ -6690,15 +6690,20 @@ function doBacktest(){
         <option value="4d">4D</option>
       </select>
     </div>
-    <div class="ig"><label>目标数根（如 456，可多个数字）</label>
-      <input type="text" id="qq-roots" placeholder="如 456 表示 4或5或6" style="width:140px"/>
+    <div class="ig"><label>目标数根组合（如 456 = 连续3期里出现 4、5、6 这三个数根，不分顺序）</label>
+      <input type="text" id="qq-roots" placeholder="如 456：查 4/5/6 任意顺序连续出现" style="width:220px"/>
     </div>
-    <div class="ig"><label>单双 pattern（可选，2D=2字符如 EE，3D/4D 留空忽略）</label>
-      <input type="text" id="qq-parity" placeholder="如 EE / EO / OE / OO" style="width:140px"/>
+    <div class="ig"><label>单双 pattern 组合（可选，每个 token 用空格/逗号分开，如 "EE OE BS"）</label>
+      <input type="text" id="qq-parity" placeholder="如 EE OE BS：连续3期任意顺序出现这3种" style="width:260px"/>
     </div>
-    <div class="ig"><label>大小 pattern（可选，2D=2字符如 BB）</label>
-      <input type="text" id="qq-size" placeholder="如 SS / SB / BS / BB" style="width:140px"/>
+    <div class="ig"><label>大小 pattern 组合（可选，写法同上，如 "BB SB SS"）</label>
+      <input type="text" id="qq-size" placeholder="如 BB SB SS：连续3期任意顺序出现这3种" style="width:260px"/>
     </div>
+  </div>
+  <div style="font-size:12px;color:#888;margin-top:6px">
+    说明：「组合」= 连续 N 期（N=你输入的 token 数量），这 N 期的特征值刚好是你输入的这一组，<b>不分先后顺序</b>
+    （比如数根输入 456，会匹配 4→5→6 / 4→6→5 / 5→4→6 / 5→6→4 / 6→5→4 / 6→4→5 等所有排列）。
+    若同时填了多个条件，它们的 token 数量必须一致，且需在同一窗口内同时满足。
   </div>
   <button class="btn btn-blue" style="margin-top:12px" onclick="runQuickQuery()">🔍 查询历史</button>
   <div id="qq-result" style="margin-top:16px"></div>
