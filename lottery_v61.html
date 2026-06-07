@@ -6918,6 +6918,28 @@ function qqMultisetEqual(a,b){
 function qqParCode(seg){ return seg.split('').map(parityOfDigit).map(p=>p==='双'?'E':'O').join(''); }
 function qqSizeCode(seg){ return seg.split('').map(sizeOfDigit).map(s=>s==='大'?'B':'S').join(''); }
 
+// 统计某个号码在指定市场+奖位历史上一共开出过几次
+function qqOccurrenceCount(market, prizeIdx, num){
+  const rows = DB[market]||[];
+  let c = 0;
+  rows.forEach(r=>{ if(pz(r.nums[prizeIdx])===num) c++; });
+  return c;
+}
+// 读取「开奖次数」筛选条件，返回 {cmp, n} 或 null（未填写）
+function qqReadOccFilter(){
+  const nRaw = document.getElementById('qq-occ-n').value;
+  if(nRaw===''||nRaw===null) return null;
+  const n = parseInt(nRaw,10);
+  if(isNaN(n)||n<0) return null;
+  return { cmp: document.getElementById('qq-occ-cmp').value, n };
+}
+function qqOccPass(filter, count){
+  if(!filter) return true;
+  if(filter.cmp==='gte') return count >= filter.n;
+  if(filter.cmp==='lte') return count <= filter.n;
+  return count === filter.n;
+}
+
 function qqToggleMode(){
   const mode = document.getElementById('qq-mode').value;
   document.getElementById('qq-mode-seq').style.display = mode==='seq' ? '' : 'none';
