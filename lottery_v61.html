@@ -6727,18 +6727,42 @@ function qqExtract(num, posKey){
   return s.slice(a,b);
 }
 
+// Multiset equality — same elements, any order
+function qqMultisetEqual(a,b){
+  if(a.length!==b.length) return false;
+  const sa=[...a].sort(), sb=[...b].sort();
+  return sa.every((v,i)=>v===sb[i]);
+}
+function qqParCode(seg){ return seg.split('').map(parityOfDigit).map(p=>p==='双'?'E':'O').join(''); }
+function qqSizeCode(seg){ return seg.split('').map(sizeOfDigit).map(s=>s==='大'?'B':'S').join(''); }
+
 function runQuickQuery(){
   const out = document.getElementById('qq-result');
   const marketSel = document.getElementById('qq-market').value;
   const prizeSel = document.getElementById('qq-prize').value;
   const posKey = document.getElementById('qq-pos').value;
   const rootsRaw = document.getElementById('qq-roots').value.trim();
-  const parityPat = document.getElementById('qq-parity').value.trim().toUpperCase();
-  const sizePat = document.getElementById('qq-size').value.trim().toUpperCase();
+  const parityRaw = document.getElementById('qq-parity').value.trim().toUpperCase();
+  const sizeRaw = document.getElementById('qq-size').value.trim().toUpperCase();
 
-  if(!rootsRaw){ out.innerHTML = '<div class="warn">请至少输入目标数根，比如 456</div>'; return; }
-  const targetRoots = rootsRaw.split('').map(c=>parseInt(c,10)).filter(n=>!isNaN(n));
-  if(!targetRoots.length){ out.innerHTML = '<div class="warn">数根输入无效，请输入数字，如 456</div>'; return; }
+  // Parse each filter into an array of "tokens" (the combination to look for)
+  const rootTokens = rootsRaw ? rootsRaw.split('').map(c=>parseInt(c,10)).filter(n=>!isNaN(n)) : null;
+  const parityTokens = parityRaw ? parityRaw.split(/[\s,，、]+/).filter(Boolean) : null;
+  const sizeTokens = sizeRaw ? sizeRaw.split(/[\s,，、]+/).filter(Boolean) : null;
+
+  if(!rootTokens && !parityTokens && !sizeTokens){
+    out.innerHTML = '<div class="warn">请至少填写一个条件（数根组合 / 单双组合 / 大小组合）。</div>'; return;
+  }
+  const lens = [rootTokens, parityTokens, sizeTokens].filter(Boolean).map(t=>t.length);
+  const winLen = lens[0];
+  if(!lens.every(l=>l===winLen)){
+    out.innerHTML = '<div class="warn">已填写的条件，token 数量必须一致（它们代表同一个连续窗口的长度）。例如数根填 3 个数字，pattern 也要填 3 个 token。</div>';
+    return;
+  }
+  if(winLen < 2){
+    out.innerHTML = '<div class="warn">组合至少需要 2 期，请输入 2 个或以上的数根/pattern。</div>';
+    return;
+  }
 
   const prizeIdxs = prizeSel==='all' ? [0,1,2] : [parseInt(prizeSel,10)];
   const markets = marketSel==='all' ? ['万能','跑马','多多','新加坡','豪龙'] : [marketSel];
@@ -6747,47 +6771,48 @@ function runQuickQuery(){
   const nextDist = {G1:0,G2:0,G3:0,G0:0,'?':0};
 
   markets.forEach(market=>{
-    const rows = (DB[market]||[]).slice(); // assume newest-first; need chronological for "next period"
-    // Build chronological order (oldest -> newest) for correct "next period" lookup
-    const chrono = rows.slice().reverse();
-    for(let i=0;i<chrono.length;i++){
-      const r = chrono[i];
-      prizeIdxs.forEach(pi=>{
+    const rows = (DB[market]||[]).slice();
+    const chrono = rows.slice().reverse(); // oldest -> newest
+    prizeIdxs.forEach(pi=>{
+      // Build the per-period feature sequence for this market+prize+position
+      const seq = chrono.map(r=>{
         const num = pz(r.nums[pi]);
         const seg = qqExtract(num, posKey);
-        const root = digitalRootFromStr(seg);
-        if(!targetRoots.includes(root)) return;
-        if(parityPat){
-          const par = seg.split('').map(parityOfDigit).map(p=>p==='双'?'E':'O').join('');
-          if(par !== parityPat) return;
-        }
-        if(sizePat){
-          const siz = seg.split('').map(sizeOfDigit).map(s=>s==='大'?'B':'S').join('');
-          if(siz !== sizePat) return;
-        }
-        // Found a match — look at the NEXT period (i+1) same market/prize/position
+        return {date:r.date, num, seg, root:digitalRootFromStr(seg), par:qqParCode(seg), siz:qqSizeCode(seg)};
+      });
+      // Slide a window of length winLen
+      for(let i=0; i+winLen<=seq.length; i++){
+        const win = seq.slice(i, i+winLen);
+        if(rootTokens && !qqMultisetEqual(win.map(w=>w.root), rootTokens)) continue;
+        if(parityTokens && !qqMultisetEqual(win.map(w=>w.par), parityTokens)) continue;
+        if(sizeTokens && !qqMultisetEqual(win.map(w=>w.siz), sizeTokens)) continue;
+
+        // Match found — "next period" = the one right after the window
         let nextInfo = null;
-        if(i+1 < chrono.length){
-          const nr = chrono[i+1];
-          const nnum = pz(nr.nums[pi]);
-          const nseg = qqExtract(nnum, posKey);
-          const nroot = digitalRootFromStr(nseg);
-          const ngroup = qqRootGroup(nroot);
-          nextInfo = {date:nr.date, num:nnum, seg:nseg, root:nroot, group:ngroup};
+        const nextIdx = i + winLen;
+        if(nextIdx < seq.length){
+          const nx = seq[nextIdx];
+          const ngroup = qqRootGroup(nx.root);
+          nextInfo = {date:nx.date, num:nx.num, seg:nx.seg, root:nx.root, group:ngroup};
           nextDist[ngroup] = (nextDist[ngroup]||0)+1;
         }
-        hits.push({market, date:r.date, prize:pi, num, seg, root, group:qqRootGroup(root), next:nextInfo});
-      });
-    }
+        hits.push({
+          market, prize:pi,
+          start:win[0].date, end:win[winLen-1].date,
+          seq: win.map(w=>`${w.date} ${w.num}(${w.seg}→根${w.root})`),
+          next:nextInfo
+        });
+      }
+    });
   });
 
   if(!hits.length){
-    out.innerHTML = '<div class="warn">没有找到符合条件的历史记录。可以试试放宽数根范围或去掉 pattern 限制。</div>';
+    out.innerHTML = '<div class="warn">没有找到符合条件的连续组合。可以尝试换一个组合，或减少同时使用的条件数量。</div>';
     return;
   }
 
   const total = hits.filter(h=>h.next).length;
-  let summaryHtml = `<div class="st" style="margin-bottom:6px">📊 共匹配 ${hits.length} 条（其中 ${total} 条有「下一期」数据）— 下一期同位置数根所属组分布：</div>`;
+  let summaryHtml = `<div class="st" style="margin-bottom:6px">📊 共匹配 ${hits.length} 组连续 ${winLen} 期组合（其中 ${total} 组有「下一期」数据）— 下一期同位置数根所属组分布：</div>`;
   summaryHtml += '<table style="width:100%;font-size:13px;margin-bottom:14px"><tr><th>组别</th><th>次数</th><th>占比</th></tr>';
   ['G1','G2','G3','G0'].forEach(g=>{
     const c = nextDist[g]||0;
@@ -6796,16 +6821,16 @@ function runQuickQuery(){
   });
   summaryHtml += '</table>';
 
-  let listHtml = '<table style="width:100%;font-size:12px"><tr><th>市场</th><th>日期</th><th>奖项</th><th>号码</th><th>位置片段</th><th>数根</th><th>组别</th><th>下一期号码</th><th>下一期数根</th><th>下一期组别</th></tr>';
+  let listHtml = '<table style="width:100%;font-size:12px"><tr><th>市场</th><th>奖项</th><th>匹配的连续期序列</th><th>下一期号码</th><th>下一期数根</th><th>下一期组别</th></tr>';
   hits.slice(0,200).forEach(h=>{
     listHtml += `<tr>
-      <td>${h.market}</td><td>${h.date}</td><td>${prizeLabel(String(h.prize))}</td>
-      <td>${h.num}</td><td><b>${h.seg}</b></td><td>${h.root}</td><td>${h.group}</td>
+      <td>${h.market}</td><td>${prizeLabel(String(h.prize))}</td>
+      <td style="font-size:11px">${h.seq.join(' → ')}</td>
       <td>${h.next?h.next.num:'—'}</td><td>${h.next?h.next.root:'—'}</td><td>${h.next?h.next.group:'—'}</td>
     </tr>`;
   });
   listHtml += '</table>';
-  if(hits.length>200) listHtml += `<div style="color:#888;font-size:12px;margin-top:6px">仅显示前 200 条（共 ${hits.length} 条匹配）。</div>`;
+  if(hits.length>200) listHtml += `<div style="color:#888;font-size:12px;margin-top:6px">仅显示前 200 组（共 ${hits.length} 组匹配）。</div>`;
 
   out.innerHTML = summaryHtml + listHtml;
 }
