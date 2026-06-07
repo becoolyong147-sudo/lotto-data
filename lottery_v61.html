@@ -6801,19 +6801,28 @@ function runMixQuery(){
       if(!ok) continue;
 
       let nextInfo = null;
+      let repeatCount = null;
       if(i+1 < chrono.length){
         const nr = chrono[i+1];
         const nsegs = [0,1,2].map(pi=>qqExtract(pz(nr.nums[pi]), posKey));
         const nroots = nsegs.map(s=>digitalRootFromStr(s));
         // "下一期" reference uses 头奖 (prize 0) of the same position, like mode A
         const ngroup = qqRootGroup(nroots[0]);
-        nextInfo = {date:nr.date, num:pz(nr.nums[0]), seg:nsegs[0], root:nroots[0], group:ngroup};
+        nextInfo = {date:nr.date, num:pz(nr.nums[0]), seg:nsegs[0], root:nroots[0], group:ngroup, roots:nroots};
         nextDist[ngroup] = (nextDist[ngroup]||0)+1;
+        // 重复率：下一期的三个数根，跟这一期的三个数根做多重集合交集，看重复了几个
+        const pool = [...roots];
+        repeatCount = 0;
+        nroots.forEach(nr2=>{
+          const idx = pool.indexOf(nr2);
+          if(idx>=0){ repeatCount++; pool.splice(idx,1); }
+        });
+        repeatDist[repeatCount] = (repeatDist[repeatCount]||0)+1;
       }
       hits.push({
         market, date:r.date,
         nums:[0,1,2].map(pi=>pz(r.nums[pi])),
-        segs, roots, next:nextInfo
+        segs, roots, next:nextInfo, repeatCount
       });
     }
   });
