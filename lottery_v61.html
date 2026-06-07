@@ -4572,6 +4572,24 @@ function runAdvancedFilter(){
     });
   }
 
+  // 排除最近 N 个月内开过的号码
+  if(document.getElementById('flt-exclude-recent')?.checked){
+    const monthsN = parseInt(document.getElementById('flt-exclude-months').value,10)||12;
+    const allRecs = DB[market]||[];
+    if(allRecs.length){
+      const latestDate = allRecs.reduce((max,r)=> r.date>max?r.date:max, allRecs[0].date);
+      const cutoff = new Date(latestDate);
+      cutoff.setMonth(cutoff.getMonth()-monthsN);
+      const cutoffStr = cutoff.toISOString().slice(0,10);
+      // 找出「最近 N 个月内」开出过的号码集合（不限奖项）
+      const recentSet = new Set();
+      allRecs.forEach(r=>{
+        if(r.date >= cutoffStr){ r.nums.forEach(n=>{ if(n&&n!=='0000') recentSet.add(pz(n)); }); }
+      });
+      grouped = grouped.filter(g=> !recentSet.has(g.num));
+    }
+  }
+
   // Attach category to each group
   grouped.forEach(g=>{ g._cat = fltGetCategory(market, g.num); });
 
