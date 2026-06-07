@@ -6843,14 +6843,28 @@ function runMixQuery(){
   });
   summaryHtml += '</table>';
 
-  let listHtml = '<table style="width:100%;font-size:12px"><tr><th>市场</th><th>日期</th><th>头奖(根)</th><th>二奖(根)</th><th>三奖(根)</th><th>下一期头奖</th><th>下一期数根</th><th>下一期组别</th></tr>';
+  // 重复率分析：下一期是否「用回」当期同一组数根
+  const repeatTotal = hits.filter(h=>h.repeatCount!==null).length;
+  summaryHtml += `<div class="st" style="margin-bottom:6px">🔁 重复率分析 — 下一期的头/二/三奖数根，跟这一期的组合相比「用回了几个」（按数根值做多重集合比对，不分奖项位置）：</div>`;
+  summaryHtml += '<table style="width:100%;font-size:13px;margin-bottom:14px"><tr><th>用回个数</th><th>次数</th><th>占比</th><th>说明</th></tr>';
+  const repeatLabel = {0:'完全没用回（0个重复）',1:'用回 1 个',2:'用回 2 个',3:'三个全部用回'};
+  [3,2,1,0].forEach(n=>{
+    const c = repeatDist[n]||0;
+    const pct = repeatTotal ? (c/repeatTotal*100).toFixed(1)+'%' : '—';
+    summaryHtml += `<tr><td><b>${n}</b></td><td>${c}</td><td>${pct}</td><td>${repeatLabel[n]}</td></tr>`;
+  });
+  summaryHtml += '</table>';
+  summaryHtml += `<div style="font-size:12px;color:#888;margin-bottom:14px">共 ${repeatTotal} 期有下一期数据参与统计。如果「3个全部用回」或「0个用回」的占比明显偏高/偏低于随机概率，说明这个位置的数根组合可能存在惯性或回避倾向，可作参考（仍是统计不是预测）。</div>`;
+
+  let listHtml = '<table style="width:100%;font-size:12px"><tr><th>市场</th><th>日期</th><th>头奖(根)</th><th>二奖(根)</th><th>三奖(根)</th><th>下一期头/二/三(根)</th><th>用回个数</th></tr>';
   hits.slice(0,200).forEach(h=>{
+    const nextTriplet = h.next ? `${h.next.roots[0]} / ${h.next.roots[1]} / ${h.next.roots[2]}` : '—';
     listHtml += `<tr>
       <td>${h.market}</td><td>${h.date}</td>
       <td>${h.nums[0]} (${h.segs[0]}→${h.roots[0]})</td>
       <td>${h.nums[1]} (${h.segs[1]}→${h.roots[1]})</td>
       <td>${h.nums[2]} (${h.segs[2]}→${h.roots[2]})</td>
-      <td>${h.next?h.next.num:'—'}</td><td>${h.next?h.next.root:'—'}</td><td>${h.next?h.next.group:'—'}</td>
+      <td>${nextTriplet}</td><td>${h.repeatCount===null?'—':h.repeatCount}</td>
     </tr>`;
   });
   listHtml += '</table>';
