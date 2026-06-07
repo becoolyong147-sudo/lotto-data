@@ -6752,7 +6752,6 @@ function runQuickQuery(){
         const seg = qqExtract(num, posKey);
         const root = digitalRootFromStr(seg);
         if(!targetRoots.includes(root)) return;
-        if(parityPat && shape2DParity ? false : false){} // placeholder no-op (keeps lints quiet)
         if(parityPat){
           const par = seg.split('').map(parityOfDigit).map(p=>p==='双'?'E':'O').join('');
           if(par !== parityPat) return;
