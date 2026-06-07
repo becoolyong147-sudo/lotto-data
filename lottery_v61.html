@@ -6790,6 +6790,7 @@ function runMixQuery(){
   const markets = marketSel==='all' ? ['万能','跑马','多多','新加坡','豪龙'] : [marketSel];
   const hits = [];
   const nextDist = {G1:0,G2:0,G3:0,G0:0,'?':0};
+  const repeatDist = {0:0,1:0,2:0,3:0};
 
   markets.forEach(market=>{
     const chrono = (DB[market]||[]).slice().reverse(); // oldest -> newest
