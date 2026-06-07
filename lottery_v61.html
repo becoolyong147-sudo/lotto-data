@@ -10010,15 +10010,20 @@ function renderZoneMap(){
   html+=`</div></div>`;
   statsOut.innerHTML=html;
 
+  zoneRenderTop10(list);
+
   // ── 数根筛选结果 ──
-  if(selectedRoots.length===0){
+  const selectedDa=zoneGetSelectedDa();
+  if(selectedRoots.length===0 && selectedDa.length===0){
     tableOut.innerHTML=`<div class="card" style="border-style:dashed;text-align:center;color:#94a3b8;padding:24px;font-size:13px">
-      点击上方数根按钮，筛选该数根下的后3D候选号码并查看追号参考
+      点击上方数根或打数按钮，筛选候选号码并查看追号参考
     </div>`;
     return;
   }
 
-  const filtered=list.filter(r=>selectedRoots.includes(r.dRoot));
+  let filtered=list;
+  if(selectedRoots.length) filtered=filtered.filter(r=>selectedRoots.includes(r.dRoot));
+  if(selectedDa.length) filtered=filtered.filter(r=>selectedDa.includes(zoneDaShu(r.b3d)));
   filtered.sort((a,b)=>{
     const pa=(LABEL_META[a.label]||{priority:9}).priority;
     const pb=(LABEL_META[b.label]||{priority:9}).priority;
