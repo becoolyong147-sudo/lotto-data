@@ -9813,6 +9813,165 @@ function zoneGetSelectedRoots(){
   return sel;
 }
 
+// ── 打数（3位数字排列组合数）──
+function zoneDaShu(str){
+  const counts={};
+  String(str).split('').forEach(d=>counts[d]=(counts[d]||0)+1);
+  const fact=n=>n<=1?1:n*fact(n-1);
+  let denom=1;
+  Object.values(counts).forEach(c=>{ denom*=fact(c); });
+  return fact(3)/denom; // 6 / 3 / 1
+}
+function toggleZoneDa(d){
+  const el=document.getElementById('zda-'+d);
+  if(!el) return;
+  const isOn=el.dataset.on==='1';
+  el.dataset.on=isOn?'0':'1';
+  el.style.background = isOn?'#f1f5f9':'#1e3a5f';
+  el.style.color      = isOn?'#64748b':'#fff';
+  el.style.borderColor= isOn?'#e2e8f0':'#1e3a5f';
+  renderZoneMap();
+}
+function clearZoneDa(){
+  [6,3,1].forEach(d=>{
+    const el=document.getElementById('zda-'+d);
+    if(el){el.dataset.on='0';el.style.background='#f1f5f9';el.style.color='#64748b';el.style.borderColor='#e2e8f0';}
+  });
+  renderZoneMap();
+}
+function zoneGetSelectedDa(){
+  const sel=[];
+  [6,3,1].forEach(d=>{const el=document.getElementById('zda-'+d);if(el&&el.dataset.on==='1')sel.push(d);});
+  return sel;
+}
+
+// ── Top10 即将回归预警清单 ──
+function zoneRenderTop10(list){
+  const out=document.getElementById('zone-top10-out');
+  if(!out) return;
+  const selDa=zoneGetSelectedDa();
+  let pool=list.filter(r=>r.count>=5 && r.avgGap && r.cv!==null && r.cv<0.65);
+  if(selDa.length) pool=pool.filter(r=>selDa.includes(zoneDaShu(r.b3d)));
+  pool.forEach(r=>{ r._closeness = Math.abs((r.agoPeriods/r.avgGap)-1); });
+  pool.sort((a,b)=>{
+    const pa=(LABEL_META[a.label]||{priority:9}).priority;
+    const pb=(LABEL_META[b.label]||{priority:9}).priority;
+    if(pa!==pb) return pa-pb;
+    return a._closeness-b._closeness;
+  });
+  const top=pool.slice(0,10);
+  if(!top.length){ out.innerHTML=''; return; }
+  const rows=top.map((r,i)=>{
+    const lm=LABEL_META[r.label]||{color:'#64748b',bg:'#f1f5f9'};
+    const pct=Math.round((r.agoPeriods/r.avgGap)*100);
+    const rankBg=i<3?['#ffd700','#c0c0c0','#cd7f32'][i]:'#f1f5f9';
+    return `<tr style="background:${i%2===0?'#fff':'#f8fafc'}">
+      <td style="padding:6px 8px;text-align:center"><span style="background:${rankBg};padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px">#${i+1}</span></td>
+      <td style="padding:6px 8px;font-family:monospace;font-size:16px;font-weight:900;color:#1e3a5f">${r.b3d}</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700">${zoneDaShu(r.b3d)}打</td>
+      <td style="padding:6px 8px;text-align:center"><span style="background:${lm.bg};color:${lm.color};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700">${r.label}</span></td>
+      <td style="padding:6px 8px;text-align:center;font-size:12px">均 ${Math.round(r.avgGap)} 期</td>
+      <td style="padding:6px 8px;text-align:center;font-size:12px">距今 ${r.agoPeriods} 期</td>
+      <td style="padding:6px 8px;text-align:center;font-weight:700;color:#16a34a">${pct}%</td>
+    </tr>`;
+  }).join('');
+  out.innerHTML=`<div class="card" style="border:1px solid #86efac;background:#f0fdf4">
+    <div style="font-weight:800;font-size:13px;color:#166534;margin-bottom:2px">🔥 即将回归 Top 10</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">综合规律性标签 + 进度贴近100%排序 · 纯历史统计，不代表预测${selDa.length?`（已按打数 ${selDa.join('、')} 筛选）`:''}</div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px">
+    <thead><tr style="background:#f0f4fa">
+      <th style="padding:6px 8px">排名</th><th style="padding:6px 8px">后3D</th><th style="padding:6px 8px;text-align:center">打数</th>
+      <th style="padding:6px 8px;text-align:center">规律性</th><th style="padding:6px 8px;text-align:center">平均回归</th>
+      <th style="padding:6px 8px;text-align:center">距今</th><th style="padding:6px 8px;text-align:center">进度</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="margin-top:8px"><button class="btn btn-green" onclick="zoneCopyTop10()" style="padding:6px 14px;font-size:12px">📋 复制 Top10 号码（换行）</button></div>
+  </div>`;
+  ZONE_TOP10_CACHE = top.map(r=>r.b3d);
+}
+let ZONE_TOP10_CACHE=[];
+function zoneCopyTop10(){
+  if(!ZONE_TOP10_CACHE.length) return;
+  navigator.clipboard.writeText(ZONE_TOP10_CACHE.join('\n')).then(()=>{
+    const btn=event.target; btn.textContent='✅ 已复制！';
+    setTimeout(()=>{ btn.textContent='📋 复制 Top10 号码（换行）'; },1800);
+  });
+}
+
+// ── 联动：把当前条件发送到四步选号 ──
+let ZONE_HANDOFF=null;
+function zoneSendToWizard(){
+  const market=document.getElementById('zone-market').value;
+  const roots=zoneGetSelectedRoots();
+  if(!roots.length){ alert('请先在分区地图选择至少一个数根，再发送到四步选号。'); return; }
+  ZONE_HANDOFF={market, roots};
+  const wizMarket=document.getElementById('wiz-market');
+  if(wizMarket) wizMarket.value=market;
+  // 切到四步选号 tab
+  const wizTabBtn=document.querySelector('.subtab[data-tab="wizard"]');
+  if(wizTabBtn) wizTabBtn.click();
+  setTimeout(()=>{
+    const runBtn=document.querySelector('#tab-wizard button[onclick="wizRun()"]');
+    if(runBtn) runBtn.click();
+  }, 80);
+}
+
+// ── 简单回测：当前筛选候选在过去N期的命中情况 ──
+function zoneRunBacktest(){
+  const out=document.getElementById('zone-backtest-out');
+  if(!out) return;
+  const market=document.getElementById('zone-market').value;
+  const prizeVal=document.getElementById('zone-prize').value;
+  const roots=zoneGetSelectedRoots();
+  const selDa=zoneGetSelectedDa();
+  if(!roots.length && !selDa.length){ alert('请先选择至少一个数根或打数，再回测。'); return; }
+
+  const N=30;
+  const rows=(DB[market]||[]).filter(r=>r.date&&!r.date.endsWith('-00'));
+  if(rows.length<N+5){ out.innerHTML='<div class="card"><div class="warn">历史数据不足，无法回测。</div></div>'; return; }
+
+  // 候选集合：满足数根 + 打数条件的所有3位组合（静态条件，不随时间变化）
+  const candSet=new Set();
+  for(let n=0;n<1000;n++){
+    const b3d=String(n).padStart(3,'0');
+    const root=digitalRootFromStr(b3d);
+    if(roots.length && !roots.includes(root)) continue;
+    if(selDa.length && !selDa.includes(zoneDaShu(b3d))) continue;
+    candSet.add(b3d);
+  }
+
+  const prizeIdxList = prizeVal==='all'?[0,1,2]:[parseInt(prizeVal)];
+  let hitCount=0, totalChecked=0;
+  const detail=[];
+  for(let i=0;i<N;i++){
+    const draw=rows[i]; // newest-first; i=0 is most recent
+    if(!draw) break;
+    let hit=false, hitNum=null;
+    prizeIdxList.forEach(pi=>{
+      const b3d=String(draw.nums[pi]).padStart(4,'0').slice(1);
+      if(candSet.has(b3d)){ hit=true; hitNum=b3d; }
+    });
+    totalChecked++;
+    if(hit) hitCount++;
+    detail.push({date:draw.date, hit, hitNum});
+  }
+  const pct=totalChecked?Math.round(hitCount/totalChecked*100):0;
+  const detailHtml=detail.slice(0,15).map(d=>`<span style="display:inline-block;margin:2px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;
+    background:${d.hit?'#dcfce7':'#f1f5f9'};color:${d.hit?'#166534':'#94a3b8'}">${d.date.slice(5)} ${d.hit?'✓ '+d.hitNum:'—'}</span>`).join('');
+
+  out.innerHTML=`<div class="card" style="border:1px solid #bfdbfe;background:#eff6ff">
+    <div style="font-weight:800;font-size:13px;color:#1e3a5f;margin-bottom:4px">🧪 回测结果 — 候选集合在过去 ${totalChecked} 期的命中情况</div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:8px">候选条件：数根 ${roots.length?roots.join('、'):'不限'} · 打数 ${selDa.length?selDa.join('、'):'不限'} · 候选组合数 ${candSet.size} 个（占1000种的 ${(candSet.size/10).toFixed(1)}%）</div>
+    <div style="display:flex;gap:16px;margin-bottom:10px">
+      <div class="sc"><div class="val" style="color:#16a34a">${hitCount}</div><div class="lbl">命中期数</div></div>
+      <div class="sc"><div class="val">${totalChecked}</div><div class="lbl">总检查期数</div></div>
+      <div class="sc"><div class="val" style="color:#2563eb">${pct}%</div><div class="lbl">命中率</div></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">最近15期明细（绿=命中）：</div>
+    <div>${detailHtml}</div>
+    <div class="warn" style="margin-top:10px;font-size:11px">⚠️ 此回测假设「候选条件固定不变」，实际使用时数根/打数选择可能随每期数据变化而调整，结果仅供参考，不代表未来命中率。</div>
+  </div>`;
+}
+
 function renderZoneMap(){
   const statsOut=document.getElementById('zone-stats-out');
   const tableOut=document.getElementById('zone-table-out');
