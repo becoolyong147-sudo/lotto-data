@@ -4547,7 +4547,19 @@ function runAdvancedFilter(){
       </div>
     </div>`;
   }
-  const grouped=groupFilterRowsByNumber(rows);
+  let grouped=groupFilterRowsByNumber(rows);
+
+  // 开奖次数筛选：按号码在筛选范围内出现的次数过滤
+  const occNRaw=document.getElementById('flt-occ-n')?.value;
+  if(occNRaw!==''&&occNRaw!=null&&!isNaN(parseInt(occNRaw,10))){
+    const occN=parseInt(occNRaw,10);
+    const occCmp=document.getElementById('flt-occ-cmp').value;
+    grouped=grouped.filter(g=>{
+      if(occCmp==='gte')return g.count>=occN;
+      if(occCmp==='lte')return g.count<=occN;
+      return g.count===occN;
+    });
+  }
 
   // Attach category to each group
   grouped.forEach(g=>{ g._cat = fltGetCategory(market, g.num); });
