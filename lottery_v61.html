@@ -7092,6 +7092,7 @@ function runSeqQuery(){
 
   const prizeIdxs = prizeSel==='all' ? [0,1,2] : [parseInt(prizeSel,10)];
   const markets = marketSel==='all' ? ['万能','跑马','多多','新加坡','豪龙'] : [marketSel];
+  const occFilter = qqReadOccFilter();
 
   const hits = [];
   const nextDist = {G1:0,G2:0,G3:0,G0:0,'?':0};
