@@ -679,6 +679,160 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
+<!-- TAB: 化整为一走势 (新增) -->
+<div id="tab-huaz-trend" class="panel" style="padding:12px">
+  <div class="card">
+    <h3>🧩 化整为一走势 — F1/B1/F2/B2/F3/B3 观察 + 连线分析</h3>
+    <div class="warn">
+      「化整为一」把每期 4D 拆出 <b>前2位(F)</b> / <b>后2位(B)</b>，各自压缩成 1 个数（保留组 00/X1 显示为深灰，其余按数根 1/4/7→G1、2/5/8→G2、3/6/9→G3 上色）。<br>
+      下面按最近期数列出 头/二/三奖 的 F、B 化整结果走势，并自动检测「连线」——
+      <b>跨奖项</b>之间，相邻两期的化整结果数根相同（比如今天头奖 F 数根=8，下一期任意奖项的 F 或 B 数根又是 8），即视为连上一条线。
+    </div>
+    <div class="row" style="display:flex;flex-wrap:wrap;gap:14px;margin:10px 0">
+      <div class="ig"><label>市场</label>
+        <select id="hz-market" onchange="renderHuazTrend()">
+          <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option>
+        </select>
+      </div>
+      <div class="ig"><label>位置</label>
+        <select id="hz-pos" onchange="renderHuazTrend()">
+          <option value="F">前2位 (F)</option>
+          <option value="B">后2位 (B)</option>
+          <option value="both">F + B 都看</option>
+        </select>
+      </div>
+      <div class="ig"><label>期数</label>
+        <select id="hz-periods" onchange="renderHuazTrend()">
+          <option value="15">最近 15 期</option>
+          <option value="30" selected>最近 30 期</option>
+          <option value="50">最近 50 期</option>
+        </select>
+      </div>
+    </div>
+    <div id="hz-trend-out"></div>
+    <div id="hz-link-out" style="margin-top:18px"></div>
+  </div>
+</div>
+
+<script>
+// ===== 化整为一走势 + 连线分析 =====
+function hzCellHtml(twoChar){
+  const r = v26Huazheng(twoChar);
+  const key = v26HuazhengColorKey(r);
+  const colorMap = {GRAY:'#475569', G1:'#2563eb', G2:'#ca8a04', G3:'#a21caf'};
+  const bg = colorMap[key] || '#94a3b8';
+  const root = r.kept ? '—' : (parseInt(r.value,10)===10 ? 1 : parseInt(r.value,10)-9);
+  return `<span style="display:inline-block;min-width:34px;text-align:center;padding:2px 6px;margin:1px;border-radius:4px;background:${bg};color:#fff;font-size:11px" title="数根 ${root}">${r.value}</span>`;
+}
+function hzRoot(twoChar){
+  const r = v26Huazheng(twoChar);
+  if(r.kept) return null; // 保留组不参与连线判断
+  const n = parseInt(r.value,10);
+  return (n===10) ? 1 : (n-9);
+}
+
+function renderHuazTrend(){
+  const market = document.getElementById('hz-market').value;
+  const posSel = document.getElementById('hz-pos').value;
+  const periods = parseInt(document.getElementById('hz-periods').value,10);
+  const trendOut = document.getElementById('hz-trend-out');
+  const linkOut = document.getElementById('hz-link-out');
+
+  const rows = (DB[market]||[]).slice(0, periods); // newest-first
+  if(!rows.length){
+    trendOut.innerHTML = '<div class="warn">暂无数据，请先在「数据管理」输入开奖成绩</div>';
+    linkOut.innerHTML = '';
+    return;
+  }
+
+  const posKeys = posSel==='both' ? ['F','B'] : [posSel];
+  const prizeNames = ['头奖','二奖','三奖'];
+
+  // ---- 走势表（最新在最上面）----
+  let html = '<table style="width:100%;font-size:12px"><tr><th>日期</th>';
+  posKeys.forEach(pk=> prizeNames.forEach(pn=> html += `<th>${pn} ${pk}</th>`));
+  html += '</tr>';
+  rows.forEach(r=>{
+    html += `<tr><td style="white-space:nowrap">${r.date}</td>`;
+    posKeys.forEach(pk=>{
+      [0,1,2].forEach(pi=>{
+        const num = pz(r.nums[pi]);
+        const seg = (pk==='F') ? v24Front2(num) : v24Back2(num);
+        html += `<td>${hzCellHtml(seg)}</td>`;
+      });
+    });
+    html += '</tr>';
+  });
+  html += '</table>';
+  html += '<div style="font-size:11px;color:#888;margin-top:6px"><span style="background:#475569;color:#fff;padding:1px 6px;border-radius:3px">深灰</span>=保留组(00/X1) · <span style="background:#2563eb;color:#fff;padding:1px 6px;border-radius:3px">蓝</span>=G1(根1/4/7) · <span style="background:#ca8a04;color:#fff;padding:1px 6px;border-radius:3px">黄</span>=G2(根2/5/8) · <span style="background:#a21caf;color:#fff;padding:1px 6px;border-radius:3px">紫</span>=G3(根3/6/9)</div>';
+  trendOut.innerHTML = html;
+
+  // ---- 连线分析：相邻两期之间，跨奖项 + 跨F/B位置，化整结果数根相同 ----
+  // chrono: oldest -> newest，方便按「上一期 → 下一期」配对
+  const chrono = rows.slice().reverse();
+  const links = [];
+  for(let i=0;i+1<chrono.length;i++){
+    const cur = chrono[i], nxt = chrono[i+1];
+    // 收集 cur 与 nxt 各自的 {prize, pos, root, value} 列表
+    const collect = (rec)=>{
+      const list = [];
+      [0,1,2].forEach(pi=>{
+        const num = pz(rec.nums[pi]);
+        posKeys.forEach(pk=>{
+          const seg = (pk==='F') ? v24Front2(num) : v24Back2(num);
+          const root = hzRoot(seg);
+          if(root!==null) list.push({prize:pi, pos:pk, seg, root});
+        });
+      });
+      return list;
+    };
+    const curList = collect(cur), nxtList = collect(nxt);
+    curList.forEach(a=> nxtList.forEach(b=>{
+      if(a.root === b.root){
+        links.push({
+          fromDate:cur.date, toDate:nxt.date,
+          a, b,
+          cross: (a.prize!==b.prize || a.pos!==b.pos) // 是否跨奖项/跨位置
+        });
+      }
+    }));
+  }
+
+  const crossLinks = links.filter(l=>l.cross);
+  let lhtml = `<div class="st" style="margin-bottom:6px">🔗 连线检测（相邻两期之间，化整结果数根相同即算连线；下方只统计「跨奖项或跨F/B位置」的连线，更有参考意义）</div>`;
+  lhtml += `<div style="font-size:12px;color:#475569;margin-bottom:8px">最近 ${rows.length} 期里共发现 <b>${crossLinks.length}</b> 条跨奖项/跨位置连线（同根重复）。</div>`;
+  if(crossLinks.length){
+    lhtml += '<table style="width:100%;font-size:12px"><tr><th>上一期</th><th>来源</th><th>下一期</th><th>去向</th><th>共同数根</th></tr>';
+    crossLinks.slice().reverse().slice(0,100).forEach(l=>{
+      lhtml += `<tr>
+        <td style="white-space:nowrap">${l.fromDate}</td>
+        <td>${prizeNames[l.a.prize]} ${l.a.pos} (${l.a.seg})</td>
+        <td style="white-space:nowrap">${l.toDate}</td>
+        <td>${prizeNames[l.b.prize]} ${l.b.pos} (${l.b.seg})</td>
+        <td><b>${l.a.root}</b></td>
+      </tr>`;
+    });
+    lhtml += '</table>';
+    if(crossLinks.length>100) lhtml += `<div style="color:#888;font-size:12px;margin-top:6px">仅显示最近 100 条（共 ${crossLinks.length} 条）。</div>`;
+  } else {
+    lhtml += '<div class="warn">这个范围里没有发现跨奖项/跨位置的连线。可以试试增加期数或换个位置看看。</div>';
+  }
+  linkOut.innerHTML = lhtml;
+}
+
+// 首次进入 tab 时渲染
+(function(){
+  const origSwitch = window.switchSubtab;
+  if(typeof origSwitch === 'function'){
+    window.switchSubtab = function(el){
+      origSwitch(el);
+      if(el && el.dataset && el.dataset.tab === 'huaz-trend') renderHuazTrend();
+    };
+  }
+})();
+setTimeout(()=>{ if(document.getElementById('hz-trend-out')) renderHuazTrend(); }, 350);
+</script>
+
 <!-- TAB: 一键总览 (V53 新增) -->
 <div id="tab-overview" class="panel active">
 <div class="card" style="background:linear-gradient(135deg,#fef9e7 0%,#fff7ed 100%);border:2px solid #d4a960">
