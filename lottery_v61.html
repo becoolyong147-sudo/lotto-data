@@ -6661,6 +6661,13 @@ function doBacktest(){
     场景：当前这一期某个位置的数根落在卡点（比如前2D数根=4/5/6，分别属于 G1/G2/G3，难以判断该选哪个），
     输入这些特征，系统会从历史成绩里找出符合的期数，并统计「下一期」同位置数根落在 G1/G2/G3 的次数分布，给你做参考（纯统计，不预测）。
   </div>
+  <div class="ig" style="margin-top:8px">
+    <label>查询模式</label>
+    <select id="qq-mode" onchange="qqToggleMode()">
+      <option value="seq">A · 跨连续期组合（同一奖项，连续 N 期数根/pattern 组合）</option>
+      <option value="mix">B · 同一期头/二/三奖混合组合（如头奖根5、二奖根6、三奖根4）</option>
+    </select>
+  </div>
   <div class="row" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px">
     <div class="ig"><label>市场</label>
       <select id="qq-market">
