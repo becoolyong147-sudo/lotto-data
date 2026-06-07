@@ -573,8 +573,23 @@ tr:hover td{background:#fafaf5}
       <button onclick="clearZoneRoots()" style="padding:4px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:11px;color:#64748b">清空</button>
     </div>
   </div>
+  <div style="margin-top:10px">
+    <div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:6px">按「打数」筛选后3D（3位数字排列组合数 · 可多选）</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <span id="zda-6" data-on="0" onclick="toggleZoneDa(6)" style="padding:5px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;background:#f1f5f9;color:#64748b;border:2px solid #e2e8f0;transition:all .15s">6打（全不同）</span>
+      <span id="zda-3" data-on="0" onclick="toggleZoneDa(3)" style="padding:5px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;background:#f1f5f9;color:#64748b;border:2px solid #e2e8f0;transition:all .15s">3打（一对相同）</span>
+      <span id="zda-1" data-on="0" onclick="toggleZoneDa(1)" style="padding:5px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:700;background:#f1f5f9;color:#64748b;border:2px solid #e2e8f0;transition:all .15s">1打（豹子）</span>
+      <button onclick="clearZoneDa()" style="padding:4px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:11px;color:#64748b">清空</button>
+    </div>
+  </div>
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-green" onclick="zoneSendToWizard()" style="padding:7px 16px;font-size:12px">⚡ 把当前筛选条件发送到四步选号</button>
+    <button class="btn" onclick="zoneRunBacktest()" style="padding:7px 16px;font-size:12px">🧪 回测当前筛选过去N期命中率</button>
+  </div>
 </div>
 <div id="zone-search-result"></div>
+<div id="zone-backtest-out"></div>
+<div id="zone-top10-out"></div>
 <div id="zone-stats-out"></div>
 <div id="zone-table-out"></div>
 </div>
