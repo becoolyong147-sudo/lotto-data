@@ -4436,6 +4436,52 @@ function b3dBuildZoneMap(market){
   return map;
 }
 
+// 验证「近 N 个月开过的号码，是否真的很少在 N 个月内重复出现」
+function runRepeatRateCheck(){
+  const out = document.getElementById('flt-repeat-check-out');
+  const market = document.getElementById('flt-market').value;
+  const monthsN = parseInt(document.getElementById('flt-exclude-months').value,10)||12;
+  const recs = (DB[market]||[]).slice().reverse(); // oldest -> newest
+  if(recs.length<2){ out.innerHTML='<div class="warn">历史数据不足，无法验证。</div>'; return; }
+
+  // 把每个号码的所有出现日期收集起来（按市场，不分奖项）
+  const occByNum = {}; // num -> [dates...] (chronological)
+  recs.forEach(r=>{
+    r.nums.forEach(n=>{
+      if(!n||n==='0000') return;
+      const num = pz(n);
+      (occByNum[num] = occByNum[num]||[]).push(r.date);
+    });
+  });
+
+  const addMonths = (dateStr, n) => { const d=new Date(dateStr); d.setMonth(d.getMonth()+n); return d.toISOString().slice(0,10); };
+
+  let totalOcc=0, repeated=0;
+  Object.entries(occByNum).forEach(([num, dates])=>{
+    for(let i=0;i<dates.length;i++){
+      totalOcc++;
+      const windowEnd = addMonths(dates[i], monthsN);
+      // 是否在 (dates[i], windowEnd] 内还有该号码的下一次出现
+      if(dates.slice(i+1).some(d=> d>dates[i] && d<=windowEnd)) repeated++;
+    }
+  });
+  const rate = totalOcc ? (repeated/totalOcc*100).toFixed(2) : '0.00';
+  const norepeat = totalOcc ? (100-parseFloat(rate)).toFixed(2) : '0.00';
+
+  out.innerHTML = `
+    <div class="st" style="margin-bottom:6px">📊 验证结果（市场：${market} · 窗口：${monthsN} 个月）</div>
+    <table style="width:100%;font-size:13px;margin-bottom:8px">
+      <tr><th>统计的开奖次数</th><th>其中在 ${monthsN} 个月内又重复出现</th><th>重复率</th><th>不重复率</th></tr>
+      <tr><td>${totalOcc}</td><td>${repeated}</td><td><b style="color:#dc2626">${rate}%</b></td><td><b style="color:#16a34a">${norepeat}%</b></td></tr>
+    </table>
+    <div class="warn" style="font-size:12px">
+      解读：「不重复率 ${norepeat}%」就是"一个号码开出后，${monthsN} 个月内没有再开回"的实际比例。<br>
+      <b>但要注意</b>：4D 一共有 10000 个可能号码，每期只开 3 个奖项，纯随机情况下任何号码本来就很少在短期内重复——
+      所以这个"高不重复率"很可能是数字基数大造成的天然现象，<u>不一定代表"开过就不会再开"是规律</u>。
+      可以换不同市场、不同窗口长度（比如改成 3 个月、6 个月）多测几次，看数值是否稳定，再决定要不要依赖这个去排除号码。
+    </div>`;
+}
+
 function runAdvancedFilter(){
   const market=document.getElementById('flt-market').value;
   _b3dZoneCache = {}; // 每次筛选清空缓存，保证数据最新
