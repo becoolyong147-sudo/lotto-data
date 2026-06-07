@@ -6758,7 +6758,99 @@ function qqMultisetEqual(a,b){
 function qqParCode(seg){ return seg.split('').map(parityOfDigit).map(p=>p==='双'?'E':'O').join(''); }
 function qqSizeCode(seg){ return seg.split('').map(sizeOfDigit).map(s=>s==='大'?'B':'S').join(''); }
 
+function qqToggleMode(){
+  const mode = document.getElementById('qq-mode').value;
+  document.getElementById('qq-mode-seq').style.display = mode==='seq' ? '' : 'none';
+  document.getElementById('qq-mode-mix').style.display = mode==='mix' ? '' : 'none';
+  document.getElementById('qq-prize-wrap').style.display = mode==='seq' ? '' : 'none';
+}
+
 function runQuickQuery(){
+  const mode = document.getElementById('qq-mode').value;
+  if(mode==='mix') return runMixQuery();
+  return runSeqQuery();
+}
+
+// ===== Mode B: 同一期 头/二/三奖 数根混合组合 =====
+function runMixQuery(){
+  const out = document.getElementById('qq-result');
+  const marketSel = document.getElementById('qq-market').value;
+  const posKey = document.getElementById('qq-pos').value;
+  const r0raw = document.getElementById('qq-mix-r0').value.trim();
+  const r1raw = document.getElementById('qq-mix-r1').value.trim();
+  const r2raw = document.getElementById('qq-mix-r2').value.trim();
+  const targets = [r0raw, r1raw, r2raw].map(v=> v==='' ? null : parseInt(v,10));
+  if(targets.every(v=>v===null)){
+    out.innerHTML = '<div class="warn">请至少填写头/二/三奖里的一个目标数根。</div>'; return;
+  }
+  if(targets.some(v=>v!==null && (isNaN(v)||v<0||v>9))){
+    out.innerHTML = '<div class="warn">数根请输入 0-9 的单个数字。</div>'; return;
+  }
+
+  const markets = marketSel==='all' ? ['万能','跑马','多多','新加坡','豪龙'] : [marketSel];
+  const hits = [];
+  const nextDist = {G1:0,G2:0,G3:0,G0:0,'?':0};
+
+  markets.forEach(market=>{
+    const chrono = (DB[market]||[]).slice().reverse(); // oldest -> newest
+    for(let i=0;i<chrono.length;i++){
+      const r = chrono[i];
+      const segs = [0,1,2].map(pi=>qqExtract(pz(r.nums[pi]), posKey));
+      const roots = segs.map(s=>digitalRootFromStr(s));
+      const ok = targets.every((t,idx)=> t===null || roots[idx]===t);
+      if(!ok) continue;
+
+      let nextInfo = null;
+      if(i+1 < chrono.length){
+        const nr = chrono[i+1];
+        const nsegs = [0,1,2].map(pi=>qqExtract(pz(nr.nums[pi]), posKey));
+        const nroots = nsegs.map(s=>digitalRootFromStr(s));
+        // "下一期" reference uses 头奖 (prize 0) of the same position, like mode A
+        const ngroup = qqRootGroup(nroots[0]);
+        nextInfo = {date:nr.date, num:pz(nr.nums[0]), seg:nsegs[0], root:nroots[0], group:ngroup};
+        nextDist[ngroup] = (nextDist[ngroup]||0)+1;
+      }
+      hits.push({
+        market, date:r.date,
+        nums:[0,1,2].map(pi=>pz(r.nums[pi])),
+        segs, roots, next:nextInfo
+      });
+    }
+  });
+
+  if(!hits.length){
+    out.innerHTML = '<div class="warn">没有找到符合条件的历史记录。试试只填一两个奖项的数根，放宽条件。</div>';
+    return;
+  }
+
+  const total = hits.filter(h=>h.next).length;
+  let summaryHtml = `<div class="st" style="margin-bottom:6px">📊 共匹配 ${hits.length} 期（其中 ${total} 期有「下一期」数据）— 下一期头奖同位置数根所属组分布：</div>`;
+  summaryHtml += '<table style="width:100%;font-size:13px;margin-bottom:14px"><tr><th>组别</th><th>次数</th><th>占比</th></tr>';
+  ['G1','G2','G3','G0'].forEach(g=>{
+    const c = nextDist[g]||0;
+    const pct = total ? (c/total*100).toFixed(1)+'%' : '—';
+    summaryHtml += `<tr><td><b>${g}</b></td><td>${c}</td><td>${pct}</td></tr>`;
+  });
+  summaryHtml += '</table>';
+
+  let listHtml = '<table style="width:100%;font-size:12px"><tr><th>市场</th><th>日期</th><th>头奖(根)</th><th>二奖(根)</th><th>三奖(根)</th><th>下一期头奖</th><th>下一期数根</th><th>下一期组别</th></tr>';
+  hits.slice(0,200).forEach(h=>{
+    listHtml += `<tr>
+      <td>${h.market}</td><td>${h.date}</td>
+      <td>${h.nums[0]} (${h.segs[0]}→${h.roots[0]})</td>
+      <td>${h.nums[1]} (${h.segs[1]}→${h.roots[1]})</td>
+      <td>${h.nums[2]} (${h.segs[2]}→${h.roots[2]})</td>
+      <td>${h.next?h.next.num:'—'}</td><td>${h.next?h.next.root:'—'}</td><td>${h.next?h.next.group:'—'}</td>
+    </tr>`;
+  });
+  listHtml += '</table>';
+  if(hits.length>200) listHtml += `<div style="color:#888;font-size:12px;margin-top:6px">仅显示前 200 期（共 ${hits.length} 期匹配）。</div>`;
+
+  out.innerHTML = summaryHtml + listHtml;
+}
+
+// ===== Mode A: 跨连续期组合 (原逻辑) =====
+function runSeqQuery(){
   const out = document.getElementById('qq-result');
   const marketSel = document.getElementById('qq-market').value;
   const prizeSel = document.getElementById('qq-prize').value;
