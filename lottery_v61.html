@@ -7113,6 +7113,12 @@ function runSeqQuery(){
         if(rootTokens && !qqMultisetEqual(win.map(w=>w.root), rootTokens)) continue;
         if(parityTokens && !qqMultisetEqual(win.map(w=>w.par), parityTokens)) continue;
         if(sizeTokens && !qqMultisetEqual(win.map(w=>w.siz), sizeTokens)) continue;
+        // 开奖次数筛选：按窗口最后一期的号码在该市场+奖位历史上的总出现次数比对
+        if(occFilter){
+          const lastNum = win[winLen-1].num;
+          const occCount = qqOccurrenceCount(market, pi, lastNum);
+          if(!qqOccPass(occFilter, occCount)) continue;
+        }
 
         // Match found — "next period" = the one right after the window
         let nextInfo = null;
