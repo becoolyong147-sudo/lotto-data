@@ -10033,7 +10033,7 @@ function renderZoneMap(){
   });
 
   let thtml=`<div class="card">
-  <div style="font-weight:700;font-size:13px;color:#1e3a5f;margin-bottom:2px">🔍 数根 ${selectedRoots.join('、')} — 共 ${filtered.length} 个后3D组合</div>
+  <div style="font-weight:700;font-size:13px;color:#1e3a5f;margin-bottom:2px">🔍 ${selectedRoots.length?'数根 '+selectedRoots.join('、'):''}${selectedRoots.length&&selectedDa.length?' · ':''}${selectedDa.length?'打数 '+selectedDa.join('、'):''} — 共 ${filtered.length} 个后3D组合</div>
   <div style="font-size:11px;color:#64748b;margin-bottom:10px">按追号参考排序 · ⭐规律活跃优先 · 进度条中线=平均回归点</div>
   <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:580px">
   <thead><tr style="background:#f0f4fa">
