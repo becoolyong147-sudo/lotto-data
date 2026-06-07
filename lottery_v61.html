@@ -9647,12 +9647,20 @@ function wizCopy(){
     setTimeout(()=>{ btn.textContent='📋 复制全部（空格）'; btn.style.background=''; },1800);
   });
 }
-function wizCopyByDigit(d){
-  const nums = (WIZ.finalCandidates||[]).filter(c=>c.first===d).map(c=>c.num);
+function wizDaShu(numStr){
+  const counts={};
+  String(numStr).split('').forEach(d=>counts[d]=(counts[d]||0)+1);
+  const fact=n=>n<=1?1:n*fact(n-1);
+  let denom=1;
+  Object.values(counts).forEach(c=>{ denom*=fact(c); });
+  return fact(4)/denom;
+}
+function wizCopyByDa(da){
+  const nums = (WIZ.finalCandidates||[]).filter(c=>wizDaShu(c.num)===da).map(c=>c.num);
   const status = document.getElementById('wiz-bydigit-status');
-  if(!nums.length){ if(status) status.textContent = `没有 ${d}打 的号码`; return; }
+  if(!nums.length){ if(status) status.textContent = `没有 ${da}打 的号码`; return; }
   navigator.clipboard.writeText(nums.join('\n')).then(()=>{
-    if(status) status.textContent = `✅ 已复制 ${d}打 共 ${nums.length} 个号码：${nums.join(' ')}`;
+    if(status) status.textContent = `✅ 已复制 ${da}打 共 ${nums.length} 个号码：${nums.join(' ')}`;
   });
 }
 function wizCopyNewline(){
