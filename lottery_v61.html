@@ -715,7 +715,131 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
+<!-- 大小单双走势 panel -->
+<div id="tab-ptt-trend" class="panel" style="padding:12px">
+  <div class="card">
+    <h3>🎨 头二三奖 大小/单双 走势 Pattern 图</h3>
+    <div class="warn">每期头奖、二奖、三奖的四位数大小（蓝=大 橙=小）和单双（紫=单 绿=双）排列走势。可筛选 pattern 高亮匹配期。</div>
+    <div class="row" style="display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;align-items:flex-end">
+      <div class="ig"><label>市场</label>
+        <select id="pt-market" onchange="renderPatternTrend()">
+          <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option>
+        </select>
+      </div>
+      <div class="ig"><label>期数</label>
+        <select id="pt-periods" onchange="renderPatternTrend()">
+          <option value="20">最近 20 期</option>
+          <option value="50" selected>最近 50 期</option>
+          <option value="100">最近 100 期</option>
+        </select>
+      </div>
+      <div class="ig"><label>显示模式</label>
+        <select id="pt-mode" onchange="renderPatternTrend()">
+          <option value="both">大小 + 单双</option>
+          <option value="size">仅大小</option>
+          <option value="par">仅单双</option>
+        </select>
+      </div>
+      <div class="ig" style="flex:1;min-width:200px"><label>高亮 Pattern（支持组合，/ 分隔）</label>
+        <input type="text" id="pt-highlight" placeholder="如 大单小双xx / 单单单双" oninput="renderPatternTrend()" style="width:100%">
+      </div>
+    </div>
+    <div id="pt-legend" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;font-size:11px">
+      <span style="background:#2563eb;color:#fff;padding:2px 8px;border-radius:4px">大</span>
+      <span style="background:#ea580c;color:#fff;padding:2px 8px;border-radius:4px">小</span>
+      <span style="background:#7c3aed;color:#fff;padding:2px 8px;border-radius:4px">单</span>
+      <span style="background:#16a34a;color:#fff;padding:2px 8px;border-radius:4px">双</span>
+      <span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:4px">大单(5,7,9)</span>
+      <span style="background:#0891b2;color:#fff;padding:2px 8px;border-radius:4px">大双(6,8)</span>
+      <span style="background:#be185d;color:#fff;padding:2px 8px;border-radius:4px">小单(1,3)</span>
+      <span style="background:#4d7c0f;color:#fff;padding:2px 8px;border-radius:4px">小双(0,2,4)</span>
+    </div>
+    <div id="pt-out" style="overflow-x:auto"></div>
+  </div>
+</div>
+
 <script>
+// ===== 大小单双走势 Pattern 图 =====
+function ptCellHtml(digit, mode){
+  const s=digitSize(digit), p=digitOddEven(digit);
+  const cells=[];
+  if(mode==='both'||mode==='size'){
+    const bg=s==='大'?'#2563eb':'#ea580c';
+    cells.push(`<span style="display:inline-block;width:18px;text-align:center;border-radius:3px;background:${bg};color:#fff;font-size:10px;line-height:16px">${s}</span>`);
+  }
+  if(mode==='both'||mode==='par'){
+    const bg=p==='单'?'#7c3aed':'#16a34a';
+    cells.push(`<span style="display:inline-block;width:18px;text-align:center;border-radius:3px;background:${bg};color:#fff;font-size:10px;line-height:16px">${p}</span>`);
+  }
+  return cells.join('<span style="font-size:8px;color:#999">·</span>');
+}
+function ptNumHtml(num, mode){
+  if(!num||num==='0000') return '<span style="color:#ccc;font-size:10px">—</span>';
+  return num.split('').map(d=>ptCellHtml(d,mode)).join('');
+}
+function renderPatternTrend(){
+  const market=document.getElementById('pt-market').value;
+  const periods=parseInt(document.getElementById('pt-periods').value,10);
+  const mode=document.getElementById('pt-mode').value;
+  const hlRaw=(document.getElementById('pt-highlight').value||'').split(/[\/,，]+/).map(s=>s.trim()).filter(Boolean);
+  const out=document.getElementById('pt-out');
+  if(!out)return;
+  const rows=(DB[market]||[]).slice(0,periods);
+  if(!rows.length){out.innerHTML='<div class="warn">暂无数据，请先加载 slim_data.json</div>';return;}
+
+  // Pattern stat summary
+  const sizeCount={}, parCount={};
+  rows.forEach(r=>{
+    [0,1,2].forEach(pi=>{
+      const num=r.nums&&pz(r.nums[pi]);
+      if(!num||num==='0000')return;
+      const sk=num.split('').map(d=>digitSize(d)).join('');
+      const pk=num.split('').map(d=>digitOddEven(d)).join('');
+      sizeCount[sk]=(sizeCount[sk]||0)+1;
+      parCount[pk]=(parCount[pk]||0)+1;
+    });
+  });
+  const topSize=Object.entries(sizeCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topPar=Object.entries(parCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  let html=`<div style="margin-bottom:10px;display:flex;gap:20px;flex-wrap:wrap">
+    <div><b style="font-size:11px;color:#1e3a5f">大小 Top 5：</b> ${topSize.map(([k,v])=>`<span class="bo" style="margin:2px">${k} <b>${v}</b>次</span>`).join(' ')}</div>
+    <div><b style="font-size:11px;color:#1e3a5f">单双 Top 5：</b> ${topPar.map(([k,v])=>`<span class="bp" style="margin:2px">${k} <b>${v}</b>次</span>`).join(' ')}</div>
+  </div>`;
+
+  html+=`<table style="border-collapse:collapse;font-size:11px;min-width:600px">
+    <thead><tr style="background:#1e3a5f;color:#fff">
+      <th style="padding:5px 8px;white-space:nowrap">期号</th>
+      <th style="padding:5px 8px;white-space:nowrap">日期</th>
+      <th style="padding:5px 16px;text-align:center">🥇 头奖</th>
+      <th style="padding:5px 8px;text-align:center;font-size:9px;color:#ccc">大小/单双</th>
+      <th style="padding:5px 16px;text-align:center">🥈 二奖</th>
+      <th style="padding:5px 8px;text-align:center;font-size:9px;color:#ccc">大小/单双</th>
+      <th style="padding:5px 16px;text-align:center">🥉 三奖</th>
+      <th style="padding:5px 8px;text-align:center;font-size:9px;color:#ccc">大小/单双</th>
+    </tr></thead><tbody>`;
+
+  rows.forEach((r,idx)=>{
+    const nums=[pz(r.nums&&r.nums[0]),pz(r.nums&&r.nums[1]),pz(r.nums&&r.nums[2])];
+    const isHL=hlRaw.length&&nums.some(n=>n&&n!=='0000'&&hlRaw.some(p=>matchPattern(n,p)));
+    const rowBg=isHL?'background:#fffbeb;border-left:3px solid #f59e0b':(idx%2===0?'background:#f8fafc':'background:#fff');
+    html+=`<tr style="${rowBg}">
+      <td style="padding:4px 8px;font-family:monospace;white-space:nowrap">${r.draw||''}</td>
+      <td style="padding:4px 8px;color:#64748b;white-space:nowrap">${(r.date||'').slice(0,10)}</td>`;
+    nums.forEach(num=>{
+      const hlNum=hlRaw.length&&num&&num!=='0000'&&hlRaw.some(p=>matchPattern(num,p));
+      html+=`<td style="padding:4px 10px;text-align:center;font-family:monospace;font-weight:700;font-size:13px${hlNum?';color:#b45309':''}">${num&&num!=='0000'?num:'—'}</td>
+      <td style="padding:4px 6px;text-align:center">${ptNumHtml(num,mode)}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+  if(hlRaw.length){
+    const matchCount=rows.filter(r=>[0,1,2].some(pi=>{const n=pz(r.nums&&r.nums[pi]);return n&&n!=='0000'&&hlRaw.some(p=>matchPattern(n,p));})).length;
+    html=`<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:12px">🔍 高亮匹配：共 <b>${matchCount}</b> 期（共 ${rows.length} 期）含有该 pattern</div>`+html;
+  }
+  out.innerHTML=html;
+}
 // ===== 化整为一走势 + 连线分析 =====
 function hzCellHtml(twoChar){
   const r = v26Huazheng(twoChar);
