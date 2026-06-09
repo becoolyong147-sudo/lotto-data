@@ -10373,6 +10373,30 @@ function wizCopyNewline(){
   });
 }
 
+function wizAddToPool(){
+  if(!WIZ.finalCandidates||!WIZ.finalCandidates.length){ showToast('没有候选号码'); return; }
+  const market = WIZ.market;
+  const nums = WIZ.finalCandidates.map(c=>c.num);
+  const pool = cpLoad();
+  if(!pool[market]) pool[market] = [];
+  let added = 0;
+  for(const n of nums){
+    if(!pool[market].some(x=>x.num===n)){
+      pool[market].push({num:n, addedAt:new Date().toISOString().slice(0,10)});
+      added++;
+    }
+  }
+  cpSave(pool);
+  cpRender();
+  // Update filter nums so cpAddFromFilter also works
+  window._lastFilterNums = nums;
+  showToast(`✅ 已加入候选清单 ${added} 个号码（${market}）`);
+  // Visual feedback on button
+  const btn = event.target;
+  btn.textContent = '✅ 已加入！'; btn.style.background='#166534';
+  setTimeout(()=>{ btn.textContent='📌 加入候选清单'; btn.style.background='#7c3aed'; }, 2000);
+}
+
 // Auto-render when tab opens
 (function(){
   const origSwitch = window.showTabPanel;
