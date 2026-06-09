@@ -3330,8 +3330,59 @@ function ovRender(){
       `;
     });
 
+    // ===== Block C: 工作台摘要 (v62) =====
+    try {
+      const plan = v21BuildPlan(market, 'all', 20);
+      if(plan){
+        const overlapNums = plan.overlap.slice(0,10);
+        const safeTop = plan.safe.slice(0,5);
+        const allNums = [...new Set([...overlapNums.map(c=>c.num), ...safeTop.map(c=>c.num)])];
+        const signalColor = plan.signalScore>=75?'#16a34a':plan.signalScore>=50?'#d97706':'#dc2626';
+        const overlapChips = overlapNums.length
+          ? overlapNums.map(c=>`<span style="display:inline-block;margin:2px;background:#1e3a5f;color:#fff;padding:3px 9px;border-radius:5px;font-family:monospace;font-size:13px;font-weight:700;cursor:pointer" onclick="document.getElementById('qs-num').value='${c.num}';switchScene('decision',document.querySelector('[onclick*=decision]'));switchSubtab(document.querySelector('[data-tab=workbench]'));quickSearch()">${c.num}</span>`).join('')
+          : '<span style="color:#888;font-size:12px">暂无重叠（保守∩激进）</span>';
+        html += `
+          <div class="card" style="background:linear-gradient(135deg,#f0f4fa 0%,#e8f0fe 100%);border:2px solid #3b82f6;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:15px;font-weight:800;color:#1e3a5f">🧭 工作台摘要 — ${market}</span>
+              <span style="background:${signalColor};color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700">观察指数 ${plan.signalScore}%</span>
+              <span style="margin-left:auto;font-size:11px;color:#64748b">点数均值 ${plan.avg} · ${plan.trend}</span>
+            </div>
+            <div style="margin-bottom:8px">
+              <span style="font-size:11px;font-weight:700;color:#1e3a5f">🎯 保守∩激进重叠（优先关注）</span><br>
+              <div style="margin-top:4px">${overlapChips}</div>
+            </div>
+            ${plan.risk.length ? `<div style="background:#fee2e2;border-radius:6px;padding:7px 10px;font-size:11px;color:#dc2626;margin-bottom:8px"><b>⚠️ 风险：</b>${plan.risk.join(' · ')}</div>` : ''}
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+              <button class="btn btn-green" onclick="ovAddWorkbenchToPool('${market}')" style="padding:6px 14px;font-size:11px">📋 加入候选清单（重叠号码）</button>
+              <button class="btn" onclick="v21RenderWorkbench();switchScene('decision',document.querySelector('[onclick*=decision]'));switchSubtab(document.querySelector('[data-tab=workbench]'))" style="padding:6px 14px;font-size:11px">🧭 打开完整工作台</button>
+            </div>
+          </div>`;
+      }
+    } catch(e){ console.warn('ovRender workbench block failed:', e); }
+
     out.innerHTML = html;
   }, 30);
+}
+
+function ovAddWorkbenchToPool(market){
+  try {
+    const plan = v21BuildPlan(market, 'all', 20);
+    if(!plan){ alert('工作台数据不足'); return; }
+    const nums = [...new Set([...plan.overlap.map(c=>c.num), ...plan.safe.slice(0,5).map(c=>c.num)])];
+    const pool = cpLoad();
+    if(!pool[market]) pool[market] = [];
+    let added = 0;
+    for(const n of nums){
+      if(!pool[market].some(x=>x.num===n)){
+        pool[market].push({num:n, addedAt:new Date().toISOString().slice(0,10)});
+        added++;
+      }
+    }
+    cpSave(pool);
+    cpRender();
+    showToast(`✅ 已加入 ${added} 个号码到候选清单（${market}）`);
+  } catch(e){ alert('加入失败：' + e.message); }
 }
 
 function ovToggle(blockId){
