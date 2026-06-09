@@ -1293,7 +1293,7 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
 
   <!-- Row 6: 形态 + 包含数字 -->
   <div style="margin-top:8px" class="g2">
-    <div class="ig"><label>形态条件（可多个，用 / 分开）</label><input type="text" id="flt-patterns" placeholder="如 双双xx / x双小x / 小xx单"></div>
+    <div class="ig"><label>形态条件（可多个，用 / 分开；支持组合如 大单小双xx）</label><input type="text" id="flt-patterns" placeholder="如 双双xx / 大单小双xx / 小xx单"></div>
     <div class="ig"><label>号码包含数字（如 135 = 含1或3或5）</label><input type="text" id="flt-contains-digit" placeholder="如 13 = 含1或3" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
   </div>
 
