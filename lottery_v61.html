@@ -4097,17 +4097,50 @@ function digitSize(d){return parseInt(d)<=4?'小':'大';}
 function digitOddEven(d){return parseInt(d)%2===0?'双':'单';}
 function normalizePatternToken(token){
   token=(token||'').trim();
-  return token.replace(/\s+/g,'').replace(/[X＊*]/gi,'x');
+  return token.replace(/[X＊*]/gi,'x');
+}
+// parsePatternTokens: split a pattern string into exactly 4 position tokens
+// Supports: space-separated ("大单 小双 x 单"), 4-char single ("单单单双"),
+//           8-char combined no-space ("大单小双大单小双"), or mixed
+function parsePatternTokens(raw){
+  raw=(raw||'').trim().replace(/[X＊*]/gi,'x');
+  if(!raw)return null;
+  // Try space-separated first
+  const parts=raw.split(/\s+/).filter(Boolean);
+  if(parts.length===4)return parts;
+  // Try to auto-split: each char is 大小单双x, combined tokens are 2 CJK chars
+  const tokens=[];
+  let i=0;
+  while(i<raw.length&&tokens.length<4){
+    const c=raw[i];
+    if(c==='x'){tokens.push('x');i++;}
+    else if(/[大小单双]/.test(c)){
+      // peek next
+      const n=raw[i+1]||'';
+      if(/[大小单双]/.test(n)&&c!==n){
+        // valid 2-char combo (大单,大双,小单,小双)
+        const combo=c+n;
+        const validCombos=['大单','大双','小单','小双'];
+        if(validCombos.includes(combo)){tokens.push(combo);i+=2;}
+        else{tokens.push(c);i++;}
+      } else {tokens.push(c);i++;}
+    } else {i++;} // skip unknown
+  }
+  if(tokens.length===4)return tokens;
+  return null;
 }
 function matchPattern(num,pattern){
-  pattern=normalizePatternToken(pattern);
-  if(!pattern)return true;
-  if(pattern.length!==4)return false;
+  const tokens=parsePatternTokens(normalizePatternToken(pattern));
+  if(!tokens)return true;
   for(let i=0;i<4;i++){
-    const p=pattern[i],d=num[i];
-    if(p==='x')continue;
-    if((p==='大'||p==='小')&&digitSize(d)!==p)return false;
-    if((p==='单'||p==='双')&&digitOddEven(d)!==p)return false;
+    const t=tokens[i],d=num[i];
+    if(t==='x')continue;
+    if(t==='大'||t==='小'){if(digitSize(d)!==t)return false;}
+    else if(t==='单'||t==='双'){if(digitOddEven(d)!==t)return false;}
+    else if(t==='大单'){if(digitSize(d)!=='大'||digitOddEven(d)!=='单')return false;}
+    else if(t==='大双'){if(digitSize(d)!=='大'||digitOddEven(d)!=='双')return false;}
+    else if(t==='小单'){if(digitSize(d)!=='小'||digitOddEven(d)!=='单')return false;}
+    else if(t==='小双'){if(digitSize(d)!=='小'||digitOddEven(d)!=='双')return false;}
   }
   return true;
 }
