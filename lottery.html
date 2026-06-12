@@ -7102,6 +7102,14 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
+  <div class="row" style="margin-top:10px">
+    <div class="ig" style="flex:1;min-width:240px"><label>💎 广告语（印在海报最底部，留空＝不显示）</label>
+      <input type="text" id="zo-ad-text" placeholder="例：想要每日更新＋5家公司完整分析？欢迎订购我们的服务" oninput="zoSaveAd()" style="width:100%">
+    </div>
+    <div class="ig" style="flex:1;min-width:240px"><label>📲 联系方式 / 招募语（广告第二行小字）</label>
+      <input type="text" id="zo-ad-contact" placeholder="例：WhatsApp 01X-XXX XXXX · 诚招代理" oninput="zoSaveAd()" style="width:100%">
+    </div>
+  </div>
 </div>
 
 <style>
@@ -9503,6 +9511,24 @@ const ZO_LIST = [
 ];
 let ZO_LAST = null; // 最近一次生成结果，给「复制月报文字」「下载图片」用
 
+// ===== 海报底部广告条（广告语 + 联系方式，存 localStorage，留空则不显示） =====
+const ZO_AD_KEY = 'zoAdCfg';
+function zoAdCfg(){
+  const t = ((document.getElementById('zo-ad-text')||{}).value||'').trim();
+  const c = ((document.getElementById('zo-ad-contact')||{}).value||'').trim();
+  return {t, c};
+}
+function zoSaveAd(){ try{ localStorage.setItem(ZO_AD_KEY, JSON.stringify(zoAdCfg())); }catch(e){} }
+function zoAdHtml(){
+  const ad = zoAdCfg(); zoSaveAd();
+  if(!ad.t && !ad.c) return '';
+  let h = '<div style="background:linear-gradient(180deg,#fbbf24,#f59e0b);border:2px solid #7f1d1d;border-radius:10px;padding:8px 10px;text-align:center;margin-top:8px">';
+  if(ad.t) h += '<div style="font-size:13.5px;font-weight:900;color:#7c2d12;line-height:1.4">💎 ' + escHtml(ad.t) + '</div>';
+  if(ad.c) h += '<div style="font-size:12px;font-weight:800;color:#991b1b;margin-top:2px">📲 ' + escHtml(ad.c) + '</div>';
+  h += '</div>';
+  return h;
+}
+
 // ===== 三语字典（海报文字；系统界面保持中文） =====
 const ZO_MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const ZO_MONTHS_MS = ['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
@@ -9511,6 +9537,7 @@ const ZO_STR = {
   zh: {
     zodiacNames: ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'],
     marketName: mk => mk,
+    brand: mk => '🔥 ' + mk + ' ' + (ZO_MKT_EN[mk]||mk).toUpperCase() + ' 千期真实战绩 · 数据为王 🔥',
     titleZodiac: m => m + '月份十二生肖幸运数',
     titleSeason: () => '四季常客号码图',
     subZodiac: (y,mk,d,m) => y + '年 · ' + mk + ' · 数据版｜选号：' + d + ' 期真实开彩的' + m + '月常客｜配肖规则：号码当年份算生肖（例 8777→牛）',
@@ -9533,6 +9560,7 @@ const ZO_STR = {
   en: {
     zodiacNames: ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'],
     marketName: mk => ZO_MKT_EN[mk] || mk,
+    brand: mk => '🔥 ' + (ZO_MKT_EN[mk]||mk).toUpperCase() + ' · REAL DRAW TRACK RECORD · DATA IS KING 🔥',
     titleZodiac: m => '12 Zodiac Lucky Numbers · ' + ZO_MONTHS_EN[m-1],
     titleSeason: () => 'Four Seasons Hot Numbers',
     subZodiac: (y,mk,d,m) => y + ' · ' + mk + ' · Data Edition | Picks: ' + ZO_MONTHS_EN[m-1] + ' regulars from ' + d + ' real draws | Rule: number read as a year (8777→Ox)',
@@ -9555,6 +9583,7 @@ const ZO_STR = {
   ms: {
     zodiacNames: ['Tikus','Lembu','Harimau','Arnab','Naga','Ular','Kuda','Kambing','Monyet','Ayam','Anjing','Babi'],
     marketName: mk => ZO_MKT_EN[mk] || mk,
+    brand: mk => '🔥 ' + (ZO_MKT_EN[mk]||mk).toUpperCase() + ' · REKOD CABUTAN SEBENAR · DATA RAJA 🔥',
     titleZodiac: m => 'Nombor Bertuah 12 Zodiak · ' + ZO_MONTHS_MS[m-1],
     titleSeason: () => 'Nombor Panas Empat Musim',
     subZodiac: (y,mk,d,m) => y + ' · ' + mk + ' · Edisi Data | Pilihan: nombor biasa ' + ZO_MONTHS_MS[m-1] + ' dari ' + d + ' cabutan sebenar | Peraturan: nombor dibaca sebagai tahun (8777→Lembu)',
@@ -9682,7 +9711,7 @@ function doZodiacChart(){
   // 顶部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
   html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + S.titleZodiac(month) + ' 🧧</div>';
-  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + S.subZodiac(curYear, S.marketName(market), main.draws, month) + '</div>';
+  html += '<div style="font-size:13px;font-weight:800;color:#fde047;letter-spacing:1px;margin-top:5px;text-shadow:0 1px 2px rgba(0,0,0,.35)">' + S.brand(market) + '</div>';
   html += '</div>';
   // 12 宫格
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
@@ -9711,6 +9740,7 @@ function doZodiacChart(){
   html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">' + S.footer1 + '</div>';
   html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">' + S.footer2 + '</div>';
   html += '</div>';
+  html += zoAdHtml();
   html += '</div>';
   out.innerHTML = html;
   zoShowButtons();
@@ -9752,7 +9782,7 @@ function zoRenderSeasons(out, market, month, curYear, main){
   let html = '<div class="card" style="background:linear-gradient(160deg,#991b1b 0%,#dc2626 45%,#b91c1c 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-poster">';
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
   html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + S.titleSeason() + ' 🧧</div>';
-  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + S.subSeason(curYear, S.marketName(market), main.draws) + '</div>';
+  html += '<div style="font-size:13px;font-weight:800;color:#fde047;letter-spacing:1px;margin-top:5px;text-shadow:0 1px 2px rgba(0,0,0,.35)">' + S.brand(market) + '</div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
   cells.forEach(c => {
@@ -9776,6 +9806,7 @@ function zoRenderSeasons(out, market, month, curYear, main){
   html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">' + S.footer1 + '</div>';
   html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">' + S.footer2 + '</div>';
   html += '</div>';
+  html += zoAdHtml();
   html += '</div>';
   out.innerHTML = html;
 }
@@ -9801,6 +9832,9 @@ function zoCopyText(){
     });
   }
   txt += '\n' + S.copyFooter;
+  const ad = zoAdCfg();
+  if(ad.t) txt += '\n\n💎 ' + ad.t;
+  if(ad.c) txt += '\n📲 ' + ad.c;
   const btn = document.getElementById('zo-copy-btn');
   const done = () => { btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制月报文字'; }, 1500); };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -9930,8 +9964,8 @@ function zoBannerPNG(ctx,x,y,w,h,title,sub,titlePx){
   zoFitFont(ctx,title,w-40,titlePx,16,function(s){return '900 '+s+'px '+ZO_FONT;});
   ctx.fillText(title, x+w/2, y+(sub?h*0.38:h*0.5));
   if(sub){
-    ctx.fillStyle = '#fecaca';
-    zoFitFont(ctx,sub,w-40,20,11,function(s){return s+'px '+ZO_FONT;});
+    ctx.fillStyle = '#fde047';
+    zoFitFont(ctx,sub,w-40,22,11,function(s){return '800 '+s+'px '+ZO_FONT;});
     ctx.fillText(sub, x+w/2, y+h*0.76);
   }
 }
@@ -9945,24 +9979,47 @@ function zoDownloadPNG(){
   bg.addColorStop(0,'#991b1b'); bg.addColorStop(.45,'#dc2626'); bg.addColorStop(1,'#b91c1c');
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
   ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 8; ctx.strokeRect(4,4,W-8,H-8);
-  const mkName = S.marketName(L.market);
   const title = L.mode==='season' ? S.titleSeason() : S.titleZodiac(L.month);
-  const sub = L.mode==='season' ? S.subSeason(L.curYear,mkName,L.draws) : S.subZodiac(L.curYear,mkName,L.draws,L.month);
-  zoBannerPNG(ctx,pad,22,W-2*pad,108,'🧧 '+title+' 🧧',sub,42);
-  if(L.mode==='season') zoDrawSeasonCells(ctx,L,S,pad,148,W-2*pad,1070);
-  else zoDrawZodiacCells(ctx,L,S,pad,148,W-2*pad,1070);
-  // 底部横幅
-  zoRR(ctx,pad,1232,W-2*pad,96,14);
-  const g2 = ctx.createLinearGradient(0,1232,0,1328);
+  zoBannerPNG(ctx,pad,22,W-2*pad,108,'🧧 '+title+' 🧧',S.brand(L.market),42);
+  const ad = zoAdCfg();
+  const hasAd = !!(ad.t || ad.c);
+  const cellsH = hasAd ? 1000 : 1070;
+  if(L.mode==='season') zoDrawSeasonCells(ctx,L,S,pad,148,W-2*pad,cellsH);
+  else zoDrawZodiacCells(ctx,L,S,pad,148,W-2*pad,cellsH);
+  // 底部横幅（有广告时上移并压扁，给广告条腾位置）
+  const fy = hasAd ? 1160 : 1232, fh = hasAd ? 84 : 96;
+  zoRR(ctx,pad,fy,W-2*pad,fh,14);
+  const g2 = ctx.createLinearGradient(0,fy,0,fy+fh);
   g2.addColorStop(0,'#7f1d1d'); g2.addColorStop(1,'#991b1b');
   ctx.fillStyle = g2; ctx.fill(); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fde047';
   zoFitFont(ctx,S.footer1,W-2*pad-40,28,14,function(s){return '900 '+s+'px '+ZO_FONT;});
-  ctx.fillText(S.footer1, W/2, 1232+34);
+  ctx.fillText(S.footer1, W/2, fy+fh*0.36);
   ctx.fillStyle = '#fecaca';
   zoFitFont(ctx,S.footer2,W-2*pad-40,16,10,function(s){return s+'px '+ZO_FONT;});
-  ctx.fillText(S.footer2, W/2, 1232+70);
+  ctx.fillText(S.footer2, W/2, fy+fh*0.73);
+  // 广告条（金底红字，和网页海报一致）
+  if(hasAd){
+    zoRR(ctx,pad,1256,W-2*pad,72,14);
+    const g3 = ctx.createLinearGradient(0,1256,0,1328);
+    g3.addColorStop(0,'#fbbf24'); g3.addColorStop(1,'#f59e0b');
+    ctx.fillStyle = g3; ctx.fill(); ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if(ad.t && ad.c){
+      ctx.fillStyle = '#7c2d12';
+      zoFitFont(ctx,'💎 '+ad.t,W-2*pad-40,24,12,function(s){return '900 '+s+'px '+ZO_FONT;});
+      ctx.fillText('💎 '+ad.t, W/2, 1256+24);
+      ctx.fillStyle = '#7f1d1d';
+      zoFitFont(ctx,'📲 '+ad.c,W-2*pad-40,20,11,function(s){return '800 '+s+'px '+ZO_FONT;});
+      ctx.fillText('📲 '+ad.c, W/2, 1256+52);
+    } else {
+      const one = ad.t ? '💎 '+ad.t : '📲 '+ad.c;
+      ctx.fillStyle = '#7c2d12';
+      zoFitFont(ctx,one,W-2*pad-40,26,12,function(s){return '900 '+s+'px '+ZO_FONT;});
+      ctx.fillText(one, W/2, 1256+36);
+    }
+  }
   // 下载
   const mkAscii = (ZO_MKT_EN[L.market]||L.market).replace(/\s+/g,'');
   const fname = (L.mode==='season'?'seasons':'zodiac')+'_'+L.curYear+'-'+String(L.month).padStart(2,'0')+'_'+mkAscii+'_'+zoLang()+'.png';
@@ -9986,10 +10043,16 @@ function zoPrintPDF(){
   setTimeout(done, 3000);
 }
 
-// 打开生肖图分页时，月份默认当月
+// 打开生肖图分页时，月份默认当月；恢复保存过的广告词
 (function(){
   const sel = document.getElementById('zo-month');
   if(sel) sel.value = String(new Date().getMonth() + 1);
+  try{
+    const ad = JSON.parse(localStorage.getItem(ZO_AD_KEY)||'{}');
+    const t = document.getElementById('zo-ad-text'), c = document.getElementById('zo-ad-contact');
+    if(t && ad.t) t.value = ad.t;
+    if(c && ad.c) c.value = ad.c;
+  }catch(e){}
 })();
 
 // ---------- V24 label helper functions (mirror Excel formulas) ----------
