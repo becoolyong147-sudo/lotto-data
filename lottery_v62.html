@@ -7090,10 +7090,27 @@ function doBacktest(){
         <option value="season">🌸 四季图（春夏秋冬）</option>
       </select>
     </div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成生肖图</button></div>
+    <div class="ig"><label>海报语言</label>
+      <select id="zo-lang" onchange="if(ZO_LAST)doZodiacChart()">
+        <option value="zh" selected>中文</option>
+        <option value="en">English</option>
+        <option value="ms">Bahasa Melayu</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成海报</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
 </div>
+
+<style>
+@media print{
+  body.zo-print *{ visibility:hidden !important; }
+  body.zo-print #zo-poster, body.zo-print #zo-poster *{ visibility:visible !important; }
+  body.zo-print #zo-poster{ position:absolute !important; left:0; top:0; width:100%; max-width:100% !important; margin:0 !important; }
+}
+</style>
 
 <div id="zodiac-result"></div>
 </div>
@@ -9484,7 +9501,87 @@ const ZO_LIST = [
   {name:'猴', branch:'申', emoji:'🐵'}, {name:'鸡', branch:'酉', emoji:'🐔'},
   {name:'狗', branch:'戌', emoji:'🐶'}, {name:'猪', branch:'亥', emoji:'🐷'}
 ];
-let ZO_LAST = null; // 最近一次生成结果，给「复制月报文字」用
+let ZO_LAST = null; // 最近一次生成结果，给「复制月报文字」「下载图片」用
+
+// ===== 三语字典（海报文字；系统界面保持中文） =====
+const ZO_MONTHS_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const ZO_MONTHS_MS = ['Januari','Februari','Mac','April','Mei','Jun','Julai','Ogos','September','Oktober','November','Disember'];
+const ZO_MKT_EN = {'万能':'Magnum','跑马':'Da Ma Cai','多多':'Sports Toto','新加坡':'Singapore Pools','豪龙':'GD Lotto'};
+const ZO_STR = {
+  zh: {
+    zodiacNames: ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'],
+    marketName: mk => mk,
+    titleZodiac: m => m + '月份十二生肖幸运数',
+    titleSeason: () => '四季常客号码图',
+    subZodiac: (y,mk,d,m) => y + '年 · ' + mk + ' · 数据版｜选号：' + d + ' 期真实开彩的' + m + '月常客｜配肖规则：号码当年份算生肖（例 8777→牛）',
+    subSeason: (y,mk,d) => y + '年 · ' + mk + ' · 数据版｜' + d + ' 期真实开彩｜每季 = 历史上最偏爱该季节的号码（≥3次 + 集中度≥1.5x）',
+    cardSub: (m,zi) => m + '月份生肖' + ZO_STR.zh.zodiacNames[zi] + '（' + ZO_LIST[zi].branch + '）',
+    tagSeason: '季节', tagCons: '共识', tagCold: '冷号',
+    badgeYear: '今年', badgeNow: '当季',
+    noteSeason: (c,m) => m + '月开过' + c.monthHits + '次 · 集中度' + c.conc.toFixed(1) + 'x · 最近' + String(c.monthLast).slice(0,4) + '年',
+    noteCons: (c,m) => c.consensus + '家市场' + m + '月共识 · 已沉睡' + c.drawsSince + '期',
+    noteCold: (c,m) => '已沉睡' + c.drawsSince + '期 · 冷度' + c.coldRatio.toFixed(1) + 'x · ' + m + '月开过' + c.monthHits + '次',
+    seasonLabels: ['春季（3–5月）','夏季（6–8月）','秋季（9–11月）','冬季（12–2月）'],
+    seasonEntry: (e,si) => ['春','夏','秋','冬'][si] + '季' + e.sHits + '次/共' + e.total + '次 · ' + e.conc.toFixed(1) + 'x · 最近' + String(e.last).slice(0,4),
+    footer1: '📊 真数据 · 查得到 · 月底公开复盘 📊',
+    footer2: '⚠️ 彩票随机，本图为历史统计整理，不构成预测',
+    empty: '暂无符合条件的季节常客',
+    copyRuleZodiac: '规则：先用历史数据筛当月常客，再按「号码当年份算生肖」对号入座，每生肖2个。',
+    copyRuleSeason: '规则：号码历史命中按春夏秋冬归类，集中度 = 实际占比 ÷ 25%。',
+    copyFooter: '📊 数据来源：2004年至今真实开彩记录。彩票随机，本帖为历史统计整理，不构成预测。月底公开复盘命中率。'
+  },
+  en: {
+    zodiacNames: ['Rat','Ox','Tiger','Rabbit','Dragon','Snake','Horse','Goat','Monkey','Rooster','Dog','Pig'],
+    marketName: mk => ZO_MKT_EN[mk] || mk,
+    titleZodiac: m => '12 Zodiac Lucky Numbers · ' + ZO_MONTHS_EN[m-1],
+    titleSeason: () => 'Four Seasons Hot Numbers',
+    subZodiac: (y,mk,d,m) => y + ' · ' + mk + ' · Data Edition | Picks: ' + ZO_MONTHS_EN[m-1] + ' regulars from ' + d + ' real draws | Rule: number read as a year (8777→Ox)',
+    subSeason: (y,mk,d) => y + ' · ' + mk + ' · Data Edition | ' + d + ' real draws | Each season = numbers that historically favour it (≥3 hits, ≥1.5x)',
+    cardSub: (m,zi) => ZO_MONTHS_EN[m-1] + ' · ' + ZO_STR.en.zodiacNames[zi],
+    tagSeason: 'HOT', tagCons: 'MULTI', tagCold: 'COLD',
+    badgeYear: 'This Yr', badgeNow: 'Now',
+    noteSeason: (c,m) => 'Hit ' + c.monthHits + 'x in ' + ZO_MONTHS_EN[m-1] + ' · focus ' + c.conc.toFixed(1) + 'x · last ' + String(c.monthLast).slice(0,4),
+    noteCons: (c,m) => c.consensus + ' markets agree for ' + ZO_MONTHS_EN[m-1] + ' · absent ' + c.drawsSince + ' draws',
+    noteCold: (c,m) => 'Absent ' + c.drawsSince + ' draws · cold ' + c.coldRatio.toFixed(1) + 'x · ' + c.monthHits + 'x in ' + ZO_MONTHS_EN[m-1],
+    seasonLabels: ['Spring (Mar–May)','Summer (Jun–Aug)','Autumn (Sep–Nov)','Winter (Dec–Feb)'],
+    seasonEntry: (e,si) => e.sHits + '/' + e.total + ' hits here · ' + e.conc.toFixed(1) + 'x · last ' + String(e.last).slice(0,4),
+    footer1: '📊 Real data · Verifiable · Month-end review 📊',
+    footer2: '⚠️ Lottery is random. Historical statistics only — not a prediction.',
+    empty: 'No qualifying numbers',
+    copyRuleZodiac: 'Rule: monthly regulars picked from real draw history, matched to zodiacs by reading each number as a year. 2 per zodiac.',
+    copyRuleSeason: 'Rule: historical hits grouped by season; focus = actual share ÷ 25%.',
+    copyFooter: '📊 Source: real draw records since 2004. Lottery is random — historical stats only, not a prediction. Month-end review posted publicly.'
+  },
+  ms: {
+    zodiacNames: ['Tikus','Lembu','Harimau','Arnab','Naga','Ular','Kuda','Kambing','Monyet','Ayam','Anjing','Babi'],
+    marketName: mk => ZO_MKT_EN[mk] || mk,
+    titleZodiac: m => 'Nombor Bertuah 12 Zodiak · ' + ZO_MONTHS_MS[m-1],
+    titleSeason: () => 'Nombor Panas Empat Musim',
+    subZodiac: (y,mk,d,m) => y + ' · ' + mk + ' · Edisi Data | Pilihan: nombor biasa ' + ZO_MONTHS_MS[m-1] + ' dari ' + d + ' cabutan sebenar | Peraturan: nombor dibaca sebagai tahun (8777→Lembu)',
+    subSeason: (y,mk,d) => y + ' · ' + mk + ' · Edisi Data | ' + d + ' cabutan sebenar | Setiap musim = nombor yang gemar musim itu (≥3 kali, ≥1.5x)',
+    cardSub: (m,zi) => ZO_MONTHS_MS[m-1] + ' · ' + ZO_STR.ms.zodiacNames[zi],
+    tagSeason: 'PANAS', tagCons: 'SEPAKAT', tagCold: 'SEJUK',
+    badgeYear: 'Thn Ini', badgeNow: 'Kini',
+    noteSeason: (c,m) => 'Naik ' + c.monthHits + ' kali pada ' + ZO_MONTHS_MS[m-1] + ' · tumpuan ' + c.conc.toFixed(1) + 'x · terakhir ' + String(c.monthLast).slice(0,4),
+    noteCons: (c,m) => c.consensus + ' syarikat sepakat bulan ' + ZO_MONTHS_MS[m-1] + ' · hilang ' + c.drawsSince + ' cabutan',
+    noteCold: (c,m) => 'Hilang ' + c.drawsSince + ' cabutan · sejuk ' + c.coldRatio.toFixed(1) + 'x · naik ' + c.monthHits + ' kali ' + ZO_MONTHS_MS[m-1],
+    seasonLabels: ['Musim Bunga (Mac–Mei)','Musim Panas (Jun–Ogos)','Musim Luruh (Sep–Nov)','Musim Sejuk (Dis–Feb)'],
+    seasonEntry: (e,si) => e.sHits + '/' + e.total + ' naik musim ini · ' + e.conc.toFixed(1) + 'x · terakhir ' + String(e.last).slice(0,4),
+    footer1: '📊 Data sebenar · Boleh semak · Semakan hujung bulan 📊',
+    footer2: '⚠️ Loteri adalah rawak. Statistik sejarah sahaja — bukan ramalan.',
+    empty: 'Tiada nombor yang layak',
+    copyRuleZodiac: 'Peraturan: nombor biasa bulanan dipilih dari sejarah cabutan sebenar, dipadankan dengan zodiak dengan membaca nombor sebagai tahun. 2 setiap zodiak.',
+    copyRuleSeason: 'Peraturan: kemenangan sejarah dikumpul ikut musim; tumpuan = bahagian sebenar ÷ 25%.',
+    copyFooter: '📊 Sumber: rekod cabutan sebenar sejak 2004. Loteri adalah rawak — statistik sejarah sahaja, bukan ramalan. Semakan hujung bulan akan dikongsi.'
+  }
+};
+function zoLang(){ return (document.getElementById('zo-lang') || {value:'zh'}).value; }
+// 脚注按类型 + 语言生成
+function zoNote(p, month, S){
+  if(p.type === 'season') return S.noteSeason(p.c, month);
+  if(p.type === 'consensus') return S.noteCons(p.c, month);
+  return S.noteCold(p.c, month);
+}
 
 // 年份 → 生肖索引 (0=鼠 … 11=猪)。1984=鼠 ⇒ (y-4)%12
 function zoZodiacOfYear(y){ return ((y - 4) % 12 + 12) % 12; }
@@ -9526,7 +9623,7 @@ function doZodiacChart(){
   }
   if(theme === 'season'){
     zoRenderSeasons(out, market, month, curYear, main);
-    document.getElementById('zo-copy-btn').style.display = '';
+    zoShowButtons();
     return;
   }
 
@@ -9571,25 +9668,21 @@ function doZodiacChart(){
     const byCold = rest.slice().sort((a,b) => b.coldRatio - a.coldRatio);
     const pickB = withCons[0] || byCold[0];
 
-    const noteA = month + '月开过' + pickA.monthHits + '次 · 集中度' + pickA.conc.toFixed(1) + 'x · 最近' + String(pickA.monthLast).slice(0,4) + '年';
-    const noteB = !pickB ? '' : (pickB.consensus >= 2
-      ? pickB.consensus + '家市场' + month + '月共识 · 已沉睡' + pickB.drawsSince + '期'
-      : '已沉睡' + pickB.drawsSince + '期 · 冷度' + pickB.coldRatio.toFixed(1) + 'x · ' + month + '月开过' + pickB.monthHits + '次');
-
-    const picks = [{c:pickA, type:'season', note:noteA}];
-    if(pickB) picks.push({c:pickB, type:(pickB.consensus >= 2 ? 'consensus' : 'cold'), note:noteB});
+    const picks = [{c:pickA, type:'season'}];
+    if(pickB) picks.push({c:pickB, type:(pickB.consensus >= 2 ? 'consensus' : 'cold')});
     rows.push({zi, z, picks});
   });
 
-  ZO_LAST = {mode:'zodiac', market, month, curYear, rows};
+  ZO_LAST = {mode:'zodiac', market, month, curYear, draws:main.draws, rows};
 
   // ===== 渲染（红金海报风，参照传统生肖旺图排版：3列×4行 鼠牛虎/兔龙蛇/马羊猴/鸡狗猪） =====
+  const S = ZO_STR[zoLang()];
   const curZi = zoZodiacOfYear(curYear);
   let html = '<div class="card" style="background:linear-gradient(160deg,#991b1b 0%,#dc2626 45%,#b91c1c 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-poster">';
   // 顶部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
-  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + month + '月份十二生肖幸运数 🧧</div>';
-  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜选号：' + main.draws + ' 期真实开彩的' + month + '月常客｜配肖规则：号码当年份算生肖（例 8777→牛）</div>';
+  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + S.titleZodiac(month) + ' 🧧</div>';
+  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + S.subZodiac(curYear, S.marketName(market), main.draws, month) + '</div>';
   html += '</div>';
   // 12 宫格
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
@@ -9597,17 +9690,17 @@ function doZodiacChart(){
     const isCur = r.zi === curZi;
     html += '<div style="background:linear-gradient(180deg,#fffbeb,#fef3c7);border:2px solid ' + (isCur ? '#f59e0b' : '#fbbf24') + ';border-radius:10px;padding:8px 7px;box-shadow:0 2px 6px rgba(0,0,0,.25)">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between">';
-    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:12px;border-radius:5px;padding:2px 8px;border:1px solid #fde047">' + r.z.name + '</span>';
-    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">今年</span>';
+    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:12px;border-radius:5px;padding:2px 8px;border:1px solid #fde047">' + S.zodiacNames[r.zi] + '</span>';
+    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">' + S.badgeYear + '</span>';
     html += '</div>';
     html += '<div style="text-align:center;font-size:34px;line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
-    html += '<div style="text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + month + '月份生肖' + r.z.name + '（' + r.z.branch + '）</div>';
+    html += '<div style="text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + S.cardSub(month, r.zi) + '</div>';
     html += '<div style="text-align:center;font-family:monospace;font-size:19px;font-weight:900;color:#b91c1c;letter-spacing:1px;margin-bottom:4px">' + r.picks.map(p => p.c.num).join(' · ') + '</div>';
     r.picks.forEach(p => {
-      const tag = p.type === 'season' ? {t:'季节', bg:'#16a34a'} : p.type === 'consensus' ? {t:'共识', bg:'#dc2626'} : {t:'冷号', bg:'#2563eb'};
+      const tag = p.type === 'season' ? {t:S.tagSeason, bg:'#16a34a'} : p.type === 'consensus' ? {t:S.tagCons, bg:'#dc2626'} : {t:S.tagCold, bg:'#2563eb'};
       html += '<div style="display:flex;align-items:flex-start;gap:4px;margin-top:2px">';
       html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8.5px;font-weight:700;border-radius:3px;padding:0 4px;flex:none;line-height:1.7">' + tag.t + '</span>';
-      html += '<span style="font-size:8.5px;color:#78350f;line-height:1.5">' + p.c.num + '：' + p.note + '</span>';
+      html += '<span style="font-size:8.5px;color:#78350f;line-height:1.5">' + p.c.num + '：' + zoNote(p, month, S) + '</span>';
       html += '</div>';
     });
     html += '</div>';
@@ -9615,12 +9708,18 @@ function doZodiacChart(){
   html += '</div>';
   // 底部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
-  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">📊 真数据 · 查得到 · 月底公开复盘 📊</div>';
-  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">⚠️ 彩票随机，本图为历史统计整理，不构成预测</div>';
+  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">' + S.footer1 + '</div>';
+  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">' + S.footer2 + '</div>';
   html += '</div>';
   html += '</div>';
   out.innerHTML = html;
-  document.getElementById('zo-copy-btn').style.display = '';
+  zoShowButtons();
+}
+
+function zoShowButtons(){
+  ['zo-copy-btn','zo-png-btn','zo-pdf-btn'].forEach(id => {
+    const b = document.getElementById(id); if(b) b.style.display = '';
+  });
 }
 
 // ===== 四季图: 春夏秋冬四宫格，每格 = 历史上最偏爱该季节的号码（纯数据，无需配对规则） =====
@@ -9647,34 +9746,35 @@ function zoRenderSeasons(out, market, month, curYear, main){
     entries.sort((a,b) => b.conc - a.conc || b.sHits - a.sHits);
     return {s, si, entries:entries.slice(0,6), allCount:entries.length};
   });
-  ZO_LAST = {mode:'season', market, month, curYear, cells};
+  ZO_LAST = {mode:'season', market, month, curYear, draws:main.draws, cells, curSi};
 
+  const S = ZO_STR[zoLang()];
   let html = '<div class="card" style="background:linear-gradient(160deg,#991b1b 0%,#dc2626 45%,#b91c1c 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-poster">';
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
-  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 四季常客号码图 🧧</div>';
-  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜' + main.draws + ' 期真实开彩｜每季 = 历史上最偏爱该季节的号码（≥3次 + 集中度≥1.5x）</div>';
+  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + S.titleSeason() + ' 🧧</div>';
+  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + S.subSeason(curYear, S.marketName(market), main.draws) + '</div>';
   html += '</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
   cells.forEach(c => {
     const isCur = c.si === curSi;
     html += '<div style="background:linear-gradient(180deg,#fffbeb,#fef3c7);border:2px solid ' + (isCur ? '#f59e0b' : '#fbbf24') + ';border-radius:10px;padding:9px 8px;box-shadow:0 2px 6px rgba(0,0,0,.25)">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">';
-    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:13px;border-radius:5px;padding:2px 9px;border:1px solid #fde047">' + c.s.emoji + ' ' + c.s.label + '</span>';
-    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">当季</span>';
+    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:13px;border-radius:5px;padding:2px 9px;border:1px solid #fde047">' + c.s.emoji + ' ' + S.seasonLabels[c.si] + '</span>';
+    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">' + S.badgeNow + '</span>';
     html += '</div>';
-    if(!c.entries.length) html += '<div style="font-size:10px;color:#92400e">暂无符合条件的季节常客</div>';
+    if(!c.entries.length) html += '<div style="font-size:10px;color:#92400e">' + S.empty + '</div>';
     c.entries.forEach(e => {
       html += '<div style="display:flex;align-items:baseline;gap:6px;margin-top:3px">';
       html += '<span style="font-family:monospace;font-size:17px;font-weight:900;color:#b91c1c;letter-spacing:1px">' + e.num + '</span>';
-      html += '<span style="font-size:9px;color:#78350f">' + c.s.name + '季' + e.sHits + '次/共' + e.total + '次 · ' + e.conc.toFixed(1) + 'x · 最近' + String(e.last).slice(0,4) + '</span>';
+      html += '<span style="font-size:9px;color:#78350f">' + S.seasonEntry(e, c.si) + '</span>';
       html += '</div>';
     });
     html += '</div>';
   });
   html += '</div>';
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
-  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">📊 真数据 · 查得到 · 月底公开复盘 📊</div>';
-  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">⚠️ 彩票随机，本图为历史统计整理，不构成预测</div>';
+  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">' + S.footer1 + '</div>';
+  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">' + S.footer2 + '</div>';
   html += '</div>';
   html += '</div>';
   out.innerHTML = html;
@@ -9683,23 +9783,24 @@ function zoRenderSeasons(out, market, month, curYear, main){
 function zoCopyText(){
   if(!ZO_LAST){ return; }
   const L = ZO_LAST;
+  const S = ZO_STR[zoLang()];
   let txt;
   if(L.mode === 'season'){
-    txt = '🧧 ' + L.curYear + '年 四季常客号码图（' + L.market + '）\n';
-    txt += '规则：号码历史命中按春夏秋冬归类，集中度 = 实际占比 ÷ 25%。\n\n';
+    txt = '🧧 ' + L.curYear + ' ' + S.titleSeason() + '（' + S.marketName(L.market) + '）\n';
+    txt += S.copyRuleSeason + '\n\n';
     L.cells.forEach(c => {
-      const parts = c.entries.map(e => e.num + '（' + c.s.name + '季' + e.sHits + '次·' + e.conc.toFixed(1) + 'x）');
-      txt += c.s.emoji + ' ' + c.s.label + '：' + (parts.join('｜') || '—') + '\n';
+      const parts = c.entries.map(e => e.num + '（' + S.seasonEntry(e, c.si) + '）');
+      txt += c.s.emoji + ' ' + S.seasonLabels[c.si] + '：' + (parts.join('｜') || '—') + '\n';
     });
   } else {
-    txt = '🧧 ' + L.curYear + '年' + L.month + '月 十二生肖幸运数·数据版（' + L.market + '）\n';
-    txt += '规则：先用历史数据筛当月常客，再按「号码当年份算生肖」对号入座，每生肖2个。\n\n';
+    txt = '🧧 ' + L.curYear + ' ' + S.titleZodiac(L.month) + '（' + S.marketName(L.market) + '）\n';
+    txt += S.copyRuleZodiac + '\n\n';
     L.rows.forEach(r => {
-      const parts = r.picks.map(p => p.c.num + '（' + p.note + '）');
-      txt += r.z.emoji + ' ' + r.z.name + '：' + (parts.join('｜') || '—') + '\n';
+      const parts = r.picks.map(p => p.c.num + '（' + zoNote(p, L.month, S) + '）');
+      txt += r.z.emoji + ' ' + S.zodiacNames[r.zi] + '：' + (parts.join('｜') || '—') + '\n';
     });
   }
-  txt += '\n📊 数据来源：2004年至今真实开彩记录。彩票随机，本帖为历史统计整理，不构成预测。月底公开复盘命中率。';
+  txt += '\n' + S.copyFooter;
   const btn = document.getElementById('zo-copy-btn');
   const done = () => { btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制月报文字'; }, 1500); };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -9711,6 +9812,178 @@ function zoCopyFallback(txt){
   ta.value = txt; document.body.appendChild(ta); ta.select();
   try{ document.execCommand('copy'); }catch(e){}
   document.body.removeChild(ta);
+}
+
+// ===== V62: 海报导出 PNG（canvas 原生绘制，1080×1350 社媒竖图，无第三方库） =====
+const ZO_FONT = "'Microsoft YaHei','Segoe UI',system-ui,sans-serif";
+const ZO_MONO = "Consolas,'Courier New',monospace";
+function zoRR(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+// 自动缩字号直到放得下（返回最终字号，ctx.font 已设置好）
+function zoFitFont(ctx,text,maxW,px,minPx,tpl){
+  let s = px; ctx.font = tpl(s);
+  while(s > minPx && ctx.measureText(text).width > maxW){ s--; ctx.font = tpl(s); }
+  return s;
+}
+function zoCellBase(ctx,x,y,w,h,hot){
+  zoRR(ctx,x,y,w,h,14);
+  const g = ctx.createLinearGradient(0,y,0,y+h);
+  g.addColorStop(0,'#fffbeb'); g.addColorStop(1,'#fef3c7');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = hot ? '#f59e0b' : '#fbbf24'; ctx.lineWidth = hot ? 5 : 3; ctx.stroke();
+}
+function zoNameBadge(ctx,x,y,text,px){
+  ctx.font = '900 ' + px + 'px ' + ZO_FONT;
+  const w = ctx.measureText(text).width + 24, h = px + 14;
+  zoRR(ctx,x,y,w,h,6);
+  ctx.fillStyle = '#b91c1c'; ctx.fill();
+  ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = '#fde047'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x+12, y+h/2+1);
+}
+function zoGoldBadge(ctx,xRight,y,text,px){
+  ctx.font = '800 ' + px + 'px ' + ZO_FONT;
+  const w = ctx.measureText(text).width + 16, h = px + 10;
+  zoRR(ctx,xRight-w,y,w,h,5);
+  ctx.fillStyle = '#fde047'; ctx.fill();
+  ctx.fillStyle = '#7c2d12'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, xRight-w+8, y+h/2+1);
+}
+function zoDrawZodiacCells(ctx,L,S,x0,y0,totW,totH){
+  const gap = 12, cols = 3, rowsN = 4;
+  const cw = (totW-(cols-1)*gap)/cols, ch = (totH-(rowsN-1)*gap)/rowsN;
+  const curZi = zoZodiacOfYear(L.curYear);
+  L.rows.forEach(function(r,i){
+    const x = x0+(i%cols)*(cw+gap), y = y0+Math.floor(i/cols)*(ch+gap);
+    const isCur = r.zi === curZi;
+    zoCellBase(ctx,x,y,cw,ch,isCur);
+    zoNameBadge(ctx,x+12,y+12,S.zodiacNames[r.zi],20);
+    if(isCur) zoGoldBadge(ctx,x+cw-12,y+14,S.badgeYear,15);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '50px ' + ZO_FONT;
+    ctx.fillText(r.z.emoji, x+cw/2, y+86);
+    const subT = S.cardSub(L.month, r.zi);
+    ctx.fillStyle = '#92400e';
+    zoFitFont(ctx,subT,cw-20,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
+    ctx.fillText(subT, x+cw/2, y+126);
+    const numT = r.picks.map(function(p){return p.c.num;}).join(' · ');
+    ctx.fillStyle = '#b91c1c';
+    zoFitFont(ctx,numT,cw-20,38,24,function(s){return '900 '+s+'px '+ZO_MONO;});
+    ctx.fillText(numT, x+cw/2, y+162);
+    r.picks.forEach(function(p,pi){
+      const ly = y+196+pi*30;
+      const tag = p.type==='season'?{t:S.tagSeason,bg:'#16a34a'}:p.type==='consensus'?{t:S.tagCons,bg:'#dc2626'}:{t:S.tagCold,bg:'#2563eb'};
+      ctx.font = '700 12px ' + ZO_FONT;
+      const pw = ctx.measureText(tag.t).width + 12;
+      zoRR(ctx,x+10,ly-10,pw,20,4);
+      ctx.fillStyle = tag.bg; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(tag.t, x+16, ly+1);
+      const noteT = p.c.num + ': ' + zoNote(p, L.month, S);
+      ctx.fillStyle = '#78350f';
+      zoFitFont(ctx,noteT,cw-pw-30,13,9,function(s){return s+'px '+ZO_FONT;});
+      ctx.fillText(noteT, x+10+pw+6, ly+1);
+    });
+  });
+}
+function zoDrawSeasonCells(ctx,L,S,x0,y0,totW,totH){
+  const gap = 12, cols = 2;
+  const cw = (totW-gap)/2, ch = (totH-gap)/2;
+  L.cells.forEach(function(c,i){
+    const x = x0+(i%cols)*(cw+gap), y = y0+Math.floor(i/cols)*(ch+gap);
+    const isCur = c.si === L.curSi;
+    zoCellBase(ctx,x,y,cw,ch,isCur);
+    zoNameBadge(ctx,x+14,y+14,c.s.emoji+' '+S.seasonLabels[c.si],22);
+    if(isCur) zoGoldBadge(ctx,x+cw-14,y+18,S.badgeNow,16);
+    if(!c.entries.length){
+      ctx.fillStyle = '#92400e'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.font = '16px ' + ZO_FONT; ctx.fillText(S.empty, x+16, y+90);
+      return;
+    }
+    c.entries.forEach(function(e,ei){
+      const ly = y+86+ei*72;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#b91c1c'; ctx.font = '900 34px ' + ZO_MONO;
+      ctx.fillText(e.num, x+18, ly);
+      const noteT = S.seasonEntry(e, c.si);
+      ctx.fillStyle = '#78350f';
+      zoFitFont(ctx,noteT,cw-160,15,10,function(s){return s+'px '+ZO_FONT;});
+      ctx.fillText(noteT, x+140, ly+2);
+    });
+  });
+}
+function zoBannerPNG(ctx,x,y,w,h,title,sub,titlePx){
+  zoRR(ctx,x,y,w,h,14);
+  const g = ctx.createLinearGradient(0,y,0,y+h);
+  g.addColorStop(0,'#7f1d1d'); g.addColorStop(1,'#991b1b');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fde047';
+  zoFitFont(ctx,title,w-40,titlePx,16,function(s){return '900 '+s+'px '+ZO_FONT;});
+  ctx.fillText(title, x+w/2, y+(sub?h*0.38:h*0.5));
+  if(sub){
+    ctx.fillStyle = '#fecaca';
+    zoFitFont(ctx,sub,w-40,20,11,function(s){return s+'px '+ZO_FONT;});
+    ctx.fillText(sub, x+w/2, y+h*0.76);
+  }
+}
+function zoDownloadPNG(){
+  if(!ZO_LAST) return;
+  const L = ZO_LAST, S = ZO_STR[zoLang()];
+  const W = 1080, H = 1350, pad = 28;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d');
+  const bg = ctx.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,'#991b1b'); bg.addColorStop(.45,'#dc2626'); bg.addColorStop(1,'#b91c1c');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 8; ctx.strokeRect(4,4,W-8,H-8);
+  const mkName = S.marketName(L.market);
+  const title = L.mode==='season' ? S.titleSeason() : S.titleZodiac(L.month);
+  const sub = L.mode==='season' ? S.subSeason(L.curYear,mkName,L.draws) : S.subZodiac(L.curYear,mkName,L.draws,L.month);
+  zoBannerPNG(ctx,pad,22,W-2*pad,108,'🧧 '+title+' 🧧',sub,42);
+  if(L.mode==='season') zoDrawSeasonCells(ctx,L,S,pad,148,W-2*pad,1070);
+  else zoDrawZodiacCells(ctx,L,S,pad,148,W-2*pad,1070);
+  // 底部横幅
+  zoRR(ctx,pad,1232,W-2*pad,96,14);
+  const g2 = ctx.createLinearGradient(0,1232,0,1328);
+  g2.addColorStop(0,'#7f1d1d'); g2.addColorStop(1,'#991b1b');
+  ctx.fillStyle = g2; ctx.fill(); ctx.strokeStyle = '#fde047'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fde047';
+  zoFitFont(ctx,S.footer1,W-2*pad-40,28,14,function(s){return '900 '+s+'px '+ZO_FONT;});
+  ctx.fillText(S.footer1, W/2, 1232+34);
+  ctx.fillStyle = '#fecaca';
+  zoFitFont(ctx,S.footer2,W-2*pad-40,16,10,function(s){return s+'px '+ZO_FONT;});
+  ctx.fillText(S.footer2, W/2, 1232+70);
+  // 下载
+  const mkAscii = (ZO_MKT_EN[L.market]||L.market).replace(/\s+/g,'');
+  const fname = (L.mode==='season'?'seasons':'zodiac')+'_'+L.curYear+'-'+String(L.month).padStart(2,'0')+'_'+mkAscii+'_'+zoLang()+'.png';
+  cv.toBlob(function(b){
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b); a.download = fname;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+    const btn = document.getElementById('zo-png-btn');
+    if(btn){ btn.textContent = '✅ 已下载'; setTimeout(function(){ btn.textContent = '📸 下载图片'; }, 1500); }
+  });
+}
+
+// ===== 打印 / 另存 PDF（浏览器打印对话框里选「另存为 PDF」） =====
+function zoPrintPDF(){
+  if(!document.getElementById('zo-poster')) return;
+  document.body.classList.add('zo-print');
+  const done = function(){ document.body.classList.remove('zo-print'); };
+  window.addEventListener('afterprint', done, {once:true});
+  window.print();
+  setTimeout(done, 3000);
 }
 
 // 打开生肖图分页时，月份默认当月
