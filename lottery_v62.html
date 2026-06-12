@@ -7057,10 +7057,11 @@ function doBacktest(){
 <div id="tab-zodiac" class="panel">
 
 <div class="card" style="background:linear-gradient(135deg,#7c2d12 0%,#b91c1c 100%);color:#fff;margin-bottom:8px">
-  <div style="font-size:16px;font-weight:700">🐲 生肖号码图 — 年份法 + 数据筛选</div>
+  <div style="font-size:16px;font-weight:700">🐲 生肖/四季号码图 — 数据选号 + 主题包装</div>
   <div style="font-size:12px;color:#fecaca;margin-top:4px">
-    候选规则公开固定：<b>每个生肖的年份直接当 4D 号码</b>（例：属马 → 1954 / 1966 / 1978 / 1990 / 2002 / 2014 / 2026）。<br>
-    系统再用真实开彩数据从每个生肖的候选里筛出 <b>2 个</b>：一个「季节常客位」+ 一个「冷号/共识位」，每个号码都带可查证的数据脚注。
+    反向法：<b>先用真实开彩数据选号，再配主题</b>。<br>
+    🐲 <b>生肖图</b>＝当月季节常客按「<b>号码当年份算生肖</b>」对号入座（例：8777 当 8777 年 → 属牛），每生肖一个季节位 + 一个冷号/共识位。<br>
+    🌸 <b>四季图</b>＝春夏秋冬四宫格，放历史上最偏爱该季节的号码 — 连配对规则都不用编，纯数据。
   </div>
 </div>
 
@@ -7068,7 +7069,8 @@ function doBacktest(){
   <h3>⚙️ 生成设置</h3>
   <div class="warn">
     ⚠️ <b>老规矩</b>：彩票是随机的，任何选法都<b>不会提高中奖率</b>。这张图的价值是「规则公开 + 数据可查 + 月底敢复盘」，不是预测。<br>
-    筛选基于<b>分身组</b>（号码的全排列算同一组）：季节位看该组历史上在所选月份的集中度；冷号位看该组已沉睡多少期；共识标记 = 几家市场同月偏好。
+    筛选基于<b>分身组</b>（号码的全排列算同一组）：季节位看该组在所选月份/季节的历史集中度；冷号位看该组已沉睡多少期；共识标记 = 几家市场同月偏好。<br>
+    显示的号码 = 该分身组<b>最近一次实际开出的形态</b>；生肖按这个号码当年份计算。
   </div>
   <div class="row" style="margin-top:10px">
     <div class="ig"><label>主市场（季节/冷度数据来源）</label>
@@ -7082,11 +7084,10 @@ function doBacktest(){
         <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
       </select>
     </div>
-    <div class="ig"><label>候选年份起点</label>
-      <select id="zo-yearfrom">
-        <option value="1944" selected>1944 年起（每生肖约7个候选）</option>
-        <option value="1956">1956 年起（约6个）</option>
-        <option value="1968">1968 年起（约5个）</option>
+    <div class="ig"><label>主题</label>
+      <select id="zo-theme">
+        <option value="zodiac" selected>🐲 生肖图（12宫格）</option>
+        <option value="season">🌸 四季图（春夏秋冬）</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成生肖图</button></div>
@@ -9487,11 +9488,8 @@ let ZO_LAST = null; // 最近一次生成结果，给「复制月报文字」用
 
 // 年份 → 生肖索引 (0=鼠 … 11=猪)。1984=鼠 ⇒ (y-4)%12
 function zoZodiacOfYear(y){ return ((y - 4) % 12 + 12) % 12; }
-function zoYearsOf(zIdx, from, to){
-  const out = [];
-  for(let y = from; y <= to; y++){ if(zoZodiacOfYear(y) === zIdx) out.push(y); }
-  return out;
-}
+// 配肖规则（公开固定）：号码当年份算生肖。例 8777 → 8777年 → 牛
+function zoZodiacOfNum(num){ return zoZodiacOfYear(parseInt(num, 10)); }
 
 // 预计算一个市场的分身组统计。DB 按日期新→旧排序，firstIdx = 距今缺席期数
 function zoMarketStats(market){
@@ -9501,8 +9499,10 @@ function zoMarketStats(market){
     const m = seaMonth(r.date); if(!m || m < 1 || m > 12) return;
     [0,1,2].forEach(pi => {
       const raw = r.nums[pi]; if(raw == null || raw === '') return;
-      const key = seaPermKey(pz(raw));
-      if(!stat[key]) stat[key] = {total:0, mh:new Array(12).fill(0), firstIdx:idx, lastDate:r.date, monthLast:new Array(12).fill(null)};
+      const num = pz(raw);
+      const key = seaPermKey(num);
+      // sampleNum = 该分身组最近一次实际开出的形态（新→旧遍历，首次遇到即最新）
+      if(!stat[key]) stat[key] = {total:0, mh:new Array(12).fill(0), firstIdx:idx, lastDate:r.date, sampleNum:num, monthLast:new Array(12).fill(null)};
       const st = stat[key];
       st.total++; st.mh[m-1]++;
       if(idx < st.firstIdx){ st.firstIdx = idx; st.lastDate = r.date; }
@@ -9515,7 +9515,7 @@ function zoMarketStats(market){
 function doZodiacChart(){
   const market = document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
-  const yearFrom = parseInt(document.getElementById('zo-yearfrom').value, 10);
+  const theme = (document.getElementById('zo-theme') || {value:'zodiac'}).value;
   const out = document.getElementById('zodiac-result');
   const curYear = new Date().getFullYear();
 
@@ -9524,62 +9524,64 @@ function doZodiacChart(){
     out.innerHTML = '<div class="error">' + market + ' 的数据量太少（仅 ' + main.draws + ' 期），不足以做筛选。先去「数据管理」补充历史成绩。</div>';
     return;
   }
+  if(theme === 'season'){
+    zoRenderSeasons(out, market, month, curYear, main);
+    document.getElementById('zo-copy-btn').style.display = '';
+    return;
+  }
+
+  // ===== 生肖图（反向法）: 先取当月常客池，再按「号码当年份」配生肖 =====
   // 全市场统计（共识用），主市场直接复用
   const MK = ['万能','跑马','多多','新加坡','豪龙'];
   const allStats = {};
   MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk); });
 
   const uniform = 1/12;
-  const rows = []; // 每生肖 {z, picks:[{num,type,note,shortNote}]}
 
-  ZO_LIST.forEach((z, zi) => {
-    const years = zoYearsOf(zi, yearFrom, curYear);
-    const cands = years.map(y => {
-      const num = String(y);
-      const key = seaPermKey(num);
-      const st = main.stat[key];
-      const total = st ? st.total : 0;
-      const monthHits = st ? st.mh[month-1] : 0;
-      const conc = total > 0 ? (monthHits/total)/uniform : 0;
-      const drawsSince = st ? st.firstIdx : null;
-      const avgGap = total > 0 ? main.draws/total : null;
-      const coldRatio = (total > 0 && drawsSince != null) ? drawsSince/avgGap : 0;
-      const monthLast = st ? st.monthLast[month-1] : null;
-      // 共识：几家市场该分身组在所选月份 ≥2 次且集中度 ≥1.5x
-      let consensus = 0;
-      MK.forEach(mk => {
-        const s2 = allStats[mk].stat[key];
-        if(!s2 || s2.total === 0) return;
-        const h2 = s2.mh[month-1];
-        if(h2 >= 2 && (h2/s2.total)/uniform >= 1.5) consensus++;
-      });
-      return {year:y, num, key, total, monthHits, conc, drawsSince, avgGap, coldRatio, monthLast, consensus};
+  // 候选池: 该月开出过的所有分身组（显示形态 = 该组最近一次实际开出的号码）
+  const pool = [];
+  for(const key in main.stat){
+    const st = main.stat[key];
+    const monthHits = st.mh[month-1];
+    if(monthHits < 1) continue;
+    const conc = (monthHits/st.total)/uniform;
+    const avgGap = main.draws/st.total;
+    // 共识：几家市场该分身组在所选月份 ≥2 次且集中度 ≥1.5x
+    let consensus = 0;
+    MK.forEach(mk => {
+      const s2 = allStats[mk].stat[key];
+      if(!s2 || s2.total === 0) return;
+      const h2 = s2.mh[month-1];
+      if(h2 >= 2 && (h2/s2.total)/uniform >= 1.5) consensus++;
     });
+    pool.push({key, num:st.sampleNum, zi:zoZodiacOfNum(st.sampleNum), total:st.total, monthHits, conc,
+      drawsSince:st.firstIdx, avgGap, coldRatio:st.firstIdx/avgGap, monthLast:st.monthLast[month-1], consensus});
+  }
 
+  const rows = []; // 每生肖 {zi, z, picks:[{c,type,note}]}
+  ZO_LIST.forEach((z, zi) => {
+    const cands = pool.filter(c => c.zi === zi);
+    if(!cands.length){ rows.push({zi, z, picks:[]}); return; }
     // 位置①: 季节常客位 — 该月命中最多、集中度最高
     const byMonth = cands.slice().sort((a,b) => b.monthHits - a.monthHits || b.conc - a.conc || b.total - a.total);
     const pickA = byMonth[0];
     // 位置②: 共识优先，否则最冷（排除已选）
     const rest = cands.filter(c => c !== pickA);
-    const withCons = rest.filter(c => c.consensus >= 2).sort((a,b) => b.consensus - a.consensus || b.coldRatio - a.coldRatio);
-    const byCold = rest.filter(c => c.total > 0).sort((a,b) => b.coldRatio - a.coldRatio);
-    const pickB = withCons[0] || byCold[0] || rest[0];
+    const withCons = rest.filter(c => c.consensus >= 2).sort((a,b) => b.consensus - a.consensus || b.monthHits - a.monthHits);
+    const byCold = rest.slice().sort((a,b) => b.coldRatio - a.coldRatio);
+    const pickB = withCons[0] || byCold[0];
 
-    const noteA = pickA.monthHits > 0
-      ? month + '月开过' + pickA.monthHits + '次 · 集中度' + pickA.conc.toFixed(1) + 'x · 最近' + String(pickA.monthLast).slice(0,4) + '年'
-      : (pickA.total > 0 ? month + '月未开过 · 全分身历史共' + pickA.total + '次' : '全分身从未开出');
+    const noteA = month + '月开过' + pickA.monthHits + '次 · 集中度' + pickA.conc.toFixed(1) + 'x · 最近' + String(pickA.monthLast).slice(0,4) + '年';
     const noteB = !pickB ? '' : (pickB.consensus >= 2
       ? pickB.consensus + '家市场' + month + '月共识 · 已沉睡' + pickB.drawsSince + '期'
-      : (pickB.total > 0
-        ? '已沉睡' + pickB.drawsSince + '期 · 冷度' + pickB.coldRatio.toFixed(1) + 'x（平均' + Math.round(pickB.avgGap) + '期一开）'
-        : '全分身从未开出 · 处女号'));
+      : '已沉睡' + pickB.drawsSince + '期 · 冷度' + pickB.coldRatio.toFixed(1) + 'x · ' + month + '月开过' + pickB.monthHits + '次');
 
     const picks = [{c:pickA, type:'season', note:noteA}];
     if(pickB) picks.push({c:pickB, type:(pickB.consensus >= 2 ? 'consensus' : 'cold'), note:noteB});
     rows.push({zi, z, picks});
   });
 
-  ZO_LAST = {market, month, curYear, yearFrom, rows};
+  ZO_LAST = {mode:'zodiac', market, month, curYear, rows};
 
   // ===== 渲染（红金海报风，参照传统生肖旺图排版：3列×4行 鼠牛虎/兔龙蛇/马羊猴/鸡狗猪） =====
   const curZi = zoZodiacOfYear(curYear);
@@ -9587,7 +9589,7 @@ function doZodiacChart(){
   // 顶部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
   html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + month + '月份十二生肖幸运数 🧧</div>';
-  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜规则公开：生肖年份当4D号码（' + yearFrom + '–' + curYear + '）＋ ' + main.draws + ' 期真实开彩记录筛选</div>';
+  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜选号：' + main.draws + ' 期真实开彩的' + month + '月常客｜配肖规则：号码当年份算生肖（例 8777→牛）</div>';
   html += '</div>';
   // 12 宫格
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
@@ -9621,15 +9623,82 @@ function doZodiacChart(){
   document.getElementById('zo-copy-btn').style.display = '';
 }
 
+// ===== 四季图: 春夏秋冬四宫格，每格 = 历史上最偏爱该季节的号码（纯数据，无需配对规则） =====
+function zoRenderSeasons(out, market, month, curYear, main){
+  const SEASONS = [
+    {name:'春', label:'春季（3–5月）', months:[3,4,5], emoji:'🌸'},
+    {name:'夏', label:'夏季（6–8月）', months:[6,7,8], emoji:'☀️'},
+    {name:'秋', label:'秋季（9–11月）', months:[9,10,11], emoji:'🍂'},
+    {name:'冬', label:'冬季（12–2月）', months:[12,1,2], emoji:'❄️'}
+  ];
+  const curSi = SEASONS.findIndex(s => s.months.indexOf(month) >= 0);
+  const cells = SEASONS.map((s, si) => {
+    const entries = [];
+    for(const key in main.stat){
+      const st = main.stat[key];
+      let sHits = 0; s.months.forEach(m => { sHits += st.mh[m-1]; });
+      if(sHits < 3) continue;
+      const conc = (sHits/st.total)/0.25; // 一季=3个月=理论占比25%
+      if(conc < 1.5) continue;
+      let last = null;
+      s.months.forEach(m => { const d = st.monthLast[m-1]; if(d && (!last || d > last)) last = d; });
+      entries.push({num:st.sampleNum, sHits, total:st.total, conc, last});
+    }
+    entries.sort((a,b) => b.conc - a.conc || b.sHits - a.sHits);
+    return {s, si, entries:entries.slice(0,6), allCount:entries.length};
+  });
+  ZO_LAST = {mode:'season', market, month, curYear, cells};
+
+  let html = '<div class="card" style="background:linear-gradient(160deg,#991b1b 0%,#dc2626 45%,#b91c1c 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-poster">';
+  html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
+  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 四季常客号码图 🧧</div>';
+  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜' + main.draws + ' 期真实开彩｜每季 = 历史上最偏爱该季节的号码（≥3次 + 集中度≥1.5x）</div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
+  cells.forEach(c => {
+    const isCur = c.si === curSi;
+    html += '<div style="background:linear-gradient(180deg,#fffbeb,#fef3c7);border:2px solid ' + (isCur ? '#f59e0b' : '#fbbf24') + ';border-radius:10px;padding:9px 8px;box-shadow:0 2px 6px rgba(0,0,0,.25)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">';
+    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:13px;border-radius:5px;padding:2px 9px;border:1px solid #fde047">' + c.s.emoji + ' ' + c.s.label + '</span>';
+    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">当季</span>';
+    html += '</div>';
+    if(!c.entries.length) html += '<div style="font-size:10px;color:#92400e">暂无符合条件的季节常客</div>';
+    c.entries.forEach(e => {
+      html += '<div style="display:flex;align-items:baseline;gap:6px;margin-top:3px">';
+      html += '<span style="font-family:monospace;font-size:17px;font-weight:900;color:#b91c1c;letter-spacing:1px">' + e.num + '</span>';
+      html += '<span style="font-size:9px;color:#78350f">' + c.s.name + '季' + e.sHits + '次/共' + e.total + '次 · ' + e.conc.toFixed(1) + 'x · 最近' + String(e.last).slice(0,4) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">📊 真数据 · 查得到 · 月底公开复盘 📊</div>';
+  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">⚠️ 彩票随机，本图为历史统计整理，不构成预测</div>';
+  html += '</div>';
+  html += '</div>';
+  out.innerHTML = html;
+}
+
 function zoCopyText(){
   if(!ZO_LAST){ return; }
   const L = ZO_LAST;
-  let txt = '🧧 ' + L.curYear + '年' + L.month + '月 生肖号码图（' + L.market + '）\n';
-  txt += '规则：生肖年份直接当4D号码（' + L.yearFrom + '–' + L.curYear + '），再用历史数据筛选，每生肖2个。\n\n';
-  L.rows.forEach(r => {
-    const parts = r.picks.map(p => p.c.num + '（' + p.note + '）');
-    txt += r.z.emoji + ' ' + r.z.name + '：' + parts.join('｜') + '\n';
-  });
+  let txt;
+  if(L.mode === 'season'){
+    txt = '🧧 ' + L.curYear + '年 四季常客号码图（' + L.market + '）\n';
+    txt += '规则：号码历史命中按春夏秋冬归类，集中度 = 实际占比 ÷ 25%。\n\n';
+    L.cells.forEach(c => {
+      const parts = c.entries.map(e => e.num + '（' + c.s.name + '季' + e.sHits + '次·' + e.conc.toFixed(1) + 'x）');
+      txt += c.s.emoji + ' ' + c.s.label + '：' + (parts.join('｜') || '—') + '\n';
+    });
+  } else {
+    txt = '🧧 ' + L.curYear + '年' + L.month + '月 十二生肖幸运数·数据版（' + L.market + '）\n';
+    txt += '规则：先用历史数据筛当月常客，再按「号码当年份算生肖」对号入座，每生肖2个。\n\n';
+    L.rows.forEach(r => {
+      const parts = r.picks.map(p => p.c.num + '（' + p.note + '）');
+      txt += r.z.emoji + ' ' + r.z.name + '：' + (parts.join('｜') || '—') + '\n';
+    });
+  }
   txt += '\n📊 数据来源：2004年至今真实开彩记录。彩票随机，本帖为历史统计整理，不构成预测。月底公开复盘命中率。';
   const btn = document.getElementById('zo-copy-btn');
   const done = () => { btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制月报文字'; }, 1500); };
