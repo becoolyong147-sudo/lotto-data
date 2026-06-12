@@ -9581,37 +9581,41 @@ function doZodiacChart(){
 
   ZO_LAST = {market, month, curYear, yearFrom, rows};
 
-  // ===== 渲染 =====
+  // ===== 渲染（红金海报风，参照传统生肖旺图排版：3列×4行 鼠牛虎/兔龙蛇/马羊猴/鸡狗猪） =====
   const curZi = zoZodiacOfYear(curYear);
-  let html = '<div class="card" style="background:linear-gradient(135deg,#7c2d12 0%,#b91c1c 55%,#d97706 100%);color:#fff" id="zo-poster">';
-  html += '<div style="text-align:center;padding:6px 0 2px">';
-  html += '<div style="font-size:20px;font-weight:800">🧧 ' + curYear + '年' + month + '月 生肖号码图 · ' + market + '</div>';
-  html += '<div style="font-size:11px;color:#fde68a;margin-top:4px">规则公开：生肖年份直接当4D号码（' + yearFrom + '–' + curYear + '）｜数据：真实开彩记录 ' + main.draws + ' 期｜每生肖＝季节常客位＋冷号/共识位</div>';
+  let html = '<div class="card" style="background:linear-gradient(160deg,#991b1b 0%,#dc2626 45%,#b91c1c 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-poster">';
+  // 顶部横幅
+  html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:10px 14px;text-align:center;margin:2px 0 10px">';
+  html += '<div style="font-size:21px;font-weight:900;color:#fde047;letter-spacing:2px;text-shadow:0 1px 2px rgba(0,0,0,.4)">🧧 ' + month + '月份十二生肖幸运数 🧧</div>';
+  html += '<div style="font-size:11px;color:#fecaca;margin-top:4px">' + curYear + '年 · ' + market + ' · 数据版｜规则公开：生肖年份当4D号码（' + yearFrom + '–' + curYear + '）＋ ' + main.draws + ' 期真实开彩记录筛选</div>';
   html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:10px">';
+  // 12 宫格
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
   rows.forEach(r => {
     const isCur = r.zi === curZi;
-    const border = isCur ? '2px solid #fde047' : '1px solid rgba(255,255,255,.25)';
-    html += '<div style="background:rgba(0,0,0,.25);border:' + border + ';border-radius:10px;padding:8px">';
-    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
-    html += '<span style="font-size:20px">' + r.z.emoji + '</span>';
-    html += '<span style="font-weight:800;font-size:14px">' + r.z.name + '<span style="font-size:10px;color:#fde68a;margin-left:3px">' + r.z.branch + '</span></span>';
-    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px;margin-left:auto">今年</span>';
+    html += '<div style="background:linear-gradient(180deg,#fffbeb,#fef3c7);border:2px solid ' + (isCur ? '#f59e0b' : '#fbbf24') + ';border-radius:10px;padding:8px 7px;box-shadow:0 2px 6px rgba(0,0,0,.25)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between">';
+    html += '<span style="background:#b91c1c;color:#fde047;font-weight:900;font-size:12px;border-radius:5px;padding:2px 8px;border:1px solid #fde047">' + r.z.name + '</span>';
+    if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">今年</span>';
     html += '</div>';
+    html += '<div style="text-align:center;font-size:34px;line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
+    html += '<div style="text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + month + '月份生肖' + r.z.name + '（' + r.z.branch + '）</div>';
+    html += '<div style="text-align:center;font-family:monospace;font-size:19px;font-weight:900;color:#b91c1c;letter-spacing:1px;margin-bottom:4px">' + r.picks.map(p => p.c.num).join(' · ') + '</div>';
     r.picks.forEach(p => {
       const tag = p.type === 'season' ? {t:'季节', bg:'#16a34a'} : p.type === 'consensus' ? {t:'共识', bg:'#dc2626'} : {t:'冷号', bg:'#2563eb'};
-      html += '<div style="margin-bottom:5px">';
-      html += '<div style="display:flex;align-items:center;gap:6px">';
-      html += '<span style="font-family:monospace;font-size:18px;font-weight:800;letter-spacing:1px">' + p.c.num + '</span>';
-      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 5px">' + tag.t + '</span>';
-      html += '</div>';
-      html += '<div style="font-size:9.5px;color:#fecaca;line-height:1.4">' + p.note + '</div>';
+      html += '<div style="display:flex;align-items:flex-start;gap:4px;margin-top:2px">';
+      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8.5px;font-weight:700;border-radius:3px;padding:0 4px;flex:none;line-height:1.7">' + tag.t + '</span>';
+      html += '<span style="font-size:8.5px;color:#78350f;line-height:1.5">' + p.c.num + '：' + p.note + '</span>';
       html += '</div>';
     });
     html += '</div>';
   });
   html += '</div>';
-  html += '<div style="text-align:center;font-size:10px;color:#fde68a;margin-top:8px">⚠️ 彩票随机，本图为历史统计整理，不构成预测 · 月底公开复盘命中率</div>';
+  // 底部横幅
+  html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
+  html += '<div style="font-size:16px;font-weight:900;color:#fde047;letter-spacing:3px">📊 真数据 · 查得到 · 月底公开复盘 📊</div>';
+  html += '<div style="font-size:9.5px;color:#fecaca;margin-top:3px">⚠️ 彩票随机，本图为历史统计整理，不构成预测</div>';
+  html += '</div>';
   html += '</div>';
   out.innerHTML = html;
   document.getElementById('zo-copy-btn').style.display = '';
