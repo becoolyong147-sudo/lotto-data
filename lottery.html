@@ -7113,11 +7113,28 @@ function doBacktest(){
 </div>
 
 <div class="card" style="border:2px solid #fbbf24">
-  <h3>💎 会员版推荐 — 24打 / 12打 / 6打 分层名单</h3>
+  <h3>💎 会员版推荐 — 自选打数分层名单</h3>
   <div class="warn">
     这部分<b>不会出现在公开海报上</b>。生成后用「复制会员话术」或「下载会员图」，自己发到付费会员群。<br>
-    <b>打数</b> = 号码包注数：<b>24打</b>＝四位全不同（覆盖广，稳健包注）；<b>12打</b>＝含一对（平衡型）；<b>6打</b>＝两对成双（注数少，小本搏猛）。<br>
-    市场和月份沿用上面「生成设置」的选择；排序用综合评分（当月命中 + 集中度 + 共识 + 冷度）。
+    <b>打数</b> = 号码包注数：<b>24打</b>＝四位全不同（覆盖广，稳健包注）；<b>12打</b>＝含一对（平衡型）；<b>6打</b>＝两对成双（注数少，搏中爆）；<b>4打</b>＝三同一异（注数最少，极高难度）。<br>
+    勾选会员要的打数（可多选），例如某会员只要12打，就只勾12打生成给他；6打/4打会额外标注「平均每X期出现一次」。市场和月份沿用上面「生成设置」的选择；排序用综合评分（当月命中 + 集中度 + 共识 + 冷度）。
+  </div>
+  <div class="row" style="margin-top:10px">
+    <div class="ig"><label>会员要的打数（可多选）</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:4px">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fef3c7;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700;color:#78350f"><input type="checkbox" id="zo-mem-da-24" checked style="margin:0">24打</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fef3c7;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700;color:#78350f"><input type="checkbox" id="zo-mem-da-12" checked style="margin:0">12打</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fef3c7;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700;color:#78350f"><input type="checkbox" id="zo-mem-da-6" checked style="margin:0">6打</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fef3c7;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700;color:#78350f"><input type="checkbox" id="zo-mem-da-4" style="margin:0">4打</label>
+      </div>
+    </div>
+    <div class="ig"><label>每种打数显示几个</label>
+      <select id="zo-mem-topn">
+        <option value="5">5 个</option>
+        <option value="8">8 个</option>
+        <option value="10">10 个</option>
+      </select>
+    </div>
   </div>
   <div class="row" style="margin-top:10px">
     <div class="ig"><button class="btn btn-red" onclick="zoMemberGen()">💎 生成会员版名单</button></div>
@@ -7125,6 +7142,25 @@ function doBacktest(){
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
   </div>
   <div id="zo-member-result" style="margin-top:10px"></div>
+</div>
+
+<div class="card" style="border:2px solid #9333ea">
+  <h3>📈 6打 / 4打 号码出现频率总表</h3>
+  <div class="warn">
+    一次列出该市场<b>全部 45 组 6打 + 90 组 4打</b>分身组的历史数据：出现次数、平均每几期出现一次、距今沉睡多少期。<br>
+    <b>冷热倍数</b> = 距今沉睡期数 ÷ 平均间隔，🔥 ≥1.5x＝超期较多，❄️ ＜0.7x＝刚开过不久。默认按冷热倍数从高到低排，方便想搏6打/4打的会员自己挑号。<br>
+    纯历史统计，<b>不构成预测</b>。市场沿用上面「生成设置」的选择。
+  </div>
+  <div class="row" style="margin-top:10px">
+    <div class="ig"><button class="btn" onclick="zoFreqTable()">📈 生成频率总表</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoFreqCopy()" id="zo-freq-copy" style="display:none">📋 复制重点提示</button></div>
+  </div>
+  <div id="zo-freq-filters" style="display:none;gap:6px;margin-top:8px">
+    <button class="btn" style="padding:5px 12px;font-size:12px" onclick="zoFreqRender('all')">全部</button>
+    <button class="btn" style="padding:5px 12px;font-size:12px" onclick="zoFreqRender(6)">只看6打</button>
+    <button class="btn" style="padding:5px 12px;font-size:12px" onclick="zoFreqRender(4)">只看4打</button>
+  </div>
+  <div id="zo-freq-result" style="margin-top:10px"></div>
 </div>
 
 <div class="card" style="border:2px solid #16a34a">
@@ -10154,10 +10190,14 @@ let ZO_MEM = null;
 const ZO_DA_INFO = {
   24: {label:'24打 · 四位全异', desc:'覆盖广 · 稳健包注型', color:'#16a34a'},
   12: {label:'12打 · 含一对',   desc:'平衡型 · 性价比之选', color:'#2563eb'},
-  6:  {label:'6打 · 两对成双',  desc:'注数少 · 小本搏猛型', color:'#dc2626'}
+  6:  {label:'6打 · 两对成双',  desc:'注数少 · 小本搏猛型', color:'#dc2626'},
+  4:  {label:'4打 · 三同一异',  desc:'注数最少 · 极高难度型', color:'#9333ea'}
 };
-function zoMemTags(c, month){
-  return month + '月 ' + c.monthHits + ' 次 · 共识 ' + c.consensus + '/5 · 沉睡 ' + c.drawsSince + ' 期 · 集中度 ' + c.conc.toFixed(1) + 'x';
+// da 传入时（6/4打）额外标注「平均每X期出现一次」，方便会员判断这个号码大约多久开一次
+function zoMemTags(c, month, da){
+  let t = month + '月 ' + c.monthHits + ' 次 · 共识 ' + c.consensus + '/5 · 沉睡 ' + c.drawsSince + ' 期 · 集中度 ' + c.conc.toFixed(1) + 'x';
+  if(da === 6 || da === 4) t += ' · 平均每' + Math.round(c.avgGap) + '期一次';
+  return t;
 }
 function zoMemberGen(){
   const market = document.getElementById('zo-market').value;
@@ -10168,22 +10208,28 @@ function zoMemberGen(){
     out.innerHTML = '<div class="error">' + market + ' 的数据量太少（仅 ' + main.draws + ' 期），先去「数据管理」补充历史成绩。</div>';
     return;
   }
+  const selDa = [24,12,6,4].filter(d => document.getElementById('zo-mem-da-'+d).checked);
+  if(!selDa.length){
+    out.innerHTML = '<div class="error">请至少勾选一种打数。</div>';
+    return;
+  }
+  const topN = parseInt(document.getElementById('zo-mem-topn').value, 10) || 5;
   const pool = zoBuildPool(market, month, main);
   if(!pool.length){ out.innerHTML = '<div class="error">该月暂无候选号码。</div>'; return; }
   const sorted = pool.slice().sort((a,b) => zoScore(b) - zoScore(a));
   const star = sorted[0];
   const groups = {};
-  [24,12,6].forEach(da => { groups[da] = sorted.filter(c => zoDaCount(c.num) === da).slice(0,5); });
-  ZO_MEM = {market, month, star, groups, curYear:new Date().getFullYear(), draws:main.draws};
+  selDa.forEach(da => { groups[da] = sorted.filter(c => zoDaCount(c.num) === da).slice(0,topN); });
+  ZO_MEM = {market, month, star, groups, selDa, curYear:new Date().getFullYear(), draws:main.draws};
 
   // 深蓝金会员卡预览
   let h = '<div class="card" style="background:linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-member-card">';
   h += '<div style="text-align:center;padding:8px 0 2px">';
   h += '<div style="display:inline-block;background:#fbbf24;color:#0f172a;font-size:10px;font-weight:900;letter-spacing:2px;border-radius:4px;padding:2px 10px">💎 会员专享 MEMBERS ONLY 💎</div>';
   h += '<div style="font-size:19px;font-weight:900;color:#fbbf24;letter-spacing:2px;margin-top:6px">' + month + '月会员旺号名单 · ' + market + ' ' + (ZO_MKT_EN[market]||'').toUpperCase() + '</div>';
-  h += '<div style="font-size:11px;font-weight:700;color:#fde047;margin-top:3px">🔥 本月主打：<span style="font-family:monospace;font-size:16px;font-weight:900;letter-spacing:2px">' + star.num + '</span> ' + ZO_LIST[star.zi].emoji + ZO_STR.zh.zodiacNames[star.zi] + ' · ' + zoMemTags(star, month) + '</div>';
+  h += '<div style="font-size:11px;font-weight:700;color:#fde047;margin-top:3px">🔥 本月主打：<span style="font-family:monospace;font-size:16px;font-weight:900;letter-spacing:2px">' + star.num + '</span> ' + ZO_LIST[star.zi].emoji + ZO_STR.zh.zodiacNames[star.zi] + ' · ' + zoMemTags(star, month, zoDaCount(star.num)) + '</div>';
   h += '</div>';
-  [24,12,6].forEach(da => {
+  selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
     h += '<div style="margin:10px 8px">';
     h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="background:' + info.color + ';color:#fff;font-size:12px;font-weight:900;border-radius:5px;padding:2px 10px">' + info.label + '</span><span style="font-size:10.5px;color:#94a3b8;font-weight:600">' + info.desc + '</span></div>';
@@ -10195,7 +10241,7 @@ function zoMemberGen(){
       h += '<span style="color:#fbbf24;font-size:12px;font-weight:900;width:18px">' + (i+1) + '</span>';
       h += '<span style="font-family:monospace;font-size:21px;font-weight:900;color:#fde047;letter-spacing:3px">' + c.num + '</span>';
       h += '<span style="font-size:15px">' + ZO_LIST[c.zi].emoji + '</span><span style="font-size:11px;font-weight:700;color:#fbbf24">' + ZO_STR.zh.zodiacNames[c.zi] + '</span>';
-      h += '<span style="font-size:10px;color:#cbd5e1;margin-left:auto;text-align:right">' + zoMemTags(c, month) + '</span>';
+      h += '<span style="font-size:10px;color:#cbd5e1;margin-left:auto;text-align:right">' + zoMemTags(c, month, da) + '</span>';
       h += '</div>';
     });
     h += '</div>';
@@ -10209,13 +10255,13 @@ function zoMemberCopy(){
   if(!ZO_MEM) return;
   const M = ZO_MEM;
   let txt = '💎💎 ' + M.month + '月会员专享旺号 · ' + M.market + ' ' + (ZO_MKT_EN[M.market]||'') + ' 💎💎\n';
-  txt += '🔥 本月主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + '（' + zoMemTags(M.star, M.month) + '）\n';
-  [24,12,6].forEach(da => {
+  txt += '🔥 本月主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + '（' + zoMemTags(M.star, M.month, zoDaCount(M.star.num)) + '）\n';
+  M.selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
     txt += '\n【' + info.label + ' · ' + info.desc + '】\n';
     if(!ZO_MEM.groups[da].length){ txt += '本月暂无\n'; return; }
     ZO_MEM.groups[da].forEach((c, i) => {
-      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + '（' + zoMemTags(c, M.month) + '）\n';
+      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + '（' + zoMemTags(c, M.month, da) + '）\n';
     });
   });
   txt += '\n⚠️ 历史统计整理，不构成预测 · 月底公开复盘\n（会员专享内容，请勿外传 🙏）';
@@ -10229,9 +10275,9 @@ function zoMemberPNG(){
   if(!ZO_MEM) return;
   const M = ZO_MEM;
   const W = 1080, pad = 36;
-  // 动态算高：头部 + 主打条 + 三个分组(组头+行) + 底部
+  // 动态算高：头部 + 主打条 + 各分组(组头+行) + 底部
   let H = 30 + 110 + 14 + 100 + 6;
-  [24,12,6].forEach(da => { H += 56 + Math.max(ZO_MEM.groups[da].length,1)*62 + 14; });
+  M.selDa.forEach(da => { H += 56 + Math.max(ZO_MEM.groups[da].length,1)*62 + 14; });
   H += 64 + 30;
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const ctx = cv.getContext('2d');
@@ -10270,11 +10316,12 @@ function zoMemberPNG(){
   ctx.fillStyle = '#7f1d1d'; ctx.font = '900 42px ' + ZO_MONO;
   ctx.fillText(M.star.num + '  ' + ZO_LIST[M.star.zi].emoji + ' ' + ZO_STR.zh.zodiacNames[M.star.zi], W/2, y+53);
   ctx.fillStyle = '#92400e';
-  zoFitFont(ctx,zoMemTags(M.star, M.month),W-2*pad-40,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
-  ctx.fillText(zoMemTags(M.star, M.month), W/2, y+83);
+  const starTagT = zoMemTags(M.star, M.month, zoDaCount(M.star.num));
+  zoFitFont(ctx,starTagT,W-2*pad-40,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
+  ctx.fillText(starTagT, W/2, y+83);
   y += 106;
-  // 三个分组
-  [24,12,6].forEach(da => {
+  // 各分组（按会员勾选的打数）
+  M.selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
     // 组头
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
@@ -10305,7 +10352,7 @@ function zoMemberPNG(){
       ctx.fillStyle = '#fbbf24'; ctx.font = '800 19px ' + ZO_FONT;
       ctx.fillText(ZO_STR.zh.zodiacNames[c.zi], pad+212, y+29);
       ctx.fillStyle = '#cbd5e1'; ctx.textAlign = 'right';
-      const tagT = zoMemTags(c, M.month);
+      const tagT = zoMemTags(c, M.month, da);
       zoFitFont(ctx,tagT,W-2*pad-290,17,11,function(s){return s+'px '+ZO_FONT;});
       ctx.fillText(tagT, W-pad-16, y+29);
       y += 62;
@@ -10327,6 +10374,90 @@ function zoMemberPNG(){
     const btn = document.getElementById('zo-mem-png');
     if(btn){ btn.textContent = '✅ 已下载'; setTimeout(function(){ btn.textContent = '📸 下载会员图'; }, 1500); }
   });
+}
+
+// ===== V63: 6打/4打 号码出现频率总表（全部45组6打 + 90组4打，不按月份过滤） =====
+let ZO_FREQ = null;
+function zoFreqLine(r){
+  const tag = r.total === 0 ? '从未出现' : ('约' + Math.round(r.avgGap) + '期一次');
+  const cold = (r.total === 0) ? '从未出现' : (r.coldRatio.toFixed(1) + 'x');
+  return r.num + ' ' + ZO_LIST[r.zi].emoji + ZO_STR.zh.zodiacNames[r.zi] + '：历史' + r.total + '次，' + tag + '，已沉睡' + r.drawsSince + '期（' + cold + '）';
+}
+function zoFreqTable(){
+  const market = document.getElementById('zo-market').value;
+  const out = document.getElementById('zo-freq-result');
+  const main = zoMarketStats(market);
+  if(main.draws < 200){
+    out.innerHTML = '<div class="error">' + market + ' 的数据量太少（仅 ' + main.draws + ' 期），先去「数据管理」补充历史成绩。</div>';
+    return;
+  }
+  // 枚举全部分身组：6打(两对成双) 共C(10,2)=45组，4打(三同一异) 共10*9=90组
+  const groups = [];
+  for(let a=0;a<10;a++) for(let b=a+1;b<10;b++) groups.push({key:seaPermKey(''+a+a+b+b), da:6});
+  for(let a=0;a<10;a++) for(let b=0;b<10;b++){ if(a!==b) groups.push({key:seaPermKey(''+a+a+a+b), da:4}); }
+
+  const rows = groups.map(g => {
+    const st = main.stat[g.key];
+    const total = st ? st.total : 0;
+    const avgGap = total ? main.draws/total : null;
+    const drawsSince = st ? st.firstIdx : main.draws;
+    const coldRatio = total ? drawsSince/avgGap : Infinity;
+    const num = st ? st.sampleNum : g.key;
+    return {num, da:g.da, zi:zoZodiacOfNum(num), total, avgGap, drawsSince, coldRatio, lastDate: st ? st.lastDate : null};
+  });
+
+  ZO_FREQ = {market, draws:main.draws, rows};
+  document.getElementById('zo-freq-filters').style.display = 'flex';
+  document.getElementById('zo-freq-copy').style.display = '';
+  zoFreqRender('all');
+}
+function zoFreqRender(filter){
+  if(!ZO_FREQ) return;
+  const out = document.getElementById('zo-freq-result');
+  let rows = ZO_FREQ.rows.slice();
+  if(filter === 6 || filter === 4) rows = rows.filter(r => r.da === filter);
+  rows.sort((a,b) => b.coldRatio - a.coldRatio);
+
+  let h = '<div style="font-size:11px;color:#666;margin-bottom:6px">' + ZO_FREQ.market + ' 共 ' + ZO_FREQ.draws + ' 期历史数据 · 共 ' + rows.length + ' 组 · 按「冷热倍数」从高到低排（越高代表越久没开）</div>';
+  h += '<div style="overflow-x:auto"><table><tr><th>#</th><th>号码</th><th>生肖</th><th>打数</th><th>历史出现</th><th>平均间隔</th><th>距今沉睡</th><th>冷热倍数</th><th>最近一次</th></tr>';
+  rows.forEach((r, i) => {
+    const info = ZO_DA_INFO[r.da];
+    let tag, color;
+    if(r.total === 0){ tag = '⚪ 从未出现'; color = '#666'; }
+    else if(r.coldRatio >= 1.5){ tag = '🔥 ' + r.coldRatio.toFixed(1) + 'x 超期'; color = '#dc2626'; }
+    else if(r.coldRatio < 0.7){ tag = '❄️ ' + r.coldRatio.toFixed(1) + 'x 刚开过'; color = '#2563eb'; }
+    else { tag = r.coldRatio.toFixed(1) + 'x'; color = '#666'; }
+    h += '<tr>';
+    h += '<td style="color:#999;font-size:11px">' + (i+1) + '</td>';
+    h += '<td><span style="font-family:monospace;font-weight:900">' + r.num + '</span></td>';
+    h += '<td>' + ZO_LIST[r.zi].emoji + ZO_STR.zh.zodiacNames[r.zi] + '</td>';
+    h += '<td><span style="color:' + info.color + ';font-weight:700">' + r.da + '打</span></td>';
+    h += '<td>' + r.total + ' 次</td>';
+    h += '<td>' + (r.total ? '约' + Math.round(r.avgGap) + '期一次' : '—') + '</td>';
+    h += '<td>' + r.drawsSince + ' 期</td>';
+    h += '<td style="color:' + color + ';font-weight:700">' + tag + '</td>';
+    h += '<td style="font-size:11px">' + (r.lastDate || '—') + '</td>';
+    h += '</tr>';
+  });
+  h += '</table></div>';
+  h += '<div class="warn" style="margin-top:8px">⚠️ 纯历史统计，号码独立随机，「超期」不代表「快要开」，「从未出现」也不代表「不会开」。仅供想搏6打/4打的会员参考。</div>';
+  out.innerHTML = h;
+}
+function zoFreqCopy(){
+  if(!ZO_FREQ) return;
+  const rows6 = ZO_FREQ.rows.filter(r => r.da === 6).slice().sort((a,b) => b.coldRatio - a.coldRatio).slice(0,8);
+  const rows4 = ZO_FREQ.rows.filter(r => r.da === 4).slice().sort((a,b) => b.coldRatio - a.coldRatio).slice(0,8);
+  let txt = '📈 ' + ZO_FREQ.market + ' 6打/4打 号码出现频率提示（共 ' + ZO_FREQ.draws + ' 期历史数据）\n\n';
+  txt += '【6打 最久未开 TOP8】\n';
+  rows6.forEach((r,i) => { txt += (i+1) + '. ' + zoFreqLine(r) + '\n'; });
+  txt += '\n【4打 最久未开 TOP8】\n';
+  rows4.forEach((r,i) => { txt += (i+1) + '. ' + zoFreqLine(r) + '\n'; });
+  txt += '\n⚠️ 纯历史统计，不构成预测，「超期」不代表「快要开」。';
+  const btn = document.getElementById('zo-freq-copy');
+  const done = () => { if(btn){ btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制重点提示'; }, 1500); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(() => { zoCopyFallback(txt); done(); });
+  } else { zoCopyFallback(txt); done(); }
 }
 
 // ===== V63: 公开复盘 — 用「该月之前」的数据还原当时的推荐，对照实际头/二/三奖（调字也算命中） =====
