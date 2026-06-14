@@ -7127,6 +7127,36 @@ function doBacktest(){
   <div id="zo-member-result" style="margin-top:10px"></div>
 </div>
 
+<div class="card" style="border:2px solid #16a34a">
+  <h3>📊 公开复盘 — 验证生肖推荐是否命中头/二/三奖（含调字）</h3>
+  <div class="warn">
+    用「该月之前」的历史数据还原当时会推荐的号码（含12生肖位 + 本月主打号），再对照当月实际开奖的头/二/三奖。<br>
+    <b>调字也算命中</b>：号码全排列属于同一分身组（如推荐 1234，实际开出 4231）即视为命中。<br>
+    命中与未命中<b>都会如实列出</b>——这是「月底公开复盘」承诺的依据，可直接复制发群。
+  </div>
+  <div class="row" style="margin-top:10px">
+    <div class="ig"><label>市场</label>
+      <select id="zo-rv-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>年份</label>
+      <select id="zo-rv-year">
+        <script>(function(){var y=new Date().getFullYear();for(var i=y;i>=y-6;i--)document.write('<option value="'+i+'">'+i+'年</option>');})()</script>
+      </select>
+    </div>
+    <div class="ig"><label>月份</label>
+      <select id="zo-rv-month">
+        <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+        <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+        <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+        <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
+  </div>
+  <div id="zo-review-result" style="margin-top:10px"></div>
+</div>
+
 <style>
 @media print{
   body.zo-print *{ visibility:hidden !important; }
@@ -9642,8 +9672,9 @@ function zoZodiacOfYear(y){ return ((y - 4) % 12 + 12) % 12; }
 function zoZodiacOfNum(num){ return zoZodiacOfYear(parseInt(num, 10)); }
 
 // 预计算一个市场的分身组统计。DB 按日期新→旧排序，firstIdx = 距今缺席期数
-function zoMarketStats(market){
-  const recs = DB[market] || [];
+// cutoff（可选，'YYYY-MM-DD'）：只统计该日期之前的开奖，用于「公开复盘」还原当时的推荐
+function zoMarketStats(market, cutoff){
+  const recs = cutoff ? (DB[market]||[]).filter(r => r.date < cutoff) : (DB[market] || []);
   const stat = {}; // key -> {total, mh:[12], firstIdx, lastDate, monthLast:[12]}
   recs.forEach((r, idx) => {
     const m = seaMonth(r.date); if(!m || m < 1 || m > 12) return;
@@ -9662,11 +9693,11 @@ function zoMarketStats(market){
   return {stat, draws:recs.length};
 }
 
-// 候选池构建（生肖图 / 主打号 / 会员版共用）：该月开出过的分身组 + 集中度/冷度/共识
-function zoBuildPool(market, month, main){
+// 候选池构建（生肖图 / 主打号 / 会员版 / 复盘共用）：该月开出过的分身组 + 集中度/冷度/共识
+function zoBuildPool(market, month, main, cutoff){
   const MK = ['万能','跑马','多多','新加坡','豪龙'];
   const allStats = {};
-  MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk); });
+  MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk, cutoff); });
   const uniform = 1/12;
   const pool = [];
   for(const key in main.stat){
@@ -9698,6 +9729,32 @@ function zoDaCount(num){
 // 综合评分（主打号/会员版排序用）：当月命中 + 集中度 + 共识 + 冷度（封顶3x）
 function zoScore(c){ return c.monthHits*1.5 + c.conc + c.consensus*2 + Math.min(c.coldRatio,3)*0.8; }
 
+// 12生肖配号（生肖图 / 复盘共用）：每生肖 季节位 + 共识/冷号位
+function zoComputeRows(pool){
+  const rows = [];
+  ZO_LIST.forEach((z, zi) => {
+    const cands = pool.filter(c => c.zi === zi);
+    if(!cands.length){ rows.push({zi, z, picks:[]}); return; }
+    // 位置①: 季节常客位 — 该月命中最多、集中度最高
+    const byMonth = cands.slice().sort((a,b) => b.monthHits - a.monthHits || b.conc - a.conc || b.total - a.total);
+    const pickA = byMonth[0];
+    // 位置②: 共识优先，否则最冷（排除已选）
+    const rest = cands.filter(c => c !== pickA);
+    const withCons = rest.filter(c => c.consensus >= 2).sort((a,b) => b.consensus - a.consensus || b.monthHits - a.monthHits);
+    const byCold = rest.slice().sort((a,b) => b.coldRatio - a.coldRatio);
+    const pickB = withCons[0] || byCold[0];
+
+    const picks = [{c:pickA, type:'season'}];
+    if(pickB) picks.push({c:pickB, type:(pickB.consensus >= 2 ? 'consensus' : 'cold')});
+    rows.push({zi, z, picks});
+  });
+  return rows;
+}
+// 主打号 = 综合评分全场最高
+function zoComputeStar(pool){
+  return pool.length ? pool.slice().sort((a,b) => zoScore(b) - zoScore(a))[0] : null;
+}
+
 function doZodiacChart(){
   const market = document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
@@ -9718,26 +9775,8 @@ function doZodiacChart(){
 
   // ===== 生肖图（反向法）: 先取当月常客池，再按「号码当年份」配生肖 =====
   const pool = zoBuildPool(market, month, main);
-  // 主打号 = 综合评分全场最高
-  const star = pool.length ? pool.slice().sort((a,b) => zoScore(b) - zoScore(a))[0] : null;
-
-  const rows = []; // 每生肖 {zi, z, picks:[{c,type,note}]}
-  ZO_LIST.forEach((z, zi) => {
-    const cands = pool.filter(c => c.zi === zi);
-    if(!cands.length){ rows.push({zi, z, picks:[]}); return; }
-    // 位置①: 季节常客位 — 该月命中最多、集中度最高
-    const byMonth = cands.slice().sort((a,b) => b.monthHits - a.monthHits || b.conc - a.conc || b.total - a.total);
-    const pickA = byMonth[0];
-    // 位置②: 共识优先，否则最冷（排除已选）
-    const rest = cands.filter(c => c !== pickA);
-    const withCons = rest.filter(c => c.consensus >= 2).sort((a,b) => b.consensus - a.consensus || b.monthHits - a.monthHits);
-    const byCold = rest.slice().sort((a,b) => b.coldRatio - a.coldRatio);
-    const pickB = withCons[0] || byCold[0];
-
-    const picks = [{c:pickA, type:'season'}];
-    if(pickB) picks.push({c:pickB, type:(pickB.consensus >= 2 ? 'consensus' : 'cold')});
-    rows.push({zi, z, picks});
-  });
+  const rows = zoComputeRows(pool); // 每生肖 {zi, z, picks:[{c,type,note}]}
+  const star = zoComputeStar(pool); // 主打号 = 综合评分全场最高
 
   ZO_LAST = {mode:'zodiac', market, month, curYear, draws:main.draws, rows, star};
 
@@ -10290,10 +10329,131 @@ function zoMemberPNG(){
   });
 }
 
-// 打开生肖图分页时，月份默认当月；恢复保存过的广告词
+// ===== V63: 公开复盘 — 用「该月之前」的数据还原当时的推荐，对照实际头/二/三奖（调字也算命中） =====
+let ZO_REVIEW = null;
+const ZO_RV_TAG = {season:'🐲季节位', consensus:'🤝共识位', cold:'❄️冷号位', star:'🔥主打号'};
+const ZO_RV_PRIZE = ['头奖','二奖','三奖'];
+function zoReviewMonth(){
+  const market = document.getElementById('zo-rv-market').value;
+  const year = parseInt(document.getElementById('zo-rv-year').value, 10);
+  const month = parseInt(document.getElementById('zo-rv-month').value, 10);
+  const out = document.getElementById('zo-review-result');
+  const cutoff = year + '-' + String(month).padStart(2,'0') + '-01';
+
+  const main = zoMarketStats(market, cutoff);
+  if(main.draws < 200){
+    out.innerHTML = '<div class="error">' + market + ' 在 ' + cutoff + ' 之前的数据不足（仅 ' + main.draws + ' 期），无法还原当时的推荐。</div>';
+    return;
+  }
+  const ym = year + '-' + String(month).padStart(2,'0');
+  const draws = (DB[market]||[]).filter(r => r.date && r.date.startsWith(ym) && !r.date.endsWith('-00'))
+    .slice().sort((a,b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  if(!draws.length){
+    out.innerHTML = '<div class="error">' + ym + ' 暂无开奖记录可复盘。</div>';
+    return;
+  }
+
+  // 还原「该月之前」会推荐的号码（与生成海报同一套逻辑）
+  const pool = zoBuildPool(market, month, main, cutoff);
+  const rows = zoComputeRows(pool);
+  const star = zoComputeStar(pool);
+
+  // 推荐分身组 → {zi, num, tags:[]}
+  const pickMap = {};
+  rows.forEach(r => r.picks.forEach(p => {
+    if(!pickMap[p.c.key]) pickMap[p.c.key] = {zi:r.zi, num:p.c.num, tags:[]};
+    pickMap[p.c.key].tags.push(p.type);
+  }));
+  if(star){
+    if(!pickMap[star.key]) pickMap[star.key] = {zi:star.zi, num:star.num, tags:[]};
+    pickMap[star.key].tags.push('star');
+  }
+
+  let hitDraws = 0, hitTotal = 0;
+  const hitZi = new Set();
+  const tableRows = draws.map(r => {
+    const cells = [0,1,2].map(pi => {
+      const raw = r.nums[pi];
+      if(raw == null || raw === '') return {num:'', hit:null};
+      const num = pz(raw);
+      const m = pickMap[seaPermKey(num)];
+      if(m){
+        hitTotal++; hitZi.add(m.zi);
+        return {num, hit:{zi:m.zi, recNum:m.num, tags:m.tags, twisted:m.num !== num}};
+      }
+      return {num, hit:null};
+    });
+    if(cells.some(c => c.hit)) hitDraws++;
+    return {date:r.date, draw:r.draw, cells};
+  });
+
+  ZO_REVIEW = {market, year, month, cutoff, baseDraws:main.draws, totalDraws:draws.length, hitDraws, hitTotal, hitZiCount:hitZi.size, rows:tableRows};
+
+  const pct = Math.round(hitDraws/draws.length*100);
+  let h = '<div class="card" style="border:2px solid #16a34a">';
+  h += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">';
+  h += '<div class="sc" style="min-width:90px"><div class="val">' + draws.length + '</div><div class="lbl">本月开奖期数</div></div>';
+  h += '<div class="sc" style="min-width:90px"><div class="val" style="color:' + (pct>=30?'#16a34a':'#dc2626') + '">' + hitDraws + '/' + draws.length + '</div><div class="lbl">命中期数（' + pct + '%）</div></div>';
+  h += '<div class="sc" style="min-width:90px"><div class="val">' + hitTotal + '</div><div class="lbl">命中次数（头/二/三奖累计）</div></div>';
+  h += '<div class="sc" style="min-width:90px"><div class="val">' + hitZi.size + '/12</div><div class="lbl">命中生肖数</div></div>';
+  h += '</div>';
+  h += '<div style="font-size:11px;color:#666;margin-bottom:8px">推荐基于 ' + cutoff + ' 之前共 ' + main.draws + ' 期历史数据还原（不含本月数据），与当时实际生成的海报一致。「调字」= 号码全排列属于同一分身组即视为命中（如推荐 ' + (star?star.num:'1234') + '，实际开出同组其他排列）。🐲季节位/🤝共识位/❄️冷号位/🔥主打号 = 命中的位置类型。</div>';
+  h += '<div style="overflow-x:auto"><table><tr><th>日期</th><th>期号</th><th>' + ZO_RV_PRIZE[0] + '</th><th>' + ZO_RV_PRIZE[1] + '</th><th>' + ZO_RV_PRIZE[2] + '</th></tr>';
+  tableRows.forEach(r => {
+    const anyHit = r.cells.some(c => c.hit);
+    h += '<tr style="background:' + (anyHit ? '#f0fdf4' : '#fff') + '"><td style="font-size:11px">' + r.date + '</td><td><span class="nc nc-sm">' + escHtml(r.draw||'') + '</span></td>';
+    r.cells.forEach(c => {
+      if(!c.num){ h += '<td>—</td>'; return; }
+      if(c.hit){
+        const tagTxt = c.hit.tags.map(t => ZO_RV_TAG[t]).join(' ');
+        h += '<td><span style="font-family:monospace;font-weight:900;color:#16a34a">' + c.num + '</span> <span style="color:#16a34a;font-weight:700">✓</span><br><span style="font-size:9px;color:#15803d">' + ZO_LIST[c.hit.zi].emoji + tagTxt + (c.hit.twisted ? ' · 调字(推荐' + c.hit.recNum + ')' : '') + '</span></td>';
+      } else {
+        h += '<td><span style="font-family:monospace">' + c.num + '</span></td>';
+      }
+    });
+    h += '</tr>';
+  });
+  h += '</table></div>';
+  h += '<div class="warn" style="margin-top:8px">⚠️ 彩票随机，本表为历史统计整理，不构成预测。命中与未命中均如实列出。</div>';
+  h += '</div>';
+  out.innerHTML = h;
+  const btn = document.getElementById('zo-rv-copy'); if(btn) btn.style.display = '';
+}
+function zoReviewCopy(){
+  if(!ZO_REVIEW) return;
+  const R = ZO_REVIEW;
+  let txt = '📊 ' + R.year + '年' + R.month + '月 ' + R.market + ' 生肖推荐公开复盘\n';
+  txt += '推荐基于 ' + R.cutoff + ' 之前共 ' + R.baseDraws + ' 期历史数据还原，不含本月数据。\n\n';
+  txt += '本月开奖：' + R.totalDraws + ' 期\n';
+  txt += '命中期数：' + R.hitDraws + '/' + R.totalDraws + '（' + Math.round(R.hitDraws/R.totalDraws*100) + '%）\n';
+  txt += '命中次数：' + R.hitTotal + ' 次（头/二/三奖累计）\n';
+  txt += '命中生肖：' + R.hitZiCount + '/12\n\n';
+  R.rows.forEach(r => {
+    const parts = r.cells.map((c,i) => {
+      if(!c.num) return ZO_RV_PRIZE[i] + ' —';
+      if(c.hit) return ZO_RV_PRIZE[i] + ' ' + c.num + '✓(' + ZO_LIST[c.hit.zi].emoji + c.hit.tags.map(t=>ZO_RV_TAG[t]).join(' ') + (c.hit.twisted?' 调字':'') + ')';
+      return ZO_RV_PRIZE[i] + ' ' + c.num;
+    });
+    txt += r.date + '：' + parts.join(' ｜ ') + '\n';
+  });
+  txt += '\n⚠️ 彩票随机，历史统计整理，不构成预测。命中与未命中均如实列出。';
+  const btn = document.getElementById('zo-rv-copy');
+  const done = () => { if(btn){ btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制复盘报告'; }, 1500); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(() => { zoCopyFallback(txt); done(); });
+  } else { zoCopyFallback(txt); done(); }
+}
+
+// 打开生肖图分页时，月份默认当月；复盘默认上个月；恢复保存过的广告词
 (function(){
   const sel = document.getElementById('zo-month');
   if(sel) sel.value = String(new Date().getMonth() + 1);
+  const now = new Date();
+  let rvY = now.getFullYear(), rvM = now.getMonth(); // getMonth()+1 = 当月，-1 即上个月
+  if(rvM === 0){ rvM = 12; rvY -= 1; }
+  const rvYearSel = document.getElementById('zo-rv-year'), rvMonthSel = document.getElementById('zo-rv-month');
+  if(rvYearSel) rvYearSel.value = String(rvY);
+  if(rvMonthSel) rvMonthSel.value = String(rvM);
   try{
     const ad = JSON.parse(localStorage.getItem(ZO_AD_KEY)||'{}');
     const t = document.getElementById('zo-ad-text'), c = document.getElementById('zo-ad-contact');
