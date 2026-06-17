@@ -1420,7 +1420,16 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
   <!-- Row 6: 形态 + 包含数字 -->
   <div style="margin-top:8px" class="g2">
     <div class="ig"><label>形态条件（可多个，用 / 分开；支持组合如 大单小双xx）</label><input type="text" id="flt-patterns" placeholder="如 双双xx / 大单小双xx / 小xx单"></div>
-    <div class="ig"><label>号码包含数字（如 135 = 含1或3或5）</label><input type="text" id="flt-contains-digit" placeholder="如 13 = 含1或3" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+    <div class="ig" style="flex:1">
+      <label>号码包含 1D / 2D（空格或逗号分开，OR逻辑）</label>
+      <input type="text" id="flt-contains-digit" placeholder="如：135 含1或3或5｜38 含连续38｜38xx x38x xx38 位置精确" style="width:100%" oninput="this.value=this.value.replace(/[^0-9xX ,，]/g,'')">
+      <div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:4px" id="flt-cd-hint"></div>
+      <div style="font-size:10px;color:#64748b;margin-top:4px">
+        <b>1D</b>：单个数字（如 <code>3</code>）= 号码中含该数字 &nbsp;|&nbsp;
+        <b>2D</b>：两个数字（如 <code>38</code>）= 自动匹配 38xx / x38x / xx38 &nbsp;|&nbsp;
+        <b>位置精确</b>：四位含x（如 <code>38xx</code> <code>x38x</code>）= 精确匹配指定位置
+      </div>
+    </div>
   </div>
 
   <!-- Row 6b: 指定位数条件 -->
@@ -4718,7 +4727,11 @@ function runAdvancedFilter(){
   const patternsRaw=document.getElementById('flt-patterns').value||'';
   const patterns=patternsRaw.split(/[\/\n,，]+/).map(s=>normalizePatternToken(s)).filter(Boolean);
   const containsDigitsRaw=document.getElementById('flt-contains-digit').value||'';
-  const containsDigits=containsDigitsRaw.replace(/[^0-9]/g,'').split('').filter(Boolean);
+  // 解析 token：空格/逗号分隔，每个 token 可以是：
+  //   1位数字 → 含该数字（任意位置）
+  //   2位数字 → 自动匹配三种连续位置（38xx / x38x / xx38）
+  //   4位含x  → 精确位置匹配（复用 matchPosPattern）
+  const containsTokens = containsDigitsRaw.toLowerCase().split(/[\s,，]+/).map(t=>t.trim()).filter(Boolean);
   const posPattern=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().replace(/[^0-9x]/g,'');
   const recs=DB[market]||[];
   // 冷热档：直接复用 fltGetCategory（与结果分类列完全一致）
@@ -4755,7 +4768,16 @@ function runAdvancedFilter(){
       if(!inRange(front3Pts,pts3fRange))return;
       if(!inRange(back3Pts,pts3bRange))return;
       if(patterns.length&&!patterns.some(p=>matchPattern(num,p)))return;
-      if(containsDigits.length&&!containsDigits.some(d=>num.includes(d)))return;
+      if(containsTokens.length){
+        const s=String(num).padStart(4,'0');
+        const pass=containsTokens.some(tok=>{
+          if(/^\d$/.test(tok)) return s.includes(tok);               // 1D：含该数字
+          if(/^\d{2}$/.test(tok)) return s.includes(tok);             // 2D：含连续2位（位置0-1/1-2/2-3）
+          if(/^[\dx]{4}$/.test(tok)) return matchPosPattern(num,tok); // 4位精确
+          return false;
+        });
+        if(!pass) return;
+      }
       if(posPattern&&!matchPosPattern(num,posPattern))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
