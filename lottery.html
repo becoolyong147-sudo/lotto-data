@@ -1459,6 +1459,7 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
   </div>
 </div>
 <div id="filter-result"></div>
+<div id="flt-b2d-result"></div>
 
 <!-- 候选清单持久化 -->
 <div class="card" style="margin-top:10px;border:2px solid #1e3a5f" id="candidate-pool-card">
@@ -4862,6 +4863,7 @@ function runAdvancedFilter(){
       <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyFilterNums('space')">📋 复制（空格）</button>
       <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyFilterNums('newline')">📋 复制（换行）</button>
       <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyFilterNums('comma')">📋 复制（逗号）</button>
+      <button class="btn btn-green" style="padding:5px 12px;font-size:11px" onclick="fltRecommendBack2D()">🔗 推荐后2D → 组合4D</button>
     </div>` : '';
 
   html+=`<div class="card">
@@ -4933,8 +4935,139 @@ function runAdvancedFilter(){
   // 命中率回测 + 注入到结果前面
   const backtestHtml = fltBacktest(market, grouped, prizeFilter);
   document.getElementById('filter-result').innerHTML = backtestHtml + html;
-  // Store for copy
+  // Store for copy + back-2D recommendation
   window._lastFilterNums = grouped.map(g=>g.num);
+  window._fltLastRows = rows;
+  window._fltLastMarket = market;
+  document.getElementById('flt-b2d-result').innerHTML = '';
+}
+
+// ===== 前2D已定 → 推荐后2D → 组合4D =====
+function fltRecommendBack2D(){
+  const rows = window._fltLastRows;
+  const market = window._fltLastMarket;
+  const out = document.getElementById('flt-b2d-result');
+  if(!rows || rows.length === 0){ out.innerHTML = '<div class="warn">请先执行筛选，再点击此按钮。</div>'; return; }
+
+  // 1. 提取筛选结果中所有唯一的前2D（首位+次位）
+  const front2Set = new Set();
+  rows.forEach(r => {
+    const s = String(r.num).padStart(4,'0');
+    front2Set.add(s.slice(0,2));
+  });
+  const front2List = [...front2Set].sort();
+
+  // 2. 扫描全市场历史，统计「匹配前2D → 后2D出现次数」
+  const back2Count = {};   // back2D string -> total count
+  const pairCount  = {};   // "AB|CD" -> count (for 4D assembly)
+  const allRecs = DB[market] || [];
+  allRecs.forEach(r => {
+    r.nums.forEach(raw => {
+      if(!raw || raw === '0000') return;
+      const s = String(pz(raw)).padStart(4,'0');
+      const f2 = s.slice(0,2);
+      if(!front2Set.has(f2)) return;
+      const b2 = s.slice(2,4);
+      back2Count[b2] = (back2Count[b2] || 0) + 1;
+      const key = f2 + '|' + b2;
+      pairCount[key] = (pairCount[key] || 0) + 1;
+    });
+  });
+
+  if(Object.keys(back2Count).length === 0){
+    out.innerHTML = '<div class="warn">历史数据中找不到这些前2D的配对记录，请换一组筛选条件。</div>';
+    return;
+  }
+
+  // 3. 排序：后2D按总出现次数降序
+  const b2Ranked = Object.entries(back2Count)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, 20);
+
+  const totalPairs = Object.values(back2Count).reduce((s,v) => s+v, 0);
+
+  // 4. 渲染
+  let h = '<div class="card" style="border:2px solid #16a34a">';
+  h += '<h3>🔗 推荐后2D — 基于筛选前2D的历史配对分析</h3>';
+  h += '<div class="warn">逻辑：从筛选结果中提取所有前2D（' + front2List.map(f=>'<b>'+f+'xx</b>').join(' ') + '），再扫描 <b>'+market+'</b> 全历史，统计这些前2D最常搭配的后2D，按出现频率排序。</div>';
+
+  // 后2D频率表
+  h += '<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:6px">📊 后2D出现频率（Top 20）</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+  b2Ranked.forEach(([b2, cnt], i) => {
+    const pct = (cnt/totalPairs*100).toFixed(1);
+    const col = i < 3 ? '#dc2626' : i < 7 ? '#f59e0b' : '#64748b';
+    const bg  = i < 3 ? '#fef2f2' : i < 7 ? '#fffbeb' : '#f8fafc';
+    const b2Root = v24DigitalRoot1to9(parseInt(b2[0],10)+parseInt(b2[1],10));
+    h += '<div style="background:'+bg+';border:2px solid '+col+';border-radius:8px;padding:6px 10px;min-width:72px;text-align:center">';
+    h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+col+'">xx'+b2+'</div>';
+    h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次</div>';
+    h += '<div style="font-size:11px;font-weight:700;color:'+col+'">'+pct+'%</div>';
+    h += '</div>';
+  });
+  h += '</div></div>';
+
+  // 4D组合表：前2D × 后2D（Top 5后2D）
+  const top5B2 = b2Ranked.slice(0,5).map(([b2])=>b2);
+  h += '<div style="font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:6px">🎯 4D候选组合（前2D × 后2D Top5）</div>';
+  h += '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;width:100%">';
+  h += '<tr><th style="background:#f0f4fa;padding:6px 10px;border:1px solid #e2e8f0;text-align:left">前2D \\ 后2D</th>';
+  top5B2.forEach(b2 => {
+    h += '<th style="background:#f0f4fa;padding:6px 10px;border:1px solid #e2e8f0;text-align:center">xx<b>'+b2+'</b><br><span style="font-size:9px;color:#64748b">根'+v24DigitalRoot1to9(parseInt(b2[0],10)+parseInt(b2[1],10))+'</span></th>';
+  });
+  h += '<th style="background:#f0f4fa;padding:6px 10px;border:1px solid #e2e8f0;text-align:center">前2D总次</th></tr>';
+
+  // 按前2D分组统计
+  const front2Total = {};
+  Object.entries(pairCount).forEach(([key, cnt]) => {
+    const f2 = key.split('|')[0];
+    front2Total[f2] = (front2Total[f2]||0) + cnt;
+  });
+  const front2ListSorted = front2List.slice().sort((a,b) => (front2Total[b]||0)-(front2Total[a]||0));
+
+  front2ListSorted.forEach(f2 => {
+    const f2Root = v24DigitalRoot1to9(parseInt(f2[0],10)+parseInt(f2[1],10));
+    const rowTotal = front2Total[f2]||0;
+    h += '<tr>';
+    h += '<td style="padding:6px 10px;border:1px solid #e2e8f0;font-weight:700;white-space:nowrap"><span style="font-family:monospace;font-size:14px;color:#1e3a5f"><b>'+f2+'</b>xx</span> <span style="font-size:10px;color:#64748b">根'+f2Root+'</span></td>';
+    top5B2.forEach(b2 => {
+      const cnt = pairCount[f2+'|'+b2] || 0;
+      const num4d = f2 + b2;
+      const pct = rowTotal > 0 ? (cnt/rowTotal*100).toFixed(0) : 0;
+      const isHot = cnt > 0 && pct >= 15;
+      h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;background:'+(isHot?'#fef3c7':'#fff')+'">';
+      if(cnt > 0){
+        h += '<span style="font-family:monospace;font-weight:900;color:#b91c1c;font-size:13px">'+num4d+'</span>';
+        h += '<br><span style="font-size:9px;color:#64748b">'+cnt+'次 ('+pct+'%)</span>';
+      } else {
+        h += '<span style="color:#e2e8f0">—</span>';
+      }
+      h += '</td>';
+    });
+    h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;color:#475569;font-size:11px">'+rowTotal+'次</td>';
+    h += '</tr>';
+  });
+  h += '</table></div>';
+
+  // 快速复制候选号码
+  const candidates = [];
+  front2ListSorted.forEach(f2 => {
+    top5B2.forEach(b2 => {
+      if(pairCount[f2+'|'+b2]) candidates.push(f2+b2);
+    });
+  });
+  if(candidates.length){
+    h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    h += '<span style="font-size:11px;font-weight:700;color:#475569">4D候选（共'+candidates.length+'个）：</span>';
+    h += '<span style="font-family:monospace;font-size:12px;color:#b91c1c">'+candidates.join(' ')+'</span>';
+    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制\',1500)})">📋 复制</button>';
+    h += '</div>';
+  }
+
+  h += '<div style="margin-top:8px;font-size:10px;color:#94a3b8">⚠️ 纯历史频率统计，不构成预测。建议结合冷热状态、近期走势综合判断。</div>';
+  h += '</div>';
+  out.innerHTML = h;
+  out.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 function copyFilterNums(sep){
