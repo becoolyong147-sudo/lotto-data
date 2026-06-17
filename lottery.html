@@ -7201,6 +7201,95 @@ function doBacktest(){
 }
 </style>
 
+<!-- ===== 新增: 最强肖推荐 ===== -->
+<div class="card" style="border:2px solid #dc2626">
+  <h3>🏆 本月最强肖 — 综合评分推荐</h3>
+  <div class="warn">综合「当月命中次数 + 集中度 + 多市场共识 + 冷度」四项评分，自动排出本月押注价值最高的生肖及代表号码。市场和月份沿用上方「生成设置」的选择。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-red" onclick="zoTopZodiacs()">🏆 生成最强肖排名</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoTopZodiacsCopy()" id="zo-top-copy" style="display:none">📋 复制</button></div>
+  </div>
+  <div id="zo-top-result" style="margin-top:10px"></div>
+</div>
+
+<!-- ===== 新增: 验肖器 ===== -->
+<div class="card" style="border:2px solid #7c3aed">
+  <h3>🔍 号码验肖器 — 即查任意号码</h3>
+  <div class="warn">输入任意4位号码，立即显示：所属生肖、打数、历史总出现次数、各月分布柱图、冷热状态。市场沿用上方「生成设置」的选择。</div>
+  <div class="row" style="margin-top:8px;align-items:flex-end">
+    <div class="ig"><label>输入号码（4位）</label>
+      <input type="text" id="zo-check-num" maxlength="4" placeholder="如 1234" style="width:100px;font-size:18px;font-weight:700;font-family:monospace;text-align:center" oninput="this.value=this.value.replace(/\D/g,'')">
+    </div>
+    <div class="ig"><button class="btn" onclick="zoCheckNum()">🔍 查询</button></div>
+  </div>
+  <div id="zo-check-result" style="margin-top:10px"></div>
+</div>
+
+<!-- ===== 新增: 热力日历 ===== -->
+<div class="card" style="border:2px solid #0891b2">
+  <h3>🗓️ 生肖热力日历 — 12生肖 × 12个月</h3>
+  <div class="warn">每格 = 该生肖在该月的历史命中集中度（实际占比 ÷ 均匀基准 1/12）。深红=极偏爱，橙/黄=偏热，白=正常，蓝=冷淡。一眼找出哪个生肖在哪个月最活跃。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig"><label>市场</label>
+      <select id="zo-heat-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoHeatCalendar()">🗓️ 生成热力图</button></div>
+  </div>
+  <div id="zo-heat-result" style="margin-top:10px;overflow-x:auto"></div>
+</div>
+
+<!-- ===== 新增: 胜率走势 ===== -->
+<div class="card" style="border:2px solid #16a34a">
+  <h3>📈 生肖推荐胜率走势 — 逐月命中率追踪</h3>
+  <div class="warn">按月还原生肖推荐（用月初前数据模拟当时推荐），对照当月实际开奖，统计「命中期数 ÷ 当月总期数」。让你知道这套方法长期表现如何。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig"><label>市场</label>
+      <select id="zo-wr-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>回溯月数</label>
+      <select id="zo-wr-months">
+        <option value="6">最近6个月</option>
+        <option value="12" selected>最近12个月</option>
+        <option value="24">最近24个月</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoWinRate()">📈 计算胜率走势</button></div>
+  </div>
+  <div id="zo-wr-result" style="margin-top:10px"></div>
+</div>
+
+<!-- ===== 新增: 冷热仪表盘 ===== -->
+<div class="card" style="border:2px solid #ea580c">
+  <h3>🌡️ 生肖冷热仪表盘 — 12宫一眼看冷热</h3>
+  <div class="warn">冷热指数 = 该生肖所有候选号码的平均冷热倍数（距今沉睡期 ÷ 历史平均间隔）。🔥红 &gt;1.5x 超期，⚪灰 正常，❄️蓝 &lt;0.7x 刚开。市场和月份沿用上方「生成设置」的选择。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoGaugeDash()">🌡️ 生成仪表盘</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoGaugeCopy()" id="zo-gauge-copy" style="display:none">📋 复制排名</button></div>
+  </div>
+  <div id="zo-gauge-result" style="margin-top:10px"></div>
+</div>
+
+<!-- ===== 新增: 单生肖跨月对比 ===== -->
+<div class="card" style="border:2px solid #d97706">
+  <h3>📊 单生肖跨月对比 — 12个月历史分布</h3>
+  <div class="warn">选定某个生肖，查看其号码在1–12月各月历史命中次数分布，找出该肖的「旺季」和「淡季」，辅助判断哪个月更适合主推该生肖。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig"><label>市场</label>
+      <select id="zo-cmp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>生肖</label>
+      <select id="zo-cmp-zodiac">
+        <option value="0">🐭 鼠</option><option value="1">🐮 牛</option><option value="2">🐯 虎</option>
+        <option value="3">🐰 兔</option><option value="4">🐲 龙</option><option value="5">🐍 蛇</option>
+        <option value="6">🐴 马</option><option value="7">🐑 羊</option><option value="8">🐵 猴</option>
+        <option value="9">🐔 鸡</option><option value="10">🐶 狗</option><option value="11">🐷 猪</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoMonthCompare()">📊 生成对比图</button></div>
+  </div>
+  <div id="zo-cmp-result" style="margin-top:10px"></div>
+</div>
+
 <div id="zodiac-result"></div>
 </div>
 
@@ -10592,6 +10681,355 @@ function zoReviewCopy(){
     if(c && ad.c) c.value = ad.c;
   }catch(e){}
 })();
+
+// ===== 新增功能 1: 最强肖推荐 =====
+let ZO_TOP = null;
+function zoTopZodiacs(){
+  const market = document.getElementById('zo-market').value;
+  const month = parseInt(document.getElementById('zo-month').value, 10);
+  const out = document.getElementById('zo-top-result');
+  const main = zoMarketStats(market);
+  if(main.draws < 200){ out.innerHTML='<div class="error">数据不足，请先补充历史成绩。</div>'; return; }
+  const pool = zoBuildPool(market, month, main);
+  // 按生肖聚合：该肖所有候选的综合评分
+  const ziMap = {};
+  pool.forEach(c => {
+    if(!ziMap[c.zi]) ziMap[c.zi] = {zi:c.zi, cands:[]};
+    ziMap[c.zi].cands.push(c);
+  });
+  const ranked = Object.values(ziMap).map(z => {
+    z.cands.sort((a,b) => zoScore(b)-zoScore(a));
+    z.score = z.cands.slice(0,2).reduce((s,c) => s+zoScore(c), 0) / Math.min(z.cands.length, 2);
+    z.top2 = z.cands.slice(0,2);
+    return z;
+  }).sort((a,b) => b.score-a.score);
+  ZO_TOP = {market, month, ranked};
+  const medals = ['🥇','🥈','🥉'];
+  const podiumCols = ['#dc2626','#64748b','#b45309'];
+  let h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:10px">';
+  ranked.slice(0,3).forEach((z,i) => {
+    const zinfo = ZO_LIST[z.zi];
+    const col = podiumCols[i];
+    h += '<div style="background:#fff8f0;border:2px solid '+col+';border-radius:10px;padding:10px">';
+    h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">';
+    h += '<span style="font-size:22px">'+medals[i]+'</span>';
+    h += '<span style="font-size:28px">'+zinfo.emoji+'</span>';
+    h += '<div><div style="font-size:15px;font-weight:800;color:'+col+'">'+zinfo.name+'</div>';
+    h += '<div style="font-size:10px;color:#666">综合评分 '+z.score.toFixed(1)+'</div></div></div>';
+    z.top2.forEach(c => {
+      h += '<div style="background:#f1f5f9;border-radius:6px;padding:5px 8px;margin-top:4px">';
+      h += '<span style="font-family:monospace;font-size:17px;font-weight:900;color:#b91c1c">'+c.num+'</span>';
+      h += '<span style="font-size:10px;color:#475569;margin-left:6px">'+zoDaCount(c.num)+'打 · 月中'+c.monthHits+'次 · 集中'+c.conc.toFixed(1)+'x · 睡'+c.drawsSince+'期</span>';
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  h += '</div>';
+  if(ranked.length > 3){
+    h += '<div style="font-size:11px;color:#64748b">其余排名：';
+    ranked.slice(3).forEach((z,i) => { h += (i>0?'、':'')+ZO_LIST[z.zi].emoji+ZO_LIST[z.zi].name+'（'+z.score.toFixed(1)+'）'; });
+    h += '</div>';
+  }
+  out.innerHTML = h;
+  const btn = document.getElementById('zo-top-copy'); if(btn) btn.style.display='';
+}
+function zoTopZodiacsCopy(){
+  if(!ZO_TOP) return;
+  const {market, month, ranked} = ZO_TOP;
+  const medals = ['🥇','🥈','🥉'];
+  let txt = '🏆 '+market+' '+month+'月 本月最强生肖推荐\n\n';
+  ranked.slice(0,3).forEach((z,i) => {
+    txt += medals[i]+' '+ZO_LIST[z.zi].emoji+ZO_LIST[z.zi].name+'（评分 '+z.score.toFixed(1)+'）\n';
+    z.top2.forEach(c => { txt += '   '+c.num+' · '+zoDaCount(c.num)+'打 · 月命中'+c.monthHits+'次 · 沉睡'+c.drawsSince+'期\n'; });
+  });
+  txt += '\n⚠️ 历史统计，不构成预测。';
+  const btn = document.getElementById('zo-top-copy');
+  const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制'; },1500); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
+  else { zoCopyFallback(txt); done(); }
+}
+
+// ===== 新增功能 2: 号码验肖器 =====
+function zoCheckNum(){
+  const raw = (document.getElementById('zo-check-num').value||'').trim();
+  const out = document.getElementById('zo-check-result');
+  if(raw.length !== 4 || !/^\d{4}$/.test(raw)){ out.innerHTML='<div class="error">请输入4位数字</div>'; return; }
+  const market = document.getElementById('zo-market').value;
+  const num = pz(raw);
+  const zi = zoZodiacOfNum(num);
+  const zinfo = ZO_LIST[zi];
+  const da = zoDaCount(num);
+  const main = zoMarketStats(market);
+  const key = seaPermKey(num);
+  const st = main.stat[key];
+  let h = '<div style="display:flex;flex-wrap:wrap;gap:10px">';
+  h += '<div style="background:#fff8f0;border:2px solid #fbbf24;border-radius:10px;padding:12px;min-width:170px;text-align:center">';
+  h += '<div style="font-size:30px;font-weight:900;font-family:monospace;color:#b91c1c;letter-spacing:4px">'+num+'</div>';
+  h += '<div style="font-size:36px;margin:4px 0">'+zinfo.emoji+'</div>';
+  h += '<div style="font-size:16px;font-weight:800;color:#7c2d12">'+zinfo.name+' （'+zinfo.branch+'）</div>';
+  h += '<div style="font-size:11px;color:#92400e;margin-top:3px">'+da+'打 · '+num+'年属'+zinfo.name+'</div>';
+  h += '</div>';
+  if(!st){
+    h += '<div style="padding:12px;color:#64748b;font-size:13px;align-self:center">在 <b>'+market+'</b> 历史记录中<b>从未出现</b>过（含全排列）。</div>';
+  } else {
+    const avgGap = main.draws / st.total;
+    const coldRatio = st.firstIdx / avgGap;
+    const coldLabel = coldRatio >= 1.5 ? '🔥 超期' : coldRatio < 0.7 ? '❄️ 刚开' : '⚪ 正常';
+    const coldCol = coldRatio >= 1.5 ? '#dc2626' : coldRatio < 0.7 ? '#3b82f6' : '#64748b';
+    h += '<div style="flex:1;min-width:240px">';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">';
+    const stats = [['历史出现',st.total+'次'],['平均间隔',avgGap.toFixed(0)+'期'],['距今沉睡',st.firstIdx+'期'],['最近开出',st.lastDate||'—'],['冷热状态','<span style="color:'+coldCol+';font-weight:700">'+coldLabel+' '+coldRatio.toFixed(1)+'x</span>']];
+    stats.forEach(([l,v]) => {
+      h += '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:6px 10px;min-width:90px">';
+      h += '<div style="font-size:13px;font-weight:800;color:#1e3a5f">'+v+'</div>';
+      h += '<div style="font-size:10px;color:#64748b">'+l+'</div></div>';
+    });
+    h += '</div>';
+    const maxMh = Math.max(...st.mh, 1);
+    h += '<div style="font-size:11px;font-weight:700;color:#475569;margin-bottom:4px">各月命中分布</div>';
+    h += '<div style="display:flex;gap:3px;align-items:flex-end;height:60px">';
+    st.mh.forEach((v, mi) => {
+      const pct = v/maxMh*100;
+      const col = v===maxMh&&v>0 ? '#dc2626' : v>=maxMh*0.6 ? '#f59e0b' : '#94a3b8';
+      h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">';
+      h += '<div style="width:100%;height:'+Math.max(pct,3).toFixed(0)+'%;background:'+col+';border-radius:2px 2px 0 0"></div>';
+      h += '<div style="font-size:8px;color:#64748b;margin-top:2px">'+(mi+1)+'</div>';
+      h += '<div style="font-size:8px;font-weight:700;color:'+col+'">'+v+'</div>';
+      h += '</div>';
+    });
+    h += '</div>';
+    h += '</div>';
+  }
+  h += '</div>';
+  out.innerHTML = h;
+}
+
+// ===== 新增功能 3: 热力日历 =====
+function zoHeatCalendar(){
+  const market = document.getElementById('zo-heat-market').value;
+  const out = document.getElementById('zo-heat-result');
+  const main = zoMarketStats(market);
+  if(main.draws < 100){ out.innerHTML='<div class="error">数据不足</div>'; return; }
+  const ziMonthHits = Array.from({length:12}, () => new Array(12).fill(0));
+  const ziTotal = new Array(12).fill(0);
+  for(const key in main.stat){
+    const st = main.stat[key];
+    const zi = zoZodiacOfNum(st.sampleNum);
+    ziTotal[zi] += st.total;
+    st.mh.forEach((v, mi) => { ziMonthHits[zi][mi] += v; });
+  }
+  const uniform = 1/12;
+  let h = '<table style="border-collapse:collapse;font-size:11px;width:100%;min-width:600px">';
+  h += '<tr><th style="padding:5px 8px;background:#1e3a5f;color:#fff;border:1px solid #0c1a2e;text-align:left;white-space:nowrap">生肖</th>';
+  for(let m=1;m<=12;m++) h += '<th style="padding:5px 6px;background:#1e3a5f;color:#fff;border:1px solid #0c1a2e;text-align:center;min-width:44px">'+m+'月</th>';
+  h += '<th style="padding:5px 6px;background:#1e3a5f;color:#fff;border:1px solid #0c1a2e;text-align:center">总次</th></tr>';
+  ZO_LIST.forEach((z, zi) => {
+    const total = ziTotal[zi];
+    h += '<tr>';
+    h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;white-space:nowrap;font-weight:700;background:#f8fafc">'+z.emoji+' '+z.name+'</td>';
+    for(let mi=0;mi<12;mi++){
+      const hits = ziMonthHits[zi][mi];
+      const conc = total > 0 ? (hits/total)/uniform : 0;
+      const bg = conc >= 2.5 ? '#7f1d1d' : conc >= 2.0 ? '#dc2626' : conc >= 1.5 ? '#f97316' : conc >= 1.2 ? '#fef3c7' : conc >= 0.8 ? '#f8fafc' : '#dbeafe';
+      const fg = conc >= 2.0 ? '#fff' : conc >= 1.5 ? '#fff' : conc < 0.8 ? '#1e40af' : '#334155';
+      const fw = conc >= 1.5 ? '700' : '400';
+      h += '<td style="padding:5px;border:1px solid #e2e8f0;text-align:center;background:'+bg+';color:'+fg+';font-weight:'+fw+'">';
+      h += hits > 0 ? conc.toFixed(1)+'x' : '<span style="color:#cbd5e1">—</span>';
+      h += '</td>';
+    }
+    h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;color:#475569;font-weight:600">'+total+'</td>';
+    h += '</tr>';
+  });
+  h += '</table>';
+  h += '<div style="margin-top:6px;font-size:10px;color:#64748b;display:flex;flex-wrap:wrap;gap:8px">';
+  h += '<span style="background:#7f1d1d;color:#fff;padding:1px 6px;border-radius:3px">≥2.5x 极偏爱</span>';
+  h += '<span style="background:#dc2626;color:#fff;padding:1px 6px;border-radius:3px">≥2.0x 偏爱</span>';
+  h += '<span style="background:#f97316;color:#fff;padding:1px 6px;border-radius:3px">≥1.5x 偏热</span>';
+  h += '<span style="background:#fef3c7;color:#334155;padding:1px 6px;border-radius:3px">≥1.2x 微热</span>';
+  h += '<span style="background:#f8fafc;color:#334155;border:1px solid #e2e8f0;padding:1px 6px;border-radius:3px">正常</span>';
+  h += '<span style="background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:3px">&lt;0.8x 冷淡</span>';
+  h += '</div>';
+  out.innerHTML = h;
+}
+
+// ===== 新增功能 4: 胜率走势 =====
+function zoWinRate(){
+  const market = document.getElementById('zo-wr-market').value;
+  const nMonths = parseInt(document.getElementById('zo-wr-months').value, 10);
+  const out = document.getElementById('zo-wr-result');
+  out.innerHTML = '<div style="color:#666;padding:8px;font-size:13px">⏳ 计算中，请稍候…（每月需还原数据，'+nMonths+'个月约需几秒）</div>';
+  setTimeout(() => {
+    const results = [];
+    const now = new Date();
+    for(let i = nMonths; i >= 1; i--){
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear(), month = d.getMonth() + 1;
+      const cutoff = year + '-' + String(month).padStart(2,'0') + '-01';
+      const nextM = month === 12 ? (year+1)+'-01-01' : year+'-'+String(month+1).padStart(2,'0')+'-01';
+      const main = zoMarketStats(market, cutoff);
+      if(main.draws < 100){ results.push({year, month, rate:null, hitDraws:0, totalDraws:0}); continue; }
+      const pool = zoBuildPool(market, month, main, cutoff);
+      const rows = zoComputeRows(pool);
+      const allKeys = new Set();
+      rows.forEach(r => r.picks.forEach(p => allKeys.add(seaPermKey(p.c.num))));
+      const star = zoComputeStar(pool);
+      if(star) allKeys.add(seaPermKey(star.num));
+      const monthDraws = (DB[market]||[]).filter(r => r.date >= cutoff && r.date < nextM);
+      let hitDraws = 0;
+      monthDraws.forEach(r => {
+        const hit = [0,1,2].some(pi => { const n = pz(r.nums[pi]); return n && allKeys.has(seaPermKey(n)); });
+        if(hit) hitDraws++;
+      });
+      const rate = monthDraws.length > 0 ? hitDraws/monthDraws.length : null;
+      results.push({year, month, rate, hitDraws, totalDraws:monthDraws.length});
+    }
+    const valid = results.filter(r => r.rate !== null);
+    const avg = valid.length ? valid.reduce((s,r) => s+r.rate, 0)/valid.length : 0;
+    const avgCol = avg >= 0.5 ? '#16a34a' : avg >= 0.3 ? '#f59e0b' : '#dc2626';
+    let h = '<div style="margin-bottom:10px;padding:8px 12px;background:#f8fafc;border-radius:8px;display:flex;gap:16px;flex-wrap:wrap">';
+    h += '<div><span style="font-size:11px;color:#64748b">平均胜率</span><br><span style="font-size:22px;font-weight:900;color:'+avgCol+'">'+Math.round(avg*100)+'%</span></div>';
+    h += '<div><span style="font-size:11px;color:#64748b">统计月数</span><br><span style="font-size:22px;font-weight:900;color:#1e3a5f">'+valid.length+'</span></div>';
+    const best = valid.reduce((b,r) => r.rate>b.rate?r:b, {rate:0});
+    if(best.totalDraws) h += '<div><span style="font-size:11px;color:#64748b">最高单月</span><br><span style="font-size:22px;font-weight:900;color:#16a34a">'+Math.round(best.rate*100)+'%</span><span style="font-size:10px;color:#64748b"> '+best.year+'/'+best.month+'</span></div>';
+    h += '</div>';
+    h += '<div style="display:flex;flex-direction:column;gap:5px">';
+    results.forEach(r => {
+      if(r.rate === null){
+        h += '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#94a3b8;width:64px;flex:none">'+r.year+'/'+r.month+'月</span><span style="font-size:11px;color:#cbd5e1">数据不足</span></div>';
+        return;
+      }
+      const pct = Math.round(r.rate*100);
+      const col = pct >= 60 ? '#16a34a' : pct >= 40 ? '#f59e0b' : '#dc2626';
+      h += '<div style="display:flex;align-items:center;gap:8px">';
+      h += '<span style="font-size:11px;color:#475569;width:64px;flex:none">'+r.year+'/'+r.month+'月</span>';
+      h += '<div style="flex:1;background:#f1f5f9;border-radius:4px;height:18px;position:relative;overflow:hidden">';
+      h += '<div style="width:'+pct+'%;background:'+col+';height:100%;border-radius:4px"></div>';
+      h += '</div>';
+      h += '<span style="font-size:11px;font-weight:700;color:'+col+';width:36px;flex:none;text-align:right">'+pct+'%</span>';
+      h += '<span style="font-size:10px;color:#94a3b8;flex:none">'+r.hitDraws+'/'+r.totalDraws+'期</span>';
+      h += '</div>';
+    });
+    h += '</div>';
+    out.innerHTML = h;
+  }, 50);
+}
+
+// ===== 新增功能 5: 冷热仪表盘 =====
+let ZO_GAUGE = null;
+function zoGaugeDash(){
+  const market = document.getElementById('zo-market').value;
+  const month = parseInt(document.getElementById('zo-month').value, 10);
+  const out = document.getElementById('zo-gauge-result');
+  const main = zoMarketStats(market);
+  if(main.draws < 200){ out.innerHTML='<div class="error">数据不足</div>'; return; }
+  const pool = zoBuildPool(market, month, main);
+  const ziData = Array.from({length:12}, (_,zi) => ({zi, cands:[], avgCold:0, avgConc:0, topNum:null}));
+  pool.forEach(c => { ziData[c.zi].cands.push(c); });
+  ziData.forEach(z => {
+    if(!z.cands.length) return;
+    z.cands.sort((a,b) => b.coldRatio-a.coldRatio);
+    z.avgCold = z.cands.reduce((s,c) => s+c.coldRatio, 0) / z.cands.length;
+    z.avgConc = z.cands.reduce((s,c) => s+c.conc, 0) / z.cands.length;
+    z.topNum = z.cands[0];
+  });
+  ZO_GAUGE = {market, month, ranked: ziData.slice().sort((a,b) => b.avgCold-a.avgCold)};
+  let h = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px">';
+  ziData.forEach(z => {
+    const zinfo = ZO_LIST[z.zi];
+    const cold = z.avgCold;
+    const hasData = z.cands.length > 0;
+    const pct = Math.min(cold/3*100, 100);
+    const col = cold >= 1.5 ? '#dc2626' : cold >= 1.0 ? '#f59e0b' : cold >= 0.7 ? '#94a3b8' : '#3b82f6';
+    const label = cold >= 1.5 ? '🔥 超期' : cold >= 1.0 ? '⚠️ 偏冷' : cold >= 0.7 ? '⚪ 正常' : '❄️ 刚开';
+    const borderCol = cold >= 1.5 ? '#dc2626' : cold < 0.7 && hasData ? '#3b82f6' : '#e2e8f0';
+    h += '<div style="background:#fff;border:2px solid '+borderCol+';border-radius:10px;padding:9px;text-align:center">';
+    h += '<div style="font-size:26px">'+zinfo.emoji+'</div>';
+    h += '<div style="font-size:13px;font-weight:700;color:#1e293b">'+zinfo.name+'</div>';
+    if(hasData){
+      h += '<div style="background:#f1f5f9;border-radius:4px;height:7px;margin:6px 2px;overflow:hidden">';
+      h += '<div style="width:'+pct.toFixed(0)+'%;background:'+col+';height:100%;border-radius:4px;transition:width .4s"></div></div>';
+      h += '<div style="font-size:11px;font-weight:700;color:'+col+'">'+label+'</div>';
+      h += '<div style="font-size:10px;color:#94a3b8">'+cold.toFixed(2)+'x</div>';
+      if(z.topNum) h += '<div style="font-size:10px;color:#475569;margin-top:3px;font-family:monospace;font-weight:700">最冷：'+z.topNum.num+'</div>';
+    } else {
+      h += '<div style="font-size:10px;color:#cbd5e1;margin-top:6px">本月无候选</div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+  const btn = document.getElementById('zo-gauge-copy'); if(btn) btn.style.display='';
+  out.innerHTML = h;
+}
+function zoGaugeCopy(){
+  if(!ZO_GAUGE) return;
+  const {market, month, ranked} = ZO_GAUGE;
+  let txt = '🌡️ '+market+' '+month+'月 生肖冷热排名\n\n';
+  ranked.forEach((z,i) => {
+    if(!z.cands.length) return;
+    const label = z.avgCold>=1.5?'🔥超期':z.avgCold>=1.0?'⚠️偏冷':z.avgCold>=0.7?'⚪正常':'❄️刚开';
+    txt += (i+1)+'. '+ZO_LIST[z.zi].emoji+ZO_LIST[z.zi].name+' '+label+' '+z.avgCold.toFixed(2)+'x';
+    if(z.topNum) txt += '（最冷号：'+z.topNum.num+'）';
+    txt += '\n';
+  });
+  txt += '\n⚠️ 历史统计，不构成预测。';
+  const btn = document.getElementById('zo-gauge-copy');
+  const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制排名'; },1500); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
+  else { zoCopyFallback(txt); done(); }
+}
+
+// ===== 新增功能 6: 单生肖跨月对比 =====
+function zoMonthCompare(){
+  const market = document.getElementById('zo-cmp-market').value;
+  const zi = parseInt(document.getElementById('zo-cmp-zodiac').value, 10);
+  const out = document.getElementById('zo-cmp-result');
+  const main = zoMarketStats(market);
+  if(main.draws < 100){ out.innerHTML='<div class="error">数据不足</div>'; return; }
+  const zinfo = ZO_LIST[zi];
+  const monthHits = new Array(12).fill(0);
+  const monthTopNums = Array.from({length:12}, () => []);
+  for(const key in main.stat){
+    const st = main.stat[key];
+    if(zoZodiacOfNum(st.sampleNum) !== zi) continue;
+    st.mh.forEach((v, mi) => {
+      monthHits[mi] += v;
+      if(v > 0) monthTopNums[mi].push({num:st.sampleNum, hits:v});
+    });
+  }
+  const total = monthHits.reduce((s,v) => s+v, 0);
+  const maxHits = Math.max(...monthHits, 1);
+  const uniform = total / 12;
+  const hotMs = monthHits.map((v,i) => ({m:i+1,v})).filter(m => m.v >= uniform*1.3).sort((a,b) => b.v-a.v).slice(0,4);
+  const coldMs = monthHits.map((v,i) => ({m:i+1,v})).filter(m => m.v < uniform*0.8).sort((a,b) => a.v-b.v).slice(0,4);
+  let h = '<div style="font-size:13px;font-weight:700;color:#1e3a5f;margin-bottom:8px">'+zinfo.emoji+' '+zinfo.name+' 在 '+market+' 各月命中分布（历史共 '+total+' 次）</div>';
+  h += '<div style="display:flex;gap:4px;align-items:flex-end;height:100px;margin-bottom:2px">';
+  monthHits.forEach((v, mi) => {
+    const pct = v/maxHits*100;
+    const col = v >= uniform*1.5 ? '#dc2626' : v >= uniform*1.2 ? '#f59e0b' : v >= uniform*0.8 ? '#94a3b8' : '#bfdbfe';
+    h += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end">';
+    h += '<div style="font-size:8px;font-weight:700;color:'+col+';margin-bottom:2px">'+v+'</div>';
+    h += '<div style="width:100%;min-height:4px;height:'+Math.max(pct,3).toFixed(0)+'%;background:'+col+';border-radius:3px 3px 0 0"></div>';
+    h += '<div style="font-size:8px;color:#64748b;margin-top:3px">'+(mi+1)+'月</div>';
+    h += '</div>';
+  });
+  h += '</div>';
+  h += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">';
+  if(hotMs.length) h += '<div style="font-size:12px;color:#dc2626;font-weight:700">🔥 旺季：'+hotMs.map(m=>m.m+'月('+m.v+'次)').join('、')+'</div>';
+  if(coldMs.length) h += '<div style="font-size:12px;color:#3b82f6;font-weight:700">❄️ 淡季：'+coldMs.map(m=>m.m+'月('+m.v+'次)').join('、')+'</div>';
+  h += '</div>';
+  h += '<div style="margin-top:10px;font-size:11px;font-weight:700;color:#475569;margin-bottom:5px">各月命中最多号码：</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+  monthHits.forEach((v, mi) => {
+    if(!monthTopNums[mi].length){ h += '<div style="background:#f1f5f9;border-radius:6px;padding:3px 8px;font-size:11px;color:#cbd5e1">'+(mi+1)+'月 —</div>'; return; }
+    const top = monthTopNums[mi].sort((a,b)=>b.hits-a.hits)[0];
+    const isHot = v >= uniform*1.3;
+    h += '<div style="background:'+(isHot?'#fef3c7':'#f8fafc')+';border:1px solid '+(isHot?'#fbbf24':'#e2e8f0')+';border-radius:6px;padding:3px 8px;font-size:11px">';
+    h += '<span style="color:#64748b">'+(mi+1)+'月</span> <span style="font-family:monospace;font-weight:800;color:#b91c1c">'+top.num+'</span>';
+    h += '</div>';
+  });
+  h += '</div>';
+  out.innerHTML = h;
+}
 
 // ---------- V24 label helper functions (mirror Excel formulas) ----------
 function v24DigitalRoot1to9(sum){
