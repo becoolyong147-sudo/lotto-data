@@ -282,10 +282,7 @@ tr:hover td{background:#fafaf5}
   <div class="subtabs">
     <div class="subtab active" data-tab="add" onclick="switchSubtab(this)">➕ 输入新成绩</div>
     <div class="subtab" data-tab="paste" onclick="switchSubtab(this)">📋 贴入解析</div>
-    <div class="subtab" data-tab="sync" onclick="switchSubtab(this)">☁️ 云端同步</div>
-    <div class="subtab" data-tab="backup" onclick="switchSubtab(this)">📦 本地备份</div>
-    <div class="subtab" data-tab="recent" onclick="switchSubtab(this)">📅 最近开奖</div>
-    <div class="subtab" data-tab="export" onclick="switchSubtab(this)">📤 导出 Excel</div>
+    <div class="subtab" data-tab="dataexport" onclick="switchSubtab(this)">💾 数据导出</div>
     <div class="subtab" data-tab="query" onclick="switchSubtab(this)">🔍 快速查询</div>
   </div>
 </div>
@@ -294,15 +291,12 @@ tr:hover td{background:#fafaf5}
 <!-- Scene: 走势分析 -->
 <div id="scene-dranalysis" class="scene-panel">
   <div class="subtabs">
-    <div class="subtab active" data-tab="dr-quick" onclick="switchSubtab(this)">⚡ 一键分析</div>
+    <div class="subtab active" data-tab="recommend-hub" onclick="switchSubtab(this)">🎯 推荐中心</div>
     <div class="subtab" data-tab="dr-table" onclick="switchSubtab(this)">📋 分解表</div>
-    <div class="subtab" data-tab="dr-trend" onclick="switchSubtab(this)">📈 走势图</div>
     <div class="subtab" data-tab="dr-1db3d" onclick="switchSubtab(this)">📊 1D＋后3D走势</div>
     <div class="subtab" data-tab="dr-b3d-pair" onclick="switchSubtab(this)">🔗 后3D配对分析</div>
     <div class="subtab" data-tab="dr-matrix" onclick="switchSubtab(this)">🔲 转移矩阵</div>
-    <div class="subtab" data-tab="dr-recommend" onclick="switchSubtab(this)">🎯 号码推荐</div>
     <div class="subtab" data-tab="dr-verify" onclick="switchSubtab(this)">✅ 历史验证</div>
-    <div class="subtab" data-tab="dr-diagnose" onclick="switchSubtab(this)">🔍 漏失诊断</div>
     <div class="subtab" data-tab="dr-zone" onclick="switchSubtab(this)">🗺️ 分区地图</div>
     <div class="subtab" data-tab="digit-track" onclick="switchSubtab(this)">🔢 四位走势</div>
     <div class="subtab" data-tab="huaz-trend" onclick="switchSubtab(this);renderHuazTrend();">🧩 化整为一走势</div>
