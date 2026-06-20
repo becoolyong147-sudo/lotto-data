@@ -5106,7 +5106,8 @@ function fltRecommendBack2D(){
     h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
     h += '<span style="font-size:11px;font-weight:700;color:#475569">4D候选（共'+candidates.length+'个）：</span>';
     h += '<span style="font-family:monospace;font-size:12px;color:#b91c1c">'+candidates.join(' ')+'</span>';
-    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制\',1500)})">📋 复制</button>';
+    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（空格）\',1500)})">📋 复制（空格）</button>';
+    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（换行）\',1500)})">📋 复制（换行）</button>';
     h += '</div>';
   }
 
