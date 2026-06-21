@@ -5024,6 +5024,32 @@ function copyQuickNums(sep){
 
 
 // ===== RECENT =====
+function checkGaps(){
+  const market=document.getElementById('rec-market').value;
+  const recs=[...(DB[market]||[])].reverse(); // oldest -> newest
+  const gaps=[];
+  for(let i=1;i<recs.length;i++){
+    const prev=parseInt(recs[i-1].draw.split('/')[0]);
+    const cur=parseInt(recs[i].draw.split('/')[0]);
+    const diff=cur-prev;
+    if(diff>1){ // diff<=0 is a normal issue-number reset (e.g. new year), not a gap
+      gaps.push({fromDate:recs[i-1].date,fromIssue:recs[i-1].draw,toDate:recs[i].date,toIssue:recs[i].draw,missing:diff-1});
+    }
+  }
+  let html=`<div class="card"><div class="st" style="margin-bottom:6px">🔍 ${market} 缺期检查 — 共 ${recs.length} 期，发现 ${gaps.length} 段缺口</div>`;
+  if(gaps.length===0){
+    html+=`<div style="color:#16a34a">✅ 期号连续，未发现缺口</div>`;
+  } else {
+    html+=`<table style="width:100%;font-size:12px"><tr><th>缺口大小</th><th>上一期</th><th>下一期</th></tr>`;
+    gaps.forEach(g=>{
+      html+=`<tr><td>${g.missing} 期</td><td>${g.fromIssue} (${g.fromDate})</td><td>${g.toIssue} (${g.toDate})</td></tr>`;
+    });
+    html+=`</table>`;
+  }
+  html+=`</div>`;
+  document.getElementById('gap-result').innerHTML=html;
+}
+
 function doRecent(){
   const market=document.getElementById('rec-market').value;
   const n=parseInt(document.getElementById('rec-count').value);
