@@ -1750,8 +1750,10 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
     <div class="ig"><label>市场</label><select id="rec-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select></div>
     <div class="ig"><label>期数</label><select id="rec-count"><option value="20">最近20期</option><option value="50">最近50期</option><option value="100">最近100期</option></select></div>
     <button class="btn" onclick="doRecent()">查询</button>
+    <button class="btn" style="background:#7c3aed;color:#fff;border:none" onclick="checkGaps()">🔍 检查缺期</button>
   </div>
 </div>
+<div id="gap-result"></div>
 <div id="recent-result"></div>
 </div>
 
