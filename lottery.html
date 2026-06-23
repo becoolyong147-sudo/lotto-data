@@ -631,6 +631,11 @@ function showRHub(name){
             <option value="curr">已过期数</option>
           </select>
         </div>
+        <div class="ig"><label>点数</label>
+          <select id="cold-pts" onchange="doCold()">
+            <option value="">全部点数</option>
+          </select>
+        </div>
       </div>
     </div>
     <div id="cold-result"></div>
@@ -3216,21 +3221,58 @@ function v52CleanupExtras_REMOVED(){
 }
 
 // ===== COLD NUMBER =====
+function _coldPopulatePtsSelect(){
+  const sel=document.getElementById('cold-pts');
+  if(!sel || sel.options.length>1) return;
+  for(let p=0;p<=36;p++){
+    const opt=document.createElement('option');
+    opt.value=String(p); opt.textContent=p+'点';
+    sel.appendChild(opt);
+  }
+}
+
 function doCold(){
+  _coldPopulatePtsSelect();
   const market=document.getElementById('cold-market').value;
   const minRatio=parseFloat(document.getElementById('cold-min-ratio').value);
   const sortBy=document.getElementById('cold-sort').value;
+  const ptsFilterRaw=document.getElementById('cold-pts').value;
+  const ptsFilter=ptsFilterRaw===''?null:parseInt(ptsFilterRaw);
   const stats=COLD_BASE[market];
   if(!stats){document.getElementById('cold-result').innerHTML='<p style="color:#aaa;padding:16px">无数据</p>';return}
 
+  // 点数热度榜：按点数(0-36)汇总历史出现次数，找出最热/最冷的点数
+  const ptsHeat={};
+  Object.values(stats).forEach(s=>{ ptsHeat[s.pts]=(ptsHeat[s.pts]||0)+s.count; });
+  const ptsRanked=Object.entries(ptsHeat).map(([p,c])=>[parseInt(p),c]).sort((a,b)=>b[1]-a[1]);
+  const ptsMaxCnt=ptsRanked[0]?ptsRanked[0][1]:1;
+
   let list=Object.entries(stats)
     .filter(([,s])=>s.ratio>=minRatio && s.count>=4)
+    .filter(([,s])=>ptsFilter===null || s.pts===ptsFilter)
     .sort((a,b)=>sortBy==='ratio'?b[1].ratio-a[1].ratio:b[1].curr-a[1].curr);
 
   const exceeded=list.filter(([,s])=>s.curr>s.max);
 
-  let html=`<div class="card">
-    <h3>冷号排行 — ${market}（过期≥${minRatio}倍）</h3>
+  let html=`<div class="card">`;
+
+  html+=`<div class="st">📊 点数热度榜 — ${market}（按历史出现次数）</div>
+    <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:12px;max-height:220px;overflow-y:auto">`;
+  ptsRanked.forEach(([p,c],i)=>{
+    const barW=Math.round(c/ptsMaxCnt*100);
+    const isSel=ptsFilter===p;
+    html+=`<div style="display:flex;align-items:center;gap:6px;font-size:11px;cursor:pointer" onclick="document.getElementById('cold-pts').value='${p}';doCold()">
+      <span style="width:18px;color:#888">${i+1}</span>
+      <span style="width:36px;font-weight:${isSel?800:600};color:${isSel?'#dc2626':'#1e3a5f'}">${p}点</span>
+      <div style="flex:1;height:8px;background:#f0f0ec;border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${isSel?'#dc2626':'#1e3a5f'}"></div>
+      </div>
+      <span style="width:34px;text-align:right;color:#555">${c}次</span>
+    </div>`;
+  });
+  html+=`</div>`;
+
+  html+=`<h3>冷号排行 — ${market}（过期≥${minRatio}倍${ptsFilter!==null?` · 仅${ptsFilter}点`:''}）</h3>
     <div class="g4" style="margin-bottom:10px">
       <div class="sc"><div class="val">${list.length}</div><div class="lbl">过期号码数</div></div>
       <div class="sc"><div class="val" style="color:#dc2626">${exceeded.length}</div><div class="lbl">超历史最长</div></div>
