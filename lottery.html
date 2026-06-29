@@ -10005,6 +10005,19 @@ function zoNote(p, month, S){
   return S.noteCombined(p.c, month);
 }
 
+// 号码拆成2×2数字宫格：x x(1 2) / x x(3 4)，代替整串横排，直观看数字组成（配合「调字」概念，顺序本来就不重要）
+function zoNumGrid(num, cellPx, color, border){
+  const digits = String(num).split('');
+  let h = '<div style="display:inline-grid;grid-template-columns:repeat(2,1fr);gap:2px">';
+  digits.forEach((d,i) => {
+    h += '<div style="position:relative;width:' + cellPx + 'px;height:' + cellPx + 'px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.55);border:1px solid ' + border + ';border-radius:4px">';
+    h += '<span style="font-family:monospace;font-weight:900;font-size:' + Math.round(cellPx*0.62) + 'px;color:' + color + '">' + d + '</span>';
+    h += '<span style="position:absolute;bottom:0;right:1px;font-size:' + Math.round(cellPx*0.22) + 'px;color:rgba(0,0,0,.35);line-height:1">' + (i+1) + '</span>';
+    h += '</div>';
+  });
+  h += '</div>';
+  return h;
+}
 // 年份 → 生肖索引 (0=鼠 … 11=猪)。1984=鼠 ⇒ (y-4)%12
 function zoZodiacOfYear(y){ return ((y - 4) % 12 + 12) % 12; }
 // 配肖规则（公开固定）：号码当年份算生肖。例 8777 → 8777年 → 牛
@@ -10075,7 +10088,8 @@ function zoComputeRows(pool){
     const cands = pool.filter(c => c.zi === zi);
     if(!cands.length){ rows.push({zi, z, picks:[]}); return; }
     const ranked = cands.slice().sort((a,b) => zoScore(b) - zoScore(a));
-    const picks = ranked.slice(0,2).map((c,i) => ({c, type: i===0 ? 'top1' : 'top2', score:zoScore(c)}));
+    const TYPES = ['top1','top2'];
+    const picks = ranked.slice(0,2).map((c,i) => ({c, type: TYPES[i], score:zoScore(c)}));
     rows.push({zi, z, picks});
   });
   return rows;
@@ -10145,16 +10159,17 @@ function doZodiacChart(){
     html += '</div>';
     html += '<div style="position:relative;text-align:center;font-size:' + (isStar ? '46px' : '34px') + ';line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
     html += '<div style="position:relative;text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + S.cardSub(month, r.zi) + '</div>';
-    // 两个号码上下两个方块叠放（不是正字，避免用并排"·"暗示等价，强弱分开看更清楚）
+    // 两个号码上下两块：每个号码不再横排一串字，改成 2×2 数字宫格（每位数字一格，标1234位置）
     html += '<div style="position:relative;display:flex;flex-direction:column;gap:4px">';
     r.picks.forEach((p,pi) => {
-      const tag = pi === 0 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
-      html += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:3px 6px">';
-      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px">';
-      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8px;font-weight:800;border-radius:3px;padding:0 4px;line-height:1.5">' + tag.t + '</span>';
+      const isTop1 = pi === 0;
+      const tag = isTop1 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
+      html += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:4px 6px;display:flex;align-items:center;gap:8px">';
+      html += '<div style="flex:none">' + zoNumGrid(p.c.num, isStar && isTop1 ? 22 : isTop1 ? 18 : 15, tag.num, acc) + '</div>';
+      html += '<div style="flex:1;min-width:0">';
+      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8px;font-weight:800;border-radius:3px;padding:0 4px;line-height:1.7;display:inline-block;margin-bottom:2px">' + tag.t + '</span>';
+      html += '<div style="font-size:7.5px;color:#78350f;line-height:1.3">' + zoNote(p, month, S) + '</div>';
       html += '</div>';
-      html += '<div style="text-align:center;font-family:monospace;font-size:' + (isStar && pi===0 ? '22px' : pi===0 ? '17px' : '15px') + ';font-weight:900;color:' + tag.num + ';letter-spacing:1px">' + p.c.num + '</div>';
-      html += '<div style="font-size:7.5px;color:#78350f;line-height:1.4;text-align:center">' + zoNote(p, month, S) + '</div>';
       html += '</div>';
     });
     html += '</div>';
@@ -10292,6 +10307,25 @@ function zoFitFont(ctx,text,maxW,px,minPx,tpl){
   while(s > minPx && ctx.measureText(text).width > maxW){ s--; ctx.font = tpl(s); }
   return s;
 }
+// 号码画成 2×2 数字宫格（每位数字一格 + 角标位置号），返回占用的总宽高
+function zoDrawNumGrid(ctx,num,x,y,cellPx,color,border){
+  const digits = String(num).split('');
+  const gap = 2;
+  digits.forEach((d,i) => {
+    const col = i%2, row = Math.floor(i/2);
+    const cx = x+col*(cellPx+gap), cy = y+row*(cellPx+gap);
+    zoRR(ctx,cx,cy,cellPx,cellPx,4);
+    ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fill();
+    ctx.strokeStyle = border; ctx.lineWidth = 1; ctx.stroke();
+    ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '900 ' + Math.round(cellPx*0.6) + 'px ' + ZO_MONO;
+    ctx.fillText(d, cx+cellPx/2, cy+cellPx/2);
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.font = Math.round(cellPx*0.22) + 'px ' + ZO_FONT;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText(String(i+1), cx+cellPx-1, cy+cellPx-1);
+  });
+  return {w: cellPx*2+gap, h: cellPx*2+gap};
+}
 function zoCellBase(ctx,x,y,w,h,hot,accent,glyph){
   zoRR(ctx,x,y,w,h,14);
   const g = ctx.createLinearGradient(0,y,0,y+h);
@@ -10346,7 +10380,7 @@ function zoDrawZodiacCells(ctx,L,S,x0,y0,totW,totH){
     ctx.fillStyle = '#92400e';
     zoFitFont(ctx,subT,cw-20,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
     ctx.fillText(subT, x+cw/2, y+ch*0.488);
-    // 两个号码改成上下两个方块叠放（不并排用"·"连接，强弱分开看）
+    // 两个号码上下两块：每个号码画成 2×2 数字宫格（每位数字一格），右边配标签+脚注
     const boxX = x+10, boxW = cw-20, boxH = ch*0.205, boxGap = ch*0.03;
     let by = y+ch*0.555;
     r.picks.forEach(function(p,pi){
@@ -10356,20 +10390,21 @@ function zoDrawZodiacCells(ctx,L,S,x0,y0,totW,totH){
       if(isTop1){ g.addColorStop(0,'#fde047'); g.addColorStop(1,'#fbbf24'); } else { g.addColorStop(0,'#e0e7ff'); g.addColorStop(1,'#c7d2fe'); }
       ctx.fillStyle = g; ctx.fill();
       ctx.strokeStyle = r.z.accent || '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
-      const tag = isTop1 ? {t:S.tagTop1,bg:'#b91c1c'} : {t:S.tagTop2,bg:'#1d4ed8'};
+      const tag = isTop1 ? {t:S.tagTop1,bg:'#b91c1c',num:'#7c2d12'} : {t:S.tagTop2,bg:'#1d4ed8',num:'#1e3a8a'};
+      const cellPx = isTop1 ? Math.round(boxH*0.42) : Math.round(boxH*0.36);
+      const gridY = by + (boxH - (cellPx*2+2))/2;
+      zoDrawNumGrid(ctx, p.c.num, boxX+6, gridY, cellPx, tag.num, r.z.accent || '#fbbf24');
+      const textX = boxX + cellPx*2 + 18;
       ctx.font = '800 11px ' + ZO_FONT;
       const tw = ctx.measureText(tag.t).width + 8;
-      zoRR(ctx,boxX+4,by+4,tw,14,3); ctx.fillStyle = tag.bg; ctx.fill();
+      zoRR(ctx,textX,by+5,tw,14,3); ctx.fillStyle = tag.bg; ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(tag.t, boxX+8, by+11);
-      ctx.fillStyle = isTop1 ? '#7c2d12' : '#1e3a8a';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      zoFitFont(ctx,p.c.num,boxW-16,isTop1?26:22,14,function(s){return '900 '+s+'px '+ZO_MONO;});
-      ctx.fillText(p.c.num, boxX+boxW/2, by+boxH*0.62);
+      ctx.fillText(tag.t, textX+4, by+12);
       const noteT = zoNote(p, L.month, S);
       ctx.fillStyle = '#78350f';
-      zoFitFont(ctx,noteT,boxW-12,10,7,function(s){return s+'px '+ZO_FONT;});
-      ctx.fillText(noteT, boxX+boxW/2, by+boxH*0.9);
+      zoFitFont(ctx,noteT,boxW-(textX-boxX)-10,10,7,function(s){return s+'px '+ZO_FONT;});
+      ctx.textAlign = 'left';
+      ctx.fillText(noteT, textX, by+boxH*0.62);
       by += boxH + boxGap;
     });
   });
