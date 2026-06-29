@@ -10145,14 +10145,19 @@ function doZodiacChart(){
     html += '</div>';
     html += '<div style="position:relative;text-align:center;font-size:' + (isStar ? '46px' : '34px') + ';line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
     html += '<div style="position:relative;text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + S.cardSub(month, r.zi) + '</div>';
-    html += '<div style="position:relative;text-align:center;font-family:monospace;font-size:' + (isStar ? '24px' : '19px') + ';font-weight:900;color:#b91c1c;letter-spacing:1px;margin-bottom:4px">' + r.picks.map(p => p.c.num).join(' · ') + '</div>';
+    // 两个号码上下两个方块叠放（不是正字，避免用并排"·"暗示等价，强弱分开看更清楚）
+    html += '<div style="position:relative;display:flex;flex-direction:column;gap:4px">';
     r.picks.forEach((p,pi) => {
-      const tag = pi === 0 ? {t:S.tagTop1, bg:'#16a34a'} : {t:S.tagTop2, bg:'#2563eb'};
-      html += '<div style="position:relative;display:flex;align-items:flex-start;gap:4px;margin-top:2px">';
-      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8.5px;font-weight:700;border-radius:3px;padding:0 4px;flex:none;line-height:1.7">' + tag.t + '</span>';
-      html += '<span style="font-size:8.5px;color:#78350f;line-height:1.5">' + p.c.num + '：' + zoNote(p, month, S) + '</span>';
+      const tag = pi === 0 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
+      html += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:3px 6px">';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1px">';
+      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:8px;font-weight:800;border-radius:3px;padding:0 4px;line-height:1.5">' + tag.t + '</span>';
+      html += '</div>';
+      html += '<div style="text-align:center;font-family:monospace;font-size:' + (isStar && pi===0 ? '22px' : pi===0 ? '17px' : '15px') + ';font-weight:900;color:' + tag.num + ';letter-spacing:1px">' + p.c.num + '</div>';
+      html += '<div style="font-size:7.5px;color:#78350f;line-height:1.4;text-align:center">' + zoNote(p, month, S) + '</div>';
       html += '</div>';
     });
+    html += '</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -10341,23 +10346,31 @@ function zoDrawZodiacCells(ctx,L,S,x0,y0,totW,totH){
     ctx.fillStyle = '#92400e';
     zoFitFont(ctx,subT,cw-20,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
     ctx.fillText(subT, x+cw/2, y+ch*0.488);
-    const numT = r.picks.map(function(p){return p.c.num;}).join(' · ');
-    ctx.fillStyle = '#b91c1c';
-    zoFitFont(ctx,numT,cw-20,38,24,function(s){return '900 '+s+'px '+ZO_MONO;});
-    ctx.fillText(numT, x+cw/2, y+ch*0.628);
+    // 两个号码改成上下两个方块叠放（不并排用"·"连接，强弱分开看）
+    const boxX = x+10, boxW = cw-20, boxH = ch*0.205, boxGap = ch*0.03;
+    let by = y+ch*0.555;
     r.picks.forEach(function(p,pi){
-      const ly = y+ch*0.76+pi*ch*0.116;
-      const tag = pi===0?{t:S.tagTop1,bg:'#16a34a'}:{t:S.tagTop2,bg:'#2563eb'};
-      ctx.font = '700 12px ' + ZO_FONT;
-      const pw = ctx.measureText(tag.t).width + 12;
-      zoRR(ctx,x+10,ly-10,pw,20,4);
-      ctx.fillStyle = tag.bg; ctx.fill();
+      const isTop1 = pi === 0;
+      zoRR(ctx,boxX,by,boxW,boxH,7);
+      const g = ctx.createLinearGradient(0,by,0,by+boxH);
+      if(isTop1){ g.addColorStop(0,'#fde047'); g.addColorStop(1,'#fbbf24'); } else { g.addColorStop(0,'#e0e7ff'); g.addColorStop(1,'#c7d2fe'); }
+      ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = r.z.accent || '#fbbf24'; ctx.lineWidth = 1.5; ctx.stroke();
+      const tag = isTop1 ? {t:S.tagTop1,bg:'#b91c1c'} : {t:S.tagTop2,bg:'#1d4ed8'};
+      ctx.font = '800 11px ' + ZO_FONT;
+      const tw = ctx.measureText(tag.t).width + 8;
+      zoRR(ctx,boxX+4,by+4,tw,14,3); ctx.fillStyle = tag.bg; ctx.fill();
       ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(tag.t, x+16, ly+1);
-      const noteT = p.c.num + ': ' + zoNote(p, L.month, S);
+      ctx.fillText(tag.t, boxX+8, by+11);
+      ctx.fillStyle = isTop1 ? '#7c2d12' : '#1e3a8a';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      zoFitFont(ctx,p.c.num,boxW-16,isTop1?26:22,14,function(s){return '900 '+s+'px '+ZO_MONO;});
+      ctx.fillText(p.c.num, boxX+boxW/2, by+boxH*0.62);
+      const noteT = zoNote(p, L.month, S);
       ctx.fillStyle = '#78350f';
-      zoFitFont(ctx,noteT,cw-pw-30,13,9,function(s){return s+'px '+ZO_FONT;});
-      ctx.fillText(noteT, x+10+pw+6, ly+1);
+      zoFitFont(ctx,noteT,boxW-12,10,7,function(s){return s+'px '+ZO_FONT;});
+      ctx.fillText(noteT, boxX+boxW/2, by+boxH*0.9);
+      by += boxH + boxGap;
     });
   });
 }
