@@ -7414,6 +7414,7 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版命中回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff" onclick="zoScoreBacktest()">🔬 评分回测对比</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#d97706;color:#fff" onclick="zoDaMonthReport()">🎲 打数月份分析</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#6d28d9;color:#fff" onclick="zoRohanReport()">🔱 18罗汉月份分析</button></div>
   </div>
   <div id="zo-review-result" style="margin-top:10px"></div>
 </div>
@@ -10048,11 +10049,22 @@ function zoMarketStats(market, cutoff){
   return {stat, draws:recs.length};
 }
 
-// 候选池构建（生肖图 / 主打号 / 会员版 / 复盘共用）：该月开出过的分身组 + 集中度/冷度/共识
+// 罗汉月统计缓存（避免每次建池都重算）
+const ZO_ROHAN_CACHE = {};
+function zoRohanStatCached(market, cutoff){
+  const k = market + '|' + (cutoff||'');
+  if(!ZO_ROHAN_CACHE[k]) ZO_ROHAN_CACHE[k] = zoRohanMonthStat(market, cutoff);
+  return ZO_ROHAN_CACHE[k];
+}
+
+// 候选池构建（生肖图 / 主打号 / 会员版 / 复盘共用）：该月开出过的分身组 + 集中度/冷度/共识 + 罗汉置信分
 function zoBuildPool(market, month, main, cutoff){
   const MK = ['万能','跑马','多多','新加坡','豪龙'];
   const allStats = {};
   MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk, cutoff); });
+  // 各市场罗汉月统计（用于跨市场罗汉共识）
+  const allRohan = {};
+  MK.forEach(mk => { allRohan[mk] = zoRohanStatCached(mk, cutoff); });
   const uniform = 1/12;
   const pool = [];
   for(const key in main.stat){
@@ -10061,7 +10073,7 @@ function zoBuildPool(market, month, main, cutoff){
     if(monthHits < 1) continue;
     const conc = (monthHits/st.total)/uniform;
     const avgGap = main.draws/st.total;
-    // 共识：几家市场该分身组在所选月份 ≥2 次且集中度 ≥1.5x
+    // 号码共识：几家市场该分身组在所选月份 ≥2 次且集中度 ≥1.5x
     let consensus = 0;
     MK.forEach(mk => {
       const s2 = allStats[mk].stat[key];
@@ -10069,9 +10081,29 @@ function zoBuildPool(market, month, main, cutoff){
       const h2 = s2.mh[month-1];
       if(h2 >= 2 && (h2/s2.total)/uniform >= 1.5) consensus++;
     });
+    // 罗汉置信分：该号码属于哪些组，各组在各市场本月热度
+    const rohanGroups = zoRohanOf(st.sampleNum);
+    let rohanScore = 0;
+    const rohanIds = [];
+    rohanGroups.forEach(g => {
+      rohanIds.push(g.id);
+      let activeMarkets = 0, totalBias = 0;
+      MK.forEach(mk => {
+        const rs = allRohan[mk];
+        const monTot = rs.monTotal[month-1] || 1;
+        const avgMonTot = rs.monTotal.reduce((s,v)=>s+v,0) / 12 || 1;
+        const cnt = rs.stat[g.id][month-1];
+        const avgCnt = rs.stat[g.id].reduce((s,v)=>s+v,0) / 12;
+        const bias = avgCnt > 0 ? (cnt / monTot) / (avgCnt / avgMonTot) : 0;
+        if(bias >= 1.2){ activeMarkets++; totalBias += bias; }
+      });
+      // 每个活跃组贡献：活跃市场数×热度均值
+      if(activeMarkets > 0) rohanScore += (activeMarkets / MK.length) * (totalBias / activeMarkets);
+    });
     const refYear = cutoff ? parseInt(cutoff.slice(0,4),10) : new Date().getFullYear();
     pool.push({key, num:st.sampleNum, zi:zoZodiacOfNum(st.sampleNum), total:st.total, monthHits, conc,
-      drawsSince:st.firstIdx, avgGap, coldRatio:st.firstIdx/avgGap, monthLast:st.monthLast[month-1], refYear, consensus});
+      drawsSince:st.firstIdx, avgGap, coldRatio:st.firstIdx/avgGap, monthLast:st.monthLast[month-1],
+      refYear, consensus, rohanScore, rohanIds});
   }
   return pool;
 }
@@ -10084,15 +10116,17 @@ function zoDaCount(num){
 }
 // 综合评分（主打号/会员版/生肖图排序统一用同一公式）：当月命中 + 集中度 + 共识权重略提高（回测显示季节/共识位命中率接近 53%/47%），冷度仅作弱 tie-breaker
 function zoScore(c){
-  // 权重调校：降低monthHits（历史频次过高会把"已开够"的号推上来），提高共识+集中度
+  // 基础分：历史频次 + 集中度 + 跨市场共识 + 冷热
   let s = c.monthHits*1.2 + c.conc*1.4 + c.consensus*1.8 + Math.min(c.coldRatio,2)*0.6;
-  // monthLast 近期性加分：去年同月开过 → 最强信号；越久远越弱
+  // monthLast 近期性：去年同月开过=最强信号
   if(c.monthLast && c.refYear){
     const ago = c.refYear - parseInt(c.monthLast.slice(0,4),10);
     if(ago <= 1) s += 2.0;
     else if(ago <= 2) s += 1.0;
     else if(ago <= 3) s += 0.4;
   }
+  // 罗汉置信分：属于本月活跃罗汉组（跨市场共振越强加分越高）
+  if(c.rohanScore) s += c.rohanScore * 1.5;
   return s;
 }
 
@@ -10805,8 +10839,12 @@ function zoMemberGen(){
       h += '<span style="margin-left:auto;font-size:10px;font-weight:700;color:' + info.color + '">' + da + '打</span>';
       h += '</div>';
       // 行底：证据标注 + 罗汉归属
-      const rh = zoRohanHeat(c.num, month, rohanStat);
+      const rh = c.rohanIds && c.rohanIds.length ? {groups:c.rohanIds, label:'罗汉' + c.rohanIds.join('+')} : {groups:[], label:''};
       h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">' + zoEvidenceTags(c, month, refYear, rh) + '</div>';
+      if(c.rohanScore > 0){
+        const stars = c.rohanScore >= 1.5 ? '🔥🔥🔥' : c.rohanScore >= 0.8 ? '🔥🔥' : '🔥';
+        h += '<div style="font-size:9.5px;color:#fbbf24;margin-top:2px">' + stars + ' 罗汉共振 ' + (c.rohanScore).toFixed(2) + ' · 属第' + c.rohanIds.join('/') + '罗汉</div>';
+      }
       h += '</div>';
     });
     h += '</div>';
