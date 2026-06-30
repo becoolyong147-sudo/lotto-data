@@ -10071,8 +10071,11 @@ function zoBuildPool(market, month, main, cutoff){
     const st = main.stat[key];
     const monthHits = st.mh[month-1];
     if(monthHits < 1) continue;
-    const conc = (monthHits/st.total)/uniform;
+    // 过滤冷门极稀少号：整体至少出现3次，且平均间隔不超过总期数30%（太稀的不推荐）
+    if(st.total < 3) continue;
     const avgGap = main.draws/st.total;
+    if(avgGap > main.draws * 0.30) continue;
+    const conc = (monthHits/st.total)/uniform;
     // 号码共识：几家市场该分身组在所选月份 ≥2 次且集中度 ≥1.5x
     let consensus = 0;
     MK.forEach(mk => {
