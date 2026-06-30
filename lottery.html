@@ -7411,6 +7411,7 @@ function doBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版命中回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff" onclick="zoScoreBacktest()">🔬 评分回测对比</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#d97706;color:#fff" onclick="zoDaMonthReport()">🎲 打数月份分析</button></div>
   </div>
@@ -10877,6 +10878,97 @@ function zoFreqCopy(){
 let ZO_REVIEW = null;
 const ZO_RV_TAG = {top1:'🥇最强位', top2:'🥈次强位', star:'🔥主打号'};
 const ZO_RV_PRIZE = ['头奖','二奖','三奖'];
+// ===== 会员版命中回测：各打数 Top N 历史命中率 =====
+function zoMemberBacktest(){
+  const out = document.getElementById('zo-review-result');
+  out.innerHTML = '<div class="warn">会员版回测运行中（近3年，5市场）…</div>';
+  setTimeout(function(){
+    try{
+      const MK = ['万能','跑马','多多','新加坡','豪龙'];
+      const TOP_N = 5; // 每类取前5
+      const DAS = [24,12,6,4];
+      const curYear = new Date().getFullYear();
+      // 统计：{da: {months, anyHit, totalRec, totalHit, byRank:[{rec,hit}×topN]}}
+      const stat = {};
+      DAS.forEach(da=>{ stat[da]={months:0,anyHit:0,totalRec:0,totalHit:0,byRank:Array.from({length:TOP_N},()=>({rec:0,hit:0}))}; });
+      const monthly = []; // 详细月份记录（仅命中的）
+      MK.forEach(market=>{
+        for(let y=curYear-3; y<curYear; y++){
+          for(let m=1; m<=12; m++){
+            const cutoff=y+'-'+String(m).padStart(2,'0')+'-01';
+            const main=zoMarketStats(market,cutoff);
+            if(main.draws<200) continue;
+            const pool=zoBuildPool(market,m,main,cutoff);
+            if(!pool.length) continue;
+            const sorted=pool.slice().sort((a,b)=>zoScore(b)-zoScore(a));
+            // 实际开奖
+            const ym=y+'-'+String(m).padStart(2,'0');
+            const draws=(DB[market]||[]).filter(r=>r.date&&r.date.startsWith(ym)&&!r.date.endsWith('-00'));
+            if(!draws.length) continue;
+            const hitKeys=new Set();
+            draws.forEach(r=>[0,1,2].forEach(pi=>{const n=pz(r.nums[pi]);if(n)hitKeys.add(seaPermKey(n));}));
+            DAS.forEach(da=>{
+              const picks=sorted.filter(c=>zoDaCount(c.num)===da).slice(0,TOP_N);
+              if(!picks.length) return;
+              stat[da].months++;
+              let anyHit=false;
+              picks.forEach((c,i)=>{
+                stat[da].totalRec++;
+                stat[da].byRank[i].rec++;
+                if(hitKeys.has(c.key)){
+                  stat[da].totalHit++;
+                  stat[da].byRank[i].hit++;
+                  anyHit=true;
+                }
+              });
+              if(anyHit){ stat[da].anyHit++; monthly.push({market,ym,da}); }
+            });
+          }
+        }
+      });
+      let h='<div class="card" style="border:2px solid #fbbf24">';
+      h+='<div style="font-size:15px;font-weight:900;color:#0f172a;margin-bottom:10px">💎 会员版推荐 — 历史命中回测（近3年×5市场）</div>';
+      h+='<div style="font-size:11px;color:#64748b;margin-bottom:12px">「命中」= 推荐号码任意排列在当月头/二/三奖开出（调字算）。「月份命中率」= 该月Top'+TOP_N+'名单中至少有1个命中。「号码命中率」= 所有推荐号个别命中比例。</div>';
+      // 总览表
+      h+='<div style="overflow-x:auto"><table><tr><th>打数类型</th><th>覆盖月份</th><th>月份命中率</th><th>号码命中率</th>';
+      for(let i=0;i<TOP_N;i++) h+='<th>第'+(i+1)+'名</th>';
+      h+='</tr>';
+      DAS.forEach(da=>{
+        const s=stat[da];
+        if(!s.months){h+='<tr><td>'+da+'打</td><td colspan="'+(4+TOP_N)+'">数据不足</td></tr>';return;}
+        const monPct=(s.anyHit/s.months*100).toFixed(1);
+        const numPct=(s.totalHit/s.totalRec*100).toFixed(1);
+        const monColor=parseFloat(monPct)>=40?'#16a34a':parseFloat(monPct)>=25?'#d97706':'#dc2626';
+        h+='<tr><td style="font-weight:800;color:'+ZO_DA_INFO[da].color+'">'+ZO_DA_INFO[da].label+'</td>';
+        h+='<td>'+s.months+'</td>';
+        h+='<td style="font-weight:800;color:'+monColor+'">'+monPct+'%</td>';
+        h+='<td style="font-weight:700">'+numPct+'%</td>';
+        s.byRank.forEach((r,i)=>{
+          const pct=r.rec?( r.hit/r.rec*100).toFixed(1):'—';
+          const bg=r.rec&&parseFloat(pct)>parseFloat(numPct)+5?'background:#fef9c3':'';
+          h+='<td style="font-size:11px;'+bg+'">'+pct+'%<br><span style="color:#94a3b8">'+r.hit+'/'+r.rec+'</span></td>';
+        });
+        h+='</tr>';
+      });
+      h+='</table></div>';
+      // 洞察
+      h+='<div style="margin-top:14px;font-size:13px;font-weight:700;margin-bottom:6px">📌 关键洞察：</div>';
+      h+='<ul style="font-size:12px;color:#1e293b;line-height:1.8;margin:0;padding-left:18px">';
+      DAS.forEach(da=>{
+        const s=stat[da]; if(!s.months) return;
+        const monPct=(s.anyHit/s.months*100).toFixed(1);
+        const best=s.byRank.reduce((b,r,i)=>r.rec&&r.hit/r.rec>(b.pct||0)?{i,pct:r.hit/r.rec}:b,{i:-1,pct:0});
+        h+='<li><b>'+ZO_DA_INFO[da].label+'</b>：每月名单命中概率 <b>'+monPct+'%</b>';
+        if(best.i>=0) h+='，排名第<b>'+(best.i+1)+'</b>的号码命中率最高（'+(best.pct*100).toFixed(1)+'%）';
+        h+='</li>';
+      });
+      h+='</ul>';
+      h+='</div>';
+      out.innerHTML=h;
+    }catch(e){out.innerHTML='<div class="error">回测出错：'+e.message+'</div>';}
+  },50);
+}
+
 // ===== 评分回测：对比旧评分（无monthLast）vs 新评分（含monthLast）主打命中率 =====
 function zoScoreBacktest(){
   const out = document.getElementById('zo-review-result');
