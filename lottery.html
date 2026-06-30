@@ -11171,71 +11171,181 @@ function zoMemberBacktest(){
 // ===== 18罗汉月份分析报告 =====
 function zoRohanReport(){
   const out = document.getElementById('zo-review-result');
-  out.innerHTML = '<div class="warn">18罗汉分析中…</div>';
+  out.innerHTML = '<div class="warn">🔱 18罗汉深度分析中，扫描全部历史数据…</div>';
   setTimeout(function(){
     try{
       const market = document.getElementById('zo-rv-market').value;
       const month = parseInt(document.getElementById('zo-rv-month').value, 10);
-      const rs = zoRohanMonthStat(market);
       const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-      // 每组：在目标月份的频率 vs 全年平均
-      const monTot = rs.monTotal[month-1] || 1;
-      const avgMonTot = rs.monTotal.reduce((s,v)=>s+v,0) / 12 || 1;
-      const rows = ZO_ROHAN.map(g => {
-        const monthCount = rs.stat[g.id][month-1];
-        const totalCount = rs.stat[g.id].reduce((s,v)=>s+v,0);
-        const monthPct = monthCount / monTot;
-        const avgPct = totalCount / 12 / avgMonTot;
-        const bias = avgPct > 0 ? monthPct / avgPct : 0; // 本月热度 vs 平均
-        return {g, monthCount, totalCount, monthPct, avgPct, bias};
-      }).sort((a,b) => b.bias - a.bias);
+      const recs = DB[market] || [];
 
-      let h = '<div class="card" style="border:2px solid #7c3aed">';
-      h += '<div style="font-size:15px;font-weight:900;color:#7c3aed;margin-bottom:4px">🔱 18罗汉 × ' + MONTHS[month-1] + ' 热度分析 — ' + market + '</div>';
-      h += '<div style="font-size:11px;color:#64748b;margin-bottom:10px">「月份热度比」= 该组在本月出现频率 ÷ 全年平均频率。>1.2x = 本月偏热（黄色），<0.8x = 本月偏冷（红色）。</div>';
+      // ── 一次性全量扫描 ──────────────────────────────────────────────
+      // per group: monthHits[12], companion4th{digit:count}, coOccur{gid:count}, totalDrawsHit(set per draw)
+      const gStat = {}; // gid → {mh:[12], comp:{}, total}
+      ZO_ROHAN.forEach(g => { gStat[g.id] = {mh:new Array(12).fill(0), comp:{}, total:0}; });
+      const monTotal = new Array(12).fill(0);
+      // 共振：同一期同时命中的组对
+      const coOccur = {}; // 'id1-id2' → count
+      const drawCoKey = (ids) => {
+        const sorted = ids.slice().sort((a,b)=>a-b);
+        const pairs = [];
+        for(let i=0;i<sorted.length;i++) for(let j=i+1;j<sorted.length;j++) pairs.push(sorted[i]+'-'+sorted[j]);
+        return pairs;
+      };
 
-      // 热度排行表
-      h += '<div style="overflow-x:auto"><table><tr><th>排名</th><th>罗汉组</th><th>Patterns</th><th>' + MONTHS[month-1] + '次数</th><th>月频率</th><th>全年均频</th><th>热度比</th></tr>';
-      rows.forEach((row, idx) => {
-        const biasColor = row.bias >= 1.2 ? '#d97706' : row.bias <= 0.8 ? '#dc2626' : '#16a34a';
-        const bg = row.bias >= 1.2 ? 'background:#fef9c3' : row.bias <= 0.8 ? 'background:#fee2e2' : '';
-        h += '<tr style="' + bg + '">';
-        h += '<td style="font-weight:700">' + (idx+1) + '</td>';
-        h += '<td style="font-weight:800;color:#7c3aed">' + row.g.name + '</td>';
-        h += '<td style="font-family:monospace;font-size:11px">' + row.g.patterns.join(' / ') + '</td>';
-        h += '<td style="font-weight:700">' + row.monthCount + '</td>';
-        h += '<td>' + (row.monthPct*100).toFixed(1) + '%</td>';
-        h += '<td>' + (row.avgPct*100).toFixed(1) + '%</td>';
-        h += '<td style="font-weight:900;color:' + biasColor + '">' + row.bias.toFixed(2) + 'x</td>';
-        h += '</tr>';
-      });
-      h += '</table></div>';
-
-      // 全年热度分布（每组×12月）
-      h += '<div style="margin-top:16px;font-size:13px;font-weight:700;margin-bottom:6px">📅 各组全年月份分布（热度比，黄=偏热，红=偏冷）：</div>';
-      h += '<div style="overflow-x:auto"><table style="font-size:10px"><tr><th>罗汉组</th>';
-      MONTHS.forEach(m => h += '<th>' + m + '</th>');
-      h += '</tr>';
-      ZO_ROHAN.forEach(g => {
-        const tot = rs.stat[g.id].reduce((s,v)=>s+v,0);
-        h += '<tr><td style="font-weight:800;color:#7c3aed;white-space:nowrap">' + g.name + '</td>';
-        rs.stat[g.id].forEach((cnt, mi) => {
-          const mTot = rs.monTotal[mi] || 1;
-          const pct = cnt / mTot;
-          const avgP = tot / 12 / avgMonTot;
-          const bias = avgP > 0 ? pct / avgP : 0;
-          const bg2 = bias >= 1.3 ? 'background:#fef9c3;font-weight:800' : bias <= 0.7 ? 'background:#fee2e2;color:#991b1b' : '';
-          const isTarget = mi === month-1;
-          h += '<td style="' + bg2 + (isTarget?';border:2px solid #7c3aed':'') + '">' + (bias > 0 ? bias.toFixed(1) + 'x' : '—') + '</td>';
+      recs.forEach(r => {
+        const m = seaMonth(r.date); if(!m||m<1||m>12) return;
+        monTotal[m-1]++;
+        // 本期命中的所有罗汉组（去重，用set）
+        const drawGroups = new Set();
+        [0,1,2].forEach(pi => {
+          const raw = r.nums[pi]; if(raw==null||raw==='') return;
+          const num = pz(raw);
+          const groups = zoRohanOf(num);
+          groups.forEach(g => {
+            gStat[g.id].mh[m-1]++;
+            gStat[g.id].total++;
+            drawGroups.add(g.id);
+            // 伴随第4位：找出num中不被pattern用到的那个digit
+            // 对每个匹配的pattern，找出"多出来的那个数字"
+            g.patterns.forEach(pat => {
+              if(!zoRohanMatch(num, pat)) return;
+              // 从num的digits中去掉pat的digits，剩下的就是第4位
+              const rem = num.split('');
+              let removed = true;
+              for(const d of pat.split('')){
+                const idx = rem.indexOf(d);
+                if(idx === -1){ removed = false; break; }
+                rem.splice(idx, 1);
+              }
+              if(removed && rem.length === 1){
+                const d4 = rem[0];
+                gStat[g.id].comp[d4] = (gStat[g.id].comp[d4]||0) + 1;
+              }
+            });
+          });
         });
+        // 共振统计
+        const gArr = Array.from(drawGroups);
+        drawCoKey(gArr).forEach(k => { coOccur[k] = (coOccur[k]||0) + 1; });
+      });
+
+      const avgMonTot = monTotal.reduce((s,v)=>s+v,0) / 12 || 1;
+
+      // ── 渲染报告 ────────────────────────────────────────────────────
+      let h = '<div class="card" style="border:2px solid #6d28d9;max-width:900px">';
+      h += '<div style="font-size:17px;font-weight:900;color:#6d28d9;margin-bottom:4px">🔱 18罗汉完整分析报告 — ' + market + '</div>';
+      h += '<div style="font-size:11px;color:#64748b;margin-bottom:14px">基于 ' + recs.length + ' 期历史开奖 · 目标月份：' + MONTHS[month-1] + '</div>';
+
+      // ══ 第一节：月份热度矩阵 ══════════════════════════════════════
+      h += '<div style="font-size:14px;font-weight:900;color:#1e293b;margin-bottom:6px;padding-bottom:4px;border-bottom:2px solid #e2e8f0">① 月份热度矩阵（哪个月哪组最旺）</div>';
+      h += '<div style="font-size:10.5px;color:#64748b;margin-bottom:8px">数字 = 热度比（该月频率÷全年平均）。🟡黄 ≥1.3x 偏热 · 🔴红 ≤0.7x 偏冷 · 紫框 = 目标月份</div>';
+      h += '<div style="overflow-x:auto"><table style="font-size:10px;width:100%"><tr><th style="text-align:left;white-space:nowrap">罗汉组</th><th>Patterns</th>';
+      MONTHS.forEach(mn => h += '<th style="min-width:36px">' + mn + '</th>');
+      h += '<th>最旺月</th></tr>';
+      ZO_ROHAN.forEach(g => {
+        const s = gStat[g.id];
+        const biases = s.mh.map((cnt,mi) => {
+          const mTot = monTotal[mi]||1;
+          const avgCnt = s.total/12;
+          return avgCnt>0 ? (cnt/mTot)/(avgCnt/avgMonTot) : 0;
+        });
+        const maxMi = biases.indexOf(Math.max(...biases));
+        h += '<tr><td style="font-weight:800;color:#6d28d9;white-space:nowrap;font-size:11px">' + g.name + '</td>';
+        h += '<td style="font-family:monospace;font-size:9.5px;white-space:nowrap">' + g.patterns.join(' ') + '</td>';
+        biases.forEach((b,mi) => {
+          const isTarget = mi===month-1, isMax = mi===maxMi;
+          const bg = b>=1.3 ? 'background:#fef9c3;font-weight:800' : b<=0.7 ? 'background:#fce7f3;color:#9d174d' : '';
+          const border = isTarget ? 'outline:2px solid #6d28d9;' : isMax ? 'outline:1px solid #d97706;' : '';
+          h += '<td style="' + bg + border + 'text-align:center">' + (b>0?b.toFixed(1)+'x':'—') + '</td>';
+        });
+        h += '<td style="font-weight:800;color:#d97706;white-space:nowrap">' + MONTHS[maxMi] + ' (' + biases[maxMi].toFixed(1) + 'x)</td>';
         h += '</tr>';
       });
       h += '</table></div>';
-      h += '<div style="font-size:11px;color:#64748b;margin-top:8px">目标月份（' + MONTHS[month-1] + '）用紫色边框标出。黄色=该月该组比平均热30%以上；红色=比平均冷30%以上。</div>';
+
+      // ══ 第二节：伴随数字偏好 ══════════════════════════════════════
+      h += '<div style="font-size:14px;font-weight:900;color:#1e293b;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #e2e8f0">② 罗汉最爱配哪个数字（伴随第4位统计）</div>';
+      h += '<div style="font-size:10.5px;color:#64748b;margin-bottom:8px">当某组pattern命中时，4D号码里「多出来的那一位」最常是哪个数字 → 这就是该组的黄金搭档</div>';
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+      ZO_ROHAN.forEach(g => {
+        const s = gStat[g.id];
+        const compTotal = Object.values(s.comp).reduce((a,b)=>a+b,0);
+        const sorted = Object.entries(s.comp).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        h += '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px">';
+        h += '<div style="font-weight:800;color:#6d28d9;font-size:12px;margin-bottom:6px">' + g.name + ' <span style="font-family:monospace;font-size:10px;color:#94a3b8">' + g.patterns.join(' ') + '</span></div>';
+        if(!sorted.length){ h += '<div style="font-size:10px;color:#94a3b8">数据不足</div>'; h += '</div>'; return; }
+        sorted.forEach(([d, cnt], i) => {
+          const pct = compTotal ? (cnt/compTotal*100).toFixed(0) : 0;
+          const barW = compTotal ? Math.round(cnt/compTotal*100) : 0;
+          const isTop = i===0;
+          h += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">';
+          h += '<span style="font-family:monospace;font-weight:900;font-size:14px;color:' + (isTop?'#dc2626':'#1e293b') + ';width:14px">' + d + '</span>';
+          h += '<div style="flex:1;background:#e2e8f0;border-radius:3px;height:8px"><div style="width:' + barW + '%;background:' + (isTop?'#dc2626':'#6d28d9') + ';height:8px;border-radius:3px"></div></div>';
+          h += '<span style="font-size:10px;color:#475569;width:32px">' + pct + '%</span>';
+          if(isTop) h += '<span style="font-size:9px;background:#dc2626;color:#fff;border-radius:3px;padding:0 4px">最爱</span>';
+          h += '</div>';
+        });
+        h += '</div>';
+      });
+      h += '</div>';
+
+      // ══ 第三节：组合共振排行 ══════════════════════════════════════
+      h += '<div style="font-size:14px;font-weight:900;color:#1e293b;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #e2e8f0">③ 最常同期出现的罗汉组合（共振排行）</div>';
+      h += '<div style="font-size:10.5px;color:#64748b;margin-bottom:8px">同一期头/二/三奖中，哪两个组最常同时出现 → 知道一个组活跃，大概率另一个也会出现</div>';
+      const coArr = Object.entries(coOccur).sort((a,b)=>b[1]-a[1]).slice(0,15);
+      h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+      coArr.forEach(([key, cnt], i) => {
+        const [id1, id2] = key.split('-').map(Number);
+        const g1 = ZO_ROHAN.find(g=>g.id===id1), g2 = ZO_ROHAN.find(g=>g.id===id2);
+        if(!g1||!g2) return;
+        const bg = i<3 ? 'background:#fef9c3;border-color:#d97706' : 'background:#f8fafc';
+        h += '<div style="' + bg + ';border:1px solid #e2e8f0;border-radius:7px;padding:7px 10px">';
+        h += '<div style="font-weight:900;color:#6d28d9;font-size:12px">' + g1.name + ' + ' + g2.name + '</div>';
+        h += '<div style="font-family:monospace;font-size:9.5px;color:#64748b">' + g1.patterns.join(' ') + ' ↔ ' + g2.patterns.join(' ') + '</div>';
+        h += '<div style="font-size:12px;font-weight:800;color:#d97706;margin-top:3px">同期出现 ' + cnt + ' 次</div>';
+        h += '</div>';
+      });
+      h += '</div>';
+
+      // ══ 第四节：本月实战建议 ══════════════════════════════════════
+      h += '<div style="font-size:14px;font-weight:900;color:#1e293b;margin:18px 0 6px;padding-bottom:4px;border-bottom:2px solid #e2e8f0">④ ' + MONTHS[month-1] + ' 实战建议（热组 × 最爱伴随数字）</div>';
+      h += '<div style="font-size:10.5px;color:#64748b;margin-bottom:8px">本月最热的罗汉组 + 它们最爱配的数字 = 优先关注的号码结构</div>';
+      // 找本月热度 > 1.0x 的组，按热度排序
+      const hotGroups = ZO_ROHAN.map(g => {
+        const s = gStat[g.id];
+        const mTot = monTotal[month-1]||1;
+        const avgCnt = s.total/12;
+        const bias = avgCnt>0 ? (s.mh[month-1]/mTot)/(avgCnt/avgMonTot) : 0;
+        return {g, s, bias};
+      }).filter(x=>x.bias>=1.0).sort((a,b)=>b.bias-a.bias).slice(0,6);
+
+      h += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
+      hotGroups.forEach(({g, s, bias}) => {
+        const top3 = Object.entries(s.comp).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([d])=>d);
+        const biasColor = bias>=1.3?'#d97706':'#16a34a';
+        // 构造示范号码：pattern[0]的3位 + 最爱第4位
+        const ex = top3.map(d => {
+          const pat = g.patterns[0];
+          return pat + d + '（调字）';
+        });
+        h += '<div style="background:linear-gradient(135deg,#faf5ff,#ede9fe);border:1.5px solid #7c3aed;border-radius:9px;padding:9px 12px">';
+        h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">';
+        h += '<span style="font-weight:900;color:#6d28d9;font-size:13px">' + g.name + '</span>';
+        h += '<span style="background:' + biasColor + ';color:#fff;font-size:9px;font-weight:800;border-radius:4px;padding:1px 6px">' + bias.toFixed(1) + 'x 热</span>';
+        h += '<span style="font-family:monospace;font-size:10px;color:#7c3aed">' + g.patterns.join(' ') + '</span>';
+        h += '</div>';
+        h += '<div style="font-size:11px;color:#1e293b">最爱第4位：<b style="font-size:14px;color:#dc2626">' + top3.join('  ') + '</b></div>';
+        h += '<div style="font-size:10px;color:#6d28d9;margin-top:4px">示例结构：' + ex.join(' · ') + '</div>';
+        h += '</div>';
+      });
+      h += '</div>';
+
+      h += '<div style="font-size:10px;color:#94a3b8;margin-top:12px;padding-top:8px;border-top:1px solid #e2e8f0">⚠️ 历史统计规律，不构成预测。罗汉分析是筛选维度之一，需结合生肖图和会员推荐综合判断。</div>';
       h += '</div>';
       out.innerHTML = h;
-    }catch(e){ out.innerHTML = '<div class="error">分析出错：' + e.message + '</div>'; }
-  }, 50);
+    }catch(e){ out.innerHTML = '<div class="error">分析出错：' + e.message + '<br>' + e.stack.slice(0,200) + '</div>'; }
+  }, 80);
 }
 
 // ===== 评分回测：对比旧评分（无monthLast）vs 新评分（含monthLast）主打命中率 =====
