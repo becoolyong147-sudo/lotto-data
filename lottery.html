@@ -10142,39 +10142,79 @@ function doZodiacChart(){
     html += '<div style="font-size:10.5px;font-weight:800;color:#b91c1c;margin-top:2px">' + S.memberHook + '</div>';
     html += '</div>';
   }
-  // 12 宫格（不再是12个一样大的格子：评分全场最高的那一肖放大占2格，每肖按生肖自身配色+图腾水印，打破死板的统一卡片感）
-  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
-  rows.forEach(r => {
+  // 12 宫格：主打独占第一行全宽，其余11肖用6列grid（每格span2=3格/行×3行=9格，最后2格各span3=各占50%）
+  // 排列：[主打 span6] / [z z z] / [z z z] / [z z z] / [z  z]（梯形收尾，整齐美观）
+  const starRow = rows.find(r => star && r.zi === star.zi);
+  const otherRows = rows.filter(r => !(star && r.zi === star.zi));
+
+  function zoRenderCell(r, colSpan, emojiSize, numCellPx){
     const isCur = r.zi === curZi;
     const isStar = star && r.zi === star.zi;
     const acc = r.z.accent || '#fbbf24';
-    const span = isStar ? 'grid-column:span 2;' : '';
-    html += '<div style="position:relative;overflow:hidden;' + span + 'background:linear-gradient(165deg,#fffbeb,#fef3c7 70%,' + acc + '14);border:2px solid ' + (isCur ? '#f59e0b' : acc) + ';border-radius:10px;padding:8px 7px;box-shadow:0 2px 6px rgba(0,0,0,.25)' + (isStar ? ',0 0 0 2px #fde047 inset' : '') + '">';
-    // 图腾水印：生肖专属符号大字体半透明铺底
-    html += '<div style="position:absolute;right:-6px;bottom:-10px;font-size:' + (isStar ? '64px' : '46px') + ';color:' + acc + ';opacity:.13;line-height:1;pointer-events:none;transform:rotate(-8deg)">' + r.z.glyph + '</div>';
-    html += '<div style="position:relative;display:flex;align-items:center;justify-content:space-between">';
-    html += '<span style="background:' + acc + ';color:#fde047;font-weight:900;font-size:12px;border-radius:5px;padding:2px 8px;border:1px solid #fde047">' + S.zodiacNames[r.zi] + '</span>';
-    if(isStar) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:900;border-radius:4px;padding:1px 5px">' + S.starLabel.replace(/🔥/g,'').trim() + '</span>';
-    else if(isCur) html += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">' + S.badgeYear + '</span>';
-    html += '</div>';
-    html += '<div style="position:relative;text-align:center;font-size:' + (isStar ? '46px' : '34px') + ';line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
-    html += '<div style="position:relative;text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + S.cardSub(month, r.zi) + '</div>';
-    // 两个号码上下两块：每个号码不再横排一串字，改成 2×2 数字宫格（每位数字一格，标1234位置）
-    html += '<div style="position:relative;display:flex;flex-direction:column;gap:4px">';
-    r.picks.forEach((p,pi) => {
-      const isTop1 = pi === 0;
-      const tag = isTop1 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
-      html += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:4px 6px;display:flex;align-items:center;gap:8px">';
-      html += '<div style="flex:none">' + zoNumGrid(p.c.num, isStar && isTop1 ? 28 : isTop1 ? 24 : 20, tag.num, acc) + '</div>';
-      html += '<div style="flex:1;min-width:0">';
-      html += '<span style="background:' + tag.bg + ';color:#fff;font-size:10.5px;font-weight:800;border-radius:3px;padding:1px 5px;line-height:1.6;display:inline-block;margin-bottom:3px">' + tag.t + '</span>';
-      html += '<div style="font-size:10px;color:#78350f;line-height:1.35;font-weight:600">' + zoNote(p, month, S) + '</div>';
-      html += '</div>';
-      html += '</div>';
-    });
-    html += '</div>';
-    html += '</div>';
-  });
+    let c = '<div style="position:relative;overflow:hidden;grid-column:span ' + colSpan + ';background:linear-gradient(165deg,#fffbeb,#fef3c7 70%,' + acc + '14);border:2px solid ' + (isCur ? '#f59e0b' : acc) + ';border-radius:10px;padding:8px 7px;box-shadow:0 2px 6px rgba(0,0,0,.25)' + (isStar ? ',0 0 0 2px #fde047 inset' : '') + '">';
+    c += '<div style="position:absolute;right:-6px;bottom:-10px;font-size:' + (isStar ? '72px' : '46px') + ';color:' + acc + ';opacity:.13;line-height:1;pointer-events:none;transform:rotate(-8deg)">' + r.z.glyph + '</div>';
+    if(isStar){
+      // 主打：横向布局（左：生肖信息，右：号码）
+      c += '<div style="position:relative;display:flex;align-items:stretch;gap:12px">';
+      // 左侧
+      c += '<div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:80px">';
+      c += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      c += '<span style="background:' + acc + ';color:#fde047;font-weight:900;font-size:14px;border-radius:5px;padding:2px 10px;border:1px solid #fde047">' + S.zodiacNames[r.zi] + '</span>';
+      c += '<span style="background:#fde047;color:#7c2d12;font-size:10px;font-weight:900;border-radius:4px;padding:1px 6px">' + S.starLabel.replace(/🔥/g,'').trim() + '</span>';
+      c += '</div>';
+      c += '<div style="font-size:52px;line-height:1.1">' + r.z.emoji + '</div>';
+      c += '<div style="font-size:11px;color:#92400e;font-weight:700;margin-top:2px">' + S.cardSub(month, r.zi) + '</div>';
+      c += '</div>';
+      // 右侧：号码列
+      c += '<div style="flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center">';
+      r.picks.forEach((p,pi) => {
+        const isTop1 = pi === 0;
+        const tag = isTop1 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
+        c += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:5px 8px;display:flex;align-items:center;gap:10px">';
+        c += '<div style="flex:none">' + zoNumGrid(p.c.num, 30, tag.num, acc) + '</div>';
+        c += '<div style="flex:1;min-width:0">';
+        c += '<span style="background:' + tag.bg + ';color:#fff;font-size:11px;font-weight:800;border-radius:3px;padding:1px 6px;line-height:1.6;display:inline-block;margin-bottom:3px">' + tag.t + '</span>';
+        c += '<div style="font-size:10px;color:#78350f;line-height:1.35;font-weight:600">' + zoNote(p, month, S) + '</div>';
+        c += '</div>';
+        c += '</div>';
+      });
+      c += '</div>';
+      c += '</div>';
+    } else {
+      // 普通肖：原竖向布局
+      c += '<div style="position:relative;display:flex;align-items:center;justify-content:space-between">';
+      c += '<span style="background:' + acc + ';color:#fde047;font-weight:900;font-size:12px;border-radius:5px;padding:2px 8px;border:1px solid #fde047">' + S.zodiacNames[r.zi] + '</span>';
+      if(isCur) c += '<span style="background:#fde047;color:#7c2d12;font-size:9px;font-weight:800;border-radius:4px;padding:1px 5px">' + S.badgeYear + '</span>';
+      c += '</div>';
+      c += '<div style="position:relative;text-align:center;font-size:' + emojiSize + 'px;line-height:1.25;margin:2px 0">' + r.z.emoji + '</div>';
+      c += '<div style="position:relative;text-align:center;font-size:10.5px;color:#92400e;font-weight:700;margin-bottom:3px">' + S.cardSub(month, r.zi) + '</div>';
+      c += '<div style="position:relative;display:flex;flex-direction:column;gap:4px">';
+      r.picks.forEach((p,pi) => {
+        const isTop1 = pi === 0;
+        const tag = isTop1 ? {t:S.tagTop1, bg:'#b91c1c', box:'linear-gradient(180deg,#fde047,#fbbf24)', num:'#7c2d12'} : {t:S.tagTop2, bg:'#1d4ed8', box:'linear-gradient(180deg,#e0e7ff,#c7d2fe)', num:'#1e3a8a'};
+        c += '<div style="background:' + tag.box + ';border:1.5px solid ' + acc + ';border-radius:7px;padding:4px 6px;display:flex;align-items:center;gap:8px">';
+        c += '<div style="flex:none">' + zoNumGrid(p.c.num, numCellPx, tag.num, acc) + '</div>';
+        c += '<div style="flex:1;min-width:0">';
+        c += '<span style="background:' + tag.bg + ';color:#fff;font-size:10.5px;font-weight:800;border-radius:3px;padding:1px 5px;line-height:1.6;display:inline-block;margin-bottom:3px">' + tag.t + '</span>';
+        c += '<div style="font-size:10px;color:#78350f;line-height:1.35;font-weight:600">' + zoNote(p, month, S) + '</div>';
+        c += '</div>';
+        c += '</div>';
+      });
+      c += '</div>';
+    }
+    c += '</div>';
+    return c;
+  }
+
+  html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">';
+  // 第一行：主打独占全宽
+  if(starRow) html += zoRenderCell(starRow, 6, 52, 28);
+  // 中间3行：每格span2（3格/行）× 9格
+  const mid = otherRows.slice(0, 9);
+  const tail = otherRows.slice(9); // 最后2格
+  mid.forEach(r => { html += zoRenderCell(r, 2, 34, 22); });
+  // 最后一行：各span3（各占50%）
+  tail.forEach(r => { html += zoRenderCell(r, 3, 38, 24); });
   html += '</div>';
   // 底部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
