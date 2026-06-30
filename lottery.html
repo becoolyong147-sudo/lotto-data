@@ -10084,7 +10084,8 @@ function zoDaCount(num){
 }
 // 综合评分（主打号/会员版/生肖图排序统一用同一公式）：当月命中 + 集中度 + 共识权重略提高（回测显示季节/共识位命中率接近 53%/47%），冷度仅作弱 tie-breaker
 function zoScore(c){
-  let s = c.monthHits*1.6 + c.conc*1.1 + c.consensus*1.4 + Math.min(c.coldRatio,2)*0.5;
+  // 权重调校：降低monthHits（历史频次过高会把"已开够"的号推上来），提高共识+集中度
+  let s = c.monthHits*1.2 + c.conc*1.4 + c.consensus*1.8 + Math.min(c.coldRatio,2)*0.6;
   // monthLast 近期性加分：去年同月开过 → 最强信号；越久远越弱
   if(c.monthLast && c.refYear){
     const ago = c.refYear - parseInt(c.monthLast.slice(0,4),10);
@@ -10613,6 +10614,28 @@ function zoMemTags(c, month, da){
   if(da === 6 || da === 4) t += ' · 平均每' + Math.round(c.avgGap) + '期一次';
   return t;
 }
+// 6/4打精选门槛：同月历史≥2次 + 集中度≥2x + 跨市场共识≥2 + 2年内同月开过
+function zoIsHighConf(c, refYear){
+  if(c.monthHits < 2) return false;
+  if(c.conc < 2.0) return false;
+  if(c.consensus < 2) return false;
+  if(!c.monthLast) return false;
+  const ago = refYear - parseInt(c.monthLast.slice(0,4), 10);
+  return ago <= 2;
+}
+// 证据标注文字
+function zoEvidenceTags(c, month, refYear){
+  const parts = [];
+  parts.push(month + '月历史开过<b>' + c.monthHits + '次</b>');
+  parts.push('集中度<b>' + c.conc.toFixed(1) + 'x</b>');
+  parts.push('<b>' + c.consensus + '</b>/5市场共识');
+  if(c.monthLast){
+    const ago = refYear - parseInt(c.monthLast.slice(0,4),10);
+    parts.push('最近：<b>' + c.monthLast.slice(0,7) + '</b>' + (ago===0?'（今年）':ago===1?'（去年）':'（'+ago+'年前）'));
+  }
+  parts.push('平均每<b>' + Math.round(c.avgGap) + '</b>期出现一次');
+  return parts.join(' · ');
+}
 function zoMemberGen(){
   const market = document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
@@ -10623,44 +10646,93 @@ function zoMemberGen(){
     return;
   }
   const selDa = [24,12,6,4].filter(d => document.getElementById('zo-mem-da-'+d).checked);
-  if(!selDa.length){
-    out.innerHTML = '<div class="error">请至少勾选一种打数。</div>';
-    return;
-  }
+  if(!selDa.length){ out.innerHTML = '<div class="error">请至少勾选一种打数。</div>'; return; }
   const topN = parseInt(document.getElementById('zo-mem-topn').value, 10) || 5;
+  const refYear = new Date().getFullYear();
   const pool = zoBuildPool(market, month, main);
   if(!pool.length){ out.innerHTML = '<div class="error">该月暂无候选号码。</div>'; return; }
   const sorted = pool.slice().sort((a,b) => zoScore(b) - zoScore(a));
   const star = sorted[0];
-  const groups = {};
-  selDa.forEach(da => { groups[da] = sorted.filter(c => zoDaCount(c.num) === da).slice(0,topN); });
-  ZO_MEM = {market, month, star, groups, selDa, curYear:new Date().getFullYear(), draws:main.draws};
 
-  // 深蓝金会员卡预览
-  let h = '<div class="card" style="background:linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border:3px solid #fbbf24;border-radius:14px;max-width:680px;margin-left:auto;margin-right:auto" id="zo-member-card">';
-  h += '<div style="text-align:center;padding:8px 0 2px">';
-  h += '<div style="display:inline-block;background:#fbbf24;color:#0f172a;font-size:10px;font-weight:900;letter-spacing:2px;border-radius:4px;padding:2px 10px">💎 会员专享 MEMBERS ONLY 💎</div>';
+  // 分组：24/12打用评分前N；6/4打用高门槛精选（不够则降级用普通排序补位，标注降级）
+  const groups = {}, groupConf = {}; // groupConf: true=高门槛通过
+  selDa.forEach(da => {
+    const byDa = sorted.filter(c => zoDaCount(c.num) === da);
+    if(da === 6 || da === 4){
+      const highConf = byDa.filter(c => zoIsHighConf(c, refYear)).slice(0, topN);
+      const fallback = highConf.length < topN ? byDa.filter(c => !zoIsHighConf(c, refYear)).slice(0, topN - highConf.length) : [];
+      groups[da] = [...highConf, ...fallback];
+      groupConf[da] = highConf.length; // 前N个是高门槛，之后是降级
+    } else {
+      groups[da] = byDa.slice(0, topN);
+      groupConf[da] = topN;
+    }
+  });
+  ZO_MEM = {market, month, star, groups, groupConf, selDa, refYear, draws:main.draws};
+
+  // ===== 渲染会员卡 =====
+  let h = '<div class="card" style="background:linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border:3px solid #fbbf24;border-radius:14px;max-width:700px;margin-left:auto;margin-right:auto" id="zo-member-card">';
+  // 头部
+  h += '<div style="text-align:center;padding:10px 0 4px">';
+  h += '<div style="display:inline-block;background:#fbbf24;color:#0f172a;font-size:10px;font-weight:900;letter-spacing:2px;border-radius:4px;padding:2px 12px">💎 会员专享 MEMBERS ONLY 💎</div>';
   h += '<div style="font-size:19px;font-weight:900;color:#fbbf24;letter-spacing:2px;margin-top:6px">' + month + '月会员旺号名单 · ' + market + ' ' + (ZO_MKT_EN[market]||'').toUpperCase() + '</div>';
-  h += '<div style="font-size:11px;font-weight:700;color:#fde047;margin-top:3px">🔥 本月主打：<span style="font-family:monospace;font-size:16px;font-weight:900;letter-spacing:2px">' + star.num + '</span> ' + ZO_LIST[star.zi].emoji + ZO_STR.zh.zodiacNames[star.zi] + ' · ' + zoMemTags(star, month, zoDaCount(star.num)) + '</div>';
   h += '</div>';
+
+  // 主打号（全场最高分）
+  h += '<div style="margin:6px 10px 10px;background:linear-gradient(135deg,#78350f,#92400e);border:2px solid #fbbf24;border-radius:10px;padding:8px 14px">';
+  h += '<div style="font-size:10px;font-weight:900;color:#fde047;letter-spacing:2px;margin-bottom:4px">🔥 本月综合最强主打</div>';
+  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<span style="font-family:monospace;font-size:28px;font-weight:900;color:#fde047;letter-spacing:4px">' + star.num + '</span>';
+  h += '<span style="font-size:20px">' + ZO_LIST[star.zi].emoji + '</span>';
+  h += '<span style="font-size:13px;font-weight:800;color:#fbbf24">' + ZO_STR.zh.zodiacNames[star.zi] + ' · ' + zoDaCount(star.num) + '打</span>';
+  h += '<span style="font-size:10px;color:#fde68a;margin-left:auto">' + zoMemTags(star, month, zoDaCount(star.num)) + '</span>';
+  h += '</div>';
+  h += '</div>';
+
+  // 分层分组
+  const DA_TIER = {24:'🎯 主打层 · 稳健首选', 12:'🎯 主打层 · 平衡之选', 6:'⚡ 精选参考 · 低注高赔型', 4:'⚡ 精选参考 · 极限博冷型'};
+  const DA_BG = {24:'rgba(22,163,74,.12)', 12:'rgba(37,99,235,.12)', 6:'rgba(220,38,38,.1)', 4:'rgba(147,51,234,.1)'};
+  const DA_BORDER = {24:'rgba(22,163,74,.4)', 12:'rgba(37,99,235,.4)', 6:'rgba(220,38,38,.35)', 4:'rgba(147,51,234,.35)'};
+
   selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
-    h += '<div style="margin:10px 8px">';
-    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="background:' + info.color + ';color:#fff;font-size:12px;font-weight:900;border-radius:5px;padding:2px 10px">' + info.label + '</span><span style="font-size:10.5px;color:#94a3b8;font-weight:600">' + info.desc + '</span></div>';
+    const isRef = da === 6 || da === 4;
+    const highConfCount = groupConf[da];
+    h += '<div style="margin:8px 10px">';
+    // 分组标题
+    h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+    h += '<span style="background:' + info.color + ';color:#fff;font-size:12px;font-weight:900;border-radius:5px;padding:2px 10px">' + info.label + '</span>';
+    h += '<span style="font-size:10.5px;color:#94a3b8;font-weight:600">' + DA_TIER[da] + '</span>';
+    if(isRef) h += '<span style="background:rgba(251,191,36,.15);color:#fbbf24;font-size:9.5px;font-weight:800;border-radius:4px;padding:1px 7px;border:1px solid rgba(251,191,36,.3)">需满足4项严格条件</span>';
+    h += '</div>';
+
     if(!groups[da].length){
-      h += '<div style="font-size:11px;color:#64748b;padding:4px 8px">本月暂无符合条件的候选</div>';
+      h += '<div style="font-size:11px;color:#64748b;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:6px">本月暂无符合条件的候选' + (isRef ? '（高门槛精选无结果）' : '') + '</div>';
     }
     groups[da].forEach((c, i) => {
-      h += '<div style="display:flex;align-items:center;gap:10px;background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.25);border-radius:8px;padding:5px 10px;margin-top:4px">';
-      h += '<span style="color:#fbbf24;font-size:12px;font-weight:900;width:18px">' + (i+1) + '</span>';
-      h += '<span style="font-family:monospace;font-size:21px;font-weight:900;color:#fde047;letter-spacing:3px">' + c.num + '</span>';
-      h += '<span style="font-size:15px">' + ZO_LIST[c.zi].emoji + '</span><span style="font-size:11px;font-weight:700;color:#fbbf24">' + ZO_STR.zh.zodiacNames[c.zi] + '</span>';
-      h += '<span style="font-size:10px;color:#cbd5e1;margin-left:auto;text-align:right">' + zoMemTags(c, month, da) + '</span>';
+      const isHighConf = i < highConfCount;
+      const isDemotion = isRef && !isHighConf;
+      const rowBg = isDemotion ? 'rgba(100,116,139,.08)' : DA_BG[da];
+      const rowBorder = isDemotion ? 'rgba(100,116,139,.25)' : DA_BORDER[da];
+      h += '<div style="background:' + rowBg + ';border:1px solid ' + rowBorder + ';border-radius:9px;padding:7px 12px;margin-top:5px' + (isDemotion?';opacity:.7':'') + '">';
+      // 行顶：排名 + 号码 + 生肖 + 打数徽章
+      h += '<div style="display:flex;align-items:center;gap:10px">';
+      h += '<span style="color:#fbbf24;font-size:13px;font-weight:900;min-width:18px">' + (i+1) + '</span>';
+      h += '<span style="font-family:monospace;font-size:22px;font-weight:900;color:#fde047;letter-spacing:3px">' + c.num + '</span>';
+      h += '<span style="font-size:16px">' + ZO_LIST[c.zi].emoji + '</span>';
+      h += '<span style="font-size:11px;font-weight:700;color:#fbbf24">' + ZO_STR.zh.zodiacNames[c.zi] + '</span>';
+      if(isRef && isHighConf) h += '<span style="background:#16a34a;color:#fff;font-size:9px;font-weight:900;border-radius:3px;padding:1px 6px;margin-left:4px">✓ 精选</span>';
+      if(isDemotion) h += '<span style="background:#64748b;color:#fff;font-size:9px;font-weight:700;border-radius:3px;padding:1px 6px;margin-left:4px">参考</span>';
+      h += '<span style="margin-left:auto;font-size:10px;font-weight:700;color:' + info.color + '">' + da + '打</span>';
+      h += '</div>';
+      // 行底：证据标注
+      h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">' + zoEvidenceTags(c, month, refYear) + '</div>';
       h += '</div>';
     });
     h += '</div>';
   });
-  h += '<div style="text-align:center;font-size:9.5px;color:#64748b;padding:6px 10px 10px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
+
+  h += '<div style="text-align:center;font-size:9.5px;color:#475569;padding:8px 10px 12px;border-top:1px solid rgba(251,191,36,.15);margin-top:8px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
   h += '</div>';
   out.innerHTML = h;
   ['zo-mem-copy','zo-mem-png'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
@@ -10668,14 +10740,20 @@ function zoMemberGen(){
 function zoMemberCopy(){
   if(!ZO_MEM) return;
   const M = ZO_MEM;
+  const refYear = M.refYear || new Date().getFullYear();
   let txt = '💎💎 ' + M.month + '月会员专享旺号 · ' + M.market + ' ' + (ZO_MKT_EN[M.market]||'') + ' 💎💎\n';
-  txt += '🔥 本月主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + '（' + zoMemTags(M.star, M.month, zoDaCount(M.star.num)) + '）\n';
+  txt += '🔥 本月综合最强主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + '\n';
+  txt += '   ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num)) + '\n';
   M.selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
-    txt += '\n【' + info.label + ' · ' + info.desc + '】\n';
-    if(!ZO_MEM.groups[da].length){ txt += '本月暂无\n'; return; }
-    ZO_MEM.groups[da].forEach((c, i) => {
-      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + '（' + zoMemTags(c, M.month, da) + '）\n';
+    const isRef = da === 6 || da === 4;
+    txt += '\n【' + info.label + (isRef ? ' · ⚡精选参考' : ' · 🎯主打') + '】\n';
+    if(!M.groups[da].length){ txt += '本月暂无符合条件的候选\n'; return; }
+    M.groups[da].forEach((c, i) => {
+      const isHighConf = i < (M.groupConf[da] || 999);
+      const tag = isRef ? (isHighConf ? '✓精选' : '参考') : '';
+      const evidence = M.month + '月' + c.monthHits + '次·集中' + c.conc.toFixed(1) + 'x·共识' + c.consensus + '/5' + (c.monthLast ? '·最近' + c.monthLast.slice(0,7) : '');
+      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + (tag?' ['+tag+']':'') + '\n   ' + evidence + '\n';
     });
   });
   txt += '\n⚠️ 历史统计整理，不构成预测 · 月底公开复盘\n（会员专享内容，请勿外传 🙏）';
