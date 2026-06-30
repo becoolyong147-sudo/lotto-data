@@ -7411,6 +7411,8 @@ function doBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff" onclick="zoScoreBacktest()">🔬 评分回测对比</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#d97706;color:#fff" onclick="zoDaMonthReport()">🎲 打数月份分析</button></div>
   </div>
   <div id="zo-review-result" style="margin-top:10px"></div>
 </div>
@@ -10066,8 +10068,9 @@ function zoBuildPool(market, month, main, cutoff){
       const h2 = s2.mh[month-1];
       if(h2 >= 2 && (h2/s2.total)/uniform >= 1.5) consensus++;
     });
+    const refYear = cutoff ? parseInt(cutoff.slice(0,4),10) : new Date().getFullYear();
     pool.push({key, num:st.sampleNum, zi:zoZodiacOfNum(st.sampleNum), total:st.total, monthHits, conc,
-      drawsSince:st.firstIdx, avgGap, coldRatio:st.firstIdx/avgGap, monthLast:st.monthLast[month-1], consensus});
+      drawsSince:st.firstIdx, avgGap, coldRatio:st.firstIdx/avgGap, monthLast:st.monthLast[month-1], refYear, consensus});
   }
   return pool;
 }
@@ -10079,7 +10082,17 @@ function zoDaCount(num){
   return sig==='1111' ? 24 : sig==='211' ? 12 : sig==='22' ? 6 : sig==='31' ? 4 : 1;
 }
 // 综合评分（主打号/会员版/生肖图排序统一用同一公式）：当月命中 + 集中度 + 共识权重略提高（回测显示季节/共识位命中率接近 53%/47%），冷度仅作弱 tie-breaker
-function zoScore(c){ return c.monthHits*1.6 + c.conc*1.1 + c.consensus*1.4 + Math.min(c.coldRatio,2)*0.5; }
+function zoScore(c){
+  let s = c.monthHits*1.6 + c.conc*1.1 + c.consensus*1.4 + Math.min(c.coldRatio,2)*0.5;
+  // monthLast 近期性加分：去年同月开过 → 最强信号；越久远越弱
+  if(c.monthLast && c.refYear){
+    const ago = c.refYear - parseInt(c.monthLast.slice(0,4),10);
+    if(ago <= 1) s += 2.0;
+    else if(ago <= 2) s += 1.0;
+    else if(ago <= 3) s += 0.4;
+  }
+  return s;
+}
 
 // 12生肖配号（生肖图 / 复盘共用）：每生肖按统一评分排序，直接取分数最高的前2个（不再按「季节优先/共识优先」分别锁位）
 function zoComputeRows(pool){
@@ -10864,6 +10877,146 @@ function zoFreqCopy(){
 let ZO_REVIEW = null;
 const ZO_RV_TAG = {top1:'🥇最强位', top2:'🥈次强位', star:'🔥主打号'};
 const ZO_RV_PRIZE = ['头奖','二奖','三奖'];
+// ===== 评分回测：对比旧评分（无monthLast）vs 新评分（含monthLast）主打命中率 =====
+function zoScoreBacktest(){
+  const out = document.getElementById('zo-review-result');
+  out.innerHTML = '<div class="warn">回测运行中，请稍候…</div>';
+  setTimeout(function(){
+    try{
+      const MK = ['万能','跑马','多多','新加坡','豪龙'];
+      const curYear = new Date().getFullYear();
+      let oldHit=0,newHit=0,total=0,changed=0;
+      const detail=[];
+      MK.forEach(market => {
+        for(let y=curYear-4; y<curYear; y++){
+          for(let m=1; m<=12; m++){
+            const cutoff = y+'-'+String(m).padStart(2,'0')+'-01';
+            const main = zoMarketStats(market, cutoff);
+            if(main.draws < 200) continue;
+            const pool = zoBuildPool(market, m, main, cutoff);
+            if(!pool.length) continue;
+            // 旧评分（忽略monthLast）
+            const oldScore = c => c.monthHits*1.6 + c.conc*1.1 + c.consensus*1.4 + Math.min(c.coldRatio,2)*0.5;
+            const oldStar = pool.slice().sort((a,b)=>oldScore(b)-oldScore(a))[0];
+            // 新评分（含monthLast）
+            const newStar = pool.slice().sort((a,b)=>zoScore(b)-zoScore(a))[0];
+            // 该月实际开奖
+            const ym = y+'-'+String(m).padStart(2,'0');
+            const draws = (DB[market]||[]).filter(r=>r.date&&r.date.startsWith(ym)&&!r.date.endsWith('-00'));
+            if(!draws.length) continue;
+            const allKeys = new Set();
+            draws.forEach(r=>[0,1,2].forEach(pi=>{const n=pz(r.nums[pi]);if(n)allKeys.add(seaPermKey(n));}));
+            const oldHitM = allKeys.has(oldStar.key);
+            const newHitM = allKeys.has(newStar.key);
+            const diff = oldStar.key !== newStar.key;
+            if(diff) changed++;
+            if(oldHitM) oldHit++;
+            if(newHitM) newHit++;
+            total++;
+            if(diff) detail.push({market,ym,oldNum:oldStar.num,newNum:newStar.num,oldHit:oldHitM,newHit:newHitM});
+          }
+        }
+      });
+      const oldPct=(oldHit/total*100).toFixed(1), newPct=(newHit/total*100).toFixed(1);
+      const diff=parseFloat(newPct)-parseFloat(oldPct);
+      const diffColor=diff>0?'#16a34a':diff<0?'#dc2626':'#64748b';
+      let h='<div class="card" style="border:2px solid #7c3aed">';
+      h+='<div style="font-size:15px;font-weight:900;color:#7c3aed;margin-bottom:10px">📊 评分改进回测（近4年，'+total+'个月×市场）</div>';
+      h+='<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">';
+      h+='<div class="sc"><div class="val">'+oldPct+'%</div><div class="lbl">旧评分主打命中率</div></div>';
+      h+='<div class="sc"><div class="val" style="color:'+diffColor+'">'+newPct+'%</div><div class="lbl">新评分主打命中率</div></div>';
+      h+='<div class="sc"><div class="val" style="color:'+diffColor+'">'+(diff>0?'+':'')+diff.toFixed(1)+'%</div><div class="lbl">提升幅度</div></div>';
+      h+='<div class="sc"><div class="val">'+changed+'</div><div class="lbl">推荐号改变次数</div></div>';
+      h+='</div>';
+      h+='<div style="font-size:11px;color:#475569;margin-bottom:8px">「改变次数」= 新旧评分选出不同主打号的月份。仅这些月份才有对比意义。</div>';
+      if(detail.length){
+        h+='<div style="font-size:12px;font-weight:700;margin-bottom:4px">推荐号不同的月份明细（共'+detail.length+'个）：</div>';
+        h+='<div style="overflow-x:auto"><table><tr><th>市场</th><th>月份</th><th>旧主打</th><th>新主打</th><th>旧命中</th><th>新命中</th></tr>';
+        detail.slice(0,60).forEach(d=>{
+          h+='<tr><td>'+d.market+'</td><td>'+d.ym+'</td>';
+          h+='<td style="font-family:monospace">'+d.oldNum+'</td><td style="font-family:monospace">'+d.newNum+'</td>';
+          h+='<td style="color:'+(d.oldHit?'#16a34a':'#dc2626')+';font-weight:700">'+(d.oldHit?'✓':'✗')+'</td>';
+          h+='<td style="color:'+(d.newHit?'#16a34a':'#dc2626')+';font-weight:700">'+(d.newHit?'✓':'✗')+'</td></tr>';
+        });
+        h+='</table></div>';
+      }
+      h+='</div>';
+      out.innerHTML=h;
+    }catch(e){ out.innerHTML='<div class="error">回测出错：'+e.message+'</div>'; }
+  },50);
+}
+
+// ===== 打数月份分析：12打/6打/4打/24打 在各月的出现规律 =====
+function zoDaMonthReport(){
+  const out = document.getElementById('zo-review-result');
+  out.innerHTML = '<div class="warn">分析中…</div>';
+  setTimeout(function(){
+    try{
+      const market = document.getElementById('zo-rv-market').value;
+      const main = zoMarketStats(market);
+      if(main.draws<200){out.innerHTML='<div class="error">数据不足</div>';return;}
+      // 按打数类型×月份统计
+      const types=['24打','12打','6打','4打','豹子(1打)'];
+      const byTypeMon={}; types.forEach(t=>{byTypeMon[t]=new Array(12).fill(0);});
+      const monTotal=new Array(12).fill(0);
+      (DB[market]||[]).forEach(r=>{
+        const m=seaMonth(r.date); if(!m||m<1||m>12) return;
+        [0,1,2].forEach(pi=>{
+          const raw=r.nums[pi]; if(raw==null||raw==='') return;
+          const num=pz(raw);
+          const da=zoDaCount(num);
+          const label=da===24?'24打':da===12?'12打':da===6?'6打':da===4?'4打':'豹子(1打)';
+          byTypeMon[label][m-1]++;
+          monTotal[m-1]++;
+        });
+      });
+      // 每月每类型百分比
+      const MONTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      const COLORS={'24打':'#2563eb','12打':'#16a34a','6打':'#d97706','4打':'#dc2626','豹子(1打)':'#7c3aed'};
+      let h='<div class="card" style="border:2px solid #d97706">';
+      h+='<div style="font-size:15px;font-weight:900;color:#d97706;margin-bottom:4px">🎲 打数×月份分布报告 — '+market+'（共'+main.draws+'期）</div>';
+      h+='<div style="font-size:11px;color:#64748b;margin-bottom:12px">24打=全异4位数字，12打=含一对，6打=含两对，4打=含三同。百分比 = 该月该打数占该月总开奖号码数。</div>';
+      // 表格
+      h+='<div style="overflow-x:auto"><table><tr><th>月份</th>';
+      types.forEach(t=>h+='<th style="color:'+COLORS[t]+'">'+t+'</th>');
+      h+='<th>总计</th></tr>';
+      MONTHS.forEach((mn,mi)=>{
+        const tot=monTotal[mi]; if(!tot){h+='<tr><td>'+mn+'</td><td colspan="6">—</td></tr>';return;}
+        h+='<tr><td style="font-weight:700">'+mn+'</td>';
+        types.forEach(t=>{
+          const cnt=byTypeMon[t][mi];
+          const pct=(cnt/tot*100).toFixed(1);
+          const avg=types.reduce((s,tt)=>s+byTypeMon[tt][mi]/tot/types.length,0);
+          // 高亮超过平均的格子
+          const avgPct=(1/types.length*100);
+          const bg=parseFloat(pct)>avgPct+3?'background:#fef9c3':parseFloat(pct)<avgPct-3?'background:#fee2e2':'';
+          h+='<td style="'+bg+'font-size:11px">'+cnt+'<span style="color:#64748b;font-size:10px"> ('+pct+'%)</span></td>';
+        });
+        h+='<td style="font-weight:600;font-size:11px">'+tot+'</td></tr>';
+      });
+      h+='</table></div>';
+      // 洞察：找每种打数最高月份
+      h+='<div style="margin-top:14px;font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px">📌 各打数最旺月份：</div>';
+      h+='<div style="display:flex;flex-wrap:wrap;gap:8px">';
+      types.forEach(t=>{
+        const arr=byTypeMon[t];
+        const pcts=arr.map((v,i)=>monTotal[i]?v/monTotal[i]:0);
+        const maxMi=pcts.indexOf(Math.max(...pcts));
+        const minMi=pcts.indexOf(Math.min(...pcts));
+        h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;min-width:140px">';
+        h+='<span style="color:'+COLORS[t]+';font-weight:800">'+t+'</span><br>';
+        h+='<span style="font-size:11px">最旺：<b>'+MONTHS[maxMi]+'</b> ('+( byTypeMon[t][maxMi]/monTotal[maxMi]*100).toFixed(1)+'%)</span><br>';
+        h+='<span style="font-size:11px;color:#94a3b8">最淡：'+MONTHS[minMi]+' ('+(byTypeMon[t][minMi]/monTotal[minMi]*100).toFixed(1)+'%)</span>';
+        h+='</div>';
+      });
+      h+='</div>';
+      h+='<div style="margin-top:12px;font-size:11px;color:#64748b">⚠️ 黄色=该月该打数比平均高3%以上；红色=低3%以上。规律越稳定（多年数据）越可参考。</div>';
+      h+='</div>';
+      out.innerHTML=h;
+    }catch(e){out.innerHTML='<div class="error">分析出错：'+e.message+'</div>';}
+  },50);
+}
+
 function zoReviewMonth(){
   const market = document.getElementById('zo-rv-market').value;
   const year = parseInt(document.getElementById('zo-rv-year').value, 10);
