@@ -10601,6 +10601,80 @@ function zoPrintPDF(){
 }
 
 // ===== V63: 会员版推荐（24打/12打/6打 分层名单，生成后自行发付费群，不上公开海报） =====
+// ===== 18罗汉：数字组合分类系统 =====
+// 规则：4位号码数字（含重复）必须包含pattern全部3个数字（multiset子集）才算命中该组
+const ZO_ROHAN = [
+  {id:1,  name:'第1罗汉', patterns:['147','247','047']},
+  {id:2,  name:'第2罗汉', patterns:['258','358','058']},
+  {id:3,  name:'第3罗汉', patterns:['369','269','469']},
+  {id:4,  name:'第4罗汉', patterns:['157','137']},
+  {id:5,  name:'第5罗汉', patterns:['248','268']},
+  {id:6,  name:'第6罗汉', patterns:['359','379']},
+  {id:7,  name:'第7罗汉', patterns:['148','146']},
+  {id:8,  name:'第8罗汉', patterns:['259','279']},
+  {id:9,  name:'第9罗汉', patterns:['368','360']},
+  {id:10, name:'第10罗汉', patterns:['123','023','223']},
+  {id:11, name:'第11罗汉', patterns:['456','556','356']},
+  {id:12, name:'第12罗汉', patterns:['789','889','689']},
+  {id:13, name:'第13罗汉', patterns:['113','133']},
+  {id:14, name:'第14罗汉', patterns:['466','446']},
+  {id:15, name:'第15罗汉', patterns:['779','799']},
+  {id:16, name:'第16罗汉', patterns:['122','124']},
+  {id:17, name:'第17罗汉', patterns:['455','457']},
+  {id:18, name:'第18罗汉', patterns:['788','780']},
+];
+// 单pattern匹配：4位号码的digit multiset是否包含3位pattern的digit multiset
+function zoRohanMatch(num4, pat3){
+  const cnt = {};
+  String(num4).split('').forEach(d => { cnt[d] = (cnt[d]||0)+1; });
+  for(const d of String(pat3).split('')){
+    if(!cnt[d] || cnt[d] <= 0) return false;
+    cnt[d]--;
+  }
+  return true;
+}
+// 返回一个4位号码属于哪些罗汉组（数组，可多个）
+function zoRohanOf(num4){
+  const n = pz(num4);
+  return ZO_ROHAN.filter(g => g.patterns.some(p => zoRohanMatch(n, p)));
+}
+// 统计市场历史：每个罗汉组 × 每月出现次数
+function zoRohanMonthStat(market, cutoff){
+  const recs = cutoff ? (DB[market]||[]).filter(r => r.date < cutoff) : (DB[market]||[]);
+  // stat[groupId][month-1] = count
+  const stat = {};
+  ZO_ROHAN.forEach(g => { stat[g.id] = new Array(12).fill(0); });
+  let total = 0;
+  const monTotal = new Array(12).fill(0);
+  recs.forEach(r => {
+    const m = seaMonth(r.date); if(!m || m<1 || m>12) return;
+    monTotal[m-1]++;
+    [0,1,2].forEach(pi => {
+      const raw = r.nums[pi]; if(raw==null||raw==='') return;
+      total++;
+      const groups = zoRohanOf(raw);
+      groups.forEach(g => { stat[g.id][m-1]++; });
+    });
+  });
+  return {stat, monTotal, draws:recs.length};
+}
+// 获取某号码在目标月份的罗汉热度（该月该组命中次数 / 该月总开奖次数）
+function zoRohanHeat(num4, month, rohanStat){
+  const groups = zoRohanOf(num4);
+  if(!groups.length) return {groups:[], maxHeat:0, label:''};
+  const monTot = rohanStat.monTotal[month-1] || 1;
+  const heats = groups.map(g => ({
+    g, count: rohanStat.stat[g.id][month-1],
+    heat: rohanStat.stat[g.id][month-1] / monTot
+  })).sort((a,b)=>b.heat-a.heat);
+  const best = heats[0];
+  return {
+    groups: heats.map(h=>h.g.id),
+    maxHeat: best.heat,
+    label: '罗汉' + heats.map(h=>h.g.id+'('+h.count+'次)').join('/'),
+  };
+}
+
 let ZO_MEM = null;
 const ZO_DA_INFO = {
   24: {label:'24打 · 四位全异', desc:'覆盖广 · 稳健包注型', color:'#16a34a'},
@@ -10623,8 +10697,8 @@ function zoIsHighConf(c, refYear){
   const ago = refYear - parseInt(c.monthLast.slice(0,4), 10);
   return ago <= 2;
 }
-// 证据标注文字
-function zoEvidenceTags(c, month, refYear){
+// 证据标注文字（rohanInfo可选）
+function zoEvidenceTags(c, month, refYear, rohanInfo){
   const parts = [];
   parts.push(month + '月历史开过<b>' + c.monthHits + '次</b>');
   parts.push('集中度<b>' + c.conc.toFixed(1) + 'x</b>');
@@ -10634,6 +10708,9 @@ function zoEvidenceTags(c, month, refYear){
     parts.push('最近：<b>' + c.monthLast.slice(0,7) + '</b>' + (ago===0?'（今年）':ago===1?'（去年）':'（'+ago+'年前）'));
   }
   parts.push('平均每<b>' + Math.round(c.avgGap) + '</b>期出现一次');
+  if(rohanInfo && rohanInfo.groups.length){
+    parts.push('🔱 <b>' + rohanInfo.label + '</b>');
+  }
   return parts.join(' · ');
 }
 function zoMemberGen(){
@@ -10653,6 +10730,8 @@ function zoMemberGen(){
   if(!pool.length){ out.innerHTML = '<div class="error">该月暂无候选号码。</div>'; return; }
   const sorted = pool.slice().sort((a,b) => zoScore(b) - zoScore(a));
   const star = sorted[0];
+  // 罗汉月份热度统计
+  const rohanStat = zoRohanMonthStat(market);
 
   // 分组：24/12打用评分前N；6/4打用高门槛精选（不够则降级用普通排序补位，标注降级）
   const groups = {}, groupConf = {}; // groupConf: true=高门槛通过
@@ -10725,8 +10804,9 @@ function zoMemberGen(){
       if(isDemotion) h += '<span style="background:#64748b;color:#fff;font-size:9px;font-weight:700;border-radius:3px;padding:1px 6px;margin-left:4px">参考</span>';
       h += '<span style="margin-left:auto;font-size:10px;font-weight:700;color:' + info.color + '">' + da + '打</span>';
       h += '</div>';
-      // 行底：证据标注
-      h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">' + zoEvidenceTags(c, month, refYear) + '</div>';
+      // 行底：证据标注 + 罗汉归属
+      const rh = zoRohanHeat(c.num, month, rohanStat);
+      h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">' + zoEvidenceTags(c, month, refYear, rh) + '</div>';
       h += '</div>';
     });
     h += '</div>';
@@ -11045,6 +11125,76 @@ function zoMemberBacktest(){
       out.innerHTML=h;
     }catch(e){out.innerHTML='<div class="error">回测出错：'+e.message+'</div>';}
   },50);
+}
+
+// ===== 18罗汉月份分析报告 =====
+function zoRohanReport(){
+  const out = document.getElementById('zo-review-result');
+  out.innerHTML = '<div class="warn">18罗汉分析中…</div>';
+  setTimeout(function(){
+    try{
+      const market = document.getElementById('zo-rv-market').value;
+      const month = parseInt(document.getElementById('zo-rv-month').value, 10);
+      const rs = zoRohanMonthStat(market);
+      const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      // 每组：在目标月份的频率 vs 全年平均
+      const monTot = rs.monTotal[month-1] || 1;
+      const avgMonTot = rs.monTotal.reduce((s,v)=>s+v,0) / 12 || 1;
+      const rows = ZO_ROHAN.map(g => {
+        const monthCount = rs.stat[g.id][month-1];
+        const totalCount = rs.stat[g.id].reduce((s,v)=>s+v,0);
+        const monthPct = monthCount / monTot;
+        const avgPct = totalCount / 12 / avgMonTot;
+        const bias = avgPct > 0 ? monthPct / avgPct : 0; // 本月热度 vs 平均
+        return {g, monthCount, totalCount, monthPct, avgPct, bias};
+      }).sort((a,b) => b.bias - a.bias);
+
+      let h = '<div class="card" style="border:2px solid #7c3aed">';
+      h += '<div style="font-size:15px;font-weight:900;color:#7c3aed;margin-bottom:4px">🔱 18罗汉 × ' + MONTHS[month-1] + ' 热度分析 — ' + market + '</div>';
+      h += '<div style="font-size:11px;color:#64748b;margin-bottom:10px">「月份热度比」= 该组在本月出现频率 ÷ 全年平均频率。>1.2x = 本月偏热（黄色），<0.8x = 本月偏冷（红色）。</div>';
+
+      // 热度排行表
+      h += '<div style="overflow-x:auto"><table><tr><th>排名</th><th>罗汉组</th><th>Patterns</th><th>' + MONTHS[month-1] + '次数</th><th>月频率</th><th>全年均频</th><th>热度比</th></tr>';
+      rows.forEach((row, idx) => {
+        const biasColor = row.bias >= 1.2 ? '#d97706' : row.bias <= 0.8 ? '#dc2626' : '#16a34a';
+        const bg = row.bias >= 1.2 ? 'background:#fef9c3' : row.bias <= 0.8 ? 'background:#fee2e2' : '';
+        h += '<tr style="' + bg + '">';
+        h += '<td style="font-weight:700">' + (idx+1) + '</td>';
+        h += '<td style="font-weight:800;color:#7c3aed">' + row.g.name + '</td>';
+        h += '<td style="font-family:monospace;font-size:11px">' + row.g.patterns.join(' / ') + '</td>';
+        h += '<td style="font-weight:700">' + row.monthCount + '</td>';
+        h += '<td>' + (row.monthPct*100).toFixed(1) + '%</td>';
+        h += '<td>' + (row.avgPct*100).toFixed(1) + '%</td>';
+        h += '<td style="font-weight:900;color:' + biasColor + '">' + row.bias.toFixed(2) + 'x</td>';
+        h += '</tr>';
+      });
+      h += '</table></div>';
+
+      // 全年热度分布（每组×12月）
+      h += '<div style="margin-top:16px;font-size:13px;font-weight:700;margin-bottom:6px">📅 各组全年月份分布（热度比，黄=偏热，红=偏冷）：</div>';
+      h += '<div style="overflow-x:auto"><table style="font-size:10px"><tr><th>罗汉组</th>';
+      MONTHS.forEach(m => h += '<th>' + m + '</th>');
+      h += '</tr>';
+      ZO_ROHAN.forEach(g => {
+        const tot = rs.stat[g.id].reduce((s,v)=>s+v,0);
+        h += '<tr><td style="font-weight:800;color:#7c3aed;white-space:nowrap">' + g.name + '</td>';
+        rs.stat[g.id].forEach((cnt, mi) => {
+          const mTot = rs.monTotal[mi] || 1;
+          const pct = cnt / mTot;
+          const avgP = tot / 12 / avgMonTot;
+          const bias = avgP > 0 ? pct / avgP : 0;
+          const bg2 = bias >= 1.3 ? 'background:#fef9c3;font-weight:800' : bias <= 0.7 ? 'background:#fee2e2;color:#991b1b' : '';
+          const isTarget = mi === month-1;
+          h += '<td style="' + bg2 + (isTarget?';border:2px solid #7c3aed':'') + '">' + (bias > 0 ? bias.toFixed(1) + 'x' : '—') + '</td>';
+        });
+        h += '</tr>';
+      });
+      h += '</table></div>';
+      h += '<div style="font-size:11px;color:#64748b;margin-top:8px">目标月份（' + MONTHS[month-1] + '）用紫色边框标出。黄色=该月该组比平均热30%以上；红色=比平均冷30%以上。</div>';
+      h += '</div>';
+      out.innerHTML = h;
+    }catch(e){ out.innerHTML = '<div class="error">分析出错：' + e.message + '</div>'; }
+  }, 50);
 }
 
 // ===== 评分回测：对比旧评分（无monthLast）vs 新评分（含monthLast）主打命中率 =====
