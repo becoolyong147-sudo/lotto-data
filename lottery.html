@@ -10258,15 +10258,37 @@ function doZodiacChart(){
     return c;
   }
 
-  html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">';
-  // 第一行：主打独占全宽
-  if(starRow) html += zoRenderCell(starRow, 6, 52, 28);
-  // 中间3行：每格span2（3格/行）× 9格
-  const mid = otherRows.slice(0, 9);
-  const tail = otherRows.slice(9); // 最后2格
-  mid.forEach(r => { html += zoRenderCell(r, 2, 34, 22); });
-  // 最后一行：各span3（各占50%）
-  tail.forEach(r => { html += zoRenderCell(r, 3, 38, 24); });
+  // 单独生肖全宽
+  if(starRow){
+    html += '<div style="margin-bottom:10px">' + zoRenderCell(starRow, 6, 52, 28) + '</div>';
+  }
+  // 最强 / 次强 两栏各 2×2
+  const top4 = otherRows.slice(0, 4);
+  const sec4 = otherRows.slice(4, 8);
+  function zoMiniCell(r){
+    const acc = r.z.accent || '#fbbf24';
+    const isCur = r.zi === curZi;
+    const p = r.picks[0];
+    let c = '<div style="background:linear-gradient(165deg,#fffbeb,#fef3c7 70%,' + acc + '14);border:2px solid ' + acc + ';border-radius:10px;padding:7px 5px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
+    c += '<div style="font-size:11px;font-weight:900;color:#7c2d12;background:' + acc + ';border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:3px">' + S.zodiacNames[r.zi] + (isCur ? ' ★' : '') + '</div>';
+    c += '<div style="font-size:36px;line-height:1.1;margin:2px 0">' + r.z.emoji + '</div>';
+    if(p) c += '<div style="display:flex;justify-content:center;margin-top:4px">' + zoNumGrid(p.c.num, 22, '#7c2d12', acc) + '</div>';
+    c += '</div>';
+    return c;
+  }
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  // 最强栏
+  html += '<div>';
+  html += '<div style="text-align:center;font-size:13px;font-weight:900;color:#b91c1c;letter-spacing:2px;margin-bottom:6px;padding:4px;background:linear-gradient(90deg,#fef2f2,#fee2e2);border-radius:8px;border:1px solid #fca5a5">🔥 最强</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  top4.forEach(r => { html += zoMiniCell(r); });
+  html += '</div></div>';
+  // 次强栏
+  html += '<div>';
+  html += '<div style="text-align:center;font-size:13px;font-weight:900;color:#1d4ed8;letter-spacing:2px;margin-bottom:6px;padding:4px;background:linear-gradient(90deg,#eff6ff,#dbeafe);border-radius:8px;border:1px solid #93c5fd">⭐ 次强</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
+  sec4.forEach(r => { html += zoMiniCell(r); });
+  html += '</div></div>';
   html += '</div>';
   // 底部横幅
   html += '<div style="background:linear-gradient(180deg,#7f1d1d,#991b1b);border:2px solid #fde047;border-radius:10px;padding:8px;text-align:center;margin-top:10px">';
