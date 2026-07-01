@@ -10231,24 +10231,24 @@ function doZodiacChart(){
     const glowCol   = isStrong ? '#f59e0b55' : '#6366f144';
     const heat = p ? Math.min(100, Math.round((p.c.monthHits || 0) / 10 * 100)) : 50;
     let c = '<div class="zo-float-slow" style="background:' + bgGrad + ';border:1px solid ' + borderCol + ';border-radius:10px;padding:7px 4px;text-align:center;position:relative;filter:drop-shadow(0 0 5px ' + glowCol + ')">';
-    c += '<div style="position:absolute;top:-7px;left:5px;background:' + rankCol + ';color:#fff;font-size:7px;font-weight:900;border-radius:3px;padding:1px 5px">#' + rank + '</div>';
-    c += '<div style="font-size:9px;font-weight:900;color:' + nameCol + ';margin-bottom:3px;letter-spacing:1px">' + S.zodiacNames[r.zi] + (isCur ? ' ★' : '') + '</div>';
-    c += '<div style="font-size:28px;line-height:1.1;filter:drop-shadow(0 2px 6px ' + glowCol + ')">' + r.z.emoji + '</div>';
-    c += '<div style="height:1px;background:linear-gradient(90deg,transparent,' + borderCol + ',transparent);margin:4px 0"></div>';
+    c += '<div style="position:absolute;top:-8px;left:5px;background:' + rankCol + ';color:#fff;font-size:9px;font-weight:900;border-radius:4px;padding:2px 7px">#' + rank + '</div>';
+    c += '<div style="font-size:12px;font-weight:900;color:' + nameCol + ';margin-bottom:4px;letter-spacing:1px">' + S.zodiacNames[r.zi] + (isCur ? ' ★' : '') + '</div>';
+    c += '<div style="font-size:36px;line-height:1.1;filter:drop-shadow(0 2px 8px ' + glowCol + ')">' + r.z.emoji + '</div>';
+    c += '<div style="height:1px;background:linear-gradient(90deg,transparent,' + borderCol + ',transparent);margin:5px 0"></div>';
     // 号码左右并排，各自 2×2 zoNumGrid
-    c += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">';
-    c += '<div style="background:rgba(253,224,71,.08);border:1px solid #92400e;border-radius:5px;padding:3px 2px">';
-    c += '<div style="font-size:6px;font-weight:900;color:#fde047;margin-bottom:2px">最强</div>';
-    if(p) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p.c.num, 17, '#fde047', '#92400e') + '</div>';
+    c += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+    c += '<div style="background:rgba(253,224,71,.08);border:1px solid #92400e;border-radius:6px;padding:4px 2px">';
+    c += '<div style="font-size:8px;font-weight:900;color:#fde047;margin-bottom:3px">最强</div>';
+    if(p) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p.c.num, 21, '#fde047', '#92400e') + '</div>';
     c += '</div>';
-    c += '<div style="background:rgba(99,102,241,.1);border:1px solid #4338ca;border-radius:5px;padding:3px 2px">';
-    c += '<div style="font-size:6px;font-weight:900;color:#a5b4fc;margin-bottom:2px">次强</div>';
-    if(p2) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p2.c.num, 17, '#a5b4fc', '#4338ca') + '</div>';
+    c += '<div style="background:rgba(99,102,241,.15);border:1px solid #6366f1;border-radius:6px;padding:4px 2px">';
+    c += '<div style="font-size:8px;font-weight:900;color:#c7d2fe;margin-bottom:3px">次强</div>';
+    if(p2) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p2.c.num, 21, '#ffffff', '#6366f1') + '</div>';
     c += '</div>';
     c += '</div>';
     // 热度条
     const heatCol = isStrong ? '#f59e0b' : '#6366f1';
-    c += '<div style="background:rgba(255,255,255,.1);border-radius:3px;height:2px;overflow:hidden;margin-top:4px"><div style="background:' + heatCol + ';height:2px;width:' + heat + '%"></div></div>';
+    c += '<div style="background:rgba(255,255,255,.1);border-radius:3px;height:3px;overflow:hidden;margin-top:5px"><div style="background:' + heatCol + ';height:3px;width:' + heat + '%"></div></div>';
     c += '</div>';
     return c;
   }
@@ -10264,7 +10264,10 @@ function doZodiacChart(){
   html += '<div>';
   html += '<div style="font-size:8px;font-weight:900;color:#a5b4fc;letter-spacing:3px;text-align:center;margin-bottom:7px">✧ 次　强</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
-  sec5.forEach((r, i) => { html += zoMiniCell(r, i + 8, false); });
+  sec5.forEach((r, i) => {
+    const isLast = i === sec5.length - 1 && sec5.length % 2 !== 0;
+    html += '<div' + (isLast ? ' style="grid-column:span 2"' : '') + '>' + zoMiniCell(r, i + 8, false) + '</div>';
+  });
   html += '</div></div>';
   html += '</div>';
 
