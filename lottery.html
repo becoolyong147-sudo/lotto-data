@@ -10263,16 +10263,30 @@ function doZodiacChart(){
     html += '<div style="margin-bottom:10px">' + zoRenderCell(starRow, 6, 52, 28) + '</div>';
   }
   // 最强 / 次强 两栏各 2×2
-  const top4 = otherRows.slice(0, 4);
-  const sec4 = otherRows.slice(4, 8);
+  const top4 = otherRows.slice(0, 6);
+  const sec4 = otherRows.slice(6, 11);
   function zoMiniCell(r){
     const acc = r.z.accent || '#fbbf24';
     const isCur = r.zi === curZi;
-    const p = r.picks[0];
-    let c = '<div style="background:linear-gradient(165deg,#fffbeb,#fef3c7 70%,' + acc + '14);border:2px solid ' + acc + ';border-radius:10px;padding:7px 5px;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.2)">';
-    c += '<div style="font-size:11px;font-weight:900;color:#7c2d12;background:' + acc + ';border-radius:4px;padding:1px 6px;display:inline-block;margin-bottom:3px">' + S.zodiacNames[r.zi] + (isCur ? ' ★' : '') + '</div>';
-    c += '<div style="font-size:36px;line-height:1.1;margin:2px 0">' + r.z.emoji + '</div>';
-    if(p) c += '<div style="display:flex;justify-content:center;margin-top:4px">' + zoNumGrid(p.c.num, 22, '#7c2d12', acc) + '</div>';
+    const p  = r.picks[0];
+    const p2 = r.picks[1];
+    let c = '<div style="background:linear-gradient(165deg,#fffbeb,#fef3c7 80%,' + acc + '22);border:2px solid ' + acc + ';border-radius:12px;padding:8px 6px;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.18)">';
+    // 生肖名 + emoji
+    c += '<div style="font-size:10px;font-weight:900;color:#fff;background:' + acc + ';border-radius:5px;padding:2px 8px;display:inline-block;margin-bottom:4px;letter-spacing:1px">' + S.zodiacNames[r.zi] + (isCur ? ' ★' : '') + '</div>';
+    c += '<div style="font-size:38px;line-height:1.05;margin:2px 0 6px">' + r.z.emoji + '</div>';
+    // 号码区：左最强 右次强
+    c += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
+    // 最强
+    c += '<div style="background:linear-gradient(180deg,#fef9c3,#fef08a);border:1.5px solid #b91c1c;border-radius:7px;padding:4px 2px">';
+    c += '<div style="font-size:9px;font-weight:900;color:#b91c1c;margin-bottom:2px">最强</div>';
+    if(p) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p.c.num, 19, '#7c2d12', '#f59e0b') + '</div>';
+    c += '</div>';
+    // 次强
+    c += '<div style="background:linear-gradient(180deg,#eff6ff,#dbeafe);border:1.5px solid #1d4ed8;border-radius:7px;padding:4px 2px">';
+    c += '<div style="font-size:9px;font-weight:900;color:#1d4ed8;margin-bottom:2px">次强</div>';
+    if(p2) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p2.c.num, 19, '#1e3a8a', '#93c5fd') + '</div>';
+    c += '</div>';
+    c += '</div>';
     c += '</div>';
     return c;
   }
