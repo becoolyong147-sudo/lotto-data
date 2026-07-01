@@ -10196,7 +10196,7 @@ function doZodiacChart(){
   // 标题
   html += '<div style="text-align:center;margin-bottom:12px">';
   html += '<div style="font-size:9px;color:#6366f1;letter-spacing:4px;margin-bottom:3px">✦ ✦ ✦</div>';
-  html += '<div style="font-size:13px;font-weight:900;letter-spacing:4px;background:linear-gradient(90deg,#f59e0b,#fde047,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">本月生肖星盘</div>';
+  html += '<div style="font-size:13px;font-weight:900;letter-spacing:4px;background:linear-gradient(90deg,#f59e0b,#fde047,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">' + S.titleZodiac(month) + '</div>';
   html += '<div style="font-size:9px;color:#6366f1;letter-spacing:4px;margin-top:3px">✦ ✦ ✦</div>';
   html += '</div>';
 
@@ -10206,13 +10206,13 @@ function doZodiacChart(){
     const sp = starRow.picks[0], sp2 = starRow.picks[1];
     html += '<div style="background:linear-gradient(135deg,rgba(253,224,71,.06),rgba(245,158,11,.1),rgba(253,224,71,.04));border:1.5px solid #b45309;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px;margin-bottom:12px;position:relative;overflow:hidden">';
     html += '<div style="position:absolute;inset:0;background:radial-gradient(circle at 20% 50%,rgba(253,224,71,.07),transparent 60%);pointer-events:none"></div>';
-    html += '<div class="zo-float" style="font-size:52px;line-height:1;filter:drop-shadow(0 0 10px #fde04777);flex-shrink:0">' + szi.emoji + '</div>';
+    html += '<div class="zo-float" style="font-size:62px;line-height:1;filter:drop-shadow(0 0 14px #fde04799);flex-shrink:0">' + szi.emoji + '</div>';
     html += '<div style="flex:1;position:relative">';
-    html += '<div style="font-size:8px;font-weight:900;color:#fde047;letter-spacing:3px;margin-bottom:3px">✦ 主打 · 第一命格</div>';
-    html += '<div style="font-size:17px;font-weight:900;color:#fff;margin-bottom:6px">' + S.zodiacNames[star.zi] + ' · <span style="font-family:monospace;color:#fde047">' + star.num + '</span></div>';
-    html += '<div style="display:flex;gap:5px">';
-    if(sp){ html += '<div style="background:rgba(253,224,71,.1);border:1px solid #b45309;border-radius:7px;padding:4px 6px;text-align:center"><div style="font-size:7px;color:#fde047;font-weight:900;margin-bottom:3px">最强</div>' + zoNumGrid(sp.c.num, 20, '#fde047', '#b45309') + '</div>'; }
-    if(sp2){ html += '<div style="background:rgba(99,102,241,.1);border:1px solid #4338ca;border-radius:7px;padding:4px 6px;text-align:center"><div style="font-size:7px;color:#a5b4fc;font-weight:900;margin-bottom:3px">次强</div>' + zoNumGrid(sp2.c.num, 20, '#a5b4fc', '#4338ca') + '</div>'; }
+    html += '<div style="font-size:11px;font-weight:900;color:#fde047;letter-spacing:3px;margin-bottom:5px">✦ ' + S.starLabel.replace(/🔥/g,'').trim() + '</div>';
+    html += '<div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:8px">' + S.zodiacNames[star.zi] + ' · <span style="font-family:monospace;color:#fde047">' + star.num + '</span></div>';
+    html += '<div style="display:flex;gap:7px">';
+    if(sp){ html += '<div style="background:rgba(253,224,71,.1);border:1px solid #b45309;border-radius:8px;padding:5px 8px;text-align:center"><div style="font-size:9px;color:#fde047;font-weight:900;margin-bottom:4px">' + S.tagTop1 + '</div>' + zoNumGrid(sp.c.num, 24, '#fde047', '#b45309') + '</div>'; }
+    if(sp2){ html += '<div style="background:rgba(99,102,241,.1);border:1px solid #4338ca;border-radius:8px;padding:5px 8px;text-align:center"><div style="font-size:9px;color:#a5b4fc;font-weight:900;margin-bottom:4px">' + S.tagTop2 + '</div>' + zoNumGrid(sp2.c.num, 24, '#ffffff', '#4338ca') + '</div>'; }
     html += '</div></div></div>';
   }
 
@@ -10238,11 +10238,11 @@ function doZodiacChart(){
     // 号码左右并排，各自 2×2 zoNumGrid
     c += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
     c += '<div style="background:rgba(253,224,71,.08);border:1px solid #92400e;border-radius:6px;padding:4px 2px">';
-    c += '<div style="font-size:8px;font-weight:900;color:#fde047;margin-bottom:3px">最强</div>';
+    c += '<div style="font-size:8px;font-weight:900;color:#fde047;margin-bottom:3px">' + S.tagTop1 + '</div>';
     if(p) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p.c.num, 21, '#fde047', '#92400e') + '</div>';
     c += '</div>';
     c += '<div style="background:rgba(99,102,241,.15);border:1px solid #6366f1;border-radius:6px;padding:4px 2px">';
-    c += '<div style="font-size:8px;font-weight:900;color:#c7d2fe;margin-bottom:3px">次强</div>';
+    c += '<div style="font-size:8px;font-weight:900;color:#c7d2fe;margin-bottom:3px">' + S.tagTop2 + '</div>';
     if(p2) c += '<div style="display:flex;justify-content:center">' + zoNumGrid(p2.c.num, 21, '#ffffff', '#6366f1') + '</div>';
     c += '</div>';
     c += '</div>';
@@ -10256,13 +10256,13 @@ function doZodiacChart(){
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
   // 最强栏
   html += '<div>';
-  html += '<div style="font-size:8px;font-weight:900;color:#fde047;letter-spacing:3px;text-align:center;margin-bottom:7px">✦ 最　强</div>';
+  html += '<div style="font-size:8px;font-weight:900;color:#fde047;letter-spacing:3px;text-align:center;margin-bottom:7px">✦ ' + S.tagTop1 + '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
   top6.forEach((r, i) => { html += zoMiniCell(r, i + 2, true); });
   html += '</div></div>';
   // 次强栏
   html += '<div>';
-  html += '<div style="font-size:8px;font-weight:900;color:#a5b4fc;letter-spacing:3px;text-align:center;margin-bottom:7px">✧ 次　强</div>';
+  html += '<div style="font-size:8px;font-weight:900;color:#a5b4fc;letter-spacing:3px;text-align:center;margin-bottom:7px">✧ ' + S.tagTop2 + '</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">';
   sec5.forEach((r, i) => {
     const isLast = i === sec5.length - 1 && sec5.length % 2 !== 0;
