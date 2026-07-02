@@ -7320,7 +7320,7 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成海报</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
@@ -10350,7 +10350,7 @@ function doZodiacChart(){
 }
 
 function zoShowButtons(){
-  ['zo-copy-btn','zo-png-btn','zo-pdf-btn'].forEach(id => {
+  ['zo-copy-btn','zo-png-btn','zo-vid-btn','zo-pdf-btn'].forEach(id => {
     const b = document.getElementById(id); if(b) b.style.display = '';
   });
 }
@@ -10683,16 +10683,11 @@ function zoDrawMiniCellK(ctx, r, rank, isStrong, x, y, w, h, curZi, S){
   if(fw>0){zoRR(ctx,barX,barY,fw,barH,3); ctx.fillStyle=heatCol; ctx.fill();}
 }
 // ── K 星盘风格: 主下载函数 ──
-function zoDownloadPNG(){
-  if(!ZO_LAST) return;
-  const L=ZO_LAST, S=ZO_STR[zoLang()];
-  // Season 模式沿用旧版
-  if(L.mode==='season'){
-    zoDownloadPNGClassic(); return;
-  }
+// ── K 星盘统一绘制：t=null 静态；t=秒数 → 动画帧 ──
+function zoDrawChartK(ctx, L, S, t){
   const W=1080, H=1350, pad=28, iW=W-2*pad;
-  const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
-  const ctx=cv.getContext('2d');
+  const anim = t!=null;
+  function bob(phase,amp){ return anim ? Math.sin(t*2+phase)*(amp||4) : 0; }
   // Background
   const bg=ctx.createLinearGradient(0,0,W,H);
   bg.addColorStop(0,'#07050f'); bg.addColorStop(.5,'#0f0c29'); bg.addColorStop(1,'#07050f');
@@ -10704,9 +10699,12 @@ function zoDownloadPNG(){
    [.03,.10,'#c7d2fe',9],[.97,.07,'#fde047',11],[.96,.19,'#a5b4fc',8],
    [.04,.62,'#fde047',10],[.97,.50,'#c7d2fe',9],[.05,.88,'#a5b4fc',11],
    [.94,.82,'#fde047',9],[.18,.96,'#c7d2fe',10],[.82,.97,'#fde047',8]
-  ].forEach(function(s){
+  ].forEach(function(s,i){
+    ctx.save();
+    if(anim) ctx.globalAlpha = 0.25+0.75*(0.5+0.5*Math.sin(t*2.5+i*1.3));
     ctx.fillStyle=s[2]; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font=s[3]+'px '+ZO_FONT; ctx.fillText('✦',s[0]*W,s[1]*H);
+    ctx.restore();
   });
   // Title
   ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -10726,31 +10724,34 @@ function zoDownloadPNG(){
     ctx.fillStyle=gs; ctx.fill(); ctx.strokeStyle='#b45309'; ctx.lineWidth=2.5; ctx.stroke();
     // Emoji
     ctx.font='76px '+ZO_FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
-    ctx.fillText(ZO_LIST[star.zi].emoji,pad+80,sy+sh/2);
+    ctx.fillText(ZO_LIST[star.zi].emoji,pad+80,sy+sh/2+bob(0,6));
     // Label
     const tx=pad+170;
-    ctx.fillStyle='#fde047'; ctx.font='800 14px '+ZO_FONT;
+    ctx.fillStyle='#fde047'; ctx.font='800 15px '+ZO_FONT;
     ctx.textAlign='left'; ctx.textBaseline='top';
-    ctx.fillText('✦ '+S.starLabel.replace(/🔥/g,'').trim(),tx,sy+12);
+    ctx.fillText('✦ '+S.starLabel.replace(/🔥/g,'').trim(),tx,sy+26);
     // Name · Number
-    ctx.fillStyle='#ffffff'; ctx.font='900 30px '+ZO_FONT;
+    ctx.fillStyle='#ffffff'; ctx.font='900 34px '+ZO_FONT;
     ctx.textBaseline='top';
     const nameStr=S.zodiacNames[star.zi]+' · ';
-    ctx.fillText(nameStr,tx,sy+36);
+    ctx.fillText(nameStr,tx,sy+54);
     const nw=ctx.measureText(nameStr).width;
-    ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_MONO;
-    ctx.fillText(star.num,tx+nw,sy+36);
-    // Number grids
+    ctx.fillStyle='#fde047'; ctx.font='900 34px '+ZO_MONO;
+    ctx.fillText(star.num,tx+nw,sy+54);
+    // Number grids — 靠右垂直居中
     const starRow=L.rows.find(function(r){return r.zi===star.zi;});
     if(starRow){
-      const gy=sy+76; const cp=38;
-      ctx.fillStyle='#fde047'; ctx.font='800 12px '+ZO_FONT;
-      ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(S.tagTop1,tx,gy);
-      if(starRow.picks[0]) zoDrawNumGridK(ctx,starRow.picks[0].c.num,tx,gy+15,cp,'#fde047','#92400e','rgba(253,224,71,.08)');
-      const g2x=tx+100;
-      ctx.fillStyle='#a5b4fc'; ctx.font='800 12px '+ZO_FONT;
-      ctx.fillText(S.tagTop2,g2x,gy);
-      if(starRow.picks[1]) zoDrawNumGridK(ctx,starRow.picks[1].c.num,g2x,gy+15,cp,'#ffffff','#4338ca','rgba(99,102,241,.1)');
+      const cp=32, gridH=cp*2+2, lblH=17;
+      const gy=sy+(sh-(gridH+lblH))/2;
+      const gw=cp*2+2;
+      const g2x=pad+iW-30-gw, g1x=g2x-gw-26;
+      ctx.font='800 13px '+ZO_FONT; ctx.textAlign='center'; ctx.textBaseline='top';
+      ctx.fillStyle='#fde047'; ctx.fillText(S.tagTop1,g1x+gw/2,gy);
+      if(starRow.picks[0]) zoDrawNumGridK(ctx,starRow.picks[0].c.num,g1x,gy+lblH,cp,'#fde047','#92400e','rgba(253,224,71,.08)');
+      ctx.fillStyle='#a5b4fc'; ctx.font='800 13px '+ZO_FONT;
+      ctx.fillText(S.tagTop2,g2x+gw/2,gy);
+      if(starRow.picks[1]) zoDrawNumGridK(ctx,starRow.picks[1].c.num,g2x,gy+lblH,cp,'#ffffff','#4338ca','rgba(99,102,241,.1)');
+      ctx.textAlign='left';
     }
     contentY=sy+sh+12;
   }
@@ -10776,13 +10777,13 @@ function zoDownloadPNG(){
   const top6=otherRows.slice(0,6), sec5=otherRows.slice(6,11);
   top6.forEach(function(r,i){
     const col=i%2,row=Math.floor(i/2);
-    zoDrawMiniCellK(ctx,r,i+2,true,pad+col*(cellW+cGap),contentY+row*(cellH+rGap),cellW,cellH,curZi,S);
+    zoDrawMiniCellK(ctx,r,i+2,true,pad+col*(cellW+cGap),contentY+row*(cellH+rGap)+bob(i*0.9,3),cellW,cellH,curZi,S);
   });
   sec5.forEach(function(r,i){
     const col=i%2,row=Math.floor(i/2);
     const isLast=(i===4);
     const cw=isLast?colW:cellW;
-    zoDrawMiniCellK(ctx,r,i+8,false,pad+colW+14+col*(cellW+cGap),contentY+row*(cellH+rGap),cw,cellH,curZi,S);
+    zoDrawMiniCellK(ctx,r,i+8,false,pad+colW+14+col*(cellW+cGap),contentY+row*(cellH+rGap)+bob(2+i*0.9,3),cw,cellH,curZi,S);
   });
   // Footer
   const fy=H-72;
@@ -10797,22 +10798,65 @@ function zoDownloadPNG(){
   ctx.fillStyle='#6366f1';
   zoFitFont(ctx,S.footer2,iW-40,16,10,function(s){return s+'px '+ZO_FONT;});
   ctx.fillText(S.footer2,W/2,fy+44);
-  // Ad
-  const ad=zoAdCfg();
-  if(ad.t||ad.c){
-    zoRR(ctx,pad,H-10,iW,0,0); // placeholder if needed
-  }
-  // Download
+}
+// K 星盘文件名
+function zoFileNameK(L,ext){
   const mkAscii=(ZO_MKT_EN[L.market]||L.market).replace(/\s+/g,'');
-  const fname='zodiac_'+L.curYear+'-'+String(L.month).padStart(2,'0')+'_'+mkAscii+'_'+zoLang()+'.png';
+  return 'zodiac_'+L.curYear+'-'+String(L.month).padStart(2,'0')+'_'+mkAscii+'_'+zoLang()+'.'+ext;
+}
+function zoSaveBlob(b,fname){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=fname;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(a.href);},5000);
+}
+function zoDownloadPNG(){
+  if(!ZO_LAST) return;
+  const L=ZO_LAST, S=ZO_STR[zoLang()];
+  // Season 模式沿用旧版
+  if(L.mode==='season'){
+    zoDownloadPNGClassic(); return;
+  }
+  const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;
+  zoDrawChartK(cv.getContext('2d'),L,S,null);
   cv.toBlob(function(b){
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(b); a.download=fname;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function(){URL.revokeObjectURL(a.href);},5000);
+    zoSaveBlob(b,zoFileNameK(L,'png'));
     const btn=document.getElementById('zo-png-btn');
     if(btn){btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='📸 下载图片';},1500);}
   });
+}
+// ── 导出动画视频（约6秒，直接可发FB）──
+function zoDownloadVideo(){
+  if(!ZO_LAST) return;
+  const L=ZO_LAST, S=ZO_STR[zoLang()];
+  if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
+  const btn=document.getElementById('zo-vid-btn');
+  if(btn && btn.dataset.busy) return;
+  const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;
+  const ctx=cv.getContext('2d');
+  const stream=cv.captureStream(30);
+  let mime='video/mp4';
+  if(!(window.MediaRecorder&&MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(mime))){
+    mime='video/webm;codecs=vp9';
+    if(!MediaRecorder.isTypeSupported(mime)) mime='video/webm';
+  }
+  const ext=mime.indexOf('mp4')>=0?'mp4':'webm';
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8000000});
+  const chunks=[];
+  rec.ondataavailable=function(e){ if(e.data.size>0) chunks.push(e.data); };
+  rec.onstop=function(){
+    zoSaveBlob(new Blob(chunks,{type:mime}),zoFileNameK(L,ext));
+    if(btn){delete btn.dataset.busy; btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='🎬 下载视频';},1500);}
+  };
+  if(btn){btn.dataset.busy='1'; btn.textContent='⏺ 录制中…';}
+  const DUR=6000, t0=performance.now();
+  rec.start();
+  (function frame(now){
+    const el=now-t0;
+    zoDrawChartK(ctx,L,S,el/1000);
+    if(el<DUR) requestAnimationFrame(frame);
+    else rec.stop();
+  })(t0);
 }
 // Season 模式保留旧版绘图
 function zoDownloadPNGClassic(){
