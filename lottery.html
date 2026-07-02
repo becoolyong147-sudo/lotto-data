@@ -10652,17 +10652,17 @@ function zoDrawMiniCellK(ctx, r, rank, isStrong, x, y, w, h, curZi, S){
   zoFitFont(ctx,S.zodiacNames[r.zi]+(isCur?' ★':''),w-24,Math.round(h*0.09),10,function(s){return '900 '+s+'px '+ZO_FONT;});
   ctx.fillText(S.zodiacNames[r.zi]+(isCur?' ★':''),x+w/2,y+h*0.13);
   // Emoji
-  ctx.font=Math.round(h*0.23)+'px '+ZO_FONT;
+  ctx.font=Math.round(h*0.19)+'px '+ZO_FONT;
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(r.z.emoji,x+w/2,y+h*0.35);
+  ctx.fillText(r.z.emoji,x+w/2,y+h*0.30);
   // Divider
   ctx.save(); ctx.globalAlpha=0.4; ctx.strokeStyle=borderCol; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(x+12,y+h*0.51); ctx.lineTo(x+w-12,y+h*0.51); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+12,y+h*0.44); ctx.lineTo(x+w-12,y+h*0.44); ctx.stroke();
   ctx.restore();
   // Number grids
-  const numTop = y+h*0.54;
+  const numTop = y+h*0.47;
   const halfW  = w/2;
-  const cellPx = Math.min(Math.round(halfW*0.34), Math.round(h*0.115));
+  const cellPx = Math.min(Math.round(halfW*0.42), Math.round(h*0.155));
   const gridW  = cellPx*2+2;
   const labelFs= Math.max(9, Math.round(h*0.055));
   const lCenter = x+halfW/2, rCenter = x+w-halfW/2;
@@ -10743,11 +10743,11 @@ function zoDownloadPNG(){
     // Number grids
     const starRow=L.rows.find(function(r){return r.zi===star.zi;});
     if(starRow){
-      const gy=sy+76; const cp=26;
+      const gy=sy+76; const cp=38;
       ctx.fillStyle='#fde047'; ctx.font='800 12px '+ZO_FONT;
       ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText(S.tagTop1,tx,gy);
       if(starRow.picks[0]) zoDrawNumGridK(ctx,starRow.picks[0].c.num,tx,gy+15,cp,'#fde047','#92400e','rgba(253,224,71,.08)');
-      const g2x=tx+80;
+      const g2x=tx+100;
       ctx.fillStyle='#a5b4fc'; ctx.font='800 12px '+ZO_FONT;
       ctx.fillText(S.tagTop2,g2x,gy);
       if(starRow.picks[1]) zoDrawNumGridK(ctx,starRow.picks[1].c.num,g2x,gy+15,cp,'#ffffff','#4338ca','rgba(99,102,241,.1)');
