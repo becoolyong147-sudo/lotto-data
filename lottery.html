@@ -7363,6 +7363,11 @@ function doBacktest(){
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
+    <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
+      <button class="btn" onclick="zoMemGlossCopy('zh',this)">中文</button>
+      <button class="btn" onclick="zoMemGlossCopy('en',this)">English</button>
+      <button class="btn" onclick="zoMemGlossCopy('ms',this)">Melayu</button>
+    </div></div>
   </div>
   <div id="zo-member-result" style="margin-top:10px"></div>
 </div>
