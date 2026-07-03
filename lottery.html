@@ -7362,6 +7362,7 @@ function doBacktest(){
     <div class="ig"><button class="btn btn-red" onclick="zoMemberGen()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
+    <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
   </div>
   <div id="zo-member-result" style="margin-top:10px"></div>
 </div>
@@ -10839,15 +10840,10 @@ function zoPickRecMime(){
   }
   return 'video/webm';
 }
-function zoDownloadVideo(){
-  if(!ZO_LAST) return;
-  const L=ZO_LAST, S=ZO_STR[zoLang()];
-  if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
-  const btn=document.getElementById('zo-vid-btn');
+// 通用：把 canvas 动画录成带配乐的6秒视频。drawFrame(tSec)负责画一帧
+function zoRecVideo(cv, drawFrame, fnameBase, btn, idleLabel){
   if(btn && btn.dataset.busy) return;
   if(btn){btn.dataset.busy='1'; btn.textContent='⏺ 录制中…';}
-  const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;
-  const ctx=cv.getContext('2d');
   const stream=cv.captureStream(30);
   const mime=zoPickRecMime();
   const ext=mime.indexOf('mp4')>=0?'mp4':'webm';
@@ -10859,15 +10855,15 @@ function zoDownloadVideo(){
     rec.ondataavailable=function(e){ if(e.data.size>0) chunks.push(e.data); };
     rec.onstop=function(){
       if(ac){ try{ac.close();}catch(e){} }
-      zoSaveBlob(new Blob(chunks,{type:mime.split(';')[0]}),zoFileNameK(L,ext));
-      if(btn){delete btn.dataset.busy; btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='🎬 下载视频';},1500);}
+      zoSaveBlob(new Blob(chunks,{type:mime.split(';')[0]}),fnameBase+'.'+ext);
+      if(btn){delete btn.dataset.busy; btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent=idleLabel;},1500);}
     };
     const DUR=6000, t0=performance.now();
     rec.start();
     if(onStart) onStart();
     (function frame(now){
       const el=now-t0;
-      zoDrawChartK(ctx,L,S,el/1000);
+      drawFrame(el/1000);
       if(el<DUR) requestAnimationFrame(frame);
       else rec.stop();
     })(t0);
@@ -10888,6 +10884,16 @@ function zoDownloadVideo(){
       },function(){ startRec(null); });
     }catch(e){ startRec(null); }
   } else startRec(null);
+}
+function zoDownloadVideo(){
+  if(!ZO_LAST) return;
+  const L=ZO_LAST, S=ZO_STR[zoLang()];
+  if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
+  const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;
+  const ctx=cv.getContext('2d');
+  zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,S,t); },
+    zoFileNameK(L,'png').replace(/\.png$/,''),
+    document.getElementById('zo-vid-btn'), '🎬 下载视频');
 }
 // Season 模式保留旧版绘图
 function zoDownloadPNGClassic(){
@@ -11023,6 +11029,28 @@ function zoMemTags(c, month, da){
   if(da === 6 || da === 4) t += ' · 平均每' + Math.round(c.avgGap) + '期一次';
   return t;
 }
+// 信心星级(1~5★)：证据信号越多星越多（当月频次/共识/集中度/罗汉/近期性）
+function zoMemStars(c){
+  let s = 1;
+  if(c.monthHits >= 2) s++;
+  if(c.monthHits >= 4) s++;
+  if(c.consensus >= 2) s++;
+  if(c.conc >= 2) s += 0.5;
+  if(c.rohanScore >= 0.8) s += 0.5;
+  if(c.monthLast && c.refYear && (c.refYear - parseInt(c.monthLast.slice(0,4),10)) <= 1) s++;
+  return Math.max(1, Math.min(5, Math.round(s)));
+}
+function zoMemStarsTxt(c){
+  const n = zoMemStars(c);
+  return '★★★★★'.slice(0,n) + '☆☆☆☆☆'.slice(0,5-n);
+}
+// 冷热状态徽章：沉睡期数 ÷ 平均间隔
+function zoMemHeatBadge(c){
+  const r = c.coldRatio;
+  if(r >= 1.5) return {t:'🔥 超期 ' + r.toFixed(1) + 'x', col:'#f87171'};
+  if(r < 0.7)  return {t:'❄️ 刚开过', col:'#93c5fd'};
+  return {t:'⚖️ 正常', col:'#94a3b8'};
+}
 // 6/4打精选门槛：同月历史≥2次 + 集中度≥2x + 跨市场共识≥2 + 2年内同月开过
 function zoIsHighConf(c, refYear){
   if(c.monthHits < 2) return false;
@@ -11084,21 +11112,29 @@ function zoMemberGen(){
   });
   ZO_MEM = {market, month, star, groups, groupConf, selDa, refYear, draws:main.draws};
 
-  // ===== 渲染会员卡 =====
-  let h = '<div class="card" style="background:linear-gradient(160deg,#0f172a 0%,#1e293b 60%,#0f172a 100%);border:3px solid #fbbf24;border-radius:14px;max-width:700px;margin-left:auto;margin-right:auto" id="zo-member-card">';
+  // ===== 渲染会员卡（K星盘暗夜风）=====
+  let h = '<style>.zo-tw{animation:zoTw 2.5s ease-in-out infinite}@keyframes zoTw{0%,100%{opacity:.25}50%{opacity:1}}</style>';
+  h += '<div class="card" style="background:linear-gradient(135deg,#07050f,#0f0c29,#140d2a,#07050f);border:2px solid #4338ca;border-radius:14px;max-width:700px;margin-left:auto;margin-right:auto;position:relative;overflow:hidden" id="zo-member-card">';
+  // 星点
+  [['6%','3%','#fde047','8px'],['92%','5%','#a5b4fc','6px'],['4%','40%','#c7d2fe','6px'],['95%','55%','#fde047','7px'],['8%','88%','#a5b4fc','6px'],['90%','92%','#fde047','8px']].forEach(function(sd,i){
+    h += '<div class="zo-tw" style="position:absolute;top:'+sd[1]+';left:'+sd[0]+';color:'+sd[2]+';font-size:'+sd[3]+';pointer-events:none;animation-delay:'+(i*0.4)+'s">'+(i%2===0?'✦':'✧')+'</div>';
+  });
   // 头部
   h += '<div style="text-align:center;padding:10px 0 4px">';
-  h += '<div style="display:inline-block;background:#fbbf24;color:#0f172a;font-size:10px;font-weight:900;letter-spacing:2px;border-radius:4px;padding:2px 12px">💎 会员专享 MEMBERS ONLY 💎</div>';
-  h += '<div style="font-size:19px;font-weight:900;color:#fbbf24;letter-spacing:2px;margin-top:6px">' + month + '月会员旺号名单 · ' + market + ' ' + (ZO_MKT_EN[market]||'').toUpperCase() + '</div>';
+  h += '<div style="display:inline-block;background:linear-gradient(90deg,#b45309,#f59e0b);color:#0f172a;font-size:10px;font-weight:900;letter-spacing:2px;border-radius:4px;padding:2px 12px">💎 会员专享 MEMBERS ONLY 💎</div>';
+  h += '<div style="font-size:19px;font-weight:900;letter-spacing:2px;margin-top:6px;background:linear-gradient(90deg,#f59e0b,#fde047,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">' + month + '月会员旺号名单 · ' + market + ' ' + (ZO_MKT_EN[market]||'').toUpperCase() + '</div>';
   h += '</div>';
 
   // 主打号（全场最高分）
-  h += '<div style="margin:6px 10px 10px;background:linear-gradient(135deg,#78350f,#92400e);border:2px solid #fbbf24;border-radius:10px;padding:8px 14px">';
-  h += '<div style="font-size:10px;font-weight:900;color:#fde047;letter-spacing:2px;margin-bottom:4px">🔥 本月综合最强主打</div>';
-  h += '<div style="display:flex;align-items:center;gap:12px">';
+  h += '<div style="margin:6px 10px 10px;background:linear-gradient(135deg,rgba(120,53,15,.55),rgba(146,64,14,.35));border:2px solid #b45309;border-radius:10px;padding:8px 14px">';
+  h += '<div style="font-size:10px;font-weight:900;color:#fde047;letter-spacing:2px;margin-bottom:4px">✦ 本月综合最强主打</div>';
+  h += '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">';
   h += '<span style="font-family:monospace;font-size:28px;font-weight:900;color:#fde047;letter-spacing:4px">' + star.num + '</span>';
-  h += '<span style="font-size:20px">' + ZO_LIST[star.zi].emoji + '</span>';
+  h += '<span style="font-size:20px;filter:drop-shadow(0 0 8px #fde04766)">' + ZO_LIST[star.zi].emoji + '</span>';
   h += '<span style="font-size:13px;font-weight:800;color:#fbbf24">' + ZO_STR.zh.zodiacNames[star.zi] + ' · ' + zoDaCount(star.num) + '打</span>';
+  h += '<span style="font-size:12px;color:#fde047;letter-spacing:1px">' + zoMemStarsTxt(star) + '</span>';
+  const starHeat = zoMemHeatBadge(star);
+  h += '<span style="font-size:9.5px;font-weight:800;color:' + starHeat.col + ';border:1px solid ' + starHeat.col + '55;border-radius:4px;padding:1px 6px">' + starHeat.t + '</span>';
   h += '<span style="font-size:10px;color:#fde68a;margin-left:auto">' + zoMemTags(star, month, zoDaCount(star.num)) + '</span>';
   h += '</div>';
   h += '</div>';
@@ -11135,6 +11171,9 @@ function zoMemberGen(){
       h += '<span style="font-family:monospace;font-size:22px;font-weight:900;color:#fde047;letter-spacing:3px">' + c.num + '</span>';
       h += '<span style="font-size:16px">' + ZO_LIST[c.zi].emoji + '</span>';
       h += '<span style="font-size:11px;font-weight:700;color:#fbbf24">' + ZO_STR.zh.zodiacNames[c.zi] + '</span>';
+      h += '<span style="font-size:10.5px;color:#fde047;letter-spacing:1px">' + zoMemStarsTxt(c) + '</span>';
+      const rowHeat = zoMemHeatBadge(c);
+      h += '<span style="font-size:9px;font-weight:800;color:' + rowHeat.col + ';border:1px solid ' + rowHeat.col + '55;border-radius:4px;padding:1px 5px">' + rowHeat.t + '</span>';
       if(isRef && isHighConf) h += '<span style="background:#16a34a;color:#fff;font-size:9px;font-weight:900;border-radius:3px;padding:1px 6px;margin-left:4px">✓ 精选</span>';
       if(isDemotion) h += '<span style="background:#64748b;color:#fff;font-size:9px;font-weight:700;border-radius:3px;padding:1px 6px;margin-left:4px">参考</span>';
       h += '<span style="margin-left:auto;font-size:10px;font-weight:700;color:' + info.color + '">' + da + '打</span>';
@@ -11151,18 +11190,18 @@ function zoMemberGen(){
     h += '</div>';
   });
 
-  h += '<div style="text-align:center;font-size:9.5px;color:#475569;padding:8px 10px 12px;border-top:1px solid rgba(251,191,36,.15);margin-top:8px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
+  h += '<div style="text-align:center;font-size:9.5px;color:#6366f1;padding:8px 10px 12px;border-top:1px solid rgba(67,56,202,.35);margin-top:8px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
   h += '</div>';
   out.innerHTML = h;
-  ['zo-mem-copy','zo-mem-png'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
+  ['zo-mem-copy','zo-mem-png','zo-mem-vid'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
 }
 function zoMemberCopy(){
   if(!ZO_MEM) return;
   const M = ZO_MEM;
   const refYear = M.refYear || new Date().getFullYear();
   let txt = '💎💎 ' + M.month + '月会员专享旺号 · ' + M.market + ' ' + (ZO_MKT_EN[M.market]||'') + ' 💎💎\n';
-  txt += '🔥 本月综合最强主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + '\n';
-  txt += '   ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num)) + '\n';
+  txt += '🔥 本月综合最强主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + ' ' + zoMemStarsTxt(M.star) + '\n';
+  txt += '   ' + zoMemHeatBadge(M.star).t + ' · ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num)) + '\n';
   M.selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
     const isRef = da === 6 || da === 4;
@@ -11171,8 +11210,8 @@ function zoMemberCopy(){
     M.groups[da].forEach((c, i) => {
       const isHighConf = i < (M.groupConf[da] || 999);
       const tag = isRef ? (isHighConf ? '✓精选' : '参考') : '';
-      const evidence = M.month + '月' + c.monthHits + '次·集中' + c.conc.toFixed(1) + 'x·共识' + c.consensus + '/5' + (c.monthLast ? '·最近' + c.monthLast.slice(0,7) : '');
-      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + (tag?' ['+tag+']':'') + '\n   ' + evidence + '\n';
+      const evidence = zoMemHeatBadge(c).t + '·' + M.month + '月' + c.monthHits + '次·集中' + c.conc.toFixed(1) + 'x·共识' + c.consensus + '/5' + (c.monthLast ? '·最近' + c.monthLast.slice(0,7) : '');
+      txt += (i+1) + '. ' + c.num + ' ' + ZO_LIST[c.zi].emoji + ZO_STR.zh.zodiacNames[c.zi] + ' ' + zoMemStarsTxt(c) + (tag?' ['+tag+']':'') + '\n   ' + evidence + '\n';
     });
   });
   txt += '\n⚠️ 历史统计整理，不构成预测 · 月底公开复盘\n（会员专享内容，请勿外传 🙏）';
@@ -11182,24 +11221,38 @@ function zoMemberCopy(){
     navigator.clipboard.writeText(txt).then(done).catch(() => { zoCopyFallback(txt); done(); });
   } else { zoCopyFallback(txt); done(); }
 }
-function zoMemberPNG(){
-  if(!ZO_MEM) return;
-  const M = ZO_MEM;
-  const W = 1080, pad = 36;
-  // 动态算高：头部 + 主打条 + 各分组(组头+行) + 底部
+// 会员图画布高度（头部 + 主打条 + 各分组(组头+行) + 底部）
+function zoMemH(M){
   let H = 30 + 110 + 14 + 100 + 6;
-  M.selDa.forEach(da => { H += 56 + Math.max(ZO_MEM.groups[da].length,1)*62 + 14; });
+  M.selDa.forEach(da => { H += 56 + Math.max(M.groups[da].length,1)*62 + 14; });
   H += 64 + 30;
-  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d');
+  return H;
+}
+// ── 会员图 K星盘暗夜风统一绘制：t=null 静态；t=秒数 → 动画帧 ──
+function zoDrawMemberK(ctx, M, t){
+  const W = 1080, pad = 36, H = zoMemH(M);
+  const anim = t!=null;
+  // 深空背景
   const bg = ctx.createLinearGradient(0,0,W,H);
-  bg.addColorStop(0,'#0f172a'); bg.addColorStop(.6,'#1e293b'); bg.addColorStop(1,'#0f172a');
+  bg.addColorStop(0,'#07050f'); bg.addColorStop(.5,'#0f0c29'); bg.addColorStop(1,'#07050f');
   ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
-  ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 8; ctx.strokeRect(4,4,W-8,H-8);
+  zoRR(ctx,4,4,W-8,H-8,18); ctx.strokeStyle = '#4338ca'; ctx.lineWidth = 4; ctx.stroke();
+  // 星点
+  [[.06,.02,'#fde047',13],[.5,.015,'#a5b4fc',9],[.93,.03,'#fde047',12],
+   [.03,.25,'#c7d2fe',9],[.97,.2,'#fde047',10],[.04,.5,'#a5b4fc',10],
+   [.96,.45,'#c7d2fe',9],[.05,.75,'#fde047',10],[.95,.7,'#a5b4fc',9],
+   [.08,.97,'#c7d2fe',10],[.9,.96,'#fde047',9]
+  ].forEach(function(s,i){
+    ctx.save();
+    if(anim) ctx.globalAlpha = 0.25+0.75*(0.5+0.5*Math.sin(t*2.5+i*1.3));
+    ctx.fillStyle=s[2]; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.font=s[3]+'px '+ZO_FONT; ctx.fillText('✦',s[0]*W,s[1]*H);
+    ctx.restore();
+  });
   // 斜向水印
   ctx.save();
   ctx.translate(W/2, H/2); ctx.rotate(-Math.PI/7);
-  ctx.fillStyle = 'rgba(251,191,36,.06)'; ctx.font = '900 92px ' + ZO_FONT;
+  ctx.fillStyle = 'rgba(251,191,36,.05)'; ctx.font = '900 92px ' + ZO_FONT;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   for(let k=-2;k<=2;k++) ctx.fillText('会员专享 MEMBERS ONLY', 0, k*320);
   ctx.restore();
@@ -11207,33 +11260,37 @@ function zoMemberPNG(){
   let y = 30;
   zoRR(ctx,pad,y,W-2*pad,110,14);
   const gh = ctx.createLinearGradient(0,y,0,y+110);
-  gh.addColorStop(0,'#1e3a5f'); gh.addColorStop(1,'#0f172a');
-  ctx.fillStyle = gh; ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.stroke();
+  gh.addColorStop(0,'#1e1b4b'); gh.addColorStop(1,'#0f0c29');
+  ctx.fillStyle = gh; ctx.fill(); ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#fbbf24'; ctx.font = '900 20px ' + ZO_FONT;
   ctx.fillText('💎 会员专享 MEMBERS ONLY 💎', W/2, y+28);
-  ctx.fillStyle = '#fde047';
   const titleT = M.month + '月会员旺号名单 · ' + M.market + ' ' + (ZO_MKT_EN[M.market]||'').toUpperCase();
+  const tg = ctx.createLinearGradient(W/2-300,0,W/2+300,0);
+  tg.addColorStop(0,'#f59e0b'); tg.addColorStop(.5,'#fde047'); tg.addColorStop(1,'#f59e0b');
+  ctx.fillStyle = tg;
   zoFitFont(ctx,titleT,W-2*pad-40,38,20,function(s){return '900 '+s+'px '+ZO_FONT;});
   ctx.fillText(titleT, W/2, y+72);
   y += 124;
-  // 主打条
+  // 主打条（暗琥珀）
   zoRR(ctx,pad,y,W-2*pad,100,14);
   const gs2 = ctx.createLinearGradient(0,y,0,y+100);
-  gs2.addColorStop(0,'#fbbf24'); gs2.addColorStop(1,'#f59e0b');
-  ctx.fillStyle = gs2; ctx.fill(); ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 3; ctx.stroke();
-  ctx.fillStyle = '#7c2d12'; ctx.font = '900 18px ' + ZO_FONT;
-  ctx.fillText('🔥 本月主打号 🔥', W/2, y+20);
-  ctx.fillStyle = '#7f1d1d'; ctx.font = '900 42px ' + ZO_MONO;
-  ctx.fillText(M.star.num + '  ' + ZO_LIST[M.star.zi].emoji + ' ' + ZO_STR.zh.zodiacNames[M.star.zi], W/2, y+53);
-  ctx.fillStyle = '#92400e';
-  const starTagT = zoMemTags(M.star, M.month, zoDaCount(M.star.num));
+  gs2.addColorStop(0,'rgba(120,53,15,.65)'); gs2.addColorStop(1,'rgba(146,64,14,.4)');
+  ctx.fillStyle = gs2; ctx.fill(); ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = '#fde047'; ctx.font = '900 18px ' + ZO_FONT;
+  ctx.fillText('✦ 本月主打号 ✦', W/2, y+20);
+  ctx.font = '900 42px ' + ZO_MONO;
+  ctx.fillText(M.star.num + '  ' + ZO_LIST[M.star.zi].emoji + ' ' + ZO_STR.zh.zodiacNames[M.star.zi], W/2, y+53+(anim?Math.sin(t*2)*3:0));
+  const sHeat = zoMemHeatBadge(M.star);
+  const starTagT = zoMemStarsTxt(M.star) + ' · ' + sHeat.t + ' · ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num));
+  ctx.fillStyle = '#fde68a';
   zoFitFont(ctx,starTagT,W-2*pad-40,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
   ctx.fillText(starTagT, W/2, y+83);
   y += 106;
   // 各分组（按会员勾选的打数）
   M.selDa.forEach(da => {
     const info = ZO_DA_INFO[da];
+    const isRef = da === 6 || da === 4;
     // 组头
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.font = '900 24px ' + ZO_FONT;
@@ -11244,15 +11301,19 @@ function zoMemberPNG(){
     ctx.fillStyle = '#94a3b8'; ctx.font = '600 17px ' + ZO_FONT;
     ctx.fillText(info.desc, pad+lw+14, y+31);
     y += 56;
-    if(!ZO_MEM.groups[da].length){
+    if(!M.groups[da].length){
       ctx.fillStyle = '#64748b'; ctx.font = '16px ' + ZO_FONT;
       ctx.fillText('本月暂无符合条件的候选', pad+14, y+28);
       y += 62;
     }
-    ZO_MEM.groups[da].forEach((c, i) => {
+    M.groups[da].forEach((c, i) => {
+      const isHigh = i < (M.groupConf[da]||999);
       zoRR(ctx,pad,y,W-2*pad,54,10);
-      ctx.fillStyle = 'rgba(251,191,36,.08)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(251,191,36,.3)'; ctx.lineWidth = 2; ctx.stroke();
+      const rg = ctx.createLinearGradient(0,y,0,y+54);
+      rg.addColorStop(0,'rgba(30,27,75,.75)'); rg.addColorStop(1,'rgba(49,46,129,.45)');
+      ctx.fillStyle = rg; ctx.fill();
+      ctx.strokeStyle = (isRef && !isHigh) ? 'rgba(100,116,139,.5)' : 'rgba(99,102,241,.55)';
+      ctx.lineWidth = 2; ctx.stroke();
       ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#fbbf24'; ctx.font = '900 20px ' + ZO_FONT;
       ctx.fillText(String(i+1), pad+18, y+28);
@@ -11262,9 +11323,14 @@ function zoMemberPNG(){
       ctx.fillText(ZO_LIST[c.zi].emoji, pad+178, y+28);
       ctx.fillStyle = '#fbbf24'; ctx.font = '800 19px ' + ZO_FONT;
       ctx.fillText(ZO_STR.zh.zodiacNames[c.zi], pad+212, y+29);
+      ctx.fillStyle = '#fde047'; ctx.font = '15px ' + ZO_FONT;
+      ctx.fillText(zoMemStarsTxt(c), pad+296, y+29);
+      const hb = zoMemHeatBadge(c);
+      ctx.fillStyle = hb.col; ctx.font = '700 14px ' + ZO_FONT;
+      ctx.fillText(hb.t, pad+400, y+29);
       ctx.fillStyle = '#cbd5e1'; ctx.textAlign = 'right';
       const tagT = zoMemTags(c, M.month, da);
-      zoFitFont(ctx,tagT,W-2*pad-290,17,11,function(s){return s+'px '+ZO_FONT;});
+      zoFitFont(ctx,tagT,W-2*pad-560,16,10,function(s){return s+'px '+ZO_FONT;});
       ctx.fillText(tagT, W-pad-16, y+29);
       y += 62;
     });
@@ -11272,19 +11338,34 @@ function zoMemberPNG(){
   });
   // 底部
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#64748b'; ctx.font = '14px ' + ZO_FONT;
+  ctx.fillStyle = '#6366f1'; ctx.font = '14px ' + ZO_FONT;
   ctx.fillText('⚠️ 历史统计整理，不构成预测 · 月底公开复盘', W/2, y+16);
   ctx.fillText('会员专享内容，请勿外传 🙏', W/2, y+40);
+}
+function zoMemFileBase(M){
   const mkAscii = (ZO_MKT_EN[M.market]||M.market).replace(/\s+/g,'');
-  const fname = 'member_' + M.curYear + '-' + String(M.month).padStart(2,'0') + '_' + mkAscii + '.png';
+  return 'member_' + M.refYear + '-' + String(M.month).padStart(2,'0') + '_' + mkAscii;
+}
+function zoMemberPNG(){
+  if(!ZO_MEM) return;
+  const M = ZO_MEM;
+  const cv = document.createElement('canvas'); cv.width = 1080; cv.height = zoMemH(M);
+  zoDrawMemberK(cv.getContext('2d'), M, null);
   cv.toBlob(function(b){
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(b); a.download = fname;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 5000);
+    zoSaveBlob(b, zoMemFileBase(M) + '.png');
     const btn = document.getElementById('zo-mem-png');
     if(btn){ btn.textContent = '✅ 已下载'; setTimeout(function(){ btn.textContent = '📸 下载会员图'; }, 1500); }
   });
+}
+// 会员版动画视频（带配乐，发付费群）
+function zoMemberVideo(){
+  if(!ZO_MEM) return;
+  const M = ZO_MEM;
+  const cv = document.createElement('canvas'); cv.width = 1080; cv.height = zoMemH(M);
+  const ctx = cv.getContext('2d');
+  zoRecVideo(cv, function(t){ zoDrawMemberK(ctx, M, t); },
+    zoMemFileBase(M),
+    document.getElementById('zo-mem-vid'), '🎬 下载会员视频');
 }
 
 // ===== V63: 6打/4打 号码出现频率总表（全部45组6打 + 90组4打，不按月份过滤） =====
