@@ -11209,6 +11209,56 @@ function zoMemberGen(){
   out.innerHTML = h;
   ['zo-mem-copy','zo-mem-png','zo-mem-vid'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
 }
+// ===== 名词解释（中/英/马三语，复制后直接发会员群）=====
+const ZO_MEM_GLOSS = {
+zh: '📖 名单符号白话说明\n\n' +
+'★ 星级 — 推荐强度。每组第1名5星，越多星=越优先考虑。标「参考」的一律2星，只给想搏的人参考。\n\n' +
+'🔥 超期 — 这个号平时隔X期开一次，现在已经沉睡超过平时的1.5倍，属于"欠开"状态，追冷号的人最爱看这个。\n' +
+'⚖️ 正常 — 沉睡时间在它自己的正常范围内。\n' +
+'❄️ 刚开过 — 距离上次开出还没多久，按它的习惯"还没轮到"。\n\n' +
+'「7月历史开过6次」— 历史上所有7月加起来，这个号（含换位）开过6次。次数越多=越偏爱这个月。\n\n' +
+'「集中度4.0x」— 它的出现有多偏向这个月。4.0x=比平均集中4倍，说明它特别挑这个月开。\n\n' +
+'「2/5市场共识」— 对比5个市场（万能/跑马/多多/新加坡/豪龙），有2家这个月都旺这个号。共识越多家=信号越硬。\n\n' +
+'「最近：2025-07」— 上一次在这个月开出是什么时候。越近越有参考价值。\n\n' +
+'「平均每419期一次」— 开出频率。数字越大越冷门，中了赔率爽但等得久。\n\n' +
+'🔱 罗汉共振 — 这个号所属的数字组合家族这个月在多个市场同时活跃，加分项。\n\n' +
+'✓精选 / 参考 — 精选=通过4项严格条件；参考=条件不够但排名靠前，自己斟酌。\n\n' +
+'⚠️ 所有数据都是历史统计，不是预测。号码每期独立，超期不等于快开，参考就好，量力而行。',
+en: '📖 SYMBOLS EXPLAINED\n\n' +
+'★ Rating — recommendation strength. #1 in each group gets 5 stars; more stars = higher priority. "Ref" rows are always 2 stars, extra options only.\n\n' +
+'🔥 Overdue — this number usually shows up every X draws, but has now been sleeping over 1.5x longer than usual. Cold-number hunters love this.\n' +
+'⚖️ Normal — sleeping within its usual range.\n' +
+'❄️ Just out — appeared recently; by its own rhythm, "not its turn yet".\n\n' +
+'"Hit 6 times in July" — across all Julys in history, this number (incl. permutations) came out 6 times. More hits = stronger preference for this month.\n\n' +
+'"Concentration 4.0x" — how biased its appearances are toward this month. 4.0x = 4x more concentrated than average — it really favours this month.\n\n' +
+'"Consensus 2/5" — we compare 5 markets (Magnum / Da Ma Cai / Toto / Singapore / GD Lotto); 2 of them are also hot on this number this month. More markets = stronger signal.\n\n' +
+'"Last: 2025-07" — the last time it came out in this month. The more recent, the better.\n\n' +
+'"Avg once every 419 draws" — how often it appears. Bigger number = rarer; big win but long wait.\n\n' +
+'🔱 Rohan resonance — the digit-family this number belongs to is active across several markets this month. Bonus signal.\n\n' +
+'✓ Selected / Ref — Selected = passed 4 strict conditions; Ref = didn\'t fully qualify but ranks high, use your own judgement.\n\n' +
+'⚠️ All stats are historical, NOT a prediction. Every draw is independent — overdue does not mean coming soon. Play responsibly.',
+ms: '📖 PENERANGAN SIMBOL\n\n' +
+'★ Bintang — kekuatan cadangan. No.1 dalam setiap kumpulan dapat 5 bintang; lebih banyak bintang = lebih utama. Baris "Rujukan" sentiasa 2 bintang, pilihan tambahan saja.\n\n' +
+'🔥 Lewat tempoh — nombor ini biasanya keluar setiap X undian, tapi sekarang dah "tidur" lebih 1.5x dari biasa. Peminat nombor sejuk paling suka ni.\n' +
+'⚖️ Normal — tempoh tidur masih dalam lingkungan biasa.\n' +
+'❄️ Baru keluar — baru saja keluar; ikut rentaknya, "belum sampai giliran".\n\n' +
+'"Julai keluar 6 kali" — sepanjang sejarah bulan Julai, nombor ini (termasuk susunan lain) keluar 6 kali. Lebih banyak = lebih sayang bulan ini.\n\n' +
+'"Tumpuan 4.0x" — sejauh mana ia menumpu pada bulan ini. 4.0x = 4 kali ganda lebih tertumpu dari purata — memang pilih bulan ini.\n\n' +
+'"Konsensus 2/5" — kami banding 5 pasaran (Magnum / Da Ma Cai / Toto / Singapore / GD Lotto); 2 pasaran pun panas dengan nombor ini bulan ini. Lebih banyak pasaran = isyarat lebih kuat.\n\n' +
+'"Terakhir: 2025-07" — kali terakhir ia keluar dalam bulan ini. Lebih dekat = lebih bernilai.\n\n' +
+'"Purata setiap 419 undian sekali" — kekerapan ia keluar. Nombor besar = lebih jarang; menang besar tapi kena tunggu lama.\n\n' +
+'🔱 Resonans Rohan — keluarga kombinasi digit nombor ini sedang aktif di beberapa pasaran bulan ini. Isyarat bonus.\n\n' +
+'✓ Pilihan / Rujukan — Pilihan = lulus 4 syarat ketat; Rujukan = tak cukup syarat tapi ranking tinggi, nilai sendiri.\n\n' +
+'⚠️ Semua data adalah statistik sejarah, BUKAN ramalan. Setiap undian bebas — lewat tempoh tak bermakna akan keluar. Main berpada-pada.'
+};
+function zoMemGlossCopy(lang, btn){
+  const txt = ZO_MEM_GLOSS[lang]; if(!txt) return;
+  const orig = btn ? btn.textContent : '';
+  const done = () => { if(btn){ btn.textContent = '✅'; setTimeout(() => { btn.textContent = orig; }, 1200); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(() => { zoCopyFallback(txt); done(); });
+  } else { zoCopyFallback(txt); done(); }
+}
 function zoMemberCopy(){
   if(!ZO_MEM) return;
   const M = ZO_MEM;
