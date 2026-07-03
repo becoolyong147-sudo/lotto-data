@@ -11029,8 +11029,10 @@ function zoMemTags(c, month, da){
   if(da === 6 || da === 4) t += ' · 平均每' + Math.round(c.avgGap) + '期一次';
   return t;
 }
-// 信心星级(1~5★)：证据信号越多星越多（当月频次/共识/集中度/罗汉/近期性）
+// 信心星级(1~5★)：相对制，按全场评分百分位（前10%=5星/前30%=4星/前60%=3星/前85%=2星/其余1星）
+// zoMemberGen 排序后统一写入 c.stars；未标注时后备用证据加分制
 function zoMemStars(c){
+  if(c.stars) return c.stars;
   let s = 1;
   if(c.monthHits >= 2) s++;
   if(c.monthHits >= 4) s++;
@@ -11110,6 +11112,13 @@ function zoMemberGen(){
       groupConf[da] = topN;
     }
   });
+  // 星级 = 组内推荐强度（第1名5星、2~3名4星、4名起3星；降级补位一律2星），主打号恒5星
+  selDa.forEach(da => {
+    groups[da].forEach((c,i) => {
+      c.stars = i >= groupConf[da] ? 2 : (i === 0 ? 5 : i <= 2 ? 4 : 3);
+    });
+  });
+  star.stars = 5;
   ZO_MEM = {market, month, star, groups, groupConf, selDa, refYear, draws:main.draws};
 
   // ===== 渲染会员卡（K星盘暗夜风）=====
