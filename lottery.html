@@ -3505,6 +3505,27 @@ function _ovRunPrize(market, prizeIdx, prizeNum){
   return { ptHtml, chainHtml, pts };
 }
 
+// 一键总览 → 高级筛选联动：带着引擎预测的点数/数根跳到条件筛选并直接跑结果
+function ovToFilter(market, prizeIdx, ptsCsv, rootsCsv){
+  clearAdvancedFilter();
+  document.getElementById('flt-market').value=market;
+  document.getElementById('flt-prize').value=String(prizeIdx);
+  (ptsCsv||'').split(',').filter(Boolean).forEach(v=>{
+    const n=parseInt(v,10);
+    const cb=document.getElementById('flt-p4s-'+n);
+    if(cb){cb.checked=true;updateChipStyle('p4s',n);}
+  });
+  (rootsCsv||'').split(',').filter(Boolean).forEach(v=>{
+    const n=parseInt(v,10);
+    const cb=document.getElementById('flt-r4d-'+n);
+    if(cb){cb.checked=true;updateChipStyle('r4d',n);}
+  });
+  switchTab('filter');
+  runAdvancedFilter();
+  const res=document.getElementById('filter-result');
+  if(res)res.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function ovRender(){
   const market = document.getElementById('ov-market').value;
   const out = document.getElementById('overview-result');
@@ -3537,6 +3558,27 @@ function ovRender(){
       const root = _ovDigitalRoot(num);
       const result = _ovRunPrize(market, p.idx, num);
 
+      // 三引擎预测值 → 高级筛选可带入的条件
+      const ptChain = calcPointChain(getPointTrendRecords(market, String(p.idx), '4d'));
+      const chainPts = (ptChain && ptChain.samples) ? ptChain.ranked.slice(0,3).map(x=>x[0]) : [];
+      const inertiaPts = [pts-1,pts,pts+1].filter(v=>v>=1&&v<=36);
+      let chainRoots = [];
+      if(rows.length >= 2){
+        const rk = `${_ovDigitalRoot(rows[1].nums[p.idx])}_${_ovDigitalRoot(rows[0].nums[p.idx])}`;
+        const cd = CHAIN2[market]?.[p.idx]?.[rk];
+        if(cd) chainRoots = Object.entries(cd).sort((a,b)=>parseInt(b[1])-parseInt(a[1])).slice(0,2).map(x=>x[0]);
+      }
+      const linkBtns=[];
+      if(chainPts.length) linkBtns.push(`<button class="btn" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'${chainPts.join(',')}','')">🎯 点数链 ${chainPts.join(',')}点</button>`);
+      if(inertiaPts.length) linkBtns.push(`<button class="btn" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'${inertiaPts.join(',')}','')">📊 惯性±1 ${inertiaPts.join(',')}点</button>`);
+      if(chainRoots.length) linkBtns.push(`<button class="btn" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'','${chainRoots.join(',')}')">🔗 数根链 根${chainRoots.join(',')}</button>`);
+      if(chainPts.length&&chainRoots.length) linkBtns.push(`<button class="btn btn-green" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'${chainPts.join(',')}','${chainRoots.join(',')}')">🧰 点数链+数根链</button>`);
+      const linkBar = linkBtns.length ? `
+        <div style="margin-top:10px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:7px;padding:8px 10px">
+          <span style="font-size:11px;font-weight:700;color:#475569;margin-right:6px">🧰 带入条件筛选（反查历史同条件号码）:</span>
+          <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${linkBtns.join('')}</span>
+        </div>` : '';
+
       // Determine if this section should be open by default (头奖 yes, others collapsed)
       const openByDefault = pi === 0;
       const blockId = `ov-block-${p.idx}`;
@@ -3552,6 +3594,7 @@ function ovRender(){
           <div id="${blockId}" style="display:${openByDefault?'block':'none'};padding:0 12px 12px 12px;background:#fff">
             ${result.ptHtml || '<div class="warn">点数行为引擎无输出</div>'}
             <div style="margin-top:10px">${result.chainHtml || ''}</div>
+            ${linkBar}
           </div>
         </div>
       `;
