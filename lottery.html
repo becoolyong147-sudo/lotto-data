@@ -3552,6 +3552,8 @@ function ovRender(){
     ];
 
     let html = '';
+    // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
+    const uniChainPts=new Set(), uniInertiaPts=new Set(), uniRoots=new Set();
     prizes.forEach((p, pi) => {
       const num = latest.nums[p.idx];
       const pts = String(num).split('').reduce((a,b)=>a+parseInt(b),0);
@@ -3568,6 +3570,9 @@ function ovRender(){
         const cd = CHAIN2[market]?.[p.idx]?.[rk];
         if(cd) chainRoots = Object.entries(cd).sort((a,b)=>parseInt(b[1])-parseInt(a[1])).slice(0,2).map(x=>x[0]);
       }
+      chainPts.forEach(v=>uniChainPts.add(parseInt(v,10)));
+      inertiaPts.forEach(v=>uniInertiaPts.add(parseInt(v,10)));
+      chainRoots.forEach(v=>uniRoots.add(parseInt(v,10)));
       const linkBtns=[];
       if(chainPts.length) linkBtns.push(`<button class="btn" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'${chainPts.join(',')}','')">🎯 点数链 ${chainPts.join(',')}点</button>`);
       if(inertiaPts.length) linkBtns.push(`<button class="btn" style="padding:4px 10px;font-size:11px" onclick="ovToFilter('${market}',${p.idx},'${inertiaPts.join(',')}','')">📊 惯性±1 ${inertiaPts.join(',')}点</button>`);
@@ -3599,6 +3604,26 @@ function ovRender(){
         </div>
       `;
     });
+
+    // ===== 三奖位统一带入条件筛选（联集） =====
+    {
+      const uPts=[...uniChainPts].sort((a,b)=>a-b);
+      const uIne=[...uniInertiaPts].sort((a,b)=>a-b);
+      const uRts=[...uniRoots].sort((a,b)=>a-b);
+      const uBtns=[];
+      if(uPts.length) uBtns.push(`<button class="btn" style="padding:5px 12px;font-size:11px" onclick="ovToFilter('${market}','all','${uPts.join(',')}','')">🎯 点数链联集 ${uPts.join(',')}点</button>`);
+      if(uIne.length) uBtns.push(`<button class="btn" style="padding:5px 12px;font-size:11px" onclick="ovToFilter('${market}','all','${uIne.join(',')}','')">📊 惯性±1联集 ${uIne.join(',')}点</button>`);
+      if(uRts.length) uBtns.push(`<button class="btn" style="padding:5px 12px;font-size:11px" onclick="ovToFilter('${market}','all','','${uRts.join(',')}')">🔗 数根链联集 根${uRts.join(',')}</button>`);
+      if(uPts.length&&uRts.length) uBtns.push(`<button class="btn btn-green" style="padding:5px 12px;font-size:11px" onclick="ovToFilter('${market}','all','${uPts.join(',')}','${uRts.join(',')}')">🧰 点数链+数根链联集</button>`);
+      if(uBtns.length){
+        html += `
+          <div class="card" style="background:#f8fafc;border:2px dashed #94a3b8;margin-bottom:14px">
+            <div style="font-size:14px;font-weight:800;color:#334155;margin-bottom:6px">🧰 统一带入条件筛选 — 头/二/三奖联集（奖位=头二三奖）</div>
+            <div style="font-size:11px;color:#64748b;margin-bottom:8px">把三个奖位的引擎预测去重合并成一组条件，一次反查全部奖位的历史号码。</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">${uBtns.join('')}</div>
+          </div>`;
+      }
+    }
 
     // ===== Block C: 工作台摘要 (v62) =====
     try {
