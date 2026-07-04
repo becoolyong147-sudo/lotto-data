@@ -1222,6 +1222,21 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
     <div class="ig"><label>奖位</label><select id="flt-prize"><option value="all">头二三奖</option><option value="0">只看头奖</option><option value="1">只看二奖</option><option value="2">只看三奖</option></select></div>
   </div>
 
+  <!-- Row 1b: 指定月份多选 -->
+  <div style="margin-top:8px;background:#f0fdfa;border-radius:7px;padding:10px;border:1px solid #99f6e4">
+    <div style="font-size:11px;font-weight:700;color:#0f766e;margin-bottom:8px">📅 指定月份（可多选）— 只统计勾选的月份，跨年份生效</div>
+    <div id="flt-mth-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <script>for(let m=1;m<=12;m++)document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#ccfbf1;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:13px;font-weight:700;color:#0f766e;transition:all .15s" id="mth-lbl-${m}"><input type="checkbox" id="flt-mth-${m}" value="${m}" onchange="updateChipStyle('mth',${m})" style="display:none">${m}月</label>`)</script>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('mth')">全选</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('mth')">清除</button>
+    </div>
+    <div class="warn" style="margin-top:6px;font-size:11px">
+      与上面「起始/结束年月」搭配：年月范围先圈定区间，再只保留勾选的月份。例如起始 2023 年、结束 2026 年 + 只勾 <b>6月</b> = 只看这几年每年 6 月的成绩，其他月份不显示。
+    </div>
+  </div>
+
   <!-- Row 2: 4D 点数范围 (slider + input) -->
   <div style="margin-top:10px;background:#f0f4fa;border-radius:7px;padding:10px;border:1px solid #dce8f5">
     <div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:8px">📊 4D 点数范围（1–36）</div>
@@ -1244,6 +1259,16 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="quickSetPts4(18,26)">18–26</button>
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="quickSetPts4(24,32)">24–32</button>
       <button class="btn btn-red" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="clearPts4()">清除</button>
+    </div>
+    <div style="margin-top:8px;border-top:1px dashed #bcd0e5;padding-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:6px">🎯 指定点数（可多选）— 勾选后以勾选的点数为准，忽略上面的范围</div>
+      <div id="flt-p4s-chips" style="display:flex;gap:5px;flex-wrap:wrap">
+        <script>for(let i=1;i<=36;i++)document.write(`<label style="cursor:pointer;display:flex;align-items:center;justify-content:center;background:#dbeafe;border:2px solid transparent;border-radius:5px;padding:3px 0;width:34px;font-size:12px;font-weight:700;color:#1e3a5f;transition:all .15s" id="p4s-lbl-${i}"><input type="checkbox" id="flt-p4s-${i}" value="${i}" onchange="updateChipStyle('p4s',${i})" style="display:none">${i}</label>`)</script>
+      </div>
+      <div style="margin-top:6px">
+        <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('p4s')">全选</button>
+        <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('p4s')">清除</button>
+      </div>
     </div>
   </div>
 
@@ -4362,7 +4387,9 @@ function updateChipStyle(prefix,r){
     m2r:{on:'#0891b2',onBorder:'#155e75',off:'#cffafe',offColor:'#155e75'},  // V27 中2D 数根
     b2r:{on:'#ea580c',onBorder:'#9a3412',off:'#ffedd5',offColor:'#9a3412'},  // V27 后2D 数根
     perm:{on:'#d97706',onBorder:'#78350f',off:'#fef3c7',offColor:'#78350f'},  // V48 号码打数
-    freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'}  // 频率档
+    freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'},  // 频率档
+    p4s:{on:'#2563eb',onBorder:'#1e40af',off:'#dbeafe',offColor:'#1e3a5f'},  // 4D指定点数
+    mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'}   // 指定月份
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -4371,6 +4398,7 @@ function updateChipStyle(prefix,r){
   }
 }
 const FREQ_TIER_KEYS = ['热门','中性','冷门'];
+const CHIP_GROUP_MAX={p4s:36,mth:12}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份）
 function getSelectedRoots(prefix){
   if(prefix==='perm'){
     const sel=[];
@@ -4383,18 +4411,21 @@ function getSelectedRoots(prefix){
     return sel;
   }
   const sel=[];
-  for(let r=1;r<=9;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb&&cb.checked)sel.push(r);}
+  const max=CHIP_GROUP_MAX[prefix]||9;
+  for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb&&cb.checked)sel.push(r);}
   return sel;
 }
 function selectAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=true;updateChipStyle('perm',v);}});return;}
   if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=true;updateChipStyle('freq',v);}});return;}
-  for(let r=1;r<=9;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=true;updateChipStyle(prefix,r);}}
+  const max=CHIP_GROUP_MAX[prefix]||9;
+  for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=true;updateChipStyle(prefix,r);}}
 }
 function clearAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=false;updateChipStyle('perm',v);}});return;}
   if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=false;updateChipStyle('freq',v);}});return;}
-  for(let r=1;r<=9;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=false;updateChipStyle(prefix,r);}}
+  const max=CHIP_GROUP_MAX[prefix]||9;
+  for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=false;updateChipStyle(prefix,r);}}
 }
 // V48: 计算4D号码的"打数"（排列数 / 分身数量）
 // 24打=4个全不同, 12打=1对相同, 6打=2对相同, 4打=3个相同, 1打=4个全相同(豹子)
@@ -4455,7 +4486,7 @@ function fltRefreshSelect(){
 
 function fltCaptureState(){
   const get = id => (document.getElementById(id)||{}).value||'';
-  const getRoots = prefix => { const a=[]; for(let r=1;r<=9;r++){ const el=document.getElementById(`flt-${prefix}-${r}`); if(el&&el.checked) a.push(r); } return a; };
+  const getRoots = (prefix,max=9) => { const a=[]; for(let r=1;r<=max;r++){ const el=document.getElementById(`flt-${prefix}-${r}`); if(el&&el.checked) a.push(r); } return a; };
   const getPerms = () => { const a=[]; [24,12,6,4,1].forEach(p=>{ const el=document.getElementById(`flt-perm-${p}`); if(el&&el.checked) a.push(p); }); return a; };
   return {
     market: get('flt-market'), yearFrom: get('flt-year-from'), yearTo: get('flt-year-to'),
@@ -4465,6 +4496,7 @@ function fltCaptureState(){
     pts3bFrom: get('flt-pts3b-from'), pts3bTo: get('flt-pts3b-to'),
     f2r: getRoots('f2r'), b3r: getRoots('b3r'), f3r: getRoots('f3r'),
     m2r: getRoots('m2r'), b2r: getRoots('b2r'), r4d: getRoots('r4d'),
+    p4s: getRoots('p4s',36), mth: getRoots('mth',12),
     perm: getPerms(),
     patterns: get('flt-patterns'), containsDigit: get('flt-contains-digit'),
     posPattern: get('flt-pos-pattern')
@@ -4473,8 +4505,8 @@ function fltCaptureState(){
 
 function fltApplyState(s){
   const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
-  const setRoots = (prefix, arr) => {
-    for(let r=1;r<=9;r++){
+  const setRoots = (prefix, arr, max=9) => {
+    for(let r=1;r<=max;r++){
       const el=document.getElementById(`flt-${prefix}-${r}`);
       if(el){ el.checked = (arr||[]).includes(r); updateChipStyle(prefix,r); }
     }
@@ -4486,6 +4518,7 @@ function fltApplyState(s){
   set('flt-pts3b-from',s.pts3bFrom); set('flt-pts3b-to',s.pts3bTo); syncPts3bLabel();
   setRoots('f2r',s.f2r); setRoots('b3r',s.b3r); setRoots('f3r',s.f3r);
   setRoots('m2r',s.m2r); setRoots('b2r',s.b2r); setRoots('r4d',s.r4d);
+  setRoots('p4s',s.p4s,36); setRoots('mth',s.mth,12);
   [24,12,6,4,1].forEach(p=>{
     const el=document.getElementById(`flt-perm-${p}`);
     if(el){ el.checked=(s.perm||[]).includes(p); updateChipStyle('perm',p); }
@@ -4664,6 +4697,8 @@ function clearAdvancedFilter(){
   clearAllRoots('m2r');clearAllRoots('b2r');clearAllRoots('r4d');  // V27
   clearAllRoots('perm');  // V48 号码打数
   clearAllRoots('freq');  // 频率档
+  clearAllRoots('p4s');   // 4D指定点数
+  clearAllRoots('mth');   // 指定月份
   clearPts4();clearPts3b();clearPts3f();
   document.getElementById('filter-result').innerHTML='';
 }
@@ -4787,6 +4822,8 @@ function runAdvancedFilter(){
   const root4Ds=getSelectedRoots('r4d');       // V27 4D 数根
   const permTypes=getSelectedRoots('perm');    // V48 号码打数
   const freqTiers=getSelectedRoots('freq');    // 频率档
+  const pts4Picks=getSelectedRoots('p4s');     // 4D指定点数（勾选优先于范围）
+  const monthPicks=getSelectedRoots('mth');    // 指定月份（跨年份）
   const pts4Range=getRangeFromDropdowns('flt-pts4-from','flt-pts4-to');
   const pts3fRange=getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to');
   const pts3bRange=getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to');
@@ -4809,6 +4846,7 @@ function runAdvancedFilter(){
   const sumPermType={};              // V48 打数分布
   recs.forEach(r=>{
     if(!inYearRange(r.date,fromY,toY,fromM,toM))return;
+    if(monthPicks.length){const _m=parseInt(String(r.date||'').slice(5,7),10);if(!monthPicks.includes(_m))return;}
     r.nums.forEach((num,j)=>{
       if(!num||num==='0000')return;
       if(prizeFilter!=='all'&&String(j)!==prizeFilter)return;
@@ -4830,7 +4868,8 @@ function runAdvancedFilter(){
       }
       if(front3Roots.length&&!front3Roots.includes(front3Root))return;
       if(back3Roots.length&&!back3Roots.includes(back3Root))return;
-      if(!inRange(a.pts4d,pts4Range))return;
+      if(pts4Picks.length){if(!pts4Picks.includes(a.pts4d))return;}
+      else if(!inRange(a.pts4d,pts4Range))return;
       if(!inRange(front3Pts,pts3fRange))return;
       if(!inRange(back3Pts,pts3bRange))return;
       if(patterns.length&&!patterns.some(p=>matchPattern(num,p)))return;
@@ -5894,10 +5933,13 @@ function parseRangeText(t){
   t=(t||'').trim();
   if(!t) return null;
   const m=t.match(/^(\d+)\s*-\s*(\d+)$/);
-  if(!m) return null;
-  return [parseInt(m[1],10),parseInt(m[2],10)];
+  if(m) return [parseInt(m[1],10),parseInt(m[2],10)];
+  // 也支持逗号/空格分隔的点数列表，如 "10,15,17,19,20"
+  const list=t.split(/[\s,，、]+/).map(x=>parseInt(x,10)).filter(n=>!isNaN(n));
+  if(list.length) return {list};
+  return null;
 }
-function matchRange(v, r){ return !r || (v>=r[0] && v<=r[1]); }
+function matchRange(v, r){ if(!r) return true; if(r.list) return r.list.includes(v); return v>=r[0] && v<=r[1]; }
 function sumDigits(s){ return String(s).split('').reduce((a,b)=>a+parseInt(b,10),0); }
 function digitalRootFromStr(s){
   let n = sumDigits(String(s));
@@ -5946,7 +5988,8 @@ function getAdvancedFilterState(prefix){
     const pts4t=document.getElementById('flt-pts4-to').value;
     const pts3bf=document.getElementById('flt-pts3b-from').value;
     const pts3bt=document.getElementById('flt-pts3b-to').value;
-    const sum4dStr=(pts4f||pts4t)?(pts4f||'1')+'-'+(pts4t||'36'):'';
+    const pts4Picks=getSelectedRoots('p4s');
+    const sum4dStr=pts4Picks.length?pts4Picks.join(','):((pts4f||pts4t)?(pts4f||'1')+'-'+(pts4t||'36'):'');
     const sumB3Str=(pts3bf||pts3bt)?(pts3bf||'0')+'-'+(pts3bt||'27'):'';
     const f3sel=getSelectedRoots('f3r');
     return {
@@ -5959,6 +6002,7 @@ function getAdvancedFilterState(prefix){
       b3Root: b3sel.join(''),
       sum4d: sum4dStr,
       sumB3: sumB3Str,
+      months: getSelectedRoots('mth'),
       patterns: (document.getElementById('flt-patterns')?.value || '').trim()
     };
   }
@@ -5988,6 +6032,10 @@ function collectMatchesByState(state){
     const year = parseInt(String(row.date||'').slice(0,4),10);
     if(state.yearFrom && year < parseInt(state.yearFrom,10)) return;
     if(state.yearTo && year > parseInt(state.yearTo,10)) return;
+    if(state.months && state.months.length){
+      const mo=parseInt(String(row.date||'').slice(5,7),10);
+      if(!state.months.includes(mo)) return;
+    }
 
     prizeIdxs.forEach(pi=>{
       const num = String(row.nums[pi]).padStart(4,'0');
@@ -6034,7 +6082,8 @@ function loadNextFlowFromAdvanced(){
   // Show summary of what was loaded
   const f2disp=st.f2Root?`劔2D数根: ${st.f2Root.split('').join(',')}`:'前2D数根: 不限';
   const b3disp=st.b3Root?`劙3D数根: ${st.b3Root.split('').join(',')}`:'劙3D数根: 不限';
-  document.getElementById('nextflow-result').innerHTML=`<div class="success">已读取高级筛选条件：市场=${st.market}，${f2disp}，${b3disp}，4D点数=${st.sum4d||'不限'}，可直接点「统计去向」。</div>`;
+  const mthDisp=(st.months&&st.months.length)?`，月份=${st.months.join(',')}月`:'';
+  document.getElementById('nextflow-result').innerHTML=`<div class="success">已读取高级筛选条件：市场=${st.market}，${f2disp}，${b3disp}，4D点数=${st.sum4d||'不限'}${mthDisp}，可直接点「统计去向」。</div>`;
 }
 function bucketCount(arr, getter){
   const map={};
