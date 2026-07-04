@@ -11195,11 +11195,51 @@ const ZO_DA_INFO = {
   6:  {label:'6打 · 两对成双',  desc:'注数少 · 小本搏猛型', color:'#dc2626'},
   4:  {label:'4打 · 三同一异',  desc:'注数最少 · 极高难度型', color:'#9333ea'}
 };
+// ===== 会员卡三语字典（图/视频文字；界面保持中文）=====
+const ZO_MEM_STR = {
+  zh: {
+    watermark: '会员专享 MEMBERS ONLY',
+    badge: '💎 会员专享 MEMBERS ONLY 💎',
+    title: (m,mk) => m + '月会员旺号名单 · ' + mk + ' ' + (ZO_MKT_EN[mk]||'').toUpperCase(),
+    starLabel: '✦ 本月主打号 ✦',
+    daLabel: {24:'24打 · 四位全异', 12:'12打 · 含一对', 6:'6打 · 两对成双', 4:'4打 · 三同一异'},
+    daDesc: {24:'覆盖广 · 稳健包注型', 12:'平衡型 · 性价比之选', 6:'注数少 · 小本搏猛型', 4:'注数最少 · 极高难度型'},
+    noQual: '本月暂无符合条件的候选',
+    memTags: (c,m,da) => m + '月 ' + c.monthHits + ' 次 · 共识 ' + c.consensus + '/5 · 沉睡 ' + c.drawsSince + ' 期 · 集中度 ' + c.conc.toFixed(1) + 'x' + ((da===6||da===4) ? ' · 平均每' + Math.round(c.avgGap) + '期一次' : ''),
+    heatOver: r => '🔥 超期 ' + r.toFixed(1) + 'x', heatCold: '❄️ 刚开过', heatNorm: '⚖️ 正常',
+    footer1: '⚠️ 历史统计整理，不构成预测 · 月底公开复盘',
+    footer2: '会员专享内容，请勿外传 🙏'
+  },
+  en: {
+    watermark: 'MEMBERS ONLY',
+    badge: '💎 MEMBERS ONLY 💎',
+    title: (m,mk) => ZO_MONTHS_EN[m-1].toUpperCase() + ' MEMBER HOT LIST · ' + (ZO_MKT_EN[mk]||mk).toUpperCase(),
+    starLabel: '✦ NUMBER OF THE MONTH ✦',
+    daLabel: {24:'24 Perm · All Diff', 12:'12 Perm · One Pair', 6:'6 Perm · Two Pairs', 4:'4 Perm · Triple'},
+    daDesc: {24:'Wide cover · steady', 12:'Balanced · best value', 6:'Few bets · bold punt', 4:'Fewest bets · extreme'},
+    noQual: 'No qualified picks this month',
+    memTags: (c,m,da) => c.monthHits + 'x in ' + ZO_MONTHS_EN[m-1].slice(0,3) + ' · consensus ' + c.consensus + '/5 · absent ' + c.drawsSince + ' · focus ' + c.conc.toFixed(1) + 'x' + ((da===6||da===4) ? ' · ~1 per ' + Math.round(c.avgGap) + ' draws' : ''),
+    heatOver: r => '🔥 Overdue ' + r.toFixed(1) + 'x', heatCold: '❄️ Just out', heatNorm: '⚖️ Normal',
+    footer1: '⚠️ Historical stats only — not a prediction · Month-end review',
+    footer2: 'Members only — please do not share 🙏'
+  },
+  ms: {
+    watermark: 'AHLI SAHAJA · MEMBERS ONLY',
+    badge: '💎 AHLI SAHAJA 💎',
+    title: (m,mk) => 'SENARAI PANAS AHLI ' + ZO_MONTHS_MS[m-1].toUpperCase() + ' · ' + (ZO_MKT_EN[mk]||mk).toUpperCase(),
+    starLabel: '✦ NOMBOR UTAMA BULAN INI ✦',
+    daLabel: {24:'24 Cara · Semua Beza', 12:'12 Cara · Satu Pasang', 6:'6 Cara · Dua Pasang', 4:'4 Cara · Triple'},
+    daDesc: {24:'Liputan luas · stabil', 12:'Seimbang · nilai terbaik', 6:'Bet sikit · berani', 4:'Paling sikit · ekstrem'},
+    noQual: 'Tiada calon layak bulan ini',
+    memTags: (c,m,da) => c.monthHits + ' kali ' + ZO_MONTHS_MS[m-1].slice(0,3) + ' · sepakat ' + c.consensus + '/5 · hilang ' + c.drawsSince + ' · tumpuan ' + c.conc.toFixed(1) + 'x' + ((da===6||da===4) ? ' · ~1 setiap ' + Math.round(c.avgGap) + ' cabutan' : ''),
+    heatOver: r => '🔥 Lewat ' + r.toFixed(1) + 'x', heatCold: '❄️ Baru keluar', heatNorm: '⚖️ Normal',
+    footer1: '⚠️ Statistik sejarah sahaja — bukan ramalan · Semakan hujung bulan',
+    footer2: 'Untuk ahli sahaja — jangan sebar 🙏'
+  }
+};
 // da 传入时（6/4打）额外标注「平均每X期出现一次」，方便会员判断这个号码大约多久开一次
-function zoMemTags(c, month, da){
-  let t = month + '月 ' + c.monthHits + ' 次 · 共识 ' + c.consensus + '/5 · 沉睡 ' + c.drawsSince + ' 期 · 集中度 ' + c.conc.toFixed(1) + 'x';
-  if(da === 6 || da === 4) t += ' · 平均每' + Math.round(c.avgGap) + '期一次';
-  return t;
+function zoMemTags(c, month, da, lang){
+  return ZO_MEM_STR[lang||'zh'].memTags(c, month, da);
 }
 // 信心星级(1~5★)：相对制，按全场评分百分位（前10%=5星/前30%=4星/前60%=3星/前85%=2星/其余1星）
 // zoMemberGen 排序后统一写入 c.stars；未标注时后备用证据加分制
