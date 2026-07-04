@@ -4919,7 +4919,7 @@ function runAdvancedFilter(){
   const sumF2Root={},sumF3Root={},sumB3Root={},sumPts3f={},sumPts3b={};
   const sumM2Root={},sumB2Root={};  // V27 新增分布
   const sumPermType={};              // V48 打数分布
-  recs.forEach(r=>{
+  recs.forEach((r,ri)=>{
     if(!inYearRange(r.date,fromY,toY,fromM,toM))return;
     if(monthPicks.length){const _m=parseInt(String(r.date||'').slice(5,7),10);if(!monthPicks.includes(_m))return;}
     r.nums.forEach((num,j)=>{
@@ -4960,7 +4960,7 @@ function runAdvancedFilter(){
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
-      rows.push({date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
+      rows.push({rowIndex:ri,date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
       sumRoot[a.root4d]=(sumRoot[a.root4d]||0)+1;
       sumF2Root[front2Root]=(sumF2Root[front2Root]||0)+1;
@@ -6154,11 +6154,41 @@ function loadNextFlowFromAdvanced(){
   document.getElementById('nf-4d-sum').value=st.sum4d;
   document.getElementById('nf-b3-sum').value=st.sumB3;
   document.getElementById('nf-patterns').value=st.patterns;
-  // Show summary of what was loaded
+  // 精确样本模式：直接用上次高级筛选的完整结果行（含所有条件：打数/冷热/位数/数根等）
+  if(window._fltLastRows && window._fltLastRows.length && window._fltLastMarket===st.market){
+    window._nfExactSample={market:st.market, prize:st.prize, rows:window._fltLastRows};
+    _nfAttachExactListeners();
+    document.getElementById('nextflow-result').innerHTML=`<div class="success">
+      🎯 <b>精确样本模式</b>：已读取高级筛选的 <b>${window._fltLastRows.length}</b> 笔结果（市场=${st.market}），
+      「统计去向」将使用与筛选结果<b>完全相同</b>的样本——包括打数、冷热、位数条件等全部条件。<br>
+      <span style="font-size:11px;color:#64748b">修改上方任何手动条件或切换市场会自动退出精确模式，改按手动条件统计。</span>
+      <button class="btn btn-red" style="padding:3px 10px;font-size:11px;margin-left:8px" onclick="nfClearExact(true)">✕ 退出精确模式</button>
+    </div>`;
+    return;
+  }
+  // 没有可用的筛选结果 → 旧行为：只带条件（简化版）
   const f2disp=st.f2Root?`劔2D数根: ${st.f2Root.split('').join(',')}`:'前2D数根: 不限';
   const b3disp=st.b3Root?`劙3D数根: ${st.b3Root.split('').join(',')}`:'劙3D数根: 不限';
   const mthDisp=(st.months&&st.months.length)?`，月份=${st.months.join(',')}月`:'';
-  document.getElementById('nextflow-result').innerHTML=`<div class="success">已读取高级筛选条件：市场=${st.market}，${f2disp}，${b3disp}，4D点数=${st.sum4d||'不限'}${mthDisp}，可直接点「统计去向」。</div>`;
+  document.getElementById('nextflow-result').innerHTML=`<div class="success">已读取高级筛选条件：市场=${st.market}，${f2disp}，${b3disp}，4D点数=${st.sum4d||'不限'}${mthDisp}，可直接点「统计去向」。<br><span style="font-size:11px;color:#64748b">提示：先在「条件筛选」跑一次筛选再来读取，可进入精确样本模式（支持全部条件）。</span></div>`;
+}
+// 精确样本模式辅助：退出 + 手动条件被改动时自动退出
+function nfClearExact(notify){
+  if(!window._nfExactSample)return;
+  window._nfExactSample=null;
+  if(notify){
+    const box=document.getElementById('nextflow-result');
+    if(box)box.innerHTML='<div class="warn">已退出精确样本模式，「统计去向」将按上方手动条件重新收集样本。</div>';
+  }
+}
+function _nfAttachExactListeners(){
+  if(window._nfExactListenersOn)return;
+  window._nfExactListenersOn=true;
+  ['nf-market','nf-source-prize','nf-year-from','nf-year-to','nf-f2-root','nf-b3-root','nf-4d-sum','nf-b3-sum','nf-patterns'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.addEventListener('input',()=>nfClearExact(true));
+    if(el&&el.tagName==='SELECT')el.addEventListener('change',()=>nfClearExact(true));
+  });
 }
 function bucketCount(arr, getter){
   const map={};
@@ -6193,7 +6223,17 @@ function doNextFlow(){
     patterns: document.getElementById('nf-patterns').value.trim()
   };
   const targetPrize = document.getElementById('nf-target-prize').value;
-  const matches = collectMatchesByState(state);
+  // 精确样本模式：直接用高级筛选的结果行（全部条件已生效），否则按手动条件收集
+  const _ex=window._nfExactSample;
+  const exActive=!!(_ex && _ex.rows && _ex.rows.length && _ex.market===state.market);
+  let matches;
+  if(exActive){
+    state.prize=_ex.prize;
+    matches=_ex.rows.map(r=>({rowIndex:r.rowIndex, date:r.date, draw:r.draw, prizeName:['头奖','二奖','三奖'][r.prize], num:r.num}));
+  }else{
+    if(_ex)nfClearExact(false); // 市场已切换 → 静默退出精确模式
+    matches=collectMatchesByState(state);
+  }
   const targetIdxs = expandPrizeIndexes(targetPrize);
   const nextRows = [];
   matches.forEach(m=>{
@@ -6253,6 +6293,9 @@ function doNextFlow(){
   box.innerHTML = `
     <div class="card">
       <h3>统计摘要</h3>
+      ${exActive
+        ?`<div style="background:#dcfce7;border:1px solid #86efac;color:#14532d;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:8px">🎯 <b>精确样本模式</b> — 来源样本与高级筛选结果完全一致（含打数/冷热/位数等全部条件）<button class="btn btn-red" style="padding:2px 8px;font-size:10px;margin-left:8px" onclick="nfClearExact(true)">✕ 退出</button></div>`
+        :`<div style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;border-radius:6px;padding:6px 10px;font-size:12px;margin-bottom:8px">🖐 手动条件模式 — 按上方输入框条件收集样本（仅支持：年份/奖位/前2D根/后3D根/4D点数/后3D点数/形态）</div>`}
       <div class="g4">
         <div class="sc"><div class="val">${matches.length}</div><div class="lbl">来源样本</div></div>
         <div class="sc"><div class="val">${total}</div><div class="lbl">下期样本</div></div>
