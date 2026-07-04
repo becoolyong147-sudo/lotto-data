@@ -1472,7 +1472,7 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
     <div class="row">
       <div class="ig">
         <label>位数格式</label>
-        <input type="text" id="flt-pos-pattern" maxlength="4" placeholder="如 x1xx / xx2x / xxx3 / 4xxx" style="width:180px" oninput="this.value=this.value.replace(/[^0-9xX]/g,'').toLowerCase()">
+        <input type="text" id="flt-pos-pattern" placeholder="如 4xxx 1xxx 7xxx（可多组，空格/逗号分隔）" style="width:320px" oninput="this.value=this.value.replace(/[^0-9xX\s,，\/、]/g,'').toLowerCase()">
       </div>
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('x1xx')">x1xx</button>
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('xx2x')">xx2x</button>
@@ -1480,7 +1480,7 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('4xxx')">4xxx</button>
       <button class="btn btn-red" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('')">清除</button>
     </div>
-    <div class="warn" style="margin-top:6px">例：x1xx = 第二位必须是1；xx2x = 第三位必须是2；xxx3 = 最后一位必须是3；4xxx = 第一位必须是4。</div>
+    <div class="warn" style="margin-top:6px">例：x1xx = 第二位必须是1；4xxx = 第一位必须是4。<b>可一次输入多组</b>（每组4位，用空格/逗号/斜杠分隔），任一组符合就算命中——如 <code>4xxx 1xxx 7xxx 8xxx 3xxx 5xxx</code> = 第一位是4/1/7/8/3/5都要。快捷按钮可叠加，再点一次取消该组。</div>
   </div>
 
   <!-- Row 7: Buttons + 预设 -->
@@ -4772,7 +4772,13 @@ function clearAdvancedFilter(){
 }
 function setPosPattern(v){
   const el=document.getElementById('flt-pos-pattern');
-  if(el)el.value=v;
+  if(!el)return;
+  if(!v){el.value='';return;}
+  // 叠加模式：已有该组则移除（再点一次取消），否则追加
+  const toks=el.value.toLowerCase().split(/[^0-9x]+/).filter(Boolean);
+  const i=toks.indexOf(v);
+  if(i>=0)toks.splice(i,1);else toks.push(v);
+  el.value=toks.join(' ');
 }
 function matchPosPattern(num,pat){
   pat=(pat||'').toLowerCase().replace(/[^0-9x]/g,'');
@@ -4903,7 +4909,8 @@ function runAdvancedFilter(){
   //   2位数字 → 自动匹配三种连续位置（38xx / x38x / xx38）
   //   4位含x  → 精确位置匹配（复用 matchPosPattern）
   const containsTokens = containsDigitsRaw.toLowerCase().split(/[\s,，]+/).map(t=>t.trim()).filter(Boolean);
-  const posPattern=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().replace(/[^0-9x]/g,'');
+  // 指定位数条件：支持多组（空格/逗号/斜杠分隔），任一组匹配即通过
+  const posPatterns=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().split(/[^0-9x]+/).filter(t=>/^[0-9x]{4}$/.test(t));
   const recs=DB[market]||[];
   // 冷热档：直接复用 fltGetCategory（与结果分类列完全一致）
   const _freqTierFn = freqTiers.length ? (num=>fltGetCategory(market,pz(num)).tier) : null;
@@ -4951,7 +4958,7 @@ function runAdvancedFilter(){
         });
         if(!pass) return;
       }
-      if(posPattern&&!matchPosPattern(num,posPattern))return;
+      if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
