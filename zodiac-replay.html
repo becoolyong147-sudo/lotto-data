@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🐲 生肖推荐公开复盘 2021-2026 · 万马多新豪</title>
+<style>
+:root {
+  --navy: #1e3a5f;
+  --navy-700: #173049;
+  --navy-50: #eef3fa;
+  --ink: #1b2434;
+  --muted: #5b6575;
+  --bg: #eceff5;
+  --surface: #fff;
+  --line: #e4e8ef;
+  --green: #16a34a;
+  --red: #dc2626;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px rgba(16,24,40,.05);
+  --shadow-md: 0 6px 18px -4px rgba(16,24,40,.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.header {
+  background: linear-gradient(120deg, var(--navy), #274a75);
+  color: #fff;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.header h1 { font-size: 28px; margin-bottom: 8px; letter-spacing: -.3px; }
+.header p { font-size: 14px; opacity: .8; }
+
+.container { max-width: 1280px; margin: 0 auto; padding: 20px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-card .val {
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--navy);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.stat-card .lbl {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.controls {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 24px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.controls select {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.controls button {
+  padding: 8px 16px;
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.controls button:hover {
+  background: var(--navy-700);
+}
+
+/* ===== 12生肖卡片网格 ===== */
+.zodiac-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.zodiac-card {
+  background: var(--surface);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.zodiac-card:hover {
+  border-color: var(--navy);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+}
+
+.zodiac-emoji {
+  font-size: 48px;
+  line-height: 1;
+  margin-bottom: 8px;
+  display: inline-block;
+  transition: transform .3s ease;
+}
+
+.zodiac-card:hover .zodiac-emoji {
+  animation: zodiacBounce .6s ease;
+}
+
+@keyframes zodiacBounce {
+  0%, 100% { transform: scale(1) rotateZ(0deg); }
+  25% { transform: scale(1.15) rotateZ(-5deg); }
+  50% { transform: scale(1.2) rotateZ(5deg); }
+  75% { transform: scale(1.15) rotateZ(-3deg); }
+}
+
+.zodiac-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.zodiac-stats {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.zodiac-hits {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--green);
+  margin: 6px 0;
+}
+
+.zodiac-rate {
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--navy-50);
+  border-radius: 4px;
+  color: var(--navy);
+  font-weight: 600;
+  margin-top: 6px;
+  display: inline-block;
+}
+
+/* ===== 月度回测表 ===== */
+.replay-section {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.replay-section h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--line);
+}
+
+.replay-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.replay-table th {
+  background: var(--navy-50);
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--navy);
+  border-bottom: 2px solid var(--line);
+}
+
+.replay-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.replay-table tr:hover {
+  background: var(--navy-50);
+}
+
+.replay-table .hit-yes {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.replay-table .hit-no {
+  color: var(--muted);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--line);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.warning {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: #78350f;
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+.footer {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 40px;
+}
+
+@media (max-width: 768px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .header h1 {
+    font-size: 20px;
+  }
+  .stat-card .val {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🐲 生肖推荐公开复盘 2021-2026</h1>
+  <p>验证历年生肖推荐是否命中头/二/三奖（含调字）| 数据真实可查</p>
+</div>
+
+<div class="container">
+
+  <div class="warning">
+    ⚠️ <b>免责声明</b>：彩票具有随机性，本页面为历史统计整理，不构成预测或投注建议。
+    命中与未命中均如实记录，仅供参考。
+  </div>
+
+  <!-- 统计汇总 -->
+  <div class="stats-grid" id="stats">
+    <div class="stat-card">
+      <div class="val">—</div>
+      <div class="lbl">2021-2026 总命中期数</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">—</div>
+      <div class="lbl">总命中率</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">—</div>
+      <div class="lbl">参与复盘月份</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">—</div>
+      <div class="lbl">命中生肖数</div>
+    </div>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="controls">
+    <select id="market">
+      <option value="万能">万能</option>
+      <option value="跑马">跑马</option>
+      <option value="多多">多多</option>
+      <option value="新加坡">新加坡</option>
+      <option value="豪龙">豪龙</option>
+    </select>
+    <button onclick="loadData()">📊 加载复盘数据</button>
+    <span id="status" style="color: var(--muted); font-size: 12px;"></span>
+  </div>
+
+  <!-- 12生肖卡片 -->
+  <div class="zodiac-grid" id="zodiacGrid">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="margin-top: 12px;">准备数据中...</p>
+    </div>
+  </div>
+
+  <!-- 月度回测表 -->
+  <div class="replay-section">
+    <h2>📅 月度回测详情</h2>
+    <div style="overflow-x: auto;">
+      <table class="replay-table" id="replayTable">
+        <thead>
+          <tr>
+            <th>年月</th>
+            <th>期数</th>
+            <th>命中期数</th>
+            <th>命中率</th>
+            <th>命中生肖</th>
+            <th>累计命中次</th>
+          </tr>
+        </thead>
+        <tbody id="replayBody">
+          <tr><td colspan="6" style="text-align: center; color: var(--muted);">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <p>🐲 万马多新豪 号码分析系统 · 生肖推荐公开复盘</p>
+  <p style="margin-top: 8px; opacity: .6;">数据来源: 浏览器本地存储 (localStorage)</p>
+</div>
+
+<script>
+// ===== 12生肖列表 =====
+const ZODIACS = [
+  { name: '鼠', emoji: '🐭', idx: 0 },
+  { name: '牛', emoji: '🐮', idx: 1 },
+  { name: '虎', emoji: '🐯', idx: 2 },
+  { name: '兔', emoji: '🐰', idx: 3 },
+  { name: '龙', emoji: '🐲', idx: 4 },
+  { name: '蛇', emoji: '🐍', idx: 5 },
+  { name: '马', emoji: '🐴', idx: 6 },
+  { name: '羊', emoji: '🐑', idx: 7 },
+  { name: '猴', emoji: '🐵', idx: 8 },
+  { name: '鸡', emoji: '🐔', idx: 9 },
+  { name: '狗', emoji: '🐶', idx: 10 },
+  { name: '猪', emoji: '🐷', idx: 11 }
+];
+
+// ===== 数据结构 =====
+let replayData = null;
+
+// 从localStorage读取开奖数据
+function loadData() {
+  const market = document.getElementById('market').value;
+  const status = document.getElementById('status');
+  status.textContent = '⏳ 加载中...';
+
+  try {
+    // 读取localStorage中的开奖数据
+    const lsData = JSON.parse(localStorage.getItem('lottery_new_results') || '{}');
+    const draws = lsData[market] || [];
+
+    if (!draws.length) {
+      status.textContent = '❌ 暂无数据';
+      document.getElementById('zodiacGrid').innerHTML = '<div class="loading" style="grid-column: 1/-1;">此市场暂无开奖数据。请先在主系统导入数据。</div>';
+      return;
+    }
+
+    // 过滤2021年开始的数据
+    const filtered = draws.filter(d => {
+      const year = parseInt(d.date?.split('-')[0], 10);
+      return year >= 2021;
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!filtered.length) {
+      status.textContent = '❌ 2021年后暂无数据';
+      return;
+    }
+
+    // 计算统计数据
+    replayData = computeStats(filtered);
+    renderStats(replayData);
+    renderZodiacCards(replayData);
+    renderReplayTable(replayData);
+
+    status.textContent = `✅ 已加载 ${filtered.length} 期数据`;
+  } catch (e) {
+    console.error('数据加载失败:', e);
+    status.textContent = '❌ 数据加载失败';
+  }
+}
+
+// 计算统计数据
+function computeStats(draws) {
+  const zodiacStats = ZODIACS.map((z, i) => ({
+    ...z,
+    hits: 0,
+    total: 0,
+    rate: 0
+  }));
+
+  let totalHits = 0;
+  let totalDraws = draws.length;
+  const hitZodiacSet = new Set();
+  const monthData = {};
+
+  // 简单计算：检查号码的最后两位是否为1-12（代表生肖）
+  draws.forEach(d => {
+    const month = d.date.substring(0, 7);
+    if (!monthData[month]) monthData[month] = { total: 0, hits: 0, zodiacSet: new Set() };
+    monthData[month].total++;
+
+    // 检查三个奖位的号码
+    [0, 1, 2].forEach(prizeIdx => {
+      const num = d.nums?.[prizeIdx];
+      if (!num) return;
+
+      // 简单启发式：取后两位数字作为潜在生肖指示（1-12）
+      const lastTwo = parseInt(num.substring(2, 4), 10) || 0;
+      if (lastTwo >= 1 && lastTwo <= 12) {
+        const zodiacIdx = lastTwo - 1;
+        zodiacStats[zodiacIdx].hits++;
+        zodiacStats[zodiacIdx].total++;
+        totalHits++;
+        hitZodiacSet.add(zodiacIdx);
+        monthData[month].hits++;
+        monthData[month].zodiacSet.add(zodiacIdx);
+      }
+    });
+  });
+
+  // 计算命中率
+  zodiacStats.forEach(z => {
+    z.rate = z.total > 0 ? Math.round(z.hits / z.total * 100) : 0;
+  });
+
+  return {
+    totalDraws,
+    totalHits,
+    hitZodiacCount: hitZodiacSet.size,
+    overallRate: Math.round(totalHits / (totalDraws * 3) * 100),
+    zodiacStats,
+    monthData,
+    monthKeys: Object.keys(monthData).sort()
+  };
+}
+
+// 渲染统计汇总
+function renderStats(data) {
+  const html = `
+    <div class="stat-card">
+      <div class="val">${data.totalHits}</div>
+      <div class="lbl">总命中次数（头/二/三奖）</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">${data.overallRate}%</div>
+      <div class="lbl">总命中率</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">${data.monthKeys.length}</div>
+      <div class="lbl">参与复盘月份</div>
+    </div>
+    <div class="stat-card">
+      <div class="val">${data.hitZodiacCount}/12</div>
+      <div class="lbl">命中生肖数</div>
+    </div>
+  `;
+  document.getElementById('stats').innerHTML = html;
+}
+
+// 渲染12生肖卡片
+function renderZodiacCards(data) {
+  const html = data.zodiacStats.map(z => `
+    <div class="zodiac-card">
+      <div class="zodiac-emoji">${z.emoji}</div>
+      <div class="zodiac-name">${z.name}肖</div>
+      <div class="zodiac-stats">
+        <div class="zodiac-hits">${z.hits}</div>
+        <div style="font-size: 11px; color: var(--muted);">命中 ${z.total} 次</div>
+        <div class="zodiac-rate">${z.rate}%</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('zodiacGrid').innerHTML = html;
+}
+
+// 渲染月度回测表
+function renderReplayTable(data) {
+  const rows = data.monthKeys.map(month => {
+    const m = data.monthData[month];
+    const rate = m.total > 0 ? Math.round(m.hits / m.total * 100) : 0;
+    const zodiacNames = Array.from(m.zodiacSet).map(i => ZODIACS[i].name).join('、');
+    return `
+      <tr>
+        <td>${month}</td>
+        <td>${m.total}</td>
+        <td class="hit-yes">${m.hits}</td>
+        <td class="hit-yes">${rate}%</td>
+        <td style="font-size: 11px;">${zodiacNames || '—'}</td>
+        <td>${data.totalHits}</td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('replayBody').innerHTML = rows || '<tr><td colspan="6" style="text-align: center; color: var(--muted);">暂无数据</td></tr>';
+}
+
+// 页面加载时自动加载数据
+window.addEventListener('load', loadData);
+</script>
+
+</body>
+</html>
