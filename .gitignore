@@ -1,4 +1,6 @@
 .claude/*
 !.claude/skills/
+__pycache__/
+*.pyc
 lottery_v61_backup.html
 slim_data.json
