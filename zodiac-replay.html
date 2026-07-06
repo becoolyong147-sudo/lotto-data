@@ -559,6 +559,13 @@ function loadData() {
   }
 }
 
+// 生肖计算规则（与lottery.html同步）
+function getZodiacByNum(num) {
+  const year = parseInt(num, 10);
+  const zodiacIdx = ((year - 4) % 12 + 12) % 12;
+  return zodiacIdx;
+}
+
 function computeStats(draws) {
   const zodiacStats = ZODIACS.map(z => ({
     ...z,
@@ -580,16 +587,13 @@ function computeStats(draws) {
       const num = d.nums?.[prizeIdx];
       if (!num) return;
 
-      const lastTwo = parseInt(num.substring(2, 4), 10) || 0;
-      if (lastTwo >= 1 && lastTwo <= 12) {
-        const zodiacIdx = lastTwo - 1;
-        zodiacStats[zodiacIdx].hits++;
-        zodiacStats[zodiacIdx].total++;
-        totalHits++;
-        hitZodiacSet.add(zodiacIdx);
-        monthData[month].hits++;
-        monthData[month].zodiacSet.add(zodiacIdx);
-      }
+      const zodiacIdx = getZodiacByNum(num);
+      zodiacStats[zodiacIdx].hits++;
+      zodiacStats[zodiacIdx].total++;
+      totalHits++;
+      hitZodiacSet.add(zodiacIdx);
+      monthData[month].hits++;
+      monthData[month].zodiacSet.add(zodiacIdx);
     });
   });
 
