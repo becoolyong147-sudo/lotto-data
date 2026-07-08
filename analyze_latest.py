@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import json
+import sys
+import io
 from collections import Counter
+
+# Fix encoding
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 with open('slim_data.json', 'r', encoding='utf-8') as f:
     data = json.load(f)
