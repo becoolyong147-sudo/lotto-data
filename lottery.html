@@ -2031,7 +2031,19 @@ async function bootstrapV51(){
     // Now call existing init() — no changes to its behavior
     try{
       init();
+      const _autoAdded = await autoImportFetchedResults(); // V63: 合并自动抓取成绩(只增不覆盖)
       loadSavedResults();
+      if(_autoAdded){
+        // 导入后重算计数并刷新总览(init 里那次还没算上刚导入的)
+        const nd=getNewResults();
+        const nc=Object.values(nd).reduce((a,v)=>a+v.length,0);
+        const tt=Object.values(DB).reduce((a,v)=>a+v.length,0);
+        const el=document.getElementById('data-count');
+        if(el) el.textContent=`历史${tt-nc}期 + 新增${nc}期`;
+        setTimeout(()=>{
+          try{ if(typeof ovRender==='function' && document.getElementById('tab-overview')) ovRender(); }catch(e){}
+        }, 150);
+      }
     }catch(e){
       console.error('init() failed:', e);
       v51ShowImportUI(`初始化失败：${e.message}<br>可能 IndexedDB 数据损坏，请重新导入 slim_data.json`);
@@ -5462,6 +5474,45 @@ function loadSavedResults(){
     // Update cold stats
     entries.forEach(entry=>updateColdForNew(market,entry));
   }
+}
+
+// ===== V63: 自动抓取导入 — auto_fetch_results.py 产出的 auto_results.json =====
+// 在 loadSavedResults() 之前调用: 只写 localStorage(只增不覆盖), DB 合并与冷号更新走原有流程
+async function autoImportFetchedResults(){
+  try{
+    const r = await fetch('auto_results.json?t='+Date.now(), {cache:'no-store'});
+    if(!r.ok) return 0;
+    const j = await r.json();
+    const draws = (j && j.draws) || [];
+    if(!draws.length) return 0;
+    const data = getNewResults();
+    let added = 0; const markets = new Set();
+    for(const p of draws){
+      if(!p || !p.market || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;
+      const nums = (p.nums||[]).slice(0,3).map(n=>String(n).padStart(4,'0'));
+      if(nums.length<3 || nums.some(n=>!/^\d{4}$/.test(n))) continue;
+      if((data[p.market]||[]).some(x=>x.date===p.date)) continue;   // 手动/云端已有 → 不动
+      if((DB[p.market]||[]).some(x=>x.date===p.date)) continue;     // 历史库已有 → 不动
+      if(!data[p.market]) data[p.market]=[];
+      data[p.market].push({date:p.date, draw:p.draw||'', nums});
+      added++; markets.add(p.market);
+    }
+    if(!added) return 0;
+    for(const mk of markets) data[mk].sort((a,b)=>b.date.localeCompare(a.date));
+    saveNewResults._reason='自动抓取导入';
+    saveNewResults(data);
+    try{ gistAutoSyncAfterAdd(); }catch(e){}
+    _autoImportToast(added, [...markets]);
+    console.log('[V63 auto-import] 新增', added, '期:', [...markets].join('、'));
+    return added;
+  }catch(e){ console.warn('[V63 auto-import] 失败:', e); return 0; }
+}
+function _autoImportToast(n, markets){
+  const div=document.createElement('div');
+  div.style.cssText='position:fixed;bottom:18px;right:18px;z-index:99999;background:#14532d;color:#fff;padding:12px 18px;border-radius:10px;font-size:13px;box-shadow:0 4px 16px rgba(0,0,0,.25);max-width:320px';
+  div.innerHTML=`🤖 已自动导入 <b>${n}</b> 期新成绩<br><span style="font-size:11px;opacity:.85">${markets.join('、')} · 来源: 自动抓取</span>`;
+  const mount=()=>{ document.body.appendChild(div); setTimeout(()=>div.remove(), 8000); };
+  if(document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
 }
 
 // V51: bootstrap — load slim data from IndexedDB or prompt user to import

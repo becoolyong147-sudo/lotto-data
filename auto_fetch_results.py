@@ -43,13 +43,14 @@ BOUNDARY_MARKERS = [
 ]
 
 def _find_block_start(text, pats):
-    """市场名也出现在页面标题/导航里; 只有后面紧跟 Date: 的才是真成绩区块"""
+    """市场名也出现在页面标题/导航里; 只有后面紧跟完整日期(Date: dd-mm-yyyy)的才是真成绩区块
+    (历史页导航区有个空的 "Date: " 日期选择框, 所以必须要求日期数字)"""
     candidates = []
     for pat in pats:
         for m in re.finditer(pat, text):
             candidates.append(m.start())
     for pos in sorted(candidates):
-        if re.search(r"Date:", text[pos:pos + 150]):
+        if re.search(r"Date:\s*\|?\s*\d{2}-\d{2}-\d{4}", text[pos:pos + 150]):
             return pos
     return None
 
