@@ -107,9 +107,31 @@ def parse_page(html):
         n2 = re.search(r"2nd[^|]*\|\s*(\d{4})\b", block)
         n3 = re.search(r"3rd[^|]*\|\s*(\d{4})\b", block)
         if n1 and n2 and n3:
-            out.append({"market": market, "date": d, "draw": draw,
-                        "nums": [n1.group(1), n2.group(1), n3.group(1)]})
+            entry = {"market": market, "date": d, "draw": draw,
+                     "nums": [n1.group(1), n2.group(1), n3.group(1)]}
+            sp, cs = _parse_sp_cs(block)
+            if sp: entry["sp"] = sp
+            if cs: entry["cs"] = cs
+            out.append(entry)
     return out
+
+def _parse_sp_cs(block):
+    """特别奖/安慰奖: Special 标签到 Consolation 标签之间 / Consolation 到奖金区之间的 4 位数.
+    ----/**** 是空位或被源站遮住的号码, 自动跳过(多多偶尔有几个 **** 抓不到)."""
+    sp, cs = [], []
+    m_sp = re.search(r"Special", block)
+    m_cs = re.search(r"Consolation", block)
+    if m_sp and m_cs and m_sp.start() < m_cs.start():
+        seg = block[m_sp.end():m_cs.start()]
+        sp = re.findall(r"\b(\d{4})\b", seg)[:13]
+    if m_cs:
+        seg = block[m_cs.end():]
+        # 安慰奖后面跟着积宝奖金(Jackpot/RM), 先截断再取号
+        cut = re.search(r"Jackpot|RM\s", seg)
+        if cut:
+            seg = seg[:cut.start()]
+        cs = re.findall(r"\b(\d{4})\b", seg)[:13]
+    return sp, cs
 
 def fetch_home(sess):
     r = sess.get(HOME_URL, timeout=30)

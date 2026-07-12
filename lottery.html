@@ -2040,6 +2040,7 @@ async function bootstrapV51(){
         const tt=Object.values(DB).reduce((a,v)=>a+v.length,0);
         const el=document.getElementById('data-count');
         if(el) el.textContent=`历史${tt-nc}期 + 新增${nc}期`;
+        try{ if(typeof showAdded==='function' && document.getElementById('added-list')) showAdded(); }catch(e){}
         setTimeout(()=>{
           try{ if(typeof ovRender==='function' && document.getElementById('tab-overview')) ovRender(); }catch(e){}
         }, 150);
@@ -2258,6 +2259,7 @@ function showAdded(){
   
   let html='<table><tr><th>市场</th><th>日期</th><th>期号</th><th>头奖</th><th>二奖</th><th>三奖</th><th></th></tr>';
   all.forEach(e=>{
+    const hasSpCs=(e.sp&&e.sp.length)||(e.cs&&e.cs.length);
     html+=`<tr>
       <td><span class="by">${e.market}</span></td>
       <td>${e.date}</td>
@@ -2266,13 +2268,27 @@ function showAdded(){
       <td><span class="nc nc-sm">${e.nums[1]}</span></td>
       <td><span class="nc nc-sm">${e.nums[2]}</span></td>
       <td style="white-space:nowrap">
+        ${hasSpCs?`<button onclick="toggleSpCs(this)" style="background:none;border:none;color:#0369a1;cursor:pointer;font-size:12px;padding:2px 4px" title="特别奖/安慰奖">📋</button>`:''}
         <button onclick="openEditModal('${e.market}','${e.date}')" style="background:none;border:none;color:#1e3a5f;cursor:pointer;font-size:13px;padding:2px 4px" title="编辑">✏️</button>
         <button onclick="deleteResult('${e.market}','${e.date}')" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:12px;padding:2px 4px" title="删除">✕</button>
       </td>
     </tr>`;
+    if(hasSpCs){
+      const chip=n=>`<span style="display:inline-block;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:4px;padding:1px 5px;margin:1px;font-family:monospace;font-size:11px">${n}</span>`;
+      html+=`<tr style="display:none"><td colspan="7" style="background:#f8fafc;padding:6px 10px;font-size:11px">
+        ${e.sp&&e.sp.length?`<div><b style="color:#0369a1">特别奖</b> ${e.sp.map(chip).join('')}</div>`:''}
+        ${e.cs&&e.cs.length?`<div style="margin-top:3px"><b style="color:#92400e">安慰奖</b> ${e.cs.map(chip).join('')}</div>`:''}
+      </td></tr>`;
+    }
   });
   html+='</table>';
   document.getElementById('added-list').innerHTML=html;
+}
+
+// V63: 展开/收起 特别奖/安慰奖 详情行
+function toggleSpCs(btn){
+  const detail=btn.closest('tr').nextElementSibling;
+  if(detail) detail.style.display=(detail.style.display==='none')?'':'none';
 }
 
 function deleteResult(market,date){
@@ -5486,25 +5502,38 @@ async function autoImportFetchedResults(){
     const draws = (j && j.draws) || [];
     if(!draws.length) return 0;
     const data = getNewResults();
-    let added = 0; const markets = new Set();
+    const clean4d = a => Array.isArray(a) ? a.map(n=>String(n)).filter(n=>/^\d{4}$/.test(n)).slice(0,13) : [];
+    let added = 0, enriched = 0; const markets = new Set();
     for(const p of draws){
       if(!p || !p.market || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;
       const nums = (p.nums||[]).slice(0,3).map(n=>String(n).padStart(4,'0'));
       if(nums.length<3 || nums.some(n=>!/^\d{4}$/.test(n))) continue;
-      if((data[p.market]||[]).some(x=>x.date===p.date)) continue;   // 手动/云端已有 → 不动
+      const sp = clean4d(p.sp), cs = clean4d(p.cs);
+      const ex = (data[p.market]||[]).find(x=>x.date===p.date);
+      if(ex){
+        // 手动/云端已有 → 号码不动, 但补上缺失的特别奖/安慰奖
+        let touched=false;
+        if(sp.length && !(ex.sp&&ex.sp.length)){ ex.sp=sp; touched=true; }
+        if(cs.length && !(ex.cs&&ex.cs.length)){ ex.cs=cs; touched=true; }
+        if(touched){ enriched++; markets.add(p.market); }
+        continue;
+      }
       if((DB[p.market]||[]).some(x=>x.date===p.date)) continue;     // 历史库已有 → 不动
       if(!data[p.market]) data[p.market]=[];
-      data[p.market].push({date:p.date, draw:p.draw||'', nums});
+      const entry={date:p.date, draw:p.draw||'', nums};
+      if(sp.length) entry.sp=sp;
+      if(cs.length) entry.cs=cs;
+      data[p.market].push(entry);
       added++; markets.add(p.market);
     }
-    if(!added) return 0;
+    if(!added && !enriched) return 0;
     for(const mk of markets) data[mk].sort((a,b)=>b.date.localeCompare(a.date));
     saveNewResults._reason='自动抓取导入';
     saveNewResults(data);
     try{ gistAutoSyncAfterAdd(); }catch(e){}
-    _autoImportToast(added, [...markets]);
-    console.log('[V63 auto-import] 新增', added, '期:', [...markets].join('、'));
-    return added;
+    if(added) _autoImportToast(added, [...markets]);
+    console.log('[V63 auto-import] 新增', added, '期, 补充特/安', enriched, '期:', [...markets].join('、'));
+    return added + enriched;
   }catch(e){ console.warn('[V63 auto-import] 失败:', e); return 0; }
 }
 function _autoImportToast(n, markets){
