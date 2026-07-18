@@ -7668,7 +7668,8 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">🎉 命中战报图</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 命中战报视频</button></div>
-    <div class="ig" id="zo-hit-opts" style="display:none"><label>战报语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
+    <div class="ig" id="zo-hit-opts" style="display:none"><label>战报主角 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
+      <select id="zo-hit-hero"><option value="latest">🆕 主角=最新命中</option><option value="auto">🏆 主角=最高奖位</option></select>
       <select id="zo-hit-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select>
       <select id="zo-hit-bgm"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select>
       <button class="btn" onclick="zoHitCopy(zoHitLang(),this)">📋 复制话术</button>
@@ -12338,6 +12339,16 @@ function zoReviewMonth(){
   // 有命中才显示战报按钮
   const hasHits = hitTotal > 0;
   ['zo-hit-png','zo-hit-vid','zo-hit-opts'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = hasHits ? '' : 'none'; });
+  // V63.1: 填充战报主角下拉——默认「最新命中」，也可指定某一次命中
+  const heroSel = document.getElementById('zo-hit-hero');
+  if(heroSel && hasHits){
+    const opts = ['<option value="latest">🆕 主角=最新命中</option>','<option value="auto">🏆 主角=最高奖位</option>'];
+    tableRows.forEach(r => r.cells.forEach((c,pi) => {
+      if(c.hit) opts.push('<option value="'+r.date+'|'+pi+'">'+r.date.slice(5)+' · '+c.num+' · '+ZO_RV_PRIZE[pi]+'</option>');
+    }));
+    heroSel.innerHTML = opts.join('');
+    heroSel.value = 'latest';
+  }
 }
 function zoReviewCopy(){
   if(!ZO_REVIEW) return;
@@ -12399,7 +12410,18 @@ function zoExtractHits(){
   if(!hits.length) return null;
   const rank = h => h.prizeIdx*10 + (h.twisted?2:0) + (h.tags.indexOf('star')>=0?-1:0);
   hits.sort((a,b)=> rank(a)-rank(b));
-  return {market:R.market, year:R.year, month:R.month, hero:hits[0], others:hits.slice(1), total:hits.length};
+  // V63.1: 主角选择 — latest=最新命中（默认）/ auto=最高奖位 / "日期|奖位"=指定某次命中
+  const heroSelEl = document.getElementById('zo-hit-hero');
+  const heroSel = heroSelEl ? heroSelEl.value : 'latest';
+  let heroIdx = 0;
+  if(heroSel === 'latest'){
+    hits.forEach((h,i) => { if(h.date > hits[heroIdx].date) heroIdx = i; });
+  } else if(heroSel !== 'auto'){
+    const i = hits.findIndex(h => h.date + '|' + h.prizeIdx === heroSel);
+    if(i >= 0) heroIdx = i;
+  }
+  const hero = hits.splice(heroIdx, 1)[0];
+  return {market:R.market, year:R.year, month:R.month, hero, others:hits, total:hits.length + 1};
 }
 function zoHitH(HIT){
   let h = 30 + 96 + 16 + 262 + 16;
