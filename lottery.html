@@ -11525,7 +11525,7 @@ function zoRecVideo(cv, drawFrame, fnameBase, btn, idleLabel, bgmB64, durMs){
       zoSaveBlob(new Blob(chunks,{type:mime.split(';')[0]}),fnameBase+'.'+ext);
       if(btn){delete btn.dataset.busy; btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent=idleLabel;},1500);}
     };
-    const DUR=6000, t0=performance.now();
+    const t0=performance.now();
     rec.start();
     if(onStart) onStart();
     (function frame(now){
@@ -13265,9 +13265,10 @@ function zoHitVideo(){
   const lang = zoHitLang(), SC = 1.5;
   const cv = document.createElement('canvas'); cv.width=Math.round(1080*SC); cv.height=Math.round(zoHitH(HIT)*SC);
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
-  zoRecVideo(cv, function(t){ zoDrawHitK(ctx, HIT, t, lang); },
+  const HITDUR = 8;  // V65: 8秒揭晓（滚号→锁定→爆闪→盖章→定格）
+  zoRecVideo(cv, function(t){ zoDrawHitK(ctx, HIT, t, lang, HITDUR); },
     zoHitFileBase(HIT)+'_'+lang,
-    document.getElementById('zo-hit-vid'), '🎬 命中战报视频', zoBgmFromSel('zo-hit-bgm'));
+    document.getElementById('zo-hit-vid'), '🎬 命中战报视频', zoBgmFromSel('zo-hit-bgm'), HITDUR*1000);
 }
 function zoHitCopy(lang, btn){
   const HIT = zoExtractHits(); if(!HIT) return;
