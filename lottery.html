@@ -11506,8 +11506,9 @@ function zoPickRecMime(){
   return 'video/webm';
 }
 // 通用：把 canvas 动画录成带配乐的6秒视频。drawFrame(tSec)负责画一帧；bgmB64 未传则用默认曲，null=无音乐
-function zoRecVideo(cv, drawFrame, fnameBase, btn, idleLabel, bgmB64){
+function zoRecVideo(cv, drawFrame, fnameBase, btn, idleLabel, bgmB64, durMs){
   if(bgmB64===undefined) bgmB64=ZO_BGM_B64;
+  const DUR = durMs || 6000;
   if(btn && btn.dataset.busy) return;
   if(btn){btn.dataset.busy='1'; btn.textContent='⏺ 录制中…';}
   const stream=cv.captureStream(30);
@@ -13023,9 +13024,70 @@ function zoHitH(HIT){
 }
 function zoHitLang(){ return (document.getElementById('zo-hit-lang')||{value:'zh'}).value; }
 // K星盘庆祝图统一绘制：t=null 静态；t=秒数 → 动画帧；lang: zh/en/ms
-function zoDrawHitK(ctx, HIT, t, lang){
+// ===== V65: 命中战报「开奖揭晓」动画编排 =====
+function zoEaseOut(u){ return 1-Math.pow(1-Math.max(0,Math.min(1,u)),3); }
+function zoEaseOutBack(u){ u=Math.max(0,Math.min(1,u)); const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(u-1,3)+c1*Math.pow(u-1,2); }
+// 从 t/dur 算出各元素的揭晓进度（老虎机滚号→逐位锁定→爆闪→盖章→其它命中滑入→定格）
+function zoHitCho(t, dur, hero){
+  const f = Math.max(0, Math.min(1, t/dur));
+  const digits = String(hero.num).split('');
+  const nDig = digits.length;
+  const spinEnd = 0.34, lockStep = 0.05;                 // 滚号结束比例 / 每位锁定间隔
+  const burstF = spinEnd + (nDig-1)*lockStep + 0.02;     // 最后一位锁定=高潮时刻
+  const lock = [];
+  let lockCount = 0;
+  for(let i=0;i<nDig;i++){
+    const lockF = spinEnd + i*lockStep;
+    const locked = f >= lockF;
+    if(locked) lockCount++;
+    let pop = 1;
+    if(locked){ const s=(f-lockF)/0.045; if(s<1) pop = 1 + 0.5*(1-zoEaseOut(s)); }  // 锁定回弹
+    lock.push({locked, pop});
+  }
+  const spinning = f < spinEnd + (nDig-1)*lockStep + 0.001;
+  let burst = 0;
+  if(f>=burstF){ const s=(f-burstF)/0.09; if(s<1) burst = 1-s; }                   // 爆闪 0.09*dur
+  let labelScale=0, labelAlpha=0;
+  if(f>=burstF){ const s=Math.min(1,(f-burstF)/0.07); labelScale = 0.5+0.5*zoEaseOutBack(s); labelAlpha=Math.min(1,(f-burstF)/0.035); }
+  const revealAlpha = Math.max(0, Math.min(1,(f-(burstF+0.05))/0.10));            // 徽章/箭头/生肖淡入
+  let fw = 0;
+  if(f>=burstF){ fw = zoEaseOutBack(Math.min(1,(f-burstF)/0.10)); }               // 烟花绽放 0→1.1→1
+  const rowStart = burstF + 0.12, rowStep = 0.045;
+  const rowAlpha = (i)=> Math.max(0, Math.min(1,(f-(rowStart+i*rowStep))/0.08));  // 其它命中逐条滑入
+  const spinTick = Math.floor(t*22);
+  return {f, digits, nDig, lock, lockCount, spinning, burst, labelScale, labelAlpha, revealAlpha, fw, rowAlpha, spinTick};
+}
+// 老虎机数字：未锁定的位飞速滚动，锁定的位显示真号+回弹
+function zoDrawNumAnim(ctx, numStr, cx, cy, targetH, cho){
+  if(!(ZO_DIGIT_IMG && ZO_DIGIT_IMG.complete && ZO_DIGIT_IMG.naturalWidth)){
+    ctx.fillStyle='#fff'; ctx.font='900 78px '+ZO_MONO; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(numStr, cx, cy); return;
+  }
+  const s = String(numStr).split('');
+  const scale = targetH/ZO_DIGIT_H, gap = targetH*0.08;
+  const slotW = s.map(ch=>ZO_DIGIT_W[ch.charCodeAt(0)-48]*scale);   // 用最终号码宽度占位，布局不跳
+  const total = slotW.reduce((a,b)=>a+b,0) + gap*(s.length-1);
+  let x = cx - total/2;
+  for(let i=0;i<s.length;i++){
+    const finalD = s[i].charCodeAt(0)-48;
+    const lk = cho.lock[i];
+    const d = lk.locked ? finalD : ((cho.spinTick + i*3) % 10);
+    const pop = lk.pop;
+    const w = ZO_DIGIT_W[d]*scale;
+    const sx=(d%5)*ZO_DIGIT_CELL, sy=Math.floor(d/5)*ZO_DIGIT_CELL;
+    ctx.save();
+    ctx.translate(x + slotW[i]/2, cy); ctx.scale(pop, pop);
+    if(!lk.locked) ctx.globalAlpha = 0.85;                         // 滚动中略透，锁定后实心
+    ctx.drawImage(ZO_DIGIT_IMG, sx, sy, ZO_DIGIT_W[d], ZO_DIGIT_H, -w/2, -targetH/2, w, targetH);
+    ctx.restore();
+    x += slotW[i] + gap;
+  }
+}
+function zoDrawHitK(ctx, HIT, t, lang, dur){
   const W = 1080, pad = 36, iW = W-2*pad, H = zoHitH(HIT);
   const anim = t!=null;
+  const hero = HIT.hero;
+  const cho = (anim && dur) ? zoHitCho(t, dur, hero) : null;
   const S = ZO_HIT_STR[lang||'zh'], zn = ZO_STR[lang||'zh'].zodiacNames;
   // 深空背景 — V64.4: 优先真实星空底图，叠半透明暗色让内容清晰；无图则纯渐变兜底
   const bg = ctx.createLinearGradient(0,0,W,H);
@@ -13047,9 +13109,9 @@ function zoDrawHitK(ctx, HIT, t, lang){
     ctx.font=s[3]+'px '+ZO_FONT; ctx.fillText('✦',s[0]*W,s[1]*H);
     ctx.restore();
   });
-  // 头部（V64.2: 两角烟花）
-  zoDrawCeleb(ctx, 3, 115, 88, 175);
-  zoDrawCeleb(ctx, 3, W-115, 88, 175);
+  // 头部（V64.2: 两角烟花；V65: 视频里烟花在开奖高潮时才绽放）
+  const fwS = cho ? cho.fw : 1;
+  if(fwS > 0.02){ zoDrawCeleb(ctx, 3, 115, 88, 175*fwS); zoDrawCeleb(ctx, 3, W-115, 88, 175*fwS); }
   let y = 30;
   ctx.textAlign='center'; ctx.textBaseline='middle';
   const tg = ctx.createLinearGradient(W/2-260,0,W/2+260,0);
@@ -13061,7 +13123,7 @@ function zoDrawHitK(ctx, HIT, t, lang){
   ctx.fillText(S.sub(HIT.month, HIT.market), W/2, y+78);
   y += 96 + 16;
   // 主角框
-  const hero = HIT.hero, hh = 262;
+  const hh = 262;
   zoRR(ctx,pad,y,iW,hh,16);
   const gg = ctx.createLinearGradient(0,y,0,y+hh);
   const glowPulse = anim ? 0.5+0.15*Math.sin(t*3) : 0.55;
@@ -13070,17 +13132,38 @@ function zoDrawHitK(ctx, HIT, t, lang){
   // V64.2: 主角框右上舞狮、右下元宝
   zoDrawCeleb(ctx, 6, W-pad-72, y+58, 112);
   zoDrawCeleb(ctx, 0, W-pad-66, y+hh-52, 92);
-  // 命中标签
+  // 命中标签（V65: 视频里开奖高潮时盖章弹入）
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_FONT;
-  ctx.fillText('🎉 '+S.hitLabel+' 🎉', W/2, y+38);
-  // 大号码（浮动）— V64.3: 优先鎏金立体数字，未加载则白字兜底
-  const heroNumY = y+100+(anim?Math.sin(t*2)*4:0);
-  if(!zoDrawNum(ctx, hero.num, W/2, heroNumY, 88)){
-    ctx.fillStyle='#fff'; ctx.font='900 78px '+ZO_MONO;
-    ctx.fillText(hero.num, W/2, y+108+(anim?Math.sin(t*2)*4:0));
+  if(cho){
+    if(cho.labelAlpha > 0.02){
+      ctx.save(); ctx.globalAlpha = cho.labelAlpha;
+      ctx.translate(W/2, y+38); ctx.scale(cho.labelScale, cho.labelScale);
+      ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.fillText('🎉 '+S.hitLabel+' 🎉', 0, 0); ctx.restore();
+    }
+  } else {
+    ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_FONT;
+    ctx.fillText('🎉 '+S.hitLabel+' 🎉', W/2, y+38);
   }
-  // 奖位徽章 + 生肖
+  // 大号码 — V65: 视频=老虎机滚号；静态/无编排=鎏金数字浮动
+  const heroNumY = y+100+(anim&&!cho?Math.sin(t*2)*4:0);
+  if(cho){
+    zoDrawNumAnim(ctx, hero.num, W/2, y+100, 88, cho);
+    // 爆闪：最后一位锁定瞬间金光炸开
+    if(cho.burst > 0.01){
+      ctx.save(); ctx.globalCompositeOperation='screen'; ctx.globalAlpha = cho.burst*0.85;
+      const fl = ctx.createRadialGradient(W/2, y+100, 8, W/2, y+100, 360);
+      fl.addColorStop(0,'#fffceb'); fl.addColorStop(.4,'rgba(253,224,71,.55)'); fl.addColorStop(1,'rgba(253,224,71,0)');
+      ctx.fillStyle=fl; ctx.fillRect(pad, y, iW, hh); ctx.restore();
+    }
+  } else if(!zoDrawNum(ctx, hero.num, W/2, heroNumY, 88)){
+    ctx.fillStyle='#fff'; ctx.font='900 78px '+ZO_MONO;
+    ctx.fillText(hero.num, W/2, heroNumY);
+  }
+  // 奖位徽章 + 生肖 + 箭头 + 元信息（V65: 视频里开奖后淡入上滑）
+  const rev = cho ? cho.revealAlpha : 1;
+  if(rev > 0.02){
+  ctx.save(); ctx.globalAlpha = rev; ctx.translate(0, (1-rev)*12);
   ctx.font='900 22px '+ZO_FONT;
   const prizeTxt = S.prize[hero.prizeIdx];
   const zziTxt = ' '+zn[hero.zi];
@@ -13106,14 +13189,21 @@ function zoDrawHitK(ctx, HIT, t, lang){
   ctx.fillStyle='#fbbf24';
   zoFitFont(ctx,metaStr,iW-60,16,11,function(s){return '600 '+s+'px '+ZO_FONT;});
   ctx.fillText(metaStr, W/2, y+232);
+  ctx.restore();
+  }
   y += hh + 16;
   // 其它命中列表
   if(HIT.others.length){
+    ctx.save(); if(cho) ctx.globalAlpha = cho.revealAlpha;
     ctx.textAlign='left'; ctx.textBaseline='middle';
     ctx.fillStyle='#a5b4fc'; ctx.font='800 16px '+ZO_FONT;
     ctx.fillText('✦ '+(lang==='en'?'Other hits':lang==='ms'?'Kena lain':'其它命中'), pad+6, y+18);
+    ctx.restore();
     y += 34;
-    HIT.others.forEach(function(hh2){
+    HIT.others.forEach(function(hh2, ri){
+      const a = cho ? cho.rowAlpha(ri) : 1;
+      if(a <= 0.02){ y += 58; return; }
+      ctx.save(); ctx.globalAlpha = a; ctx.translate((1-a)*46, 0);   // V65: 从右滑入
       zoRR(ctx,pad,y,iW,50,10);
       const rg = ctx.createLinearGradient(0,y,0,y+50);
       rg.addColorStop(0,'rgba(30,27,75,.75)'); rg.addColorStop(1,'rgba(49,46,129,.45)');
@@ -13129,6 +13219,7 @@ function zoDrawHitK(ctx, HIT, t, lang){
       ctx.fillText(S.prize[hh2.prizeIdx], pad+250, y+26);
       ctx.fillStyle='#cbd5e1'; ctx.textAlign='right'; ctx.font='13px '+ZO_FONT;
       ctx.fillText(hh2.date+(hh2.twisted?' · '+S.twist:''), W-pad-14, y+26);
+      ctx.restore();
       y += 58;
     });
     y += 16;
