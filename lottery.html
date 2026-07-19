@@ -11494,9 +11494,13 @@ function zoBgmFromSel(id){
   const b=ZO_BGM_LIB[v];
   return (b && b.indexOf('__')!==0) ? b : ZO_BGM_B64;
 }
+// V65.1: 宽高必须偶数 — H.264 要求，奇数尺寸手机/WhatsApp 直接拒绝打开
+function zoEven(n){ return 2*Math.round(n/2); }
 function zoPickRecMime(){
-  const cands=['video/mp4;codecs="avc1.640028,mp4a.40.2"',
-               'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
+  // 优先 Constrained Baseline → Main → High：越靠前兼容越广（老安卓机/WhatsApp）
+  const cands=['video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
+               'video/mp4;codecs="avc1.4D401F,mp4a.40.2"',
+               'video/mp4;codecs="avc1.640028,mp4a.40.2"',
                'video/mp4',
                'video/webm;codecs=vp9',
                'video/webm'];
@@ -11559,7 +11563,7 @@ async function zoDownloadVideo(){
   const L=ZO_LAST, S=ZO_STR[zoLang()];
   if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
   // 1.5x 超采样：FB 再压缩后号码仍可读
-  const cv=document.createElement('canvas'); cv.width=1620; cv.height=2025;
+  const cv=document.createElement('canvas'); cv.width=1620; cv.height=zoEven(2025);
   const ctx=cv.getContext('2d'); ctx.scale(1.5,1.5);
   zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,S,t,posterImg); },
     zoFileNameK(L,'png').replace(/\.png$/,''),
@@ -12130,7 +12134,7 @@ async function zoMemberVideo(){
   const M = ZO_MEM, lang = zoMemLang();
   // 1.5x 超采样：平台再压缩后号码仍可读
   const SC = 1.5;
-  const cv = document.createElement('canvas'); cv.width = Math.round(1080*SC); cv.height = Math.round(zoMemH(M)*SC);
+  const cv = document.createElement('canvas'); cv.width = zoEven(1080*SC); cv.height = zoEven(zoMemH(M)*SC);
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
   zoRecVideo(cv, function(t){ zoDrawMemberK(ctx, M, t, lang); },
     zoMemFileBase(M) + '_' + lang,
@@ -13263,7 +13267,7 @@ function zoHitPNG(){
 function zoHitVideo(){
   const HIT = zoExtractHits(); if(!HIT) return;
   const lang = zoHitLang(), SC = 1.5;
-  const cv = document.createElement('canvas'); cv.width=Math.round(1080*SC); cv.height=Math.round(zoHitH(HIT)*SC);
+  const cv = document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(zoHitH(HIT)*SC);
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
   const HITDUR = 8;  // V65: 8秒揭晓（滚号→锁定→爆闪→盖章→定格）
   zoRecVideo(cv, function(t){ zoDrawHitK(ctx, HIT, t, lang, HITDUR); },
