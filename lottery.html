@@ -11352,10 +11352,11 @@ function zoDrawChartK(ctx, L, S, t, spriteImg){
   const anim = t!=null;
   const P = zoPosterPalette();
   function bob(phase,amp){ return anim ? Math.sin(t*2+phase)*(amp||4) : 0; }
-  // Background
+  // Background — V64.5: 主题背景图优先（宣纸/朱砂/青玉），否则纯渐变（深空）
   const bg=ctx.createLinearGradient(0,0,W,H);
   bg.addColorStop(0,P.bg[0]); bg.addColorStop(.42,P.bg[1]); bg.addColorStop(1,P.bg[2]);
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  zoDrawPosterBg(ctx, zoPosterThemeKey(), W, H, P.bg[0], P.bg[1], P.bg[2]);
   // Border
   zoRR(ctx,4,4,W-8,H-8,18); ctx.strokeStyle=P.border; ctx.lineWidth=4; ctx.stroke();
   // Star dots
