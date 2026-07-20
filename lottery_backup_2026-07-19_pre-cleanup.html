@@ -256,6 +256,7 @@ tr:hover td{background:#fafaf5}
 <div id="scene-decision" class="scene-panel active">
   <div class="subtabs">
     <div class="subtab active" data-tab="overview" onclick="switchSubtab(this)">🎯 一键总览</div>
+    <div class="subtab" data-tab="workbench" onclick="switchSubtab(this)">🧭 工作台</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
     <div class="subtab" data-tab="decompose" onclick="switchSubtab(this)">🔢 号码分解</div>
     <div class="subtab" data-tab="wizard" onclick="switchSubtab(this)">⚡ 四步选号</div>
@@ -980,6 +981,39 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
 <div id="overview-result" style="margin-top:12px"></div>
 </div>
 
+<!-- TAB: 工作台 (V22 新增) -->
+<div id="tab-workbench" class="panel">
+<div class="card">
+  <h3>🔍 快速查号 — 输入任意 4D 立刻看所有标签 + 冷热 + 历史</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label><select id="qs-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select></div>
+    <div class="ig"><label>号码</label><input type="text" id="qs-num" maxlength="4" placeholder="1234" style="width:90px;font-family:monospace;font-size:16px;font-weight:700;text-align:center" oninput="this.value=this.value.replace(/\D/g,'');if(this.value.length===4)quickSearch()" onkeydown="if(event.key==='Enter')quickSearch()"></div>
+    <button class="btn btn-green" onclick="quickSearch()" style="padding:9px 18px">🔍 查</button>
+    <button class="btn" onclick="document.getElementById('qs-num').value='';document.getElementById('qs-result').innerHTML=''" style="padding:9px 10px">✕</button>
+  </div>
+  <div id="qs-result" style="margin-top:10px"></div>
+</div>
+<div class="card">
+  <h3>🧭 工作台 — 一屏看方向 / 推荐 / 风险 / 待验证策略</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label><select id="wb-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select></div>
+    <div class="ig"><label>奖位</label><select id="wb-prize"><option value="all">头二三奖</option><option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option></select></div>
+    <div class="ig"><label>推荐数量</label><select id="wb-topn"><option value="20">Top 20</option><option value="30">Top 30</option><option value="50">Top 50</option></select></div>
+    <button class="btn" onclick="v21RenderWorkbench()">🚀 刷新工作台</button>
+    <button class="btn btn-green" onclick="v21SaveSnapshotFromWorkbench()">📌 保存本期策略</button>
+  </div>
+  <div class="warn">使用顺序：先看当前5期 → 看系统信号 → 看保守/激进重叠 → 保存策略。开奖后更新数据，再回这里看快照命中率。<br><span style="color:#1e3a5f;font-weight:700">ℹ️ v61：原「自动锁范围」已整合进工作台下方的保守/激进候选表，功能完整保留。快照命中率已修正为只评估保存后第1期开奖。</span></div>
+</div>
+<div id="v21-workbench-result"></div>
+<div class="card">
+  <h3>📊 策略命中率 Dashboard</h3>
+  <div class="row" style="margin-bottom:8px">
+    <button class="btn" onclick="v21RenderSnapshots()">🔄 刷新</button>
+    <button class="btn btn-red" onclick="v21ClearSnapshots()">🗑️ 清空快照</button>
+  </div>
+  <div id="v21-snapshot-result"></div>
+</div>
+</div>
 
 
 <!-- TAB: 输入新成绩 -->
@@ -7830,16 +7864,6 @@ function doBacktest(){
 
 <!-- TAB: 快速查询 (历史情况回溯) -->
 <div id="tab-query" class="panel">
-<div class="card">
-  <h3>🔍 快速查号 — 输入任意 4D 立刻看所有标签 + 冷热 + 历史</h3>
-  <div class="row">
-    <div class="ig"><label>市场</label><select id="qs-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select></div>
-    <div class="ig"><label>号码</label><input type="text" id="qs-num" maxlength="4" placeholder="1234" style="width:90px;font-family:monospace;font-size:16px;font-weight:700;text-align:center" oninput="this.value=this.value.replace(/\D/g,'');if(this.value.length===4)quickSearch()" onkeydown="if(event.key==='Enter')quickSearch()"></div>
-    <button class="btn btn-green" onclick="quickSearch()" style="padding:9px 18px">🔍 查</button>
-    <button class="btn" onclick="document.getElementById('qs-num').value='';document.getElementById('qs-result').innerHTML=''" style="padding:9px 10px">✕</button>
-  </div>
-  <div id="qs-result" style="margin-top:10px"></div>
-</div>
 <div class="card">
   <h3>🔍 快速查询 — 历史情况回溯参考</h3>
   <div class="warn">
