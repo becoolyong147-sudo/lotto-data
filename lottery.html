@@ -12327,7 +12327,10 @@ function zoRohanReport(){
       // ── 一次性全量扫描 ──────────────────────────────────────────────
       // per group: monthHits[12], companion4th{digit:count}, coOccur{gid:count}, totalDrawsHit(set per draw)
       const gStat = {}; // gid → {mh:[12], comp:{}, total}
-      ZO_ROHAN.forEach(g => { gStat[g.id] = {mh:new Array(12).fill(0), comp:{}, compMon:Array.from({length:12},()=>({})), terc:[0,0,0], total:0}; });
+      ZO_ROHAN.forEach(g => { gStat[g.id] = {mh:new Array(12).fill(0), comp:{}, compMon:Array.from({length:12},()=>({})), terc:[0,0,0], total:0,
+        prizeMh:[new Array(12).fill(0), new Array(12).fill(0), new Array(12).fill(0)],   // V68-①: 头/二/三奖分层
+        drawIdxs:[],                                                                     // V68-②: 该组命中的期序（新→旧）
+        compLast:{}}; });                                                                // V68-③: 伴随位最近一次出现的期序
       const monTotal = new Array(12).fill(0);
       // 共振：同一期同时命中的组对
       const coOccur = {}; // 'id1-id2' → count
@@ -12338,7 +12341,7 @@ function zoRohanReport(){
         return pairs;
       };
 
-      recs.forEach(r => {
+      recs.forEach((r, ri) => {
         const m = seaMonth(r.date); if(!m||m<1||m>12) return;
         monTotal[m-1]++;
         const dayN = parseInt(String(r.date).slice(8,10),10)||0;
@@ -12351,6 +12354,7 @@ function zoRohanReport(){
           groups.forEach(g => {
             gStat[g.id].mh[m-1]++;
             gStat[g.id].total++;
+            gStat[g.id].prizeMh[pi][m-1]++;
             drawGroups.add(g.id);
             if(m===month && dayN) gStat[g.id].terc[dayN<=10?0:dayN<=20?1:2]++;
             // 伴随第4位：找出num中不被pattern用到的那个digit
@@ -12370,6 +12374,7 @@ function zoRohanReport(){
                 gStat[g.id].comp[d4] = (gStat[g.id].comp[d4]||0) + 1;
                 const cmRec = gStat[g.id].compMon[m-1];
                 cmRec[d4] = (cmRec[d4]||0) + 1;
+                if(gStat[g.id].compLast[d4] === undefined) gStat[g.id].compLast[d4] = ri;  // 新→旧首见=最近一次
               }
             });
           });
@@ -12377,6 +12382,7 @@ function zoRohanReport(){
         // 共振统计
         const gArr = Array.from(drawGroups);
         drawCoKey(gArr).forEach(k => { coOccur[k] = (coOccur[k]||0) + 1; });
+        gArr.forEach(gid => { gStat[gid].drawIdxs.push(ri); });   // V68-②: 组级出现期序
       });
 
       const avgMonTot = monTotal.reduce((s,v)=>s+v,0) / 12 || 1;
@@ -12542,7 +12548,14 @@ function zoRohanReport(){
         if(resoHot>=3) h += '<span style="background:#dc2626;color:#fff;font-size:9px;font-weight:800;border-radius:4px;padding:1px 6px">🔥 ' + resoHot + '/5市场强共振</span>';
         h += '<span style="font-size:10px;color:' + (gMonthHits>0?'#16a34a':'#94a3b8') + ';font-weight:700;margin-left:auto">' + MONTHS[month-1] + '已中 ' + gMonthHits + ' 次</span>';
         h += '</div>';
-        h += '<div style="font-size:11px;color:#1e293b;margin-bottom:6px">最爱第4位：<b style="font-size:13px;color:#dc2626">' + top3.map(p2 => p2[0] + '<span style="font-size:9px;color:#64748b">(' + p2[1] + '次)</span>').join('  ') + '</b> <span style="font-size:9px;color:' + (useMon?'#16a34a':'#94a3b8') + '">[' + (useMon ? MONTHS[month-1]+'条件·样本'+cmTotal : '全历史·' + MONTHS[month-1] + '样本不足') + ']</span></div>';
+        h += '<div style="font-size:11px;color:#1e293b;margin-bottom:6px">最爱第4位：<b style="font-size:13px;color:#dc2626">' + top3.map(p2 => {
+          // V68-③: 伴随位当前冷热——该搭档数字多久没和本组一起出现了
+          const cl = s.compLast[p2[0]];
+          const cGap = s.comp[p2[0]] ? recs.length/s.comp[p2[0]] : 0;
+          const cR = (cl!==undefined && cGap>0) ? cl/cGap : null;
+          const coldTxt = cR!=null && cR>=1.5 ? '·<b style="color:#2563eb">' + cR.toFixed(1) + 'x❄️</b>' : '';
+          return p2[0] + '<span style="font-size:9px;color:#64748b">(' + p2[1] + '次' + coldTxt + ')</span>';
+        }).join('  ') + '</b> <span style="font-size:9px;color:' + (useMon?'#16a34a':'#94a3b8') + '">[' + (useMon ? MONTHS[month-1]+'条件·样本'+cmTotal : '全历史·' + MONTHS[month-1] + '样本不足') + ']</span> <span style="font-size:9px;color:#2563eb">❄️=该搭档超期未现，pattern热+搭档冷=重点盯</span></div>';
         h += '<div style="overflow-x:auto"><table style="font-size:10.5px;width:100%"><tr><th>结构(调字)</th><th>打数</th><th>历史出现</th><th>组冷度</th><th>生肖分</th><th>共识</th><th>本月状态</th></tr>';
         cands.forEach(c => {
           const stTxt = c.mhit ? '<span style="color:#d97706">⚠️ ' + c.mhit.date.slice(5) + '开' + c.mhit.num + '(' + c.mhit.prize + ')</span>' : '<span style="color:#16a34a">✅ 未开</span>';
@@ -12555,6 +12568,22 @@ function zoRohanReport(){
         });
         h += '</table></div>';
         h += '<div style="font-size:10px;color:#64748b;margin-top:5px">月内节奏：上旬 ' + tPct[0] + '% · 中旬 ' + tPct[1] + '% · 下旬 ' + tPct[2] + '%' + windowNote + '</div>';
+        // V68-①: 奖位分层——该组本月的热集中在哪个奖位
+        const prizeBias = [0,1,2].map(pi2 => { const tp = s.prizeMh[pi2].reduce((a2,b2)=>a2+b2,0); if(tp < 30) return null; const mt2 = monTotal[month-1]||1; return {b:(s.prizeMh[pi2][month-1]/mt2)/((tp/12)/avgMonTot), n:tp}; });
+        h += '<div style="font-size:10px;color:#64748b;margin-top:3px">奖位偏好：' + ['头奖','二奖','三奖'].map((nm,pi2) => { const pb = prizeBias[pi2]; if(!pb) return nm + ' <span style="color:#cbd5e1">样本少</span>'; const c2 = pb.b>=1.3?'#dc2626':pb.b>=1.1?'#d97706':'#94a3b8'; return nm + ' <b style="color:' + c2 + '">' + pb.b.toFixed(1) + 'x</b>'; }).join(' · ') + ' <span style="color:#cbd5e1">（红=本月明显偏向该奖位）</span></div>';
+        // V68-②: 组级超期节奏 + 连庄倾向
+        const gIdx2 = s.drawIdxs, gN = gIdx2.length;
+        if(gN >= 10){
+          const gAvg = recs.length/gN, gCur = gIdx2[0], gRatio = gAvg>0 ? gCur/gAvg : 0;
+          const idxSet = new Set(gIdx2);
+          let rep = 0;
+          gIdx2.forEach(ix => { if(idxSet.has(ix-1)||idxSet.has(ix-2)||idxSet.has(ix-3)) rep++; });
+          const pHit = gN/recs.length, repBase = 1-Math.pow(1-pHit,3);
+          const repLift = repBase>0 ? (rep/gN)/repBase : 0;
+          const overTag = gRatio>=1.5 ? ' <b style="color:#2563eb">❄️' + gRatio.toFixed(1) + 'x超期</b>' : gRatio<=0.4 ? ' <span style="color:#f87171">刚开过</span>' : '';
+          const repTag = repLift>=1.15 ? '，<b style="color:#dc2626">爱连庄</b>' : repLift<=0.85 ? '，<b style="color:#2563eb">开完就歇</b>' : '';
+          h += '<div style="font-size:10px;color:#64748b;margin-top:3px">组节奏：平均每 <b>' + gAvg.toFixed(1) + '</b> 期开一次 · 目前断 <b>' + gCur + '</b> 期' + overTag + ' ｜ 连庄：开出后3期内再开 ' + Math.round(rep/gN*100) + '%（基准 ' + Math.round(repBase*100) + '%' + repTag + '）</div>';
+        }
         h += '<div style="font-size:10px;color:#64748b;margin-top:3px">跨市场热度：' + reso.map(x => x.mk + ' <b style="color:' + (x.b>=1.2?'#dc2626':'#94a3b8') + '">' + x.b.toFixed(1) + 'x</b>').join(' ｜ ') + '</div>';
         h += '<div style="margin-top:6px"><button class="btn" style="padding:4px 12px;font-size:10px;background:#6d28d9;color:#fff" onclick="zoRohanAddToPool(' + g.id + ')">📌 把这组结构加入候选清单</button></div>';
         h += '</div>';
