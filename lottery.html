@@ -12595,7 +12595,15 @@ function zoRohanReport(){
       h += '<div style="font-size:10.5px;color:#64748b;margin-bottom:8px">方法：最近最多36个完整月，每月1号只用「当时之前」的数据算热度；热度≥1.2x记为「预测热」。对照该月实际奖号落在该组的占比 vs 该组理论覆盖率（0000-9999中属于该组的比例）。<b>提升&gt;1.15 = 热度信号真的有超额命中；≈1 = 热度是噪音。</b></div>';
       try{
         const cov = zoRohanCoverageAll();
-        const bt = {}; ZO_ROHAN.forEach(g => bt[g.id] = {hotM:0, shareSum:0});
+        const bt = {}; ZO_ROHAN.forEach(g => bt[g.id] = {hotM:0, shareSum:0, rec:[], simM:0, simHits:0, simExp:0, simHitM:0});
+        // V68-④: 跟单候选 = pattern × 全史最爱第4位Top3（与第④节同一构造法，伴随位用全史近似）
+        const candKeys = {}, candCov = {};
+        ZO_ROHAN.forEach(g => {
+          const top3c = Object.entries(gStat[g.id].comp).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+          const ks = new Set(); let covSum = 0;
+          g.patterns.forEach(pat => top3c.forEach(d => { const k = (pat+d).split('').sort().join(''); if(!ks.has(k)){ ks.add(k); covSum += zoDaCount(pat+d); } }));
+          candKeys[g.id] = ks; candCov[g.id] = covSum/10000;
+        });
         const ymsAll = Array.from(new Set(recs.map(r => String(r.date).slice(0,7)))).sort().reverse();
         const curYm = _now.getFullYear() + '-' + String(_now.getMonth()+1).padStart(2,'0');
         const yms = ymsAll.filter(ym => ym < curYm).slice(0, 36);
@@ -12614,28 +12622,65 @@ function zoRohanReport(){
             if(b2 < 1.2) return;
             const hit = nums2.filter(n => g.patterns.some(p => zoRohanMatch(n,p))).length;
             bt[g.id].hotM++; bt[g.id].shareSum += hit/nums2.length;
+            bt[g.id].rec.push({ym:ym, share:hit/nums2.length});
+            // 跟单模拟：这个热月若买该组候选结构（调字组），实际命中 vs 随机期望
+            let sh = 0;
+            nums2.forEach(n => { if(candKeys[g.id].has(n.split('').sort().join(''))) sh++; });
+            bt[g.id].simM++; bt[g.id].simHits += sh; if(sh > 0) bt[g.id].simHitM++;
+            bt[g.id].simExp += candCov[g.id]*nums2.length;
           });
         });
         const btRows = ZO_ROHAN.map(g => {
           const r2 = bt[g.id]; if(!r2.hotM) return null;
           const actual = r2.shareSum/r2.hotM, base = cov[g.id];
-          return {g, hotM:r2.hotM, actual, base, lift: base>0 ? actual/base : 0};
+          // V68-⑤: 前后半段稳定性——两段都≥1.1x才算「稳」
+          const seq = r2.rec.slice().sort((a,b)=> a.ym<b.ym?-1:1);
+          const hf = Math.floor(seq.length/2);
+          const avgOf = arr => arr.length ? arr.reduce((s2,x)=>s2+x.share,0)/arr.length : 0;
+          const liftA = (hf>0 && base>0) ? avgOf(seq.slice(0,hf))/base : null;
+          const liftB = base>0 ? avgOf(seq.slice(hf))/base : null;
+          const stable = liftA!=null && liftA>=1.1 && liftB>=1.1;
+          return {g, r2, hotM:r2.hotM, actual, base, lift: base>0 ? actual/base : 0, liftA, liftB, stable};
         }).filter(Boolean).sort((a,b)=>b.lift-a.lift);
         if(!btRows.length){
           h += '<div class="warn">回测窗口内没有任何组达到过「预测热」门槛（热度≥1.2x），无法评估。</div>';
         }else{
-          h += '<div style="overflow-x:auto"><table style="font-size:11px;width:100%"><tr><th>罗汉组</th><th>Patterns</th><th>预测热月数</th><th>热月实际占比</th><th>理论覆盖</th><th>提升</th><th>判定</th></tr>';
+          h += '<div style="overflow-x:auto"><table style="font-size:11px;width:100%"><tr><th>罗汉组</th><th>Patterns</th><th>预测热月数</th><th>热月实际占比</th><th>理论覆盖</th><th>提升</th><th>前半/后半</th><th>判定</th></tr>';
           btRows.forEach(row => {
-            const v = row.lift>=1.15 ? '<b style="color:#16a34a">🟢 信号有效</b>' : row.lift>=1.0 ? '<b style="color:#d97706">🟡 微弱</b>' : '<b style="color:#dc2626">🔴 假热(噪音)</b>';
+            let v;
+            if(row.lift>=1.15 && row.stable) v = '<b style="color:#16a34a">🟢 信号有效·稳</b>';
+            else if(row.lift>=1.15) v = '<b style="color:#d97706">🟡 有效但不稳</b>';
+            else if(row.lift>=1.0) v = '<b style="color:#d97706">🟡 微弱</b>';
+            else v = '<b style="color:#dc2626">🔴 假热(噪音)</b>';
             const warn2 = row.hotM<6 ? ' <span style="font-size:9px;color:#d97706">⚠️样本少</span>' : '';
+            const hlv = row.liftA!=null ? row.liftA.toFixed(2)+'x / '+row.liftB.toFixed(2)+'x' : '—';
             h += '<tr><td style="font-weight:800;color:#6d28d9;white-space:nowrap">' + row.g.name + '</td>';
             h += '<td style="font-family:monospace;font-size:9.5px">' + row.g.patterns.join(' ') + '</td>';
             h += '<td>' + row.hotM + '月</td><td>' + (row.actual*100).toFixed(1) + '%</td><td>' + (row.base*100).toFixed(1) + '%</td>';
             h += '<td style="font-weight:900;color:' + (row.lift>=1.15?'#16a34a':row.lift>=1.0?'#d97706':'#dc2626') + '">' + row.lift.toFixed(2) + 'x</td>';
+            h += '<td style="font-size:10px;color:' + (row.stable?'#16a34a':'#94a3b8') + '">' + hlv + '</td>';
             h += '<td>' + v + warn2 + '</td></tr>';
           });
           h += '</table></div>';
-          h += '<div style="font-size:10px;color:#64748b;margin-top:5px">💡 用法：只跟「🟢 信号有效」的组的热度；「🔴 假热」的组即使本月显示1.3x热也别当回事。</div>';
+          h += '<div style="font-size:10px;color:#64748b;margin-top:5px">💡 「前半/后半」= 回测月份切两段各自算提升，<b>两段都≥1.1x 才给「🟢 稳」</b>——防止某组只是某一年运气好。只跟「🟢 信号有效·稳」的组。</div>';
+          // ── V68-④: ⑤b 跟单模拟 ──
+          const simRows = btRows.filter(r3 => r3.r2.simM > 0).map(r3 => {
+            const R2 = r3.r2;
+            return {g:r3.g, m:R2.simM, hits:R2.simHits, exp:R2.simExp, hitM:R2.simHitM, lift: R2.simExp>0 ? R2.simHits/R2.simExp : 0};
+          }).sort((a,b)=>b.lift-a.lift);
+          if(simRows.length){
+            h += '<div style="font-size:13px;font-weight:900;color:#1e293b;margin:14px 0 4px">⑤b 跟单模拟 — 热月只买该组「pattern×最爱第4位」候选，历史战绩</div>';
+            h += '<div style="font-size:10px;color:#64748b;margin-bottom:6px">候选构造与第④节相同（伴随位用全史统计近似）。「随机期望」= 乱买同样覆盖面应中的次数。<b>提升&gt;1 = 跟单真的跑赢乱买</b>。</div>';
+            h += '<div style="overflow-x:auto"><table style="font-size:11px;width:100%"><tr><th>罗汉组</th><th>跟单月数</th><th>结构命中</th><th>随机期望</th><th>提升</th><th>至少中1次的月份</th></tr>';
+            simRows.forEach(sr => {
+              const c3 = sr.lift>=1.3?'#16a34a':sr.lift>=1.0?'#d97706':'#dc2626';
+              h += '<tr><td style="font-weight:800;color:#6d28d9;white-space:nowrap">' + sr.g.name + '</td>';
+              h += '<td>' + sr.m + '月</td><td><b>' + sr.hits + '</b> 次</td><td>' + sr.exp.toFixed(1) + ' 次</td>';
+              h += '<td style="font-weight:900;color:' + c3 + '">' + sr.lift.toFixed(2) + 'x</td>';
+              h += '<td>' + Math.round(sr.hitM/sr.m*100) + '%（' + sr.hitM + '/' + sr.m + '）</td></tr>';
+            });
+            h += '</table></div>';
+          }
         }
       }catch(e){ h += '<div class="warn">回测计算出错：' + e.message + '</div>'; }
 
