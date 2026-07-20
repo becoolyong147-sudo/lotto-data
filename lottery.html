@@ -3618,59 +3618,8 @@ function ovRender(){
       }
     }
 
-    // ===== Block C: 工作台摘要 (v62) =====
-    try {
-      const plan = v21BuildPlan(market, 'all', 20);
-      if(plan){
-        const overlapNums = plan.overlap.slice(0,10);
-        const safeTop = plan.safe.slice(0,5);
-        const allNums = [...new Set([...overlapNums.map(c=>c.num), ...safeTop.map(c=>c.num)])];
-        const signalColor = plan.signalScore>=75?'#16a34a':plan.signalScore>=50?'#d97706':'#dc2626';
-        const overlapChips = overlapNums.length
-          ? overlapNums.map(c=>`<span style="display:inline-block;margin:2px;background:#1e3a5f;color:#fff;padding:3px 9px;border-radius:5px;font-family:monospace;font-size:13px;font-weight:700;cursor:pointer" onclick="document.getElementById('qs-num').value='${c.num}';switchScene('decision',document.querySelector('[onclick*=decision]'));switchSubtab(document.querySelector('[data-tab=workbench]'));quickSearch()">${c.num}</span>`).join('')
-          : '<span style="color:#888;font-size:12px">暂无重叠（保守∩激进）</span>';
-        html += `
-          <div class="card" style="background:linear-gradient(135deg,#f0f4fa 0%,#e8f0fe 100%);border:2px solid #3b82f6;margin-bottom:14px">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-              <span style="font-size:15px;font-weight:800;color:#1e3a5f">🧭 工作台摘要 — ${market}</span>
-              <span style="background:${signalColor};color:#fff;padding:2px 10px;border-radius:10px;font-size:12px;font-weight:700">观察指数 ${plan.signalScore}%</span>
-              <span style="margin-left:auto;font-size:11px;color:#64748b">点数均值 ${plan.avg} · ${plan.trend}</span>
-            </div>
-            <div style="margin-bottom:8px">
-              <span style="font-size:11px;font-weight:700;color:#1e3a5f">🎯 保守∩激进重叠（优先关注）</span><br>
-              <div style="margin-top:4px">${overlapChips}</div>
-            </div>
-            ${plan.risk.length ? `<div style="background:#fee2e2;border-radius:6px;padding:7px 10px;font-size:11px;color:#dc2626;margin-bottom:8px"><b>⚠️ 风险：</b>${plan.risk.join(' · ')}</div>` : ''}
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
-              <button class="btn btn-green" onclick="ovAddWorkbenchToPool('${market}')" style="padding:6px 14px;font-size:11px">📋 加入候选清单（重叠号码）</button>
-              <button class="btn" onclick="v21RenderWorkbench();switchScene('decision',document.querySelector('[onclick*=decision]'));switchSubtab(document.querySelector('[data-tab=workbench]'))" style="padding:6px 14px;font-size:11px">🧭 打开完整工作台</button>
-            </div>
-          </div>`;
-      }
-    } catch(e){ console.warn('ovRender workbench block failed:', e); }
-
     out.innerHTML = html;
   }, 30);
-}
-
-function ovAddWorkbenchToPool(market){
-  try {
-    const plan = v21BuildPlan(market, 'all', 20);
-    if(!plan){ alert('工作台数据不足'); return; }
-    const nums = [...new Set([...plan.overlap.map(c=>c.num), ...plan.safe.slice(0,5).map(c=>c.num)])];
-    const pool = cpLoad();
-    if(!pool[market]) pool[market] = [];
-    let added = 0;
-    for(const n of nums){
-      if(!pool[market].some(x=>x.num===n)){
-        pool[market].push({num:n, addedAt:new Date().toISOString().slice(0,10)});
-        added++;
-      }
-    }
-    cpSave(pool);
-    cpRender();
-    showToast(`✅ 已加入 ${added} 个号码到候选清单（${market}）`);
-  } catch(e){ alert('加入失败：' + e.message); }
 }
 
 function ovToggle(blockId){
@@ -7584,12 +7533,27 @@ function doBacktest(){
         <option value="10">10 个</option>
       </select>
     </div>
+    <div class="ig"><label>推荐哪几家公司（可多选）</label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-top:4px" id="zo-mem-markets">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-万能" checked>万能</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-跑马">跑马</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-多多">多多</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-新加坡">新加坡</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-豪龙">豪龙</label>
+      </div>
+    </div>
+    <div class="ig"><label>🚫 已开号</label>
+      <label style="cursor:pointer;display:flex;align-items:center;gap:4px;padding-top:8px;font-size:12px;font-weight:700">
+        <input type="checkbox" id="zo-mem-hide-hit">本月已开的不显示
+      </label>
+    </div>
   </div>
   <div class="row" style="margin-top:10px">
     <div class="ig"><button class="btn btn-red" onclick="zoMemberGen()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
+    <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
     <div class="ig"><label>视频配乐</label><select id="zo-bgm-sel-mem"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
     <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
@@ -8789,18 +8753,6 @@ function quickPointTrend(metric){
   doPointTrend();
 }
 
-// ===== 自动锁范围引擎 V19 =====
-function alSamples(market, prize, range){const rows=getMarketRows(market, range);const idxs=getPrizeIndexes(prize);const samples=[];rows.forEach((r,drawIdx)=>idxs.forEach(pi=>{const num=pz(r.nums[pi]);samples.push({date:r.date,draw:r.draw,prize:pi,num,pts:sumDigits(num),root:digitalRootFromStr(num),perm:permLabel(num),par:shape4Parity(num),size:shape4Size(num),drawIdx});}));return samples;}
-function alCount(arr, keyFn){const o={};arr.forEach(x=>{const k=keyFn(x);o[k]=(o[k]||0)+1});return o;}
-function alTopKeys(o,n){return Object.entries(o).sort((a,b)=>b[1]-a[1]||String(a[0]).localeCompare(String(b[0]))).slice(0,n).map(x=>x[0]);}
-function alGapStats(samples,keyFn){const map={};samples.forEach((x,i)=>{const k=keyFn(x);(map[k]=map[k]||[]).push(i)});const out={};Object.entries(map).forEach(([k,idxs])=>{let avg=null;if(idxs.length>1){const gaps=[];for(let i=0;i<idxs.length-1;i++)gaps.push(idxs[i+1]-idxs[i]);avg=gaps.reduce((a,b)=>a+b,0)/gaps.length;}const curr=idxs[0];out[k]={count:idxs.length,curr,avg,cold:avg?curr/avg:0};});return out;}
-function alScoreCandidate(num, rules, mode){const pts=sumDigits(num), root=digitalRootFromStr(num), perm=permLabel(num), par=shape4Parity(num), size=shape4Size(num);let score=0, hit=[];if(rules.ptsMin<=pts&&pts<=rules.ptsMax){score+=30;hit.push('点数');}if(rules.roots.includes(String(root))){score+=22;hit.push('数根');}if(rules.perms.includes(perm)){score+=20;hit.push('打数');}if(rules.pars.includes(par)){score+=12;hit.push('单双');}if(rules.sizes.includes(size)){score+=12;hit.push('大小');}if(mode==='safe'&&(pts<10||pts>28))score-=8;return {score,hit,pts,root,perm,par,size};}
-function alBuildRules(samples,mode){const recent=samples.slice(0,Math.min(30,samples.length));const ptsCounts=alCount(recent,x=>x.pts),rootCounts=alCount(recent,x=>x.root),permCounts=alCount(recent,x=>x.perm),parCounts=alCount(recent,x=>x.par),sizeCounts=alCount(recent,x=>x.size);const gapPts=alGapStats(samples,x=>x.pts),gapRoot=alGapStats(samples,x=>x.root),gapPerm=alGapStats(samples,x=>x.perm);let ptsList,roots,perms,reason=[];if(mode==='safe'){ptsList=alTopKeys(ptsCounts,5).map(Number).sort((a,b)=>a-b);roots=alTopKeys(rootCounts,3).map(String);perms=alTopKeys(permCounts,2);reason.push('保守：优先最近30样本高频，减少太冷/太偏的条件。');}else{ptsList=Object.entries(gapPts).filter(([k,v])=>v.avg&&v.cold>=1.2).sort((a,b)=>b[1].cold-a[1].cold).slice(0,5).map(([k])=>Number(k));if(ptsList.length<3)ptsList=alTopKeys(ptsCounts,5).map(Number);roots=Object.entries(gapRoot).filter(([k,v])=>v.avg&&v.cold>=1.15).sort((a,b)=>b[1].cold-a[1].cold).slice(0,3).map(([k])=>String(k));if(roots.length<2)roots=alTopKeys(rootCounts,3).map(String);perms=Object.entries(gapPerm).filter(([k,v])=>v.avg&&v.cold>=1.05).sort((a,b)=>b[1].cold-a[1].cold).slice(0,2).map(([k])=>k);if(perms.length<1)perms=alTopKeys(permCounts,2);reason.push('激进：优先超过平均间隔的点数/数根/打数，抓回补。');}const min=Math.max(0,Math.min(...ptsList)-2),max=Math.min(36,Math.max(...ptsList)+2);return {ptsMin:min,ptsMax:max,ptsList,roots,perms,pars:alTopKeys(parCounts,3),sizes:alTopKeys(sizeCounts,3),reason};}
-function alGenerateCandidates(samples,rules,mode,topn){const recentNums=new Set(samples.slice(0,9).map(x=>x.num));const hist=new Set(samples.map(x=>x.num));const arr=[];for(let i=0;i<=9999;i++){const num=String(i).padStart(4,'0');const r=alScoreCandidate(num,rules,mode);if(r.score<50)continue;if(recentNums.has(num))r.score-=25;if(hist.has(num))r.score+=6;arr.push({num,...r,hasHist:hist.has(num)});}return arr.sort((a,b)=>b.score-a.score||a.num.localeCompare(b.num)).slice(0,topn);}
-function alRenderPlan(title,rules,cands){const conf=Math.max(35,Math.min(92,Math.round((cands[0]?.score||55)*0.9)));return `<div class="card"><h3>${title}</h3><div class="g4"><div class="sc"><div class="val">${rules.ptsMin}-${rules.ptsMax}</div><div class="lbl">建议点数</div></div><div class="sc"><div class="val" style="font-size:15px">${rules.roots.map(x=>'根'+x).join(' / ')}</div><div class="lbl">建议数根</div></div><div class="sc"><div class="val" style="font-size:15px">${rules.perms.join(' / ')}</div><div class="lbl">建议打数</div></div><div class="sc"><div class="val">${conf}%</div><div class="lbl">观察指数</div></div></div><div class="st">理由</div><div class="warn">${rules.reason.join('<br>')}<br>单双优先：${rules.pars.join(' / ')}；大小优先：${rules.sizes.join(' / ')}</div><div class="st">候选范围</div><div class="ot"><table><tr><th>#</th><th>号码</th><th>分数</th><th>点数</th><th>数根</th><th>打数</th><th>单双</th><th>大小</th><th>命中条件</th></tr>${cands.map((c,i)=>`<tr><td>${i+1}</td><td><span class="nc nc-sm">${c.num}</span></td><td>${c.score}</td><td>${c.pts}</td><td>${c.root}</td><td>${c.perm}</td><td>${c.par}</td><td>${c.size}</td><td>${c.hit.join('、')}${c.hasHist?'、历史有':'、历史无'}</td></tr>`).join('')}</table></div></div>`;}
-function doAutoLockV19(){const market=document.getElementById('al-market').value,prize=document.getElementById('al-prize').value,range=document.getElementById('al-range').value,topn=parseInt(document.getElementById('al-topn').value,10);const samples=alSamples(market,prize,range);const out=document.getElementById('autolock-result');if(samples.length<20){out.innerHTML='<div class="error">样本太少，至少需要20个样本。</div>';return;}const safeRules=alBuildRules(samples,'safe'),rushRules=alBuildRules(samples,'rush');const safe=alGenerateCandidates(samples,safeRules,'safe',topn),rush=alGenerateCandidates(samples,rushRules,'rush',topn);const safeSet=new Set(safe.map(x=>x.num)),rushSet=new Set(rush.map(x=>x.num));const overlap=[...safeSet].filter(x=>rushSet.has(x));let html=`<div class="card"><h3>保守 vs 激进 对比 — ${market}</h3><div class="g4"><div class="sc"><div class="val">${samples.length}</div><div class="lbl">分析样本</div></div><div class="sc"><div class="val">${safe.length}</div><div class="lbl">保守候选</div></div><div class="sc"><div class="val">${rush.length}</div><div class="lbl">激进候选</div></div><div class="sc"><div class="val">${overlap.length}</div><div class="lbl">重叠号码</div></div></div><div class="warn"><b>解读：</b>重叠号码不是必中，而是两种逻辑都没有排除的范围。重叠少＝走势分歧大；重叠多＝方向较集中。</div><div class="st">重叠观察</div><div>${overlap.length?overlap.slice(0,50).map(n=>'<span class="br" style="margin:2px;display:inline-block">'+n+'</span>').join(' '):'—'}</div></div>`;html+=alRenderPlan('A 保守方案（稳）',safeRules,safe);html+=alRenderPlan('B 激进方案（冲）',rushRules,rush);out.innerHTML=html;}
-
-
 // ===== V20 Scene & Subtab Navigation =====
 let CURRENT_VIEW='freq'; // shape tracker view
 let CURRENT_SCENE='decision';
@@ -9187,107 +9139,6 @@ function switchShapeView(view){
 }
 
 // ===== V22 PRACTICAL LAYER (ported from V21, adapted for V20 nav) =====
-let V21_LAST_PLAN=null;
-function v21PrizeIndexes(prize){return prize==='all'?[0,1,2]:[parseInt(prize,10)||0]}
-function v21AllSamples(market,prize,range='all'){
-  const rows=getMarketRows(market,range); const idxs=v21PrizeIndexes(prize); const out=[];
-  rows.forEach((r,drawIndex)=>idxs.forEach(pi=>{
-    const num=pz(r.nums[pi]);
-    out.push({date:r.date,draw:r.draw,prize:pi,num,pts:sumDigits(num),root:digitalRootFromStr(num),perm:permLabel(num),par:shape4Parity(num),size:shape4Size(num),drawIndex});
-  }));
-  return out;
-}
-function v21HistMap(samples){const m={};samples.forEach(x=>{(m[x.num]=m[x.num]||[]).push(x)});return m}
-function v21CandidateStats(cands,samples){
-  const hm=v21HistMap(samples);
-  return cands.map(c=>{
-    const h=hm[c.num]||[]; const last=h[0]; let score=c.score; let reasons=[...c.hit]; let cuts=[];
-    if(h.length){score+=8;reasons.push('历史出现'+h.length+'次');}else{cuts.push('历史0次：理论推测');score-=6;}
-    if(last){reasons.push('最近 '+last.date+' '+v20PrizeName(last.prize));}
-    if(samples.slice(0,9).some(x=>x.num===c.num)){score-=20;cuts.push('最近3期内出现，降低优先');}
-    if(h.length>=5){score-=6;cuts.push('历史太热，注意重复风险');}
-    return {...c,score:Math.max(0,Math.round(score)),histCount:h.length,last,lastText:last?`${last.date} ${last.draw} ${v20PrizeName(last.prize)}`:'从未',reasons,cuts};
-  }).sort((a,b)=>b.score-a.score||b.histCount-a.histCount||a.num.localeCompare(b.num));
-}
-function v21BuildPlan(market,prize,topn){
-  const samples=v21AllSamples(market,prize,'all'); if(samples.length<20) return null;
-  const safeRules=alBuildRules(samples,'safe'), rushRules=alBuildRules(samples,'rush');
-  let safe=v21CandidateStats(alGenerateCandidates(samples,safeRules,'safe',Math.max(topn*2,60)),samples).slice(0,topn);
-  let rush=v21CandidateStats(alGenerateCandidates(samples,rushRules,'rush',Math.max(topn*2,60)),samples).slice(0,topn);
-  const safeSet=new Set(safe.map(x=>x.num)), rushSet=new Set(rush.map(x=>x.num));
-  const overlapNums=[...safeSet].filter(n=>rushSet.has(n));
-  const allByNum={};[...safe,...rush].forEach(c=>{allByNum[c.num]=allByNum[c.num]?({...c,score:Math.max(c.score,allByNum[c.num].score)+5,reasons:[...new Set([...allByNum[c.num].reasons,...c.reasons,'保守/激进重叠'])]}):c;});
-  let overlap=overlapNums.map(n=>allByNum[n]).sort((a,b)=>b.score-a.score).slice(0,topn);
-  const latest=samples.slice(0,15); const pts=latest.map(x=>x.pts); const avg=pts.reduce((a,b)=>a+b,0)/Math.max(1,pts.length);
-  const trend=pts.length>1?(pts[0]>pts[1]?'上升':pts[0]<pts[1]?'下降':'横盘'):'—';
-  const risk=[]; if(overlap.length<5) risk.push('保守和激进重叠少，方向分歧较大'); if(safe.filter(x=>x.histCount===0).length>safe.length/2) risk.push('历史0次号码偏多，需开启历史过滤'); if(avg>24||avg<12) risk.push('最近点数偏极端，注意回调');
-  const signalScore=Math.max(35,Math.min(92,Math.round(50+overlap.length*2+(risk.length? -8*risk.length:12))));
-  return {market,prize,topn,samples,safeRules,rushRules,safe,rush,overlap,signalScore,trend,avg:avg.toFixed(1),risk};
-}
-function v21RuleHtml(rules){return `<span class="v21-pill">点数 ${rules.ptsMin}-${rules.ptsMax}</span>${rules.roots.map(r=>`<span class="v21-pill">根${r}</span>`).join('')}${rules.perms.map(p=>`<span class="v21-pill">${p}</span>`).join('')}${rules.pars.slice(0,2).map(p=>`<span class="v21-pill">${p}</span>`).join('')}${rules.sizes.slice(0,2).map(p=>`<span class="v21-pill">${p}</span>`).join('')}`}
-function v21RenderCandidateTable(title,cands,limit=20){
-  return `<div class="card"><h3>${title}</h3><div class="ot"><table><tr><th>#</th><th>号码</th><th>评分</th><th>点数</th><th>根</th><th>打数</th><th>单双</th><th>大小</th><th>历史</th><th>理由 / 排除</th></tr>${cands.slice(0,limit).map((c,i)=>`<tr><td>${i+1}</td><td><span class="nc nc-sm">${c.num}</span></td><td><b>${c.score}</b></td><td>${c.pts}</td><td>${c.root}</td><td>${c.perm}</td><td>${c.par}</td><td>${c.size}</td><td><span class="v21-pill ${c.histCount?'v21-hist':'v21-zero'}">${c.histCount?c.histCount+'次':'0次'}</span><br><span style="font-size:10px;color:#777">${c.lastText}</span></td><td><div>${c.reasons.slice(0,5).join('、')}</div>${c.cuts.length?`<div class="v21-cut">${c.cuts.join('<br>')}</div>`:''}</td></tr>`).join('')}</table></div></div>`;
-}
-function v21RenderWorkbench(){
-  const market=(document.getElementById('wb-market')||{}).value||'万能';
-  const prize=(document.getElementById('wb-prize')||{}).value||'all';
-  const topn=parseInt((document.getElementById('wb-topn')||{}).value||'20',10);
-  const plan=v21BuildPlan(market,prize,topn);
-  const box=document.getElementById('v21-workbench-result');
-  if(!box) return;
-  if(!plan){box.innerHTML='<div class="error">样本不足，不能生成工作台。</div>';return;}
-  V21_LAST_PLAN=plan;
-  const rows=(DB[market]||[]).slice(0,5);
-  const recentHtml=`<div class="card"><h3>📅 当前最近5期 — ${market}</h3><div class="wb-grid">${rows.map(r=>`<div class="sc"><div class="val">${r.draw}</div><div class="lbl">${r.date}</div><div style="margin-top:5px">${r.nums.map(n=>`<span class="nc nc-sm">${n}</span>`).join(' ')}</div><div class="lbl">点数 ${r.nums.map(n=>sumDigits(n)).join('/')}</div><div class="lbl">打数 ${r.nums.map(n=>permLabel(n)).join('/')}</div></div>`).join('')}</div></div>`;
-  const signalHtml=`<div class="card"><h3>📡 当前信号</h3><div class="v21-signal"><div class="v21-box"><h4>观察指数</h4><div class="v21-score">${plan.signalScore}%</div><div class="v16-mini">${plan.signalScore>=75?'可观察':'谨慎观察'}</div></div><div class="v21-box"><h4>最近点数均值</h4><div class="v21-score">${plan.avg}</div><div class="v16-mini">最新走势：${plan.trend}</div></div><div class="v21-box"><h4>保守范围</h4>${v21RuleHtml(plan.safeRules)}</div><div class="v21-box"><h4>激进范围</h4>${v21RuleHtml(plan.rushRules)}</div></div>${plan.risk.length?`<div class="error"><b>风险：</b><br>${plan.risk.join('<br>')}</div>`:`<div class="success">暂无明显冲突。重点看保守/激进重叠号码，再用历史次数排除。</div>`}</div>`;
-  const overlapHtml=`<div class="card"><h3>🎯 推荐摘要</h3><div class="g4"><div class="sc"><div class="val">${plan.safe.length}</div><div class="lbl">保守候选</div></div><div class="sc"><div class="val">${plan.rush.length}</div><div class="lbl">激进候选</div></div><div class="sc"><div class="val">${plan.overlap.length}</div><div class="lbl">重叠号码</div></div><div class="sc"><div class="val">${plan.overlap.filter(x=>x.histCount>0).length}</div><div class="lbl">重叠且历史有</div></div></div><div class="st">优先观察：保守∩激进</div><div>${plan.overlap.length?plan.overlap.map(c=>`<span class="br" style="display:inline-block;margin:2px">${c.num}｜${c.score}分｜${c.histCount?c.histCount+'次':'0次'}</span>`).join(' '):'—'}</div><div class="warn">规则：先信范围，再质疑号码；历史0次可以留作激进观察，但不要混成保守主力。</div></div>`;
-  box.innerHTML=recentHtml+signalHtml+overlapHtml+v21RenderCandidateTable('A 保守推荐号码（优先历史验证）',plan.safe,topn)+v21RenderCandidateTable('B 激进推荐号码（允许理论推测）',plan.rush,topn);
-  v21RenderSnapshots();
-}
-function v21SnapshotKey(){return 'lottery_v21_strategy_snapshots'}
-function v21LoadSnapshots(){try{return JSON.parse(localStorage.getItem(v21SnapshotKey())||'[]')}catch(e){return []}}
-function v21SaveSnapshots(arr){localStorage.setItem(v21SnapshotKey(),JSON.stringify(arr))}
-function v21SaveSnapshotFromWorkbench(){
-  if(!V21_LAST_PLAN) v21RenderWorkbench();
-  const p=V21_LAST_PLAN; if(!p){alert('没有可保存的策略');return;}
-  const nums=[...new Set([...p.overlap.map(x=>x.num),...p.safe.slice(0,10).map(x=>x.num)])].slice(0,30);
-  const snap={id:Date.now(),created:new Date().toISOString().slice(0,19).replace('T',' '),market:p.market,prize:p.prize,nums,range:{safe:{pts:`${p.safeRules.ptsMin}-${p.safeRules.ptsMax}`,roots:p.safeRules.roots,perms:p.safeRules.perms},rush:{pts:`${p.rushRules.ptsMin}-${p.rushRules.ptsMax}`,roots:p.rushRules.roots,perms:p.rushRules.perms}},score:p.signalScore};
-  const arr=v21LoadSnapshots(); arr.unshift(snap); v21SaveSnapshots(arr.slice(0,100)); v21RenderSnapshots(); alert('已保存本期策略快照');
-}
-function v21EvaluateSnapshot(snap){
-  const rows=DB[snap.market]||[]; const createdDate=snap.created.slice(0,10); const candidates=new Set(snap.nums); const hits=[];
-  // v61修复：只评估保存日期之后的第1期开奖，避免命中率虚高
-  const futureRows=rows.filter(r=>r.date>createdDate);
-  if(!futureRows.length) return hits;
-  const nextDraw=futureRows[futureRows.length-1]; // rows newest-first，最后一个=最近一期未来开奖
-  nextDraw.nums.forEach((n,i)=>{ if(candidates.has(pz(n))) hits.push({date:nextDraw.date,draw:nextDraw.draw,num:pz(n),prize:i}); });
-  return hits;
-}
-function v21RenderSnapshots(){
-  const box=document.getElementById('v21-snapshot-result'); if(!box) return; const arr=v21LoadSnapshots();
-  if(!arr.length){box.innerHTML='<div class="warn">还没有策略快照。先在工作台生成推荐，然后点「保存本期策略」。</div>';return;}
-  let total=arr.length, hitN=0;
-  const rows=arr.map(s=>{const hits=v21EvaluateSnapshot(s); if(hits.length) hitN++; return `<div class="v21-snap-row"><b>${s.created}｜${s.market}｜${s.prize==='all'?'头二三':v20PrizeName(parseInt(s.prize,10))}</b><br><span class="v21-pill">观察指数 ${s.score}%</span><span class="v21-pill">号码 ${s.nums.length}组</span><span class="v21-pill ${hits.length?'v21-hist':'v21-zero'}">${hits.length?'命中 '+hits.length:'未命中'}</span><div class="v16-mini">保守：点数${s.range.safe.pts}｜根${s.range.safe.roots.join('/')}｜${s.range.safe.perms.join('/')}　激进：点数${s.range.rush.pts}｜根${s.range.rush.roots.join('/')}｜${s.range.rush.perms.join('/')}</div><div style="margin-top:5px">${s.nums.slice(0,30).map(n=>`<span class="nc nc-sm" style="margin:2px">${n}</span>`).join(' ')}</div>${hits.length?`<div class="success">命中：${hits.map(h=>`${h.date} ${h.draw} ${v20PrizeName(h.prize)} ${h.num}`).join('｜')}</div>`:''}</div>`}).join('');
-  box.innerHTML=`<div class="g3"><div class="sc"><div class="val">${total}</div><div class="lbl">已保存策略</div></div><div class="sc"><div class="val">${hitN}</div><div class="lbl">有命中策略</div></div><div class="sc"><div class="val">${(hitN/total*100).toFixed(1)}%</div><div class="lbl">策略命中率</div></div></div>${rows}`;
-}
-function v21ClearSnapshots(){if(confirm('确定清空所有策略快照？')){localStorage.removeItem(v21SnapshotKey());v21RenderSnapshots()}}
-
-// Override doAutoLockV19 to add V21 history-scoring layer
-const V22_BASE_AUTOLOCK = doAutoLockV19;
-doAutoLockV19=function(){
-  V22_BASE_AUTOLOCK();
-  const market=document.getElementById('al-market').value;
-  const prize=document.getElementById('al-prize').value;
-  const topn=parseInt(document.getElementById('al-topn').value,10)||20;
-  const plan=v21BuildPlan(market,prize,topn); if(!plan) return; V21_LAST_PLAN=plan;
-  const out=document.getElementById('autolock-result');
-  const extra=`<div class="card"><h3>🔬 V22 实战增强 — 推测范围 + 历史评分</h3><div class="row"><button class="btn btn-green" onclick="v21SaveSnapshotFromWorkbench()">📌 保存这次策略快照</button><button class="btn" onclick="v21RenderWorkbench();switchTab('workbench')">🧭 同步到工作台</button></div><div class="g2" style="margin-top:8px"><div class="v21-box"><h4>A 保守推测范围</h4>${v21RuleHtml(plan.safeRules)}</div><div class="v21-box"><h4>B 激进推测范围</h4>${v21RuleHtml(plan.rushRules)}</div></div><div class="warn">历史出现过 = 有过去样本支撑；历史0次 = 理论符合，不代表不能出，但风险必须分开看。</div></div>`;
-  out.innerHTML=extra+v21RenderCandidateTable('保守推荐：历史优先',plan.safe,topn)+v21RenderCandidateTable('激进推荐：含理论推测',plan.rush,topn)+out.innerHTML;
-};
-
-// Auto-render workbench on first visit (deferred so DOM is ready)
-setTimeout(()=>{try{v21RenderWorkbench()}catch(e){console.warn('V22 workbench init',e)}},900);
-
 // ============================================================================
 // V23 STRATEGY LAB — 6-step methodology engine + backtest + named strategies
 // ============================================================================
@@ -11861,8 +11712,8 @@ function zoEvidenceTags(c, month, refYear, rohanInfo){
   }
   return parts.join(' · ');
 }
-function zoMemberGen(){
-  const market = document.getElementById('zo-market').value;
+function zoMemberGen(marketOverride, append){
+  const market = marketOverride || document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
   const out = document.getElementById('zo-member-result');
   const main = zoMarketStats(market);
@@ -11876,7 +11727,19 @@ function zoMemberGen(){
   const refYear = new Date().getFullYear();
   const pool = zoBuildPool(market, month, main);
   if(!pool.length){ out.innerHTML = '<div class="error">该月暂无候选号码。</div>'; return; }
-  const sorted = pool.slice().sort((a,b) => zoScore(b) - zoScore(a));
+  // V67-①: 本月已开号（调字组级）→ 供标注/过滤/降星
+  const ymNow = refYear + '-' + String(month).padStart(2,'0');
+  const monthHitMap = {};
+  (DB[market]||[]).forEach(r => {
+    if(!r.date || !r.date.startsWith(ymNow) || r.date.endsWith('-00')) return;
+    r.nums.forEach((n,pi) => { if(n==null||n==='') return; const k = seaPermKey(n);
+      if(!monthHitMap[k]) monthHitMap[k] = {date:r.date, num:pz(n), prize:['头','二','三'][pi]}; });
+  });
+  const hideHit = !!(document.getElementById('zo-mem-hide-hit')||{}).checked;
+  let poolUse = pool;
+  if(hideHit) poolUse = pool.filter(c => !monthHitMap[c.key]);
+  if(!poolUse.length){ poolUse = pool; }   // 全被过滤则退回全量，免得空名单
+  const sorted = poolUse.slice().sort((a,b) => zoScore(b) - zoScore(a));
   const star = sorted[0];
   // 罗汉月份热度统计
   const rohanStat = zoRohanMonthStat(market);
@@ -17097,99 +16960,6 @@ function clearDemoData(){
   document.getElementById('data-count').textContent = `历史${total}期`;
   msg.innerHTML = `<div class="success">✅ 已清除 ${removed} 条演示成绩。</div>`;
 }
-
-// ===== V45: SNAPSHOT DASHBOARD UPGRADE =====
-// Override v21RenderSnapshots with a richer dashboard version
-const _v21RenderSnapshotsBase = v21RenderSnapshots;
-v21RenderSnapshots = function(){
-  const box = document.getElementById('v21-snapshot-result');
-  if(!box) return;
-  const arr = v21LoadSnapshots();
-  if(!arr.length){
-    box.innerHTML = '<div class="warn">还没有策略快照。在工作台生成推荐后点「📌 保存本期策略」。</div>';
-    return;
-  }
-
-  // Compute stats
-  let totalHit=0, totalMiss=0;
-  const byMarket = {};
-  const timeline = []; // {date, hit}
-
-  const evaluated = arr.map(s=>{
-    const hits = v21EvaluateSnapshot(s);
-    const hit = hits.length > 0;
-    if(hit) totalHit++; else totalMiss++;
-    if(!byMarket[s.market]) byMarket[s.market]={hit:0,miss:0};
-    hit ? byMarket[s.market].hit++ : byMarket[s.market].miss++;
-    timeline.push({date:s.created.slice(0,10), hit});
-    return {s, hits, hit};
-  });
-
-  const total = arr.length;
-  const hitRate = total ? (totalHit/total*100).toFixed(1) : 0;
-  const rateColor = hitRate>=50?'#16a34a':hitRate>=30?'#d97706':'#dc2626';
-
-  // Build sparkline (last 20 snapshots, newest right)
-  const spark = evaluated.slice(0,20).reverse();
-  const sparkHtml = spark.map(({hit})=>
-    `<span style="display:inline-block;width:14px;height:24px;background:${hit?'#16a34a':'#e5e7eb'};border-radius:3px;margin:1px" title="${hit?'命中':'未命中'}"></span>`
-  ).join('');
-
-  // Market breakdown
-  const mktRows = Object.entries(byMarket).map(([m,v])=>{
-    const r = (v.hit/(v.hit+v.miss)*100).toFixed(0);
-    const bar = `<div style="height:6px;background:#1e3a5f;border-radius:3px;width:${r}%;min-width:4px"></div>`;
-    return `<tr><td><span class="by">${m}</span></td><td>${v.hit+v.miss}</td><td style="color:#16a34a;font-weight:700">${v.hit}</td><td><div style="display:flex;align-items:center;gap:6px">${bar}<span>${r}%</span></div></td></tr>`;
-  }).join('');
-
-  // Snapshot rows
-  const snapRows = evaluated.map(({s,hits,hit})=>`
-    <div style="background:${hit?'#f0fdf4':'#fff'};border:1px solid ${hit?'#86efac':'#e4e4dc'};border-radius:8px;padding:10px;margin-bottom:6px">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
-        <div style="font-size:12px;font-weight:700;color:#1e3a5f">${s.created} · ${s.market} · ${s.prize==='all'?'头二三':v20PrizeName(parseInt(s.prize,10))}</div>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span class="bb">观察 ${s.score}%</span>
-          <span class="bb">${s.nums.length}组号码</span>
-          <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:${hit?'#dcfce7':'#fee2e2'};color:${hit?'#166534':'#991b1b'}">${hit?`✅ 命中 ${hits.length}次`:'❌ 未命中'}</span>
-        </div>
-      </div>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px">
-        ${s.nums.slice(0,20).map(n=>`<span class="nc nc-sm">${n}</span>`).join('')}
-        ${s.nums.length>20?`<span style="color:#888;font-size:11px">+${s.nums.length-20}个</span>`:''}
-      </div>
-      ${hits.length?`<div class="success" style="margin-top:6px;padding:5px 8px;font-size:11px">命中：${hits.map(h=>`${h.date} ${v20PrizeName(h.prize)} <b>${h.num}</b>`).join(' · ')}</div>`:''}
-    </div>`).join('');
-
-  box.innerHTML = `
-    <!-- KPI Row -->
-    <div class="g3" style="margin-bottom:12px">
-      <div class="sc"><div class="val">${total}</div><div class="lbl">策略快照数</div></div>
-      <div class="sc"><div class="val" style="color:${rateColor}">${hitRate}%</div><div class="lbl">命中率</div></div>
-      <div class="sc"><div class="val" style="color:#16a34a">${totalHit}</div><div class="lbl">有命中</div></div>
-    </div>
-
-    <!-- Sparkline -->
-    <div style="background:#f8f8f4;border-radius:8px;padding:10px;margin-bottom:12px">
-      <div style="font-size:11px;color:#666;margin-bottom:6px;font-weight:600">📈 命中走势（最近20次，左旧右新）</div>
-      <div style="display:flex;align-items:flex-end;gap:2px">${sparkHtml}</div>
-      <div style="font-size:10px;color:#aaa;margin-top:4px">🟩 命中　⬜ 未命中</div>
-    </div>
-
-    <!-- Market breakdown -->
-    ${Object.keys(byMarket).length>1?`
-    <div style="background:#f8f8f4;border-radius:8px;padding:10px;margin-bottom:12px">
-      <div style="font-size:11px;color:#666;margin-bottom:8px;font-weight:600">📊 各市场命中率</div>
-      <table style="font-size:12px">
-        <tr><th>市场</th><th>总快照</th><th>命中</th><th>命中率</th></tr>
-        ${mktRows}
-      </table>
-    </div>`:''}
-
-    <!-- Individual snapshots -->
-    <div style="font-size:11px;color:#666;font-weight:600;margin-bottom:6px">📋 所有策略快照（共 ${total} 个）</div>
-    ${snapRows}
-  `;
-};
 
 // ===== V45: MOBILE UI IMPROVEMENTS =====
 // Inject additional mobile-friendly CSS
