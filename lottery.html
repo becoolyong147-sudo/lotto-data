@@ -7549,7 +7549,7 @@ function doBacktest(){
     </div>
   </div>
   <div class="row" style="margin-top:10px">
-    <div class="ig"><button class="btn btn-red" onclick="zoMemberGen()">💎 生成会员版名单</button></div>
+    <div class="ig"><button class="btn btn-red" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
@@ -11712,6 +11712,51 @@ function zoEvidenceTags(c, month, refYear, rohanInfo){
   }
   return parts.join(' · ');
 }
+// ===== V67: 会员版升级 — 真实信心星级 / 本月已开 / 多公司 =====
+let ZO_MEM_ALL = [];
+// 信心星级：按真实证据强度评分，而不是"排第几名"
+// 证据：当月历史次数 · 集中度 · 跨市场共识 · 罗汉共振 · 近期同月开过 · 超期未开
+function zoMemConfStars(c, refYear, demoted, alreadyHit){
+  let s = 1;
+  if(c.monthHits >= 2) s += 1;
+  if(c.monthHits >= 4) s += 1;
+  if(c.consensus >= 2) s += 1;
+  if(c.consensus >= 4) s += 0.5;
+  if(c.conc >= 2) s += 0.5;
+  if(c.rohanScore >= 0.8) s += 0.5;
+  if(c.coldRatio >= 1.5) s += 0.5;                        // 超期未开，轮空久了
+  if(c.monthLast && refYear){
+    const ago = refYear - parseInt(c.monthLast.slice(0,4),10);
+    if(ago <= 1) s += 1; else if(ago <= 2) s += 0.5;
+  }
+  let n = Math.round(s);
+  if(demoted) n = Math.min(n, 2);                          // 降级补位封顶2星
+  if(alreadyHit) n = n - 2;                                // 本月已开，跟进价值大减
+  return Math.max(1, Math.min(5, n));
+}
+// 生成多家公司的会员名单（主入口）
+function zoMemberGenAll(){
+  const MK = ['万能','跑马','多多','新加坡','豪龙'];
+  const sel = MK.filter(m => { const el = document.getElementById('zo-mem-mk-'+m); return el && el.checked; });
+  const out = document.getElementById('zo-member-result');
+  if(!sel.length){ out.innerHTML = '<div class="error">请至少勾选一家公司。</div>'; return; }
+  ZO_MEM_ALL = [];
+  sel.forEach((mk, i) => { try{ zoMemberGen(mk, i > 0); }catch(e){ console.warn('会员名单生成失败', mk, e); } });
+  // 填充「图/视频导出哪家」下拉
+  const ex = document.getElementById('zo-mem-export-mk');
+  if(ex){
+    ex.innerHTML = ZO_MEM_ALL.map(function(M){ return '<option value="'+M.market+'">'+M.market+'</option>'; }).join('');
+    if(ZO_MEM_ALL.length) ex.value = ZO_MEM_ALL[0].market;
+  }
+  zoMemSetExportMarket();
+}
+// 切换图/视频导出的市场：把 ZO_MEM 指到对应那家
+function zoMemSetExportMarket(){
+  const ex = document.getElementById('zo-mem-export-mk');
+  if(!ex || !ZO_MEM_ALL.length) return;
+  const M = ZO_MEM_ALL.find(function(x){ return x.market === ex.value; }) || ZO_MEM_ALL[0];
+  ZO_MEM = M;
+}
 function zoMemberGen(marketOverride, append){
   const market = marketOverride || document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
@@ -11758,14 +11803,18 @@ function zoMemberGen(marketOverride, append){
       groupConf[da] = topN;
     }
   });
-  // 星级 = 组内推荐强度（第1名5星、2~3名4星、4名起3星；降级补位一律2星），主打号恒5星
+  // V67-③: 星级改「真实信心」——按证据强度算，不再按组内名次发星
   selDa.forEach(da => {
     groups[da].forEach((c,i) => {
-      c.stars = i >= groupConf[da] ? 2 : (i === 0 ? 5 : i <= 2 ? 4 : 3);
+      c.hit = monthHitMap[c.key] || null;                       // 本月已开信息
+      c.stars = zoMemConfStars(c, refYear, i >= groupConf[da], !!c.hit);
     });
   });
-  star.stars = 5;
-  ZO_MEM = {market, month, star, groups, groupConf, selDa, refYear, draws:main.draws};
+  star.hit = monthHitMap[star.key] || null;
+  star.stars = zoMemConfStars(star, refYear, false, !!star.hit);
+  ZO_MEM = {market, month, star, groups, groupConf, selDa, refYear, draws:main.draws, hideHit};
+  if(!ZO_MEM_ALL || !append) ZO_MEM_ALL = [];   // let 声明不挂 window，必须直接引用
+  ZO_MEM_ALL.push(ZO_MEM);
 
   // ===== 渲染会员卡（K星盘暗夜风）=====
   let h = '<style>.zo-tw{animation:zoTw 2.5s ease-in-out infinite}@keyframes zoTw{0%,100%{opacity:.25}50%{opacity:1}}</style>';
@@ -11830,6 +11879,7 @@ function zoMemberGen(marketOverride, append){
       const rowHeat = zoMemHeatBadge(c);
       h += '<span style="font-size:9px;font-weight:800;color:' + rowHeat.col + ';border:1px solid ' + rowHeat.col + '55;border-radius:4px;padding:1px 5px">' + rowHeat.t + '</span>';
       if(isRef && isHighConf) h += '<span style="background:#16a34a;color:#fff;font-size:9px;font-weight:900;border-radius:3px;padding:1px 6px;margin-left:4px">✓ 精选</span>';
+      if(c.hit) h += '<span style="background:#d97706;color:#fff;font-size:9px;font-weight:900;border-radius:3px;padding:1px 5px" title="本月已开出，跟进价值降低">⚠️ ' + c.hit.date.slice(5) + '已开' + c.hit.num + '(' + c.hit.prize + ')</span>';
       if(isDemotion) h += '<span style="background:#64748b;color:#fff;font-size:9px;font-weight:700;border-radius:3px;padding:1px 6px;margin-left:4px">参考</span>';
       h += '<span style="margin-left:auto;font-size:10px;font-weight:700;color:' + info.color + '">' + da + '打</span>';
       h += '</div>';
@@ -11847,7 +11897,7 @@ function zoMemberGen(marketOverride, append){
 
   h += '<div style="text-align:center;font-size:9.5px;color:#6366f1;padding:8px 10px 12px;border-top:1px solid rgba(67,56,202,.35);margin-top:8px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
   h += '</div>';
-  out.innerHTML = h;
+  if(append) out.innerHTML += h; else out.innerHTML = h;
   ['zo-mem-copy','zo-mem-png','zo-mem-vid'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
 }
 // ===== 名词解释（中/英/马三语，复制后直接发会员群）=====
@@ -11900,9 +11950,18 @@ function zoMemGlossCopy(lang, btn){
     navigator.clipboard.writeText(txt).then(done).catch(() => { zoCopyFallback(txt); done(); });
   } else { zoCopyFallback(txt); done(); }
 }
+// V67-④: 复制话术 = 全部已生成公司（多家一次发给会员）
 function zoMemberCopy(){
   if(!ZO_MEM) return;
-  const M = ZO_MEM;
+  const list = (ZO_MEM_ALL && ZO_MEM_ALL.length) ? ZO_MEM_ALL : [ZO_MEM];
+  const all = list.map(function(M){ return zoMemberCopyOne(M); }).join('\n\n──────────\n\n');
+  const btn = document.getElementById('zo-mem-copy');
+  const done = function(){ if(btn){ btn.textContent = '✅ 已复制' + (list.length>1 ? (' '+list.length+'家') : ''); setTimeout(function(){btn.textContent='📋 复制会员话术';},1600); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(all).then(done).catch(function(){ zoCopyFallback(all); done(); });
+  } else { zoCopyFallback(all); done(); }
+}
+function zoMemberCopyOne(M){
   const refYear = M.refYear || new Date().getFullYear();
   let txt = '💎💎 ' + M.month + '月会员专享旺号 · ' + M.market + ' ' + (ZO_MKT_EN[M.market]||'') + ' 💎💎\n';
   txt += '🔥 本月综合最强主打：' + M.star.num + ' ' + ZO_LIST[M.star.zi].emoji + ZO_STR.zh.zodiacNames[M.star.zi] + ' ' + zoMemStarsTxt(M.star) + '\n';
@@ -11920,6 +11979,9 @@ function zoMemberCopy(){
     });
   });
   txt += '\n⚠️ 历史统计整理，不构成预测 · 月底公开复盘\n（会员专享内容，请勿外传 🙏）';
+  return txt;
+}
+function _zoMemberCopyLegacyTail(txt){
   const btn = document.getElementById('zo-mem-copy');
   const done = () => { if(btn){ btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制会员话术'; }, 1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){
