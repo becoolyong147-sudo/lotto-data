@@ -18283,25 +18283,65 @@ function nsRenderSingle(records, dateLabel, warn){
   return html;
 }
 
+function nsVerticalGrid(items){
+  if(!items.length) return '<div style="color:#aaa;font-size:11px;text-align:center;padding:10px">暂无</div>';
+  var html = '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:32px;gap:3px">';
+  items.forEach(function(it){
+    var badge = it.prize===0?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:10px;font-weight:900;color:#7a5000">①</div>'
+      :it.prize===1?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:10px;font-weight:900;color:#17202b">②</div>'
+      :it.prize===2?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:10px;font-weight:900;color:#fff">③</div>'
+      :'<div style="width:22px;height:22px"></div>';
+    html += '<div style="display:grid;gap:2px;justify-items:center">'+badge;
+    Array.from(it.sorted).forEach(function(d){
+      html += '<div style="width:28px;height:28px;display:grid;place-items:center;border:1px solid #ddd;border-radius:6px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:16px;font-weight:800">'+d+'</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
 function nsRenderCompare(periods){
-  var groupKeys = SRT_ORDER.slice(0,9); // 1-9
-  var html = '<div class="card"><h3>组合数量对比 · '+periods.length+' 期</h3><div class="ot"><table>';
+  var html = '';
+  // Per-period vertical digit display
+  periods.forEach(function(p){
+    var items = p.records.map(function(r,idx){ return Object.assign({},r,{sorted:srtSort(r.raw),idx:idx}); });
+    var groups = {};
+    SRT_ORDER.forEach(function(k){ groups[k]=[]; });
+    items.forEach(function(it){ groups[it.sorted[0]].push(it); });
+    Object.values(groups).forEach(function(arr){ arr.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; }); });
+    var activeGroups = SRT_ORDER.filter(function(k){ return groups[k].length; });
+
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">'+items.length+' 个号码 · '+activeGroups.length+' 组</span></h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
+    SRT_ORDER.forEach(function(key){
+      var arr = groups[key];
+      html += '<div style="border:1px solid '+(arr.length?'#e4e4dc':'#f0f0e8')+';border-radius:8px;padding:6px;'+(arr.length?'':'opacity:.4')+'">';
+      html += '<div style="text-align:center;margin-bottom:4px"><span style="display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#1e3a5f;color:#fff;font-size:13px;font-weight:700">'+key+'</span> <span style="font-size:10px;color:#888">'+arr.length+'</span></div>';
+      html += nsVerticalGrid(arr);
+      if(arr.length){
+        html += '<div style="font-size:9px;color:#999;margin-top:4px;text-align:center;overflow-wrap:anywhere">'+arr.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  // Summary count table
+  var groupKeys = SRT_ORDER;
+  html += '<div class="card"><h3>组合数量汇总 · '+periods.length+' 期</h3><div class="ot"><table>';
   html += '<tr><th>日期</th>';
-  groupKeys.forEach(function(k){ html += '<th>'+k+'组</th>'; });
-  html += '<th>含0</th><th>合计</th></tr>';
-  var totals = {}; groupKeys.forEach(function(k){totals[k]=0;}); totals['0']=0;
+  groupKeys.forEach(function(k){ html += '<th>'+k+'</th>'; });
+  html += '<th>合计</th></tr>';
+  var totals = {}; groupKeys.forEach(function(k){totals[k]=0;});
   periods.forEach(function(p){
     var counts = {}; SRT_ORDER.forEach(function(k){counts[k]=0;});
     p.records.forEach(function(r){ var s=srtSort(r.raw); counts[s[0]]++; });
     html += '<tr><td>'+p.date+'</td>';
-    groupKeys.forEach(function(k){ html += '<td>'+(counts[k]||'-')+'</td>'; totals[k]+=counts[k]; });
-    html += '<td>'+(counts['0']||'-')+'</td>';
-    totals['0']+=counts['0'];
+    groupKeys.forEach(function(k){ html += '<td style="'+(counts[k]?'font-weight:700;color:#1e3a5f':'')+'">'+(counts[k]||'-')+'</td>'; totals[k]+=counts[k]; });
     html += '<td>'+p.records.length+'</td></tr>';
   });
   html += '<tr style="font-weight:700;background:#f0f4fa"><td>合计</td>';
   groupKeys.forEach(function(k){ html += '<td>'+totals[k]+'</td>'; });
-  html += '<td>'+totals['0']+'</td>';
   html += '<td>'+periods.reduce(function(a,p){return a+p.records.length;},0)+'</td></tr>';
   html += '</table></div></div>';
   // Prize tracking
@@ -18322,31 +18362,46 @@ function nsRenderCompare(periods){
 
 function nsRenderAggregate(periods){
   var allItems = [];
-  periods.forEach(function(p){ p.records.forEach(function(r){ allItems.push({raw:r.raw, sorted:srtSort(r.raw), date:p.date}); }); });
-  var html = '<div class="card"><div class="g3">';
+  periods.forEach(function(p){ p.records.forEach(function(r){ allItems.push({raw:r.raw, sorted:srtSort(r.raw), date:p.date, prize:r.prize}); }); });
+  var html = '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
   html += '<div class="sc"><div class="val">'+allItems.length+'</div><div class="lbl">号码总数</div></div>';
+  var activeGroups = SRT_ORDER.filter(function(k){ return allItems.some(function(it){return it.sorted[0]===k;}); });
+  html += '<div class="sc"><div class="val">'+activeGroups.length+'</div><div class="lbl">有号码的组</div></div>';
   html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
   html += '</div></div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  // Vertical digit columns per group
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   SRT_ORDER.forEach(function(key){
     var items = allItems.filter(function(it){return it.sorted[0]===key;});
-    var freq = {};
-    items.forEach(function(it){
-      if(!freq[it.sorted]) freq[it.sorted]={count:0, dates:[]};
-      freq[it.sorted].count++;
-      if(freq[it.sorted].dates.indexOf(it.date)<0) freq[it.sorted].dates.push(it.date);
-    });
-    var sorted = Object.entries(freq).sort(function(a,b){return b[1].count-a[1].count || srtCmp(a[0],b[0]);});
-    html += '<div class="card"><h3 style="display:flex;justify-content:space-between">'+key+'组合 <span style="color:#888;font-size:10px;font-weight:400">'+items.length+' 次</span></h3>';
-    if(!sorted.length) html += '<div style="color:#aaa;font-size:11px">暂无</div>';
-    else {
-      html += '<div style="max-height:200px;overflow:auto">';
+    items.sort(function(a,b){ return srtCmp(a.sorted,b.sorted); });
+    var isEmpty = !items.length;
+    html += '<div class="card" style="'+(isEmpty?'opacity:.5':'')+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
+    html += '<span style="font-size:11px;color:#888">'+items.length+' 个号码</span></div>';
+    html += nsVerticalGrid(items);
+    if(items.length){
+      // Frequency breakdown
+      var freq = {};
+      items.forEach(function(it){
+        if(!freq[it.sorted]) freq[it.sorted]={count:0, dates:[]};
+        freq[it.sorted].count++;
+        if(freq[it.sorted].dates.indexOf(it.date)<0) freq[it.sorted].dates.push(it.date);
+      });
+      var sorted = Object.entries(freq).sort(function(a,b){return b[1].count-a[1].count || srtCmp(a[0],b[0]);});
+      html += '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e4e4dc;font-size:10px;color:#888;line-height:1.8;overflow-wrap:anywhere">';
       sorted.forEach(function(entry){
-        html += '<div style="display:flex;justify-content:space-between;gap:6px;padding:4px 6px;border-bottom:1px solid #f0f0e8;font-size:11px">';
-        html += '<span>'+entry[0]+'</span><span style="color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="'+entry[1].dates.join(', ')+'">'+entry[1].dates.slice(0,3).join(', ')+(entry[1].dates.length>3?'...':'')+'</span><b style="color:#b45309">×'+entry[1].count+'</b></div>';
+        var pct = Math.round(entry[1].count/items.length*100);
+        html += '<div style="display:flex;align-items:center;gap:4px"><b style="color:#333;min-width:36px">'+entry[0]+'</b>';
+        html += '<div style="flex:1;height:10px;background:#f0f0e8;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:4px"></div></div>';
+        html += '<span style="min-width:46px;text-align:right">×'+entry[1].count+' <span style="color:#aaa">'+pct+'%</span></span></div>';
       });
       html += '</div>';
+      // Original mapping
+      html += '<div style="margin-top:4px;font-size:9px;color:#aaa;overflow-wrap:anywhere">'+items.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
+    } else {
+      html += '<div style="text-align:center;padding:16px 0;color:#aaa;font-size:12px">暂无号码</div>';
     }
     html += '</div>';
   });
@@ -18446,10 +18501,48 @@ function lhRenderSingle(records, dateLabel, warn){
 }
 
 function lhRenderCompare(periods){
-  var html = '<div class="card"><h3>十八罗汉 · '+periods.length+' 期对比</h3><div class="ot"><table>';
+  var html = '';
+  // Per-period detail cards
+  periods.forEach(function(p){
+    var analyzed = p.records.map(function(r){return Object.assign({},r,{hits:lhMatch(r.raw), sorted:srtSort(r.raw)});});
+    var counts = Array(18).fill(0);
+    analyzed.forEach(function(a){a.hits.forEach(function(h){counts[h.index-1]++;});});
+    var hitCount = analyzed.filter(function(a){return a.hits.length;}).length;
+    var activeLH = counts.filter(Boolean).length;
+
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">命中 '+hitCount+'/'+p.records.length+' · 罗汉 '+activeLH+'/18</span></h3>';
+    // Vertical digit columns with luohan badges
+    html += '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:auto;gap:6px">';
+    analyzed.forEach(function(a){
+      var badge = a.prize===0?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:10px;font-weight:900;color:#7a5000">①</div>'
+        :a.prize===1?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:10px;font-weight:900;color:#17202b">②</div>'
+        :a.prize===2?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:10px;font-weight:900;color:#fff">③</div>'
+        :'<div style="width:22px;height:22px"></div>';
+      html += '<div style="display:grid;gap:2px;justify-items:center">'+badge;
+      Array.from(a.sorted).forEach(function(d){
+        html += '<div style="width:28px;height:28px;display:grid;place-items:center;border:1px solid #ddd;border-radius:6px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:16px;font-weight:800">'+d+'</div>';
+      });
+      // Luohan hits below digits
+      if(a.hits.length){
+        html += '<div style="font-size:8px;color:#b45309;font-weight:700;white-space:nowrap;margin-top:2px">'+a.hits.map(function(h){return '罗'+h.index;}).join(' ')+'</div>';
+      } else {
+        html += '<div style="font-size:8px;color:#ccc;margin-top:2px">—</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+    // Mini 6x3 luohan grid
+    html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:8px">';
+    counts.forEach(function(c,i){
+      html += '<div style="text-align:center;padding:3px;border:1px solid '+(c?'#f59e0b':'#e4e4dc')+';border-radius:6px;font-size:10px;'+(c?'background:#fef3c7;color:#92400e;font-weight:700':'color:#bbb')+'">罗'+(i+1)+(c?' ×'+c:'')+'</div>';
+    });
+    html += '</div></div>';
+  });
+  // Summary count table
+  html += '<div class="card"><h3>命中汇总 · '+periods.length+' 期</h3><div class="ot"><table>';
   html += '<tr><th>日期</th>';
   for(var i=1;i<=18;i++) html += '<th>罗'+i+'</th>';
-  html += '<th>命中数</th></tr>';
+  html += '<th>活跃</th></tr>';
   var totals = Array(18).fill(0);
   periods.forEach(function(p){
     var counts = Array(18).fill(0);
@@ -18462,7 +18555,7 @@ function lhRenderCompare(periods){
   totals.forEach(function(t){ html += '<td>'+t+'</td>'; });
   html += '<td>'+totals.filter(Boolean).length+'/18</td></tr>';
   html += '</table></div></div>';
-  // Prize tracking with luohan hits
+  // Prize tracking
   html += '<div class="card"><h3>大奖罗汉追踪</h3><div class="ot"><table>';
   html += '<tr><th>日期</th><th>① 头奖</th><th>命中罗汉</th><th>② 二奖</th><th>命中罗汉</th><th>③ 三奖</th><th>命中罗汉</th></tr>';
   periods.forEach(function(p){
@@ -18487,13 +18580,15 @@ function lhRenderAggregate(periods){
   periods.forEach(function(p){ p.records.forEach(function(r){ allRecs.push(Object.assign({},r,{date:p.date})); }); });
   var buckets = Array.from({length:18}, function(){return [];});
   allRecs.forEach(function(r){
-    lhMatch(r.raw).forEach(function(h){ buckets[h.index-1].push({raw:r.raw, sorted:srtSort(r.raw), date:r.date, variants:h.variants}); });
+    lhMatch(r.raw).forEach(function(h){ buckets[h.index-1].push({raw:r.raw, sorted:srtSort(r.raw), date:r.date, prize:r.prize, variants:h.variants}); });
   });
   var activeCount = buckets.filter(function(b){return b.length;}).length;
-  var html = '<div class="card"><div class="g3">';
+  var totalHits = buckets.reduce(function(a,b){return a+b.length;},0);
+  var html = '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
   html += '<div class="sc"><div class="val">'+allRecs.length+'</div><div class="lbl">号码总数</div></div>';
   html += '<div class="sc"><div class="val">'+activeCount+'/18</div><div class="lbl">罗汉出现</div></div>';
+  html += '<div class="sc"><div class="val">'+totalHits+'</div><div class="lbl">总命中次数</div></div>';
   html += '</div></div>';
   // Summary
   html += '<div class="card"><h3>命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
@@ -18505,16 +18600,29 @@ function lhRenderAggregate(periods){
     html += '<div style="font-size:11px;color:#666;margin-top:2px">'+b.length+' 次命中</div></div>';
   });
   html += '</div></div>';
-  // Detail per luohan
+  // Detail per luohan with vertical columns
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
   buckets.forEach(function(bucket,idx){
-    html += '<div class="card"><h3 style="display:flex;justify-content:space-between">罗汉'+(idx+1)+' <span style="color:#888;font-size:10px;font-weight:400">'+bucket.length+' 次</span></h3>';
-    if(!bucket.length) html += '<div style="color:#aaa;font-size:11px">暂无命中</div>';
-    else {
-      html += '<div style="max-height:180px;overflow:auto">';
+    var pct = totalHits ? Math.round(bucket.length/totalHits*100) : 0;
+    html += '<div class="card" style="'+(bucket.length?'':'opacity:.5')+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    html += '<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:'+(bucket.length?'#b45309':'#ccc')+';color:#fff;font-size:11px;font-weight:700">'+(idx+1)+'</span><b style="font-size:12px">罗汉'+(idx+1)+'</b></div>';
+    html += '<span style="font-size:10px;color:#888">'+bucket.length+' 次'+(pct?' · '+pct+'%':'')+'</span></div>';
+    // Variants reference
+    html += '<div style="font-size:9px;color:#999;margin-bottom:6px">'+LUOHAN[idx].join(' / ')+'</div>';
+    if(!bucket.length){
+      html += '<div style="text-align:center;padding:12px 0;color:#aaa;font-size:11px">暂无命中</div>';
+    } else {
+      // Vertical digit columns
+      var items = bucket.map(function(b){return {sorted:b.sorted, prize:b.prize};});
+      items.sort(function(a,b){return srtCmp(a.sorted,b.sorted);});
+      html += nsVerticalGrid(items);
+      // Detail list
+      html += '<div style="margin-top:6px;padding-top:4px;border-top:1px dashed #e4e4dc;max-height:120px;overflow:auto">';
       bucket.forEach(function(b){
-        html += '<div style="display:flex;justify-content:space-between;gap:4px;padding:3px 5px;border-bottom:1px solid #f0f0e8;font-size:10px">';
-        html += '<span>'+b.raw+'→'+b.sorted+'</span><span style="color:#888">'+b.date+'</span></div>';
+        var badge = b.prize===0?'①':b.prize===1?'②':b.prize===2?'③':'';
+        html += '<div style="display:flex;justify-content:space-between;gap:4px;padding:2px 4px;border-bottom:1px solid #f0f0e8;font-size:9px">';
+        html += '<span>'+badge+' '+b.raw+'→'+b.sorted+'</span><span style="color:#888">'+b.date+'</span></div>';
       });
       html += '</div>';
     }
