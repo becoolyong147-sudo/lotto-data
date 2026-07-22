@@ -18213,7 +18213,7 @@ window.doNumSort = function(){
   NS_ORDER.forEach(key=>{
     const arr = groups[key];
     const isEmpty = !arr.length;
-    html += '<div class="card" style="'+(isEmpty?'opacity:.5':''')+'">';
+    html += '<div class="card" style="'+(isEmpty?'opacity:.5':'')+'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
     html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
     html += '<span style="font-size:11px;color:#888">'+arr.length+' 个号码</span></div>';
