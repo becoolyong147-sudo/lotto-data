@@ -273,6 +273,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
     <div class="subtab" data-tab="zodiac" onclick="switchSubtab(this)">🐲 生肖图</div>
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
+    <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
   </div>
 </div>
 
@@ -7769,6 +7770,49 @@ function doBacktest(){
   </div>
 </div>
 <div id="pp-out"></div>
+</div>
+
+<!-- TAB: 十八罗汉 -->
+<div id="tab-luohan" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#78350f 0%,#b45309 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🧘 十八罗汉匹配</div>
+    <div style="font-size:12px;color:#fde68a;margin-top:2px">每个4位号码取任意3位，对照十八罗汉表匹配。不看位置、重复数字必须真实存在。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="lh-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>数据来源</label>
+      <select id="lh-source">
+        <option value="latest">最新一期（含特别/安慰奖）</option>
+        <option value="manual">手动输入号码</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doLuohan()">🔍 分析</button>
+    </div>
+  </div>
+  <div id="lh-manual-area" style="display:none;margin-top:10px">
+    <div class="g3">
+      <div class="ig"><label>头奖</label><input type="text" id="lh-p1" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+      <div class="ig"><label>二奖</label><input type="text" id="lh-p2" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+      <div class="ig"><label>三奖</label><input type="text" id="lh-p3" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+    </div>
+    <div class="g2" style="margin-top:8px">
+      <div class="ig"><label>特别奖（空格分隔）</label><input type="text" id="lh-sp" placeholder="1234 5678 ..."></div>
+      <div class="ig"><label>安慰奖（空格分隔）</label><input type="text" id="lh-cs" placeholder="1234 5678 ..."></div>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>十八罗汉规则</b>：4位号码的4个数字中任选3个（共4种组合），将选出的3位数字排序后，与18组罗汉号码比对。<br>
+    同一罗汉对每个号码只计算一次命中。数据来源选「最新一期」会自动读取含特别奖/安慰奖的完整23个号码。
+  </div>
+</div>
+<div id="lh-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -18025,6 +18069,176 @@ function doPrizeProfile() {
       </table></div>
     </div>`;
 }
+// ═══════════════════════════════════════════════════════
+// 十八罗汉匹配引擎
+// ═══════════════════════════════════════════════════════
+(function(){
+
+const LUOHAN = [
+  ['147','047','247'],
+  ['137','157'],
+  ['148','146'],
+  ['258','158','358'],
+  ['248','268'],
+  ['259','279'],
+  ['269','369','469'],
+  ['359','379'],
+  ['368','360'],
+  ['123','023','223'],
+  ['113','133'],
+  ['124','122'],
+  ['456','356','556'],
+  ['446','466'],
+  ['457','455'],
+  ['789','689','889'],
+  ['799','779'],
+  ['780','788']
+];
+
+const LH_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+const LH_RANK = {};
+LH_ORDER.forEach((d,i)=>LH_RANK[d]=i);
+
+function lhSort3(s){
+  return [...s].sort((a,b)=>LH_RANK[a]-LH_RANK[b]).join('');
+}
+
+function lhGetTriples(code){
+  const set = new Set();
+  for(let i=0;i<4;i++){
+    let t='';
+    for(let j=0;j<4;j++) if(i!==j) t+=code[j];
+    set.add(lhSort3(t));
+  }
+  return set;
+}
+
+function lhMatch(raw){
+  const triples = lhGetTriples(raw);
+  const hits = [];
+  LUOHAN.forEach((variants,idx)=>{
+    const matched = variants.filter(v=>triples.has(lhSort3(v)));
+    if(matched.length) hits.push({index:idx+1, variants:matched});
+  });
+  return hits;
+}
+
+document.getElementById('lh-source').addEventListener('change',function(){
+  document.getElementById('lh-manual-area').style.display = this.value==='manual'?'block':'none';
+});
+
+window.doLuohan = function(){
+  const market = document.getElementById('lh-market').value;
+  const source = document.getElementById('lh-source').value;
+  const out = document.getElementById('lh-out');
+  let records = []; // {raw, prize, label}
+
+  if(source==='manual'){
+    const p1=document.getElementById('lh-p1').value.trim();
+    const p2=document.getElementById('lh-p2').value.trim();
+    const p3=document.getElementById('lh-p3').value.trim();
+    const sp=(document.getElementById('lh-sp').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
+    const cs=(document.getElementById('lh-cs').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
+    if(p1&&/^\d{4}$/.test(p1)) records.push({raw:p1, prize:0, label:'头奖'});
+    if(p2&&/^\d{4}$/.test(p2)) records.push({raw:p2, prize:1, label:'二奖'});
+    if(p3&&/^\d{4}$/.test(p3)) records.push({raw:p3, prize:2, label:'三奖'});
+    sp.forEach(n=>records.push({raw:n, prize:-1, label:'特别奖'}));
+    cs.forEach(n=>records.push({raw:n, prize:-1, label:'安慰奖'}));
+  } else {
+    const newData = typeof getNewResults==='function'?getNewResults():{};
+    const newRecs = newData[market]||[];
+    const latest = newRecs[0]; // newest first
+    if(!latest){
+      const dbRecs = DB[market]||[];
+      if(!dbRecs.length){ out.innerHTML='<div class="warn">该市场暂无数据</div>'; return; }
+      const d = dbRecs[0];
+      ['头奖','二奖','三奖'].forEach((lbl,i)=>{
+        if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+      });
+      out.innerHTML = '<div class="warn" style="margin-bottom:8px">⚠️ 仅有头二三奖（历史数据不含特别/安慰奖），建议切换到「手动输入」填入完整23个号码。<br>日期：'+d.date+'</div>' + lhRender(records, d.date);
+      return;
+    }
+    const d = latest;
+    ['头奖','二奖','三奖'].forEach((lbl,i)=>{
+      if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+    });
+    (d.sp||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'特别奖'}));
+    (d.cs||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'安慰奖'}));
+    if(!records.length){ out.innerHTML='<div class="warn">该市场暂无数据</div>'; return; }
+    const hasSpCs = (d.sp&&d.sp.length)||(d.cs&&d.cs.length);
+    const note = hasSpCs?'':'<div class="warn" style="margin-bottom:8px">⚠️ 该期无特别/安慰奖数据，仅分析头二三奖。</div>';
+    out.innerHTML = note + lhRender(records, d.date);
+    return;
+  }
+
+  if(!records.length){ out.innerHTML='<div class="warn">请输入至少一个4位号码</div>'; return; }
+  out.innerHTML = lhRender(records, '手动输入');
+};
+
+function lhRender(records, dateLabel){
+  const analyzed = records.map(r=>({...r, hits:lhMatch(r.raw)}));
+  const counts = Array(18).fill(0);
+  analyzed.forEach(a=>a.hits.forEach(h=>counts[h.index-1]++));
+  const hitCount = analyzed.filter(a=>a.hits.length).length;
+  const activeLH = counts.filter(Boolean).length;
+
+  let html = '';
+
+  // Stats bar
+  html += '<div class="card"><div class="g4">';
+  html += '<div class="sc"><div class="val">'+dateLabel+'</div><div class="lbl">日期/来源</div></div>';
+  html += '<div class="sc"><div class="val">'+records.length+'</div><div class="lbl">号码总数</div></div>';
+  html += '<div class="sc"><div class="val">'+hitCount+'/'+records.length+'</div><div class="lbl">命中号码</div></div>';
+  html += '<div class="sc"><div class="val">'+activeLH+'/18</div><div class="lbl">罗汉出现</div></div>';
+  html += '</div></div>';
+
+  // 18 luohan summary grid
+  html += '<div class="card"><h3>十八罗汉命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
+  counts.forEach((c,i)=>{
+    const bg = c?'background:#fef3c7;border-color:#f59e0b':'';
+    const color = c?'color:#92400e':'color:#888';
+    html += '<div style="text-align:center;padding:8px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
+    html += '<div style="font-size:13px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
+    html += '<div style="font-size:11px;color:#666;margin-top:2px">'+c+' 个号码</div></div>';
+  });
+  html += '</div></div>';
+
+  // Reference table (collapsible)
+  html += '<div class="card"><details><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#1e3a5f">📋 查看十八罗汉对照表</summary>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">';
+  LUOHAN.forEach((variants,i)=>{
+    html += '<div style="padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px">';
+    html += '<b style="color:#b45309;min-width:48px;display:inline-block">罗汉'+(i+1)+'</b>'+variants.join(' / ')+'</div>';
+  });
+  html += '</div></details></div>';
+
+  // Per-number match cards
+  html += '<div class="card"><h3>逐号匹配详情</h3>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  analyzed.forEach(a=>{
+    const badge = a.prize===0?'<span class="p1">头奖</span>':a.prize===1?'<span class="p2">二奖</span>':a.prize===2?'<span class="p3">三奖</span>':'<span style="font-size:10px;color:#888">'+a.label+'</span>';
+    const sorted = [...a.raw].sort((x,y)=>LH_RANK[x]-LH_RANK[y]).join('');
+    const chips = a.hits.length
+      ? a.hits.map(h=>'<span class="by" style="margin:2px">罗汉'+h.index+' <span style="font-size:9px;color:#78350f">'+h.variants.join(',')+'</span></span>').join('')
+      : '<span style="font-size:11px;color:#999">未命中</span>';
+    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e4e4dc;border-radius:8px;background:#fafaf5">';
+    html += '<div style="min-width:90px">'+badge+'<br><span style="font-family:monospace;font-size:11px;color:#888">'+a.raw+'→</span><span style="font-family:monospace;font-size:16px;font-weight:700;color:#1e3a5f">'+sorted+'</span></div>';
+    html += '<div style="flex:1">'+chips+'</div></div>';
+  });
+  html += '</div></div>';
+
+  return html;
+}
+
+// Register tab
+setTimeout(()=>{
+  if(window.SCENE_MAP && SCENE_MAP.analysis && !SCENE_MAP.analysis.includes('luohan')){
+    SCENE_MAP.analysis.push('luohan');
+  }
+  if(window.TAB_TO_SCENE) TAB_TO_SCENE['luohan']='analysis';
+},0);
+
+})();
 </script>
 
 </body>
