@@ -7790,7 +7790,23 @@ function doBacktest(){
     <div class="ig"><label>数据来源</label>
       <select id="ns-source">
         <option value="latest">最新一期（含特别/安慰奖）</option>
+        <option value="multi">多期对比（头二三奖）</option>
         <option value="manual">手动输入号码</option>
+      </select>
+    </div>
+    <div class="ig" id="ns-periods-wrap" style="display:none"><label>期数</label>
+      <select id="ns-periods">
+        <option value="3">最近3期</option>
+        <option value="5">最近5期</option>
+        <option value="10" selected>最近10期</option>
+        <option value="20">最近20期</option>
+        <option value="50">最近50期</option>
+      </select>
+    </div>
+    <div class="ig" id="ns-view-wrap" style="display:none"><label>查看方式</label>
+      <select id="ns-view">
+        <option value="compare">多期对比表</option>
+        <option value="aggregate">合并统计</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end">
@@ -7810,7 +7826,8 @@ function doBacktest(){
   </div>
   <div class="warn" style="margin-top:10px">
     排列次序：<b>1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 0</b>（小到大，0 排最后）。<br>
-    每个号码的4个数字按此次序重新排列，再按排列后的首位数字分组。大奖号码标注 ①②③。
+    每个号码的4个数字按此次序重新排列，再按排列后的首位数字分组。大奖号码标注 ①②③。<br>
+    <b>多期对比</b>仅含头二三奖（历史数据不含特别/安慰奖）。
   </div>
 </div>
 <div id="ns-out"></div>
@@ -7833,7 +7850,23 @@ function doBacktest(){
     <div class="ig"><label>数据来源</label>
       <select id="lh-source">
         <option value="latest">最新一期（含特别/安慰奖）</option>
+        <option value="multi">多期对比（头二三奖）</option>
         <option value="manual">手动输入号码</option>
+      </select>
+    </div>
+    <div class="ig" id="lh-periods-wrap" style="display:none"><label>期数</label>
+      <select id="lh-periods">
+        <option value="3">最近3期</option>
+        <option value="5">最近5期</option>
+        <option value="10" selected>最近10期</option>
+        <option value="20">最近20期</option>
+        <option value="50">最近50期</option>
+      </select>
+    </div>
+    <div class="ig" id="lh-view-wrap" style="display:none"><label>查看方式</label>
+      <select id="lh-view">
+        <option value="compare">多期对比表</option>
+        <option value="aggregate">合并统计</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end">
@@ -7853,7 +7886,8 @@ function doBacktest(){
   </div>
   <div class="warn" style="margin-top:10px">
     <b>十八罗汉规则</b>：4位号码的4个数字中任选3个（共4种组合），将选出的3位数字排序后，与18组罗汉号码比对。<br>
-    同一罗汉对每个号码只计算一次命中。数据来源选「最新一期」会自动读取含特别奖/安慰奖的完整23个号码。
+    同一罗汉对每个号码只计算一次命中。数据来源选「最新一期」会自动读取含特别奖/安慰奖的完整23个号码。<br>
+    <b>多期对比</b>仅含头二三奖（历史数据不含特别/安慰奖）。
   </div>
 </div>
 <div id="lh-out"></div>
@@ -18114,316 +18148,405 @@ function doPrizeProfile() {
     </div>`;
 }
 // ═══════════════════════════════════════════════════════
-// 号码排列引擎 (1-9-0 次序)
+// 号码排列引擎 (1-9-0 次序) + 十八罗汉匹配引擎
+// 支持: 单期(含特别/安慰奖) · 多期对比 · 合并统计
 // ═══════════════════════════════════════════════════════
 (function(){
 
-const NS_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
-const NS_RANK = {};
-NS_ORDER.forEach((d,i)=>NS_RANK[d]=i);
+// --- Shared: 1-9-0 ordering ---
+var SRT_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+var SRT_RANK = {};
+SRT_ORDER.forEach(function(d,i){ SRT_RANK[d]=i; });
 
-function nsSortDigits(s){
-  return [...s].sort((a,b)=>NS_RANK[a]-NS_RANK[b]).join('');
-}
+function srtSort(s){ return Array.from(s).sort(function(a,b){ return SRT_RANK[a]-SRT_RANK[b]; }).join(''); }
+function srtCmp(a,b){ for(var i=0;i<Math.min(a.length,b.length);i++){ var d=SRT_RANK[a[i]]-SRT_RANK[b[i]]; if(d) return d; } return a.length-b.length; }
 
-function nsCompare(a,b){
-  for(let i=0;i<Math.min(a.length,b.length);i++){
-    const d=NS_RANK[a[i]]-NS_RANK[b[i]];
-    if(d) return d;
-  }
-  return a.length-b.length;
-}
-
-document.getElementById('ns-source').addEventListener('change',function(){
-  document.getElementById('ns-manual-area').style.display = this.value==='manual'?'block':'none';
-});
-
-function nsCollectRecords(){
-  const market = document.getElementById('ns-market').value;
-  const source = document.getElementById('ns-source').value;
-  let records = [];
-
-  if(source==='manual'){
-    const p1=document.getElementById('ns-p1').value.trim();
-    const p2=document.getElementById('ns-p2').value.trim();
-    const p3=document.getElementById('ns-p3').value.trim();
-    const sp=(document.getElementById('ns-sp').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
-    const cs=(document.getElementById('ns-cs').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
-    if(p1&&/^\d{4}$/.test(p1)) records.push({raw:p1, prize:0, label:'头奖'});
-    if(p2&&/^\d{4}$/.test(p2)) records.push({raw:p2, prize:1, label:'二奖'});
-    if(p3&&/^\d{4}$/.test(p3)) records.push({raw:p3, prize:2, label:'三奖'});
-    sp.forEach(n=>records.push({raw:n, prize:-1, label:'特别奖'}));
-    cs.forEach(n=>records.push({raw:n, prize:-1, label:'安慰奖'}));
-    return {records, dateLabel:'手动输入', warn:''};
-  }
-
-  const newData = typeof getNewResults==='function'?getNewResults():{};
-  const newRecs = newData[market]||[];
-  const latest = newRecs[0];
+// --- Shared: collect records for a single draw ---
+function collectSingle(prefix){
+  var market = document.getElementById(prefix+'-market').value;
+  var newData = typeof getNewResults==='function'?getNewResults():{};
+  var newRecs = newData[market]||[];
+  var latest = newRecs[0];
+  var records = [];
   if(!latest){
-    const dbRecs = DB[market]||[];
+    var dbRecs = DB[market]||[];
     if(!dbRecs.length) return {records:[], dateLabel:'', warn:'该市场暂无数据'};
-    const d = dbRecs[0];
-    ['头奖','二奖','三奖'].forEach((lbl,i)=>{
+    var d = dbRecs[0];
+    ['头奖','二奖','三奖'].forEach(function(lbl,i){
       if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
     });
-    return {records, dateLabel:d.date, warn:'⚠️ 仅有头二三奖（历史数据不含特别/安慰奖），建议切换到「手动输入」填入完整23个号码。'};
+    return {records:records, dateLabel:d.date, warn:'仅有头二三奖（历史数据不含特别/安慰奖），建议切换到「手动输入」填入完整23个号码。'};
   }
-  const d = latest;
-  ['头奖','二奖','三奖'].forEach((lbl,i)=>{
-    if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+  ['头奖','二奖','三奖'].forEach(function(lbl,i){
+    if(latest.nums[i]) records.push({raw:String(latest.nums[i]).padStart(4,'0'), prize:i, label:lbl});
   });
-  (d.sp||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'特别奖'}));
-  (d.cs||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'安慰奖'}));
-  const hasSpCs = (d.sp&&d.sp.length)||(d.cs&&d.cs.length);
-  return {records, dateLabel:d.date, warn:hasSpCs?'':'⚠️ 该期无特别/安慰奖数据，仅分析头二三奖。'};
+  (latest.sp||[]).forEach(function(n){ records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'特别奖'}); });
+  (latest.cs||[]).forEach(function(n){ records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'安慰奖'}); });
+  var hasSpCs = (latest.sp&&latest.sp.length)||(latest.cs&&latest.cs.length);
+  return {records:records, dateLabel:latest.date, warn:hasSpCs?'':'该期无特别/安慰奖数据，仅分析头二三奖。'};
 }
 
-window.doNumSort = function(){
-  const out = document.getElementById('ns-out');
-  const {records, dateLabel, warn} = nsCollectRecords();
-  if(!records.length){ out.innerHTML='<div class="warn">'+(warn||'请输入至少一个4位号码')+'</div>'; return; }
+function collectManual(prefix){
+  var records = [];
+  var p1=document.getElementById(prefix+'-p1').value.trim();
+  var p2=document.getElementById(prefix+'-p2').value.trim();
+  var p3=document.getElementById(prefix+'-p3').value.trim();
+  var sp=(document.getElementById(prefix+'-sp').value.trim()||'').split(/\s+/).filter(function(n){return /^\d{4}$/.test(n);});
+  var cs=(document.getElementById(prefix+'-cs').value.trim()||'').split(/\s+/).filter(function(n){return /^\d{4}$/.test(n);});
+  if(p1&&/^\d{4}$/.test(p1)) records.push({raw:p1, prize:0, label:'头奖'});
+  if(p2&&/^\d{4}$/.test(p2)) records.push({raw:p2, prize:1, label:'二奖'});
+  if(p3&&/^\d{4}$/.test(p3)) records.push({raw:p3, prize:2, label:'三奖'});
+  sp.forEach(function(n){ records.push({raw:n, prize:-1, label:'特别奖'}); });
+  cs.forEach(function(n){ records.push({raw:n, prize:-1, label:'安慰奖'}); });
+  return {records:records, dateLabel:'手动输入', warn:''};
+}
 
-  const items = records.map((r,idx)=>({...r, sorted:nsSortDigits(r.raw), idx}));
-
-  const groups = {};
-  NS_ORDER.forEach(k=>groups[k]=[]);
-  items.forEach(it=>{
-    const key = it.sorted[0];
-    if(!groups[key]) groups[key]=[];
-    groups[key].push(it);
+// --- Shared: collect multi-period data (DB only, 头二三奖) ---
+function collectMulti(prefix){
+  var market = document.getElementById(prefix+'-market').value;
+  var n = parseInt(document.getElementById(prefix+'-periods').value)||10;
+  var allRecs = (DB[market]||[]).slice(0, n);
+  if(!allRecs.length) return {periods:[], warn:'该市场暂无数据'};
+  var periods = allRecs.map(function(d){
+    var recs = [];
+    ['头奖','二奖','三奖'].forEach(function(lbl,i){
+      if(d.nums[i]) recs.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+    });
+    return {date:d.date, records:recs};
   });
-  Object.values(groups).forEach(arr=>arr.sort((a,b)=>nsCompare(a.sorted,b.sorted)||a.idx-b.idx));
+  return {periods:periods, warn:''};
+}
 
-  const activeGroups = NS_ORDER.filter(k=>groups[k].length);
-  let html = '';
+// --- Shared: source change handler ---
+function setupSourceToggle(prefix){
+  document.getElementById(prefix+'-source').addEventListener('change',function(){
+    var v = this.value;
+    document.getElementById(prefix+'-manual-area').style.display = v==='manual'?'block':'none';
+    document.getElementById(prefix+'-periods-wrap').style.display = v==='multi'?'':'none';
+    document.getElementById(prefix+'-view-wrap').style.display = v==='multi'?'':'none';
+  });
+}
+setupSourceToggle('ns');
+setupSourceToggle('lh');
 
+// ─── 号码排列 ──────────────────────────────────────────
+
+function nsPrizeBadge(prize){
+  if(prize===0) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:12px;font-weight:900;color:#7a5000">①</div>';
+  if(prize===1) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:12px;font-weight:900;color:#17202b">②</div>';
+  if(prize===2) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff">③</div>';
+  return '<div style="width:26px;height:26px"></div>';
+}
+
+function nsRenderSingle(records, dateLabel, warn){
+  var items = records.map(function(r,idx){ return Object.assign({},r,{sorted:srtSort(r.raw),idx:idx}); });
+  var groups = {};
+  SRT_ORDER.forEach(function(k){ groups[k]=[]; });
+  items.forEach(function(it){ var key=it.sorted[0]; if(!groups[key]) groups[key]=[]; groups[key].push(it); });
+  Object.values(groups).forEach(function(arr){ arr.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; }); });
+  var activeGroups = SRT_ORDER.filter(function(k){ return groups[k].length; });
+  var html = '';
   if(warn) html += '<div class="warn" style="margin-bottom:8px">'+warn+'</div>';
-
-  // Stats
   html += '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+dateLabel+'</div><div class="lbl">日期/来源</div></div>';
   html += '<div class="sc"><div class="val">'+records.length+'</div><div class="lbl">号码总数</div></div>';
   html += '<div class="sc"><div class="val">'+activeGroups.length+'</div><div class="lbl">有号码的组</div></div>';
   html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
   html += '</div></div>';
-
-  // Group cards
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  NS_ORDER.forEach(key=>{
-    const arr = groups[key];
-    const isEmpty = !arr.length;
+  SRT_ORDER.forEach(function(key){
+    var arr = groups[key];
+    var isEmpty = !arr.length;
     html += '<div class="card" style="'+(isEmpty?'opacity:.5':'')+'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
     html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
     html += '<span style="font-size:11px;color:#888">'+arr.length+' 个号码</span></div>';
-
     if(!arr.length){
       html += '<div style="text-align:center;padding:20px 0;color:#aaa;font-size:12px">暂无号码</div>';
     } else {
-      // Vertical columns display
       html += '<div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:40px;gap:5px;min-width:100%">';
-      arr.forEach(it=>{
-        const badge = it.prize===0?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:12px;font-weight:900;color:#7a5000">①</div>'
-          :it.prize===1?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:12px;font-weight:900;color:#17202b">②</div>'
-          :it.prize===2?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff">③</div>'
-          :'<div style="width:26px;height:26px"></div>';
-        html += '<div style="display:grid;gap:4px;justify-items:center">'+badge;
-        [...it.sorted].forEach(d=>{
+      arr.forEach(function(it){
+        html += '<div style="display:grid;gap:4px;justify-items:center">'+nsPrizeBadge(it.prize);
+        Array.from(it.sorted).forEach(function(d){
           html += '<div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #ddd;border-radius:8px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:20px;font-weight:800">'+d+'</div>';
         });
         html += '</div>';
       });
       html += '</div></div>';
-
-      // Sorted line
-      const sortedLine = arr.map(it=>it.sorted).join(' · ');
-      const originalLine = arr.map(it=>it.raw+'→'+it.sorted).join('、');
+      var sortedLine = arr.map(function(it){return it.sorted;}).join(' · ');
+      var originalLine = arr.map(function(it){return it.raw+'→'+it.sorted;}).join('、');
       html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc;font-size:11px;color:#888;line-height:1.7;overflow-wrap:anywhere"><b style="color:#333">'+sortedLine+'</b><br>'+originalLine+'</div>';
     }
     html += '</div>';
   });
   html += '</div>';
+  return html;
+}
 
-  out.innerHTML = html;
+function nsRenderCompare(periods){
+  var groupKeys = SRT_ORDER.slice(0,9); // 1-9
+  var html = '<div class="card"><h3>组合数量对比 · '+periods.length+' 期</h3><div class="ot"><table>';
+  html += '<tr><th>日期</th>';
+  groupKeys.forEach(function(k){ html += '<th>'+k+'组</th>'; });
+  html += '<th>含0</th><th>合计</th></tr>';
+  var totals = {}; groupKeys.forEach(function(k){totals[k]=0;}); totals['0']=0;
+  periods.forEach(function(p){
+    var counts = {}; SRT_ORDER.forEach(function(k){counts[k]=0;});
+    p.records.forEach(function(r){ var s=srtSort(r.raw); counts[s[0]]++; });
+    html += '<tr><td>'+p.date+'</td>';
+    groupKeys.forEach(function(k){ html += '<td>'+(counts[k]||'-')+'</td>'; totals[k]+=counts[k]; });
+    html += '<td>'+(counts['0']||'-')+'</td>';
+    totals['0']+=counts['0'];
+    html += '<td>'+p.records.length+'</td></tr>';
+  });
+  html += '<tr style="font-weight:700;background:#f0f4fa"><td>合计</td>';
+  groupKeys.forEach(function(k){ html += '<td>'+totals[k]+'</td>'; });
+  html += '<td>'+totals['0']+'</td>';
+  html += '<td>'+periods.reduce(function(a,p){return a+p.records.length;},0)+'</td></tr>';
+  html += '</table></div></div>';
+  // Prize tracking
+  html += '<div class="card"><h3>大奖排列追踪</h3><div class="ot"><table>';
+  html += '<tr><th>日期</th><th>① 头奖</th><th>组</th><th>② 二奖</th><th>组</th><th>③ 三奖</th><th>组</th></tr>';
+  periods.forEach(function(p){
+    html += '<tr><td>'+p.date+'</td>';
+    [0,1,2].forEach(function(pi){
+      var r = p.records.find(function(x){return x.prize===pi;});
+      if(r){ var s=srtSort(r.raw); html += '<td>'+r.raw+'→'+s+'</td><td>'+s[0]+'</td>'; }
+      else html += '<td>—</td><td>—</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</table></div></div>';
+  return html;
+}
+
+function nsRenderAggregate(periods){
+  var allItems = [];
+  periods.forEach(function(p){ p.records.forEach(function(r){ allItems.push({raw:r.raw, sorted:srtSort(r.raw), date:p.date}); }); });
+  var html = '<div class="card"><div class="g3">';
+  html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
+  html += '<div class="sc"><div class="val">'+allItems.length+'</div><div class="lbl">号码总数</div></div>';
+  html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
+  html += '</div></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  SRT_ORDER.forEach(function(key){
+    var items = allItems.filter(function(it){return it.sorted[0]===key;});
+    var freq = {};
+    items.forEach(function(it){
+      if(!freq[it.sorted]) freq[it.sorted]={count:0, dates:[]};
+      freq[it.sorted].count++;
+      if(freq[it.sorted].dates.indexOf(it.date)<0) freq[it.sorted].dates.push(it.date);
+    });
+    var sorted = Object.entries(freq).sort(function(a,b){return b[1].count-a[1].count || srtCmp(a[0],b[0]);});
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between">'+key+'组合 <span style="color:#888;font-size:10px;font-weight:400">'+items.length+' 次</span></h3>';
+    if(!sorted.length) html += '<div style="color:#aaa;font-size:11px">暂无</div>';
+    else {
+      html += '<div style="max-height:200px;overflow:auto">';
+      sorted.forEach(function(entry){
+        html += '<div style="display:flex;justify-content:space-between;gap:6px;padding:4px 6px;border-bottom:1px solid #f0f0e8;font-size:11px">';
+        html += '<span>'+entry[0]+'</span><span style="color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px" title="'+entry[1].dates.join(', ')+'">'+entry[1].dates.slice(0,3).join(', ')+(entry[1].dates.length>3?'...':'')+'</span><b style="color:#b45309">×'+entry[1].count+'</b></div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+window.doNumSort = function(){
+  var out = document.getElementById('ns-out');
+  var source = document.getElementById('ns-source').value;
+  if(source==='multi'){
+    var data = collectMulti('ns');
+    if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
+    var view = document.getElementById('ns-view').value;
+    if(view==='aggregate') out.innerHTML = nsRenderAggregate(data.periods);
+    else out.innerHTML = nsRenderCompare(data.periods);
+    return;
+  }
+  var info = source==='manual' ? collectManual('ns') : collectSingle('ns');
+  if(!info.records.length){ out.innerHTML='<div class="warn">'+(info.warn||'请输入至少一个4位号码')+'</div>'; return; }
+  out.innerHTML = nsRenderSingle(info.records, info.dateLabel, info.warn);
 };
 
-setTimeout(()=>{
-  if(window.SCENE_MAP && SCENE_MAP.analysis && !SCENE_MAP.analysis.includes('numsort')){
-    SCENE_MAP.analysis.push('numsort');
-  }
-  if(window.TAB_TO_SCENE) TAB_TO_SCENE['numsort']='analysis';
-},0);
+// ─── 十八罗汉 ──────────────────────────────────────────
 
-})();
-
-// ═══════════════════════════════════════════════════════
-// 十八罗汉匹配引擎
-// ═══════════════════════════════════════════════════════
-(function(){
-
-const LUOHAN = [
-  ['147','047','247'],
-  ['137','157'],
-  ['148','146'],
-  ['258','158','358'],
-  ['248','268'],
-  ['259','279'],
-  ['269','369','469'],
-  ['359','379'],
-  ['368','360'],
-  ['123','023','223'],
-  ['113','133'],
-  ['124','122'],
-  ['456','356','556'],
-  ['446','466'],
-  ['457','455'],
-  ['789','689','889'],
-  ['799','779'],
-  ['780','788']
+var LUOHAN = [
+  ['147','047','247'],['137','157'],['148','146'],
+  ['258','158','358'],['248','268'],['259','279'],
+  ['269','369','469'],['359','379'],['368','360'],
+  ['123','023','223'],['113','133'],['124','122'],
+  ['456','356','556'],['446','466'],['457','455'],
+  ['789','689','889'],['799','779'],['780','788']
 ];
 
-const LH_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
-const LH_RANK = {};
-LH_ORDER.forEach((d,i)=>LH_RANK[d]=i);
-
-function lhSort3(s){
-  return [...s].sort((a,b)=>LH_RANK[a]-LH_RANK[b]).join('');
-}
-
+function lhSort3(s){ return Array.from(s).sort(function(a,b){return SRT_RANK[a]-SRT_RANK[b];}).join(''); }
 function lhGetTriples(code){
-  const set = new Set();
-  for(let i=0;i<4;i++){
-    let t='';
-    for(let j=0;j<4;j++) if(i!==j) t+=code[j];
-    set.add(lhSort3(t));
-  }
+  var set = new Set();
+  for(var i=0;i<4;i++){ var t=''; for(var j=0;j<4;j++) if(i!==j) t+=code[j]; set.add(lhSort3(t)); }
   return set;
 }
-
 function lhMatch(raw){
-  const triples = lhGetTriples(raw);
-  const hits = [];
-  LUOHAN.forEach((variants,idx)=>{
-    const matched = variants.filter(v=>triples.has(lhSort3(v)));
+  var triples = lhGetTriples(raw);
+  var hits = [];
+  LUOHAN.forEach(function(variants,idx){
+    var matched = variants.filter(function(v){return triples.has(lhSort3(v));});
     if(matched.length) hits.push({index:idx+1, variants:matched});
   });
   return hits;
 }
 
-document.getElementById('lh-source').addEventListener('change',function(){
-  document.getElementById('lh-manual-area').style.display = this.value==='manual'?'block':'none';
-});
-
-window.doLuohan = function(){
-  const market = document.getElementById('lh-market').value;
-  const source = document.getElementById('lh-source').value;
-  const out = document.getElementById('lh-out');
-  let records = []; // {raw, prize, label}
-
-  if(source==='manual'){
-    const p1=document.getElementById('lh-p1').value.trim();
-    const p2=document.getElementById('lh-p2').value.trim();
-    const p3=document.getElementById('lh-p3').value.trim();
-    const sp=(document.getElementById('lh-sp').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
-    const cs=(document.getElementById('lh-cs').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
-    if(p1&&/^\d{4}$/.test(p1)) records.push({raw:p1, prize:0, label:'头奖'});
-    if(p2&&/^\d{4}$/.test(p2)) records.push({raw:p2, prize:1, label:'二奖'});
-    if(p3&&/^\d{4}$/.test(p3)) records.push({raw:p3, prize:2, label:'三奖'});
-    sp.forEach(n=>records.push({raw:n, prize:-1, label:'特别奖'}));
-    cs.forEach(n=>records.push({raw:n, prize:-1, label:'安慰奖'}));
-  } else {
-    const newData = typeof getNewResults==='function'?getNewResults():{};
-    const newRecs = newData[market]||[];
-    const latest = newRecs[0]; // newest first
-    if(!latest){
-      const dbRecs = DB[market]||[];
-      if(!dbRecs.length){ out.innerHTML='<div class="warn">该市场暂无数据</div>'; return; }
-      const d = dbRecs[0];
-      ['头奖','二奖','三奖'].forEach((lbl,i)=>{
-        if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
-      });
-      out.innerHTML = '<div class="warn" style="margin-bottom:8px">⚠️ 仅有头二三奖（历史数据不含特别/安慰奖），建议切换到「手动输入」填入完整23个号码。<br>日期：'+d.date+'</div>' + lhRender(records, d.date);
-      return;
-    }
-    const d = latest;
-    ['头奖','二奖','三奖'].forEach((lbl,i)=>{
-      if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
-    });
-    (d.sp||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'特别奖'}));
-    (d.cs||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'安慰奖'}));
-    if(!records.length){ out.innerHTML='<div class="warn">该市场暂无数据</div>'; return; }
-    const hasSpCs = (d.sp&&d.sp.length)||(d.cs&&d.cs.length);
-    const note = hasSpCs?'':'<div class="warn" style="margin-bottom:8px">⚠️ 该期无特别/安慰奖数据，仅分析头二三奖。</div>';
-    out.innerHTML = note + lhRender(records, d.date);
-    return;
-  }
-
-  if(!records.length){ out.innerHTML='<div class="warn">请输入至少一个4位号码</div>'; return; }
-  out.innerHTML = lhRender(records, '手动输入');
-};
-
-function lhRender(records, dateLabel){
-  const analyzed = records.map(r=>({...r, hits:lhMatch(r.raw)}));
-  const counts = Array(18).fill(0);
-  analyzed.forEach(a=>a.hits.forEach(h=>counts[h.index-1]++));
-  const hitCount = analyzed.filter(a=>a.hits.length).length;
-  const activeLH = counts.filter(Boolean).length;
-
-  let html = '';
-
-  // Stats bar
+function lhRenderSingle(records, dateLabel, warn){
+  var analyzed = records.map(function(r){return Object.assign({},r,{hits:lhMatch(r.raw)});});
+  var counts = Array(18).fill(0);
+  analyzed.forEach(function(a){a.hits.forEach(function(h){counts[h.index-1]++;});});
+  var hitCount = analyzed.filter(function(a){return a.hits.length;}).length;
+  var activeLH = counts.filter(Boolean).length;
+  var html = '';
+  if(warn) html += '<div class="warn" style="margin-bottom:8px">'+warn+'</div>';
   html += '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+dateLabel+'</div><div class="lbl">日期/来源</div></div>';
   html += '<div class="sc"><div class="val">'+records.length+'</div><div class="lbl">号码总数</div></div>';
   html += '<div class="sc"><div class="val">'+hitCount+'/'+records.length+'</div><div class="lbl">命中号码</div></div>';
   html += '<div class="sc"><div class="val">'+activeLH+'/18</div><div class="lbl">罗汉出现</div></div>';
   html += '</div></div>';
-
-  // 18 luohan summary grid
+  // Summary grid
   html += '<div class="card"><h3>十八罗汉命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
-  counts.forEach((c,i)=>{
-    const bg = c?'background:#fef3c7;border-color:#f59e0b':'';
-    const color = c?'color:#92400e':'color:#888';
+  counts.forEach(function(c,i){
+    var bg = c?'background:#fef3c7;border-color:#f59e0b':'';
+    var color = c?'color:#92400e':'color:#888';
     html += '<div style="text-align:center;padding:8px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
     html += '<div style="font-size:13px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
     html += '<div style="font-size:11px;color:#666;margin-top:2px">'+c+' 个号码</div></div>';
   });
   html += '</div></div>';
-
-  // Reference table (collapsible)
-  html += '<div class="card"><details><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#1e3a5f">📋 查看十八罗汉对照表</summary>';
+  // Reference
+  html += '<div class="card"><details><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#1e3a5f">查看十八罗汉对照表</summary>';
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">';
-  LUOHAN.forEach((variants,i)=>{
+  LUOHAN.forEach(function(variants,i){
     html += '<div style="padding:6px 8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;font-size:11px">';
     html += '<b style="color:#b45309;min-width:48px;display:inline-block">罗汉'+(i+1)+'</b>'+variants.join(' / ')+'</div>';
   });
   html += '</div></details></div>';
-
-  // Per-number match cards
-  html += '<div class="card"><h3>逐号匹配详情</h3>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  analyzed.forEach(a=>{
-    const badge = a.prize===0?'<span class="p1">头奖</span>':a.prize===1?'<span class="p2">二奖</span>':a.prize===2?'<span class="p3">三奖</span>':'<span style="font-size:10px;color:#888">'+a.label+'</span>';
-    const sorted = [...a.raw].sort((x,y)=>LH_RANK[x]-LH_RANK[y]).join('');
-    const chips = a.hits.length
-      ? a.hits.map(h=>'<span class="by" style="margin:2px">罗汉'+h.index+' <span style="font-size:9px;color:#78350f">'+h.variants.join(',')+'</span></span>').join('')
+  // Per-number
+  html += '<div class="card"><h3>逐号匹配详情</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  analyzed.forEach(function(a){
+    var badge = a.prize===0?'<span class="p1">头奖</span>':a.prize===1?'<span class="p2">二奖</span>':a.prize===2?'<span class="p3">三奖</span>':'<span style="font-size:10px;color:#888">'+a.label+'</span>';
+    var sorted = srtSort(a.raw);
+    var chips = a.hits.length
+      ? a.hits.map(function(h){return '<span class="by" style="margin:2px">罗汉'+h.index+' <span style="font-size:9px;color:#78350f">'+h.variants.join(',')+'</span></span>';}).join('')
       : '<span style="font-size:11px;color:#999">未命中</span>';
     html += '<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e4e4dc;border-radius:8px;background:#fafaf5">';
     html += '<div style="min-width:90px">'+badge+'<br><span style="font-family:monospace;font-size:11px;color:#888">'+a.raw+'→</span><span style="font-family:monospace;font-size:16px;font-weight:700;color:#1e3a5f">'+sorted+'</span></div>';
     html += '<div style="flex:1">'+chips+'</div></div>';
   });
   html += '</div></div>';
-
   return html;
 }
 
-// Register tab
-setTimeout(()=>{
-  if(window.SCENE_MAP && SCENE_MAP.analysis && !SCENE_MAP.analysis.includes('luohan')){
-    SCENE_MAP.analysis.push('luohan');
+function lhRenderCompare(periods){
+  var html = '<div class="card"><h3>十八罗汉 · '+periods.length+' 期对比</h3><div class="ot"><table>';
+  html += '<tr><th>日期</th>';
+  for(var i=1;i<=18;i++) html += '<th>罗'+i+'</th>';
+  html += '<th>命中数</th></tr>';
+  var totals = Array(18).fill(0);
+  periods.forEach(function(p){
+    var counts = Array(18).fill(0);
+    p.records.forEach(function(r){ lhMatch(r.raw).forEach(function(h){counts[h.index-1]++;}); });
+    html += '<tr><td>'+p.date+'</td>';
+    counts.forEach(function(c,i){ html += '<td style="'+(c?'color:#b45309;font-weight:700':'')+'">'+(c||'-')+'</td>'; totals[i]+=c; });
+    html += '<td>'+counts.filter(Boolean).length+'/18</td></tr>';
+  });
+  html += '<tr style="font-weight:700;background:#f0f4fa"><td>合计</td>';
+  totals.forEach(function(t){ html += '<td>'+t+'</td>'; });
+  html += '<td>'+totals.filter(Boolean).length+'/18</td></tr>';
+  html += '</table></div></div>';
+  // Prize tracking with luohan hits
+  html += '<div class="card"><h3>大奖罗汉追踪</h3><div class="ot"><table>';
+  html += '<tr><th>日期</th><th>① 头奖</th><th>命中罗汉</th><th>② 二奖</th><th>命中罗汉</th><th>③ 三奖</th><th>命中罗汉</th></tr>';
+  periods.forEach(function(p){
+    html += '<tr><td>'+p.date+'</td>';
+    [0,1,2].forEach(function(pi){
+      var r = p.records.find(function(x){return x.prize===pi;});
+      if(r){
+        var hits = lhMatch(r.raw);
+        var s = srtSort(r.raw);
+        html += '<td>'+r.raw+'→'+s+'</td>';
+        html += '<td>'+(hits.length ? hits.map(function(h){return '罗'+h.index;}).join(' ') : '-')+'</td>';
+      } else html += '<td>—</td><td>—</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</table></div></div>';
+  return html;
+}
+
+function lhRenderAggregate(periods){
+  var allRecs = [];
+  periods.forEach(function(p){ p.records.forEach(function(r){ allRecs.push(Object.assign({},r,{date:p.date})); }); });
+  var buckets = Array.from({length:18}, function(){return [];});
+  allRecs.forEach(function(r){
+    lhMatch(r.raw).forEach(function(h){ buckets[h.index-1].push({raw:r.raw, sorted:srtSort(r.raw), date:r.date, variants:h.variants}); });
+  });
+  var activeCount = buckets.filter(function(b){return b.length;}).length;
+  var html = '<div class="card"><div class="g3">';
+  html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
+  html += '<div class="sc"><div class="val">'+allRecs.length+'</div><div class="lbl">号码总数</div></div>';
+  html += '<div class="sc"><div class="val">'+activeCount+'/18</div><div class="lbl">罗汉出现</div></div>';
+  html += '</div></div>';
+  // Summary
+  html += '<div class="card"><h3>命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
+  buckets.forEach(function(b,i){
+    var bg = b.length?'background:#fef3c7;border-color:#f59e0b':'';
+    var color = b.length?'color:#92400e':'color:#888';
+    html += '<div style="text-align:center;padding:8px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
+    html += '<div style="font-size:13px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
+    html += '<div style="font-size:11px;color:#666;margin-top:2px">'+b.length+' 次命中</div></div>';
+  });
+  html += '</div></div>';
+  // Detail per luohan
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  buckets.forEach(function(bucket,idx){
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between">罗汉'+(idx+1)+' <span style="color:#888;font-size:10px;font-weight:400">'+bucket.length+' 次</span></h3>';
+    if(!bucket.length) html += '<div style="color:#aaa;font-size:11px">暂无命中</div>';
+    else {
+      html += '<div style="max-height:180px;overflow:auto">';
+      bucket.forEach(function(b){
+        html += '<div style="display:flex;justify-content:space-between;gap:4px;padding:3px 5px;border-bottom:1px solid #f0f0e8;font-size:10px">';
+        html += '<span>'+b.raw+'→'+b.sorted+'</span><span style="color:#888">'+b.date+'</span></div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+window.doLuohan = function(){
+  var out = document.getElementById('lh-out');
+  var source = document.getElementById('lh-source').value;
+  if(source==='multi'){
+    var data = collectMulti('lh');
+    if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
+    var view = document.getElementById('lh-view').value;
+    if(view==='aggregate') out.innerHTML = lhRenderAggregate(data.periods);
+    else out.innerHTML = lhRenderCompare(data.periods);
+    return;
   }
-  if(window.TAB_TO_SCENE) TAB_TO_SCENE['luohan']='analysis';
+  var info = source==='manual' ? collectManual('lh') : collectSingle('lh');
+  if(!info.records.length){ out.innerHTML='<div class="warn">'+(info.warn||'请输入至少一个4位号码')+'</div>'; return; }
+  out.innerHTML = lhRenderSingle(info.records, info.dateLabel, info.warn);
+};
+
+// Register tabs
+setTimeout(function(){
+  if(window.SCENE_MAP && SCENE_MAP.analysis){
+    if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
+    if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
+  }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; }
 },0);
 
 })();
