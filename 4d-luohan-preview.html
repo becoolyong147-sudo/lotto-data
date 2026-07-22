@@ -1,0 +1,1635 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>4D 排列与十八罗汉工具</title>
+  <style>
+    :root {
+      --bg: #071019;
+      --panel: #0d1925;
+      --panel-2: #111f2d;
+      --line: rgba(255,255,255,.09);
+      --line-strong: rgba(255,255,255,.15);
+      --text: #f5f1e8;
+      --muted: #93a4b5;
+      --gold: #f1c76a;
+      --gold-2: #9d6f20;
+      --red: #ff766f;
+      --green: #69d7ae;
+      --shadow: 0 24px 80px rgba(0,0,0,.32);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% -10%, rgba(241,199,106,.14), transparent 30%),
+        radial-gradient(circle at 100% 16%, rgba(65,132,177,.12), transparent 32%),
+        var(--bg);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    button, input, textarea { font: inherit; }
+
+    button { color: inherit; }
+
+    .app {
+      width: min(1240px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 44px 0 72px;
+    }
+
+    .hero {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 26px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", "Songti SC", serif;
+      font-size: clamp(31px, 5vw, 56px);
+      line-height: 1.04;
+      letter-spacing: -.03em;
+      font-weight: 700;
+    }
+
+    .hero p:last-child {
+      max-width: 640px;
+      margin: 13px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 14px;
+    }
+
+    .order-seal {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 118px;
+      height: 118px;
+      border: 1px solid rgba(241,199,106,.35);
+      border-radius: 50%;
+      color: var(--gold);
+      background: rgba(241,199,106,.04);
+      box-shadow: inset 0 0 0 7px rgba(241,199,106,.025);
+      text-align: center;
+    }
+
+    .order-seal strong { font-size: 22px; letter-spacing: .08em; }
+    .order-seal small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+
+    .shell {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(10,21,31,.88);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(18px);
+    }
+
+    .input-panel {
+      padding: 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.025), transparent);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 17px;
+    }
+
+    .section-head h2, .result-title h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -.01em;
+    }
+
+    .section-head span, .result-title p {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .data-mode-switch {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5px;
+      margin-bottom: 18px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(3,10,16,.45);
+    }
+
+    .data-mode-btn, .scope-btn {
+      min-height: 34px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .data-mode-btn.active, .scope-btn.active {
+      color: #251900;
+      background: var(--gold);
+      box-shadow: 0 4px 14px rgba(0,0,0,.2);
+    }
+
+    .input-pane { display: none; }
+    .input-pane.active { display: block; }
+
+    .batch-help {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    #batchInput {
+      min-height: 250px;
+      white-space: pre;
+      overflow: auto;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: 0;
+    }
+
+    .period-controls {
+      display: none;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,255,255,.022);
+    }
+
+    .period-controls.show { display: flex; }
+
+    .scope-switch {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(3,10,16,.45);
+    }
+
+    .period-selectors {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .period-selectors label { color: var(--muted); font-size: 10px; }
+
+    select {
+      min-height: 36px;
+      margin-left: 5px;
+      padding: 0 28px 0 10px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      outline: none;
+      color: var(--text);
+      background: #0b1722;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    select:focus { border-color: rgba(241,199,106,.55); }
+
+    .prize-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .number-lists {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      color: #d9e0e6;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    label b {
+      display: inline-grid;
+      place-items: center;
+      min-width: 22px;
+      height: 22px;
+      margin-right: 7px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .p1-label b { color: #271c06; background: linear-gradient(145deg,#fff0a7,#d99a28); }
+    .p2-label b { color: #17202b; background: linear-gradient(145deg,#f5f8fc,#98a7b8); }
+    .p3-label b { color: #28150d; background: linear-gradient(145deg,#f4b68e,#a75b30); }
+
+    input, textarea {
+      width: 100%;
+      margin-top: 8px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      outline: none;
+      color: var(--text);
+      background: rgba(4,12,19,.68);
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+
+    input {
+      height: 46px;
+      padding: 0 14px;
+      font-size: 18px;
+      letter-spacing: .16em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    textarea {
+      min-height: 92px;
+      padding: 13px 14px;
+      resize: vertical;
+      font-size: 14px;
+      line-height: 1.65;
+      letter-spacing: .05em;
+    }
+
+    input:focus, textarea:focus {
+      border-color: rgba(241,199,106,.65);
+      background: rgba(4,12,19,.9);
+      box-shadow: 0 0 0 3px rgba(241,199,106,.1);
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      min-height: 42px;
+      padding: 0 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      cursor: pointer;
+      background: rgba(255,255,255,.035);
+      font-size: 13px;
+      font-weight: 800;
+      transition: transform .18s, border-color .18s, background .18s;
+    }
+
+    .btn:hover { transform: translateY(-1px); border-color: var(--line-strong); background: rgba(255,255,255,.065); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary { color: #241900; border-color: transparent; background: linear-gradient(135deg,#ffe69a,#d8a039); }
+    .btn.primary:hover { background: linear-gradient(135deg,#fff0b9,#e0aa43); }
+    .btn.ghost-danger { color: #ffaaa5; }
+    .toolbar-spacer { flex: 1; }
+
+    .notice {
+      display: none;
+      margin-top: 14px;
+      padding: 11px 13px;
+      border: 1px solid rgba(255,118,111,.3);
+      border-radius: 12px;
+      color: #ffc1bd;
+      background: rgba(255,118,111,.08);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .notice.show { display: block; }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: #08131d;
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 54px;
+      border: 1px solid transparent;
+      border-radius: 14px;
+      cursor: pointer;
+      color: var(--muted);
+      background: transparent;
+      font-size: 14px;
+      font-weight: 800;
+      transition: .2s ease;
+    }
+
+    .tab span {
+      display: grid;
+      place-items: center;
+      width: 25px;
+      height: 25px;
+      border: 1px solid var(--line-strong);
+      border-radius: 50%;
+      font-size: 11px;
+    }
+
+    .tab.active {
+      color: var(--text);
+      border-color: var(--line);
+      background: var(--panel-2);
+      box-shadow: 0 6px 22px rgba(0,0,0,.18);
+    }
+
+    .tab.active span { color: #241900; border-color: transparent; background: var(--gold); }
+
+    .results { padding: 25px; }
+
+    .result-title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .result-title p { margin: 6px 0 0; }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .stat {
+      padding: 7px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255,255,255,.025);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .stat strong { color: var(--text); }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .groups-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .group-card {
+      min-width: 0;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012));
+    }
+
+    .group-card.empty { opacity: .46; }
+
+    .group-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .group-name { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 900; }
+
+    .group-name b {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(241,199,106,.25);
+      border-radius: 10px;
+      color: var(--gold);
+      background: rgba(241,199,106,.06);
+      font-family: Georgia, serif;
+      font-size: 18px;
+    }
+
+    .count { color: var(--muted); font-size: 11px; }
+
+    .vertical-board {
+      overflow-x: auto;
+      padding: 3px 2px 10px;
+      scrollbar-color: rgba(241,199,106,.25) transparent;
+    }
+
+    .number-columns {
+      display: inline-grid;
+      grid-auto-flow: column;
+      grid-auto-columns: 42px;
+      gap: 6px;
+      min-width: 100%;
+      justify-content: start;
+    }
+
+    .number-column { display: grid; gap: 5px; justify-items: center; }
+
+    .award-slot {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      color: transparent;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .award-slot.has-award {
+      border-radius: 50%;
+      color: #241900;
+      box-shadow: 0 4px 15px rgba(0,0,0,.22);
+    }
+
+    .award-slot.p1 { background: linear-gradient(145deg,#fff2a7,#d99c2b); }
+    .award-slot.p2 { color: #14202b; background: linear-gradient(145deg,#f5f8fc,#98a8ba); }
+    .award-slot.p3 { color: #2b170d; background: linear-gradient(145deg,#f5b98f,#a75d33); }
+
+    .digit {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(3,10,16,.62);
+      font-family: "Arial Narrow", Impact, ui-sans-serif, sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sorted-line {
+      margin-top: 3px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--line);
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.7;
+      overflow-wrap: anywhere;
+    }
+
+    .sorted-line strong { color: #dfe7ed; font-weight: 700; }
+
+    .empty-copy {
+      display: grid;
+      place-items: center;
+      min-height: 130px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .table-stack { display: grid; gap: 15px; }
+
+    .table-card {
+      min-width: 0;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.022);
+    }
+
+    .table-card h3 {
+      margin: 0 0 12px;
+      font-size: 13px;
+    }
+
+    .table-card h3 span {
+      margin-left: 7px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .data-table-wrap { overflow-x: auto; }
+
+    .data-table {
+      width: 100%;
+      min-width: 680px;
+      border-collapse: collapse;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .data-table th, .data-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      color: var(--gold);
+      background: rgba(241,199,106,.035);
+      font-weight: 800;
+    }
+
+    .data-table th:first-child, .data-table td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      text-align: left;
+      color: #dce4ea;
+      background: #0d1925;
+    }
+
+    .data-table tbody tr:last-child td { border-bottom: 0; }
+    .data-table .total-row td { color: var(--gold); font-weight: 800; }
+
+    .aggregate-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .aggregate-card {
+      min-width: 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: rgba(255,255,255,.022);
+    }
+
+    .aggregate-card h3 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 0 10px;
+      color: var(--gold);
+      font-size: 12px;
+    }
+
+    .aggregate-card h3 span { color: var(--muted); font-size: 10px; font-weight: 500; }
+
+    .frequency-list {
+      display: grid;
+      gap: 6px;
+      max-height: 210px;
+      overflow: auto;
+    }
+
+    .frequency-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 9px;
+      padding: 7px 8px;
+      border-radius: 8px;
+      color: #d9e3ea;
+      background: rgba(3,10,16,.42);
+      font-size: 10px;
+    }
+
+    .frequency-item small {
+      overflow: hidden;
+      color: var(--muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .frequency-item b { color: var(--gold); }
+
+    .luohan-reference {
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.02);
+      overflow: hidden;
+    }
+
+    .luohan-reference summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 17px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      list-style: none;
+    }
+
+    .luohan-reference summary::-webkit-details-marker { display: none; }
+    .luohan-reference summary span { color: var(--muted); font-size: 11px; font-weight: 500; }
+
+    .reference-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 0 14px 14px;
+    }
+
+    .reference-item {
+      padding: 10px 11px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: rgba(3,10,16,.42);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .reference-item b { display: inline-block; min-width: 48px; color: var(--gold); }
+
+    .luohan-summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .luohan-count {
+      padding: 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      text-align: center;
+      background: rgba(255,255,255,.02);
+    }
+
+    .luohan-count b { display: block; color: var(--gold); font-size: 12px; }
+    .luohan-count span { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+    .luohan-count.hit { border-color: rgba(241,199,106,.28); background: rgba(241,199,106,.055); }
+
+    .match-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .match-card {
+      display: grid;
+      grid-template-columns: 112px minmax(0, 1fr);
+      gap: 14px;
+      align-items: center;
+      min-height: 96px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.022);
+    }
+
+    .match-number {
+      min-width: 0;
+      padding-right: 12px;
+      border-right: 1px solid var(--line);
+    }
+
+    .match-original {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .mini-award {
+      display: inline-grid;
+      place-items: center;
+      width: 21px;
+      height: 21px;
+      border-radius: 50%;
+      color: #241900;
+      background: var(--gold);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .match-sorted {
+      margin-top: 5px;
+      color: var(--text);
+      font-family: "Arial Narrow", Impact, sans-serif;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: .09em;
+    }
+
+    .match-arrow { color: var(--gold-2); }
+
+    .hits { display: flex; flex-wrap: wrap; gap: 7px; }
+
+    .hit-chip {
+      padding: 7px 9px;
+      border: 1px solid rgba(241,199,106,.25);
+      border-radius: 10px;
+      color: var(--gold);
+      background: rgba(241,199,106,.055);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .hit-chip small { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; font-weight: 500; }
+    .no-hit { color: #647585; font-size: 12px; }
+
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 20;
+      padding: 12px 16px;
+      border: 1px solid rgba(105,215,174,.35);
+      border-radius: 12px;
+      color: #c6f6e4;
+      background: rgba(15,46,40,.94);
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: .22s ease;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .footer-note {
+      margin: 17px 3px 0;
+      color: #617283;
+      font-size: 10px;
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    @media (max-width: 820px) {
+      .app { width: min(100% - 20px, 680px); padding-top: 24px; }
+      .hero { align-items: flex-start; }
+      .order-seal { display: none; }
+      .prize-grid { grid-template-columns: 1fr 1fr 1fr; }
+      .number-lists, .groups-grid, .match-grid { grid-template-columns: 1fr; }
+      .reference-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .luohan-summary { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .aggregate-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .period-selectors { width: 100%; margin-left: 0; }
+    }
+
+    @media (max-width: 540px) {
+      .app { width: calc(100% - 14px); }
+      .hero { padding: 0 8px; }
+      .hero p:last-child { font-size: 12px; }
+      .shell { border-radius: 21px; }
+      .input-panel, .results { padding: 17px; }
+      .prize-grid { grid-template-columns: 1fr; }
+      .tabs { gap: 5px; padding: 7px; }
+      .tab { min-height: 50px; font-size: 12px; }
+      .result-title { align-items: flex-start; flex-direction: column; }
+      .stats { justify-content: flex-start; }
+      .reference-grid { grid-template-columns: 1fr; }
+      .match-card { grid-template-columns: 92px minmax(0,1fr); gap: 10px; }
+      .match-number { padding-right: 9px; }
+      .match-sorted { font-size: 23px; }
+      .toolbar-spacer { display: none; }
+      .btn { flex: 1 1 auto; }
+      .batch-help { flex-direction: column; }
+      .scope-switch { width: 100%; }
+      .scope-btn { flex: 1; padding: 0 8px; }
+      .period-selectors { align-items: stretch; flex-direction: column; }
+      .period-selectors label { display: flex; align-items: center; justify-content: space-between; }
+      .aggregate-grid { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      :root { color-scheme: light; }
+      body { color: #111; background: #fff; }
+      .app { width: 100%; padding: 0; }
+      .hero { margin-bottom: 14px; }
+      .hero p, .order-seal, .input-panel, .tabs, .toolbar, .period-controls, .footer-note, .toast { display: none !important; }
+      .shell, .group-card, .match-card, .luohan-reference, .luohan-count { color: #111; background: #fff; box-shadow: none; }
+      .shell, .group-card, .match-card { border-color: #bbb; }
+      .results { padding: 0; }
+      .view { display: none !important; }
+      .view.active { display: block !important; }
+      .groups-grid, .match-grid { gap: 8px; }
+      .group-card, .match-card { break-inside: avoid; }
+      .digit { color: #111; background: #fff; border-color: #bbb; }
+      .sorted-line, .count, .result-title p, .stat, .no-hit, .match-original { color: #555; }
+      .luohan-reference { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">4D Analysis Workspace</p>
+        <h1>排列 · 十八罗汉</h1>
+        <p>一个页面完成两种分析。号码统一按照 1—9—0 的次序排列；十八罗汉以四个数字任选三个进行匹配。</p>
+      </div>
+      <div class="order-seal" aria-label="排列顺序">
+        <div><strong>12345</strong><br><strong>67890</strong><br><small>小 → 大</small></div>
+      </div>
+    </header>
+
+    <section class="shell">
+      <div class="input-panel">
+        <div class="section-head">
+          <h2>号码输入</h2>
+          <span>每个号码必须是完整4位数，0开头也要保留</span>
+        </div>
+
+        <div class="data-mode-switch" aria-label="输入模式">
+          <button class="data-mode-btn active" type="button" data-data-mode="single">单期输入</button>
+          <button class="data-mode-btn" type="button" data-data-mode="multi">多期输入</button>
+        </div>
+
+        <div class="input-pane active" id="singleInputPane">
+          <div class="prize-grid">
+            <label class="p1-label"><b>①</b>头奖
+              <input id="p1" inputmode="numeric" maxlength="4" value="5047" aria-label="头奖号码">
+            </label>
+            <label class="p2-label"><b>②</b>二奖
+              <input id="p2" inputmode="numeric" maxlength="4" value="6948" aria-label="二奖号码">
+            </label>
+            <label class="p3-label"><b>③</b>三奖
+              <input id="p3" inputmode="numeric" maxlength="4" value="6219" aria-label="三奖号码">
+            </label>
+          </div>
+
+          <div class="number-lists">
+            <label>特别奖（空格、逗号或换行分隔）
+              <textarea id="special" spellcheck="false" aria-label="特别奖号码">2288 9689 4468 1943 9869 8871 7637 3215 7708 9562</textarea>
+            </label>
+            <label>安慰奖（空格、逗号或换行分隔）
+              <textarea id="consolation" spellcheck="false" aria-label="安慰奖号码">7620 7930 3307 4591 0508 2471 1237 7028 4284 2910</textarea>
+            </label>
+          </div>
+        </div>
+
+        <div class="input-pane" id="multiInputPane">
+          <div class="batch-help">
+            <span>每期使用4行，期与期之间空一行。输入先后就是期数先后。</span>
+            <span>大奖必须3个（依次为头、二、三奖）；特别与安慰各10个。</span>
+          </div>
+          <label>批量期数资料
+            <textarea id="batchInput" spellcheck="false" aria-label="多期号码批量输入">期号：2026-07-22
+大奖：5047 6948 6219
+特别：2288 9689 4468 1943 9869 8871 7637 3215 7708 9562
+安慰：7620 7930 3307 4591 0508 2471 1237 7028 4284 2910</textarea>
+          </label>
+        </div>
+
+        <div class="toolbar">
+          <button class="btn primary" id="analyzeBtn" type="button">开始分析</button>
+          <button class="btn" id="sampleBtn" type="button">恢复本期号码</button>
+          <button class="btn ghost-danger" id="clearBtn" type="button">清空</button>
+          <span class="toolbar-spacer"></span>
+          <button class="btn" id="copyBtn" type="button">复制当前结果</button>
+          <button class="btn" id="printBtn" type="button">打印</button>
+        </div>
+        <div class="notice" id="notice" role="alert"></div>
+      </div>
+
+      <nav class="tabs" aria-label="工具模式">
+        <button class="tab active" type="button" data-view="sort"><span>01</span>号码排列</button>
+        <button class="tab" type="button" data-view="luohan"><span>02</span>十八罗汉</button>
+      </nav>
+
+      <div class="results">
+        <div class="period-controls" id="periodControls">
+          <div class="scope-switch" aria-label="多期查看方式">
+            <button class="scope-btn active" type="button" data-scope="period">逐期查看</button>
+            <button class="scope-btn" type="button" data-scope="compare">多期对比</button>
+            <button class="scope-btn" type="button" data-scope="aggregate">合并统计</button>
+          </div>
+          <div class="period-selectors">
+            <label>统计范围
+              <select id="rangeSelect">
+                <option value="all">全部</option>
+                <option value="5">最近5期</option>
+                <option value="10">最近10期</option>
+                <option value="20">最近20期</option>
+              </select>
+            </label>
+            <label id="periodSelectLabel">查看期号
+              <select id="periodSelect"></select>
+            </label>
+          </div>
+        </div>
+
+        <section class="view active" id="sortView">
+          <div class="result-title">
+            <div>
+              <h2>号码排列结果</h2>
+              <p>每一列是一个完整号码；只有头、二、三奖显示大奖标记。</p>
+            </div>
+            <div class="stats" id="sortStats"></div>
+          </div>
+          <div class="groups-grid" id="groupsGrid"></div>
+        </section>
+
+        <section class="view" id="luohanView">
+          <div class="result-title">
+            <div>
+              <h2>十八罗汉结果</h2>
+              <p>不看位置；重复数字必须真实存在；同一罗汉每个号码只计算一次。</p>
+            </div>
+            <div class="stats" id="luohanStats"></div>
+          </div>
+
+          <details class="luohan-reference">
+            <summary>查看十八罗汉对照表 <span>点击展开／收起</span></summary>
+            <div class="reference-grid" id="referenceGrid"></div>
+          </details>
+
+          <div class="luohan-summary" id="luohanSummary"></div>
+          <div class="match-grid" id="matchGrid"></div>
+        </section>
+      </div>
+    </section>
+
+    <p class="footer-note">本工具只执行号码排列与规则匹配，不预测或保证任何开奖结果。</p>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const DIGIT_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+      const RANK = Object.fromEntries(DIGIT_ORDER.map((digit, index) => [digit, index]));
+
+      const LUOHAN = [
+        ['147','047','247'],
+        ['137','157'],
+        ['148','146'],
+        ['258','158','358'],
+        ['248','268'],
+        ['259','279'],
+        ['269','369','469'],
+        ['359','379'],
+        ['368','360'],
+        ['123','023','223'],
+        ['113','133'],
+        ['124','122'],
+        ['456','356','556'],
+        ['446','466'],
+        ['457','455'],
+        ['789','689','889'],
+        ['799','779'],
+        ['780','788']
+      ];
+
+      const DEFAULTS = {
+        p1: '5047',
+        p2: '6948',
+        p3: '6219',
+        special: '2288 9689 4468 1943 9869 8871 7637 3215 7708 9562',
+        consolation: '7620 7930 3307 4591 0508 2471 1237 7028 4284 2910'
+      };
+
+      const DEFAULT_BATCH = `期号：2026-07-22
+大奖：5047 6948 6219
+特别：2288 9689 4468 1943 9869 8871 7637 3215 7708 9562
+安慰：7620 7930 3307 4591 0508 2471 1237 7028 4284 2910`;
+
+      const els = {
+        p1: document.getElementById('p1'),
+        p2: document.getElementById('p2'),
+        p3: document.getElementById('p3'),
+        special: document.getElementById('special'),
+        consolation: document.getElementById('consolation'),
+        batch: document.getElementById('batchInput'),
+        notice: document.getElementById('notice'),
+        periodControls: document.getElementById('periodControls'),
+        periodSelect: document.getElementById('periodSelect'),
+        periodSelectLabel: document.getElementById('periodSelectLabel'),
+        rangeSelect: document.getElementById('rangeSelect'),
+        groups: document.getElementById('groupsGrid'),
+        sortStats: document.getElementById('sortStats'),
+        luohanStats: document.getElementById('luohanStats'),
+        reference: document.getElementById('referenceGrid'),
+        summary: document.getElementById('luohanSummary'),
+        matches: document.getElementById('matchGrid'),
+        toast: document.getElementById('toast')
+      };
+
+      let currentRecords = [];
+      let currentPeriods = [];
+      let activeDataMode = 'single';
+      let activeScope = 'period';
+      let activeView = 'sort';
+      let toastTimer;
+
+      function escapeHtml(value) {
+        return String(value).replace(/[&<>'"]/g, char => ({
+          '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        })[char]);
+      }
+
+      function sortDigits(value) {
+        return [...value].sort((a, b) => RANK[a] - RANK[b]).join('');
+      }
+
+      function compareCodes(a, b) {
+        for (let i = 0; i < Math.min(a.length, b.length); i += 1) {
+          const delta = RANK[a[i]] - RANK[b[i]];
+          if (delta) return delta;
+        }
+        return a.length - b.length;
+      }
+
+      function tokenize(value) {
+        return value.trim() ? value.trim().split(/[\s,，、;；]+/).filter(Boolean) : [];
+      }
+
+      function getSingleInputData() {
+        return {
+          p1: els.p1.value.trim(),
+          p2: els.p2.value.trim(),
+          p3: els.p3.value.trim(),
+          special: els.special.value.trim(),
+          consolation: els.consolation.value.trim()
+        };
+      }
+
+      function buildRecords(source, periodLabel, periodIndex) {
+        const rows = [
+          { values: source.p1 ? [source.p1] : [], prize: 'p1', mark: '①', sourceLabel: '头奖' },
+          { values: source.p2 ? [source.p2] : [], prize: 'p2', mark: '②', sourceLabel: '二奖' },
+          { values: source.p3 ? [source.p3] : [], prize: 'p3', mark: '③', sourceLabel: '三奖' },
+          { values: tokenize(source.special), prize: '', mark: '', sourceLabel: '特别奖' },
+          { values: tokenize(source.consolation), prize: '', mark: '', sourceLabel: '安慰奖' }
+        ];
+
+        const records = [];
+        const errors = [];
+        let inputIndex = 0;
+
+        rows.forEach(row => {
+          row.values.forEach(raw => {
+            if (!/^\d{4}$/.test(raw)) {
+              errors.push(`${row.sourceLabel}的“${raw}”不是完整4位号码`);
+              return;
+            }
+            records.push({
+              raw,
+              normalized: sortDigits(raw),
+              prize: row.prize,
+              mark: row.mark,
+              sourceLabel: row.sourceLabel,
+              periodLabel,
+              periodIndex,
+              inputIndex: inputIndex++
+            });
+          });
+        });
+
+        return { records, errors };
+      }
+
+      function parseSinglePeriod() {
+        const result = buildRecords(getSingleInputData(), '本期', 0);
+        return { periods: result.records.length ? [{ label: '本期', records: result.records }] : [], errors: result.errors };
+      }
+
+      function parseBatchPeriods() {
+        const text = els.batch.value.trim();
+        if (!text) return { periods: [], errors: [] };
+
+        const blocks = text.split(/\n\s*\n+/).map(block => block.trim()).filter(Boolean);
+        const periods = [];
+        const errors = [];
+        const labels = new Set();
+
+        blocks.forEach((block, periodIndex) => {
+          const fields = {};
+          block.split(/\n+/).forEach(line => {
+            const match = line.match(/^\s*([^:：]+)\s*[:：]\s*(.*?)\s*$/);
+            if (!match) return;
+            const key = match[1].trim();
+            const value = match[2].trim();
+            if (/^(期号|期数|日期)$/.test(key)) fields.label = value;
+            else if (/^(大奖|前三奖|头二三奖)$/.test(key)) fields.grand = value;
+            else if (/^特别奖?$/.test(key)) fields.special = value;
+            else if (/^安慰奖?$/.test(key)) fields.consolation = value;
+          });
+
+          const label = fields.label || `第${periodIndex + 1}期`;
+          if (labels.has(label)) errors.push(`期号“${label}”重复，请使用不同期号`);
+          labels.add(label);
+
+          const grand = tokenize(fields.grand || '');
+          if (grand.length !== 3) errors.push(`${label}的大奖应有3个，目前${grand.length}个`);
+          const source = {
+            p1: grand[0] || '',
+            p2: grand[1] || '',
+            p3: grand[2] || '',
+            special: fields.special || '',
+            consolation: fields.consolation || ''
+          };
+          const built = buildRecords(source, label, periodIndex);
+          const specialCount = tokenize(source.special).length;
+          const consolationCount = tokenize(source.consolation).length;
+          if (specialCount !== 10) errors.push(`${label}的特别奖应有10个，目前${specialCount}个`);
+          if (consolationCount !== 10) errors.push(`${label}的安慰奖应有10个，目前${consolationCount}个`);
+          errors.push(...built.errors);
+          periods.push({ label, records: built.records });
+        });
+
+        return { periods, errors };
+      }
+
+      function getTriples(code) {
+        const triples = new Set();
+        for (let i = 0; i < 4; i += 1) {
+          let triple = '';
+          for (let j = 0; j < 4; j += 1) {
+            if (i !== j) triple += code[j];
+          }
+          triples.add(sortDigits(triple));
+        }
+        return triples;
+      }
+
+      function getLuohanMatches(record) {
+        const triples = getTriples(record.raw);
+        return LUOHAN.map((variants, index) => {
+          const hits = variants.filter(variant => triples.has(sortDigits(variant)));
+          return hits.length ? { index: index + 1, variants: hits } : null;
+        }).filter(Boolean);
+      }
+
+      function awardHtml(record, compact = false) {
+        if (!record.mark) return compact ? '' : '<span class="award-slot" aria-hidden="true">·</span>';
+        if (compact) return `<span class="mini-award ${record.prize}">${record.mark}</span>`;
+        return `<span class="award-slot has-award ${record.prize}" title="${escapeHtml(record.sourceLabel)}">${record.mark}</span>`;
+      }
+
+      function getScopedPeriods() {
+        const limit = els.rangeSelect.value;
+        if (limit === 'all') return currentPeriods;
+        return currentPeriods.slice(-Number(limit));
+      }
+
+      function refreshPeriodSelector(preferredLabel = '') {
+        const periods = getScopedPeriods();
+        const wanted = periods.some(period => period.label === preferredLabel)
+          ? preferredLabel
+          : periods[periods.length - 1]?.label || '';
+        els.periodSelect.innerHTML = periods.map(period =>
+          `<option value="${escapeHtml(period.label)}" ${period.label === wanted ? 'selected' : ''}>${escapeHtml(period.label)}</option>`
+        ).join('');
+        const selected = periods.find(period => period.label === wanted) || periods[0];
+        currentRecords = selected?.records || [];
+      }
+
+      function refreshPeriodControls() {
+        const isMulti = activeDataMode === 'multi' && currentPeriods.length > 0;
+        els.periodControls.classList.toggle('show', isMulti);
+        els.periodSelectLabel.style.display = activeScope === 'period' ? '' : 'none';
+        document.querySelectorAll('.scope-btn').forEach(button => {
+          button.classList.toggle('active', button.dataset.scope === activeScope);
+        });
+        if (isMulti) refreshPeriodSelector(els.periodSelect.value);
+      }
+
+      function renderSort() {
+        const groupOrder = ['1','2','3','4','5','6','7','8','9'];
+        const groups = Object.fromEntries(groupOrder.map(key => [key, []]));
+        groups['0'] = [];
+
+        currentRecords.forEach(record => {
+          const key = record.normalized[0];
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(record);
+        });
+
+        Object.values(groups).forEach(records => {
+          records.sort((a, b) => compareCodes(a.normalized, b.normalized) || a.inputIndex - b.inputIndex);
+        });
+
+        const activeGroups = Object.values(groups).filter(group => group.length).length;
+        els.sortStats.innerHTML = `
+          ${activeDataMode === 'multi' ? `<span class="stat">期号 <strong>${escapeHtml(currentRecords[0]?.periodLabel || '')}</strong></span>` : ''}
+          <span class="stat"><strong>${currentRecords.length}</strong> 个号码</span>
+          <span class="stat"><strong>${activeGroups}</strong> 个有号码组合</span>
+          <span class="stat">次序 <strong>1234567890</strong></span>`;
+
+        const renderKeys = groups['0'].length ? [...groupOrder, '0'] : groupOrder;
+        els.groups.innerHTML = renderKeys.map(key => {
+          const records = groups[key];
+          if (!records.length) {
+            return `<article class="group-card empty">
+              <div class="group-top">
+                <div class="group-name"><b>${key}</b>${key}组合</div>
+                <span class="count">0 个号码</span>
+              </div>
+              <div class="empty-copy">暂无号码</div>
+            </article>`;
+          }
+
+          const columns = records.map(record => `
+            <div class="number-column" title="原号 ${record.raw} → ${record.normalized}">
+              ${awardHtml(record)}
+              ${[...record.normalized].map(digit => `<span class="digit">${digit}</span>`).join('')}
+            </div>`).join('');
+
+          const sortedLine = records.map(record => record.normalized).join(' · ');
+          const originalLine = records.map(record => `${record.raw}→${record.normalized}`).join('、');
+
+          return `<article class="group-card">
+            <div class="group-top">
+              <div class="group-name"><b>${key}</b>${key}组合</div>
+              <span class="count">${records.length} 个号码</span>
+            </div>
+            <div class="vertical-board"><div class="number-columns">${columns}</div></div>
+            <div class="sorted-line"><strong>${sortedLine}</strong><br>${originalLine}</div>
+          </article>`;
+        }).join('');
+      }
+
+      function renderSortCompare(periods) {
+        const groupKeys = ['1','2','3','4','5','6','7','8','9'];
+        const rows = periods.map(period => {
+          const counts = Object.fromEntries(groupKeys.map(key => [key, 0]));
+          period.records.forEach(record => {
+            const key = record.normalized[0];
+            if (key in counts) counts[key] += 1;
+          });
+          return { period, counts };
+        });
+        const totals = Object.fromEntries(groupKeys.map(key => [key, rows.reduce((sum, row) => sum + row.counts[key], 0)]));
+
+        const groupTable = `<div class="table-card"><h3>组合数量对比 <span>每格代表该期出现次数</span></h3>
+          <div class="data-table-wrap"><table class="data-table">
+            <thead><tr><th>期号</th>${groupKeys.map(key => `<th>${key}组合</th>`).join('')}<th>合计</th></tr></thead>
+            <tbody>
+              ${rows.map(({ period, counts }) => `<tr><td>${escapeHtml(period.label)}</td>${groupKeys.map(key => `<td>${counts[key]}</td>`).join('')}<td>${period.records.length}</td></tr>`).join('')}
+              <tr class="total-row"><td>合计</td>${groupKeys.map(key => `<td>${totals[key]}</td>`).join('')}<td>${periods.reduce((sum, period) => sum + period.records.length, 0)}</td></tr>
+            </tbody>
+          </table></div></div>`;
+
+        const prizeTable = `<div class="table-card"><h3>大奖排列追踪 <span>号码后方显示所属组合</span></h3>
+          <div class="data-table-wrap"><table class="data-table">
+            <thead><tr><th>期号</th><th>① 头奖</th><th>组合</th><th>② 二奖</th><th>组合</th><th>③ 三奖</th><th>组合</th></tr></thead>
+            <tbody>${periods.map(period => {
+              const prizes = ['p1','p2','p3'].map(prize => period.records.find(record => record.prize === prize));
+              return `<tr><td>${escapeHtml(period.label)}</td>${prizes.map(record => record
+                ? `<td>${record.raw}→${record.normalized}</td><td>${record.normalized[0]}</td>`
+                : '<td>—</td><td>—</td>').join('')}</tr>`;
+            }).join('')}</tbody>
+          </table></div></div>`;
+
+        els.sortStats.innerHTML = `<span class="stat"><strong>${periods.length}</strong> 期对比</span><span class="stat"><strong>${periods.reduce((sum, period) => sum + period.records.length, 0)}</strong> 个号码</span>`;
+        els.groups.innerHTML = `<div class="table-stack" style="grid-column:1/-1">${groupTable}${prizeTable}</div>`;
+      }
+
+      function renderSortAggregate(periods) {
+        const allRecords = periods.flatMap(period => period.records);
+        const groupKeys = ['1','2','3','4','5','6','7','8','9'];
+        const cards = groupKeys.map(key => {
+          const records = allRecords.filter(record => record.normalized[0] === key);
+          const frequencies = new Map();
+          records.forEach(record => {
+            const item = frequencies.get(record.normalized) || { count: 0, periods: [] };
+            item.count += 1;
+            item.periods.push(record.periodLabel);
+            frequencies.set(record.normalized, item);
+          });
+          const items = [...frequencies.entries()].sort((a, b) => b[1].count - a[1].count || compareCodes(a[0], b[0]));
+          return `<article class="aggregate-card">
+            <h3>${key}组合 <span>${records.length} 次</span></h3>
+            <div class="frequency-list">${items.length ? items.map(([number, item]) => `
+              <div class="frequency-item" title="${escapeHtml(item.periods.join('、'))}"><span>${number}</span><small>${escapeHtml(item.periods.join('、'))}</small><b>×${item.count}</b></div>`).join('') : '<span class="no-hit">暂无号码</span>'}</div>
+          </article>`;
+        }).join('');
+
+        els.sortStats.innerHTML = `<span class="stat"><strong>${periods.length}</strong> 期合并</span><span class="stat"><strong>${allRecords.length}</strong> 个号码</span><span class="stat">相同号码按出现次数保留</span>`;
+        els.groups.innerHTML = `<div class="aggregate-grid" style="grid-column:1/-1">${cards}</div>`;
+      }
+
+      function renderSortDashboard() {
+        const periods = getScopedPeriods();
+        if (activeDataMode !== 'multi' || activeScope === 'period') renderSort();
+        else if (activeScope === 'compare') renderSortCompare(periods);
+        else renderSortAggregate(periods);
+      }
+
+      function renderReference() {
+        els.reference.innerHTML = LUOHAN.map((variants, index) => `
+          <div class="reference-item"><b>罗汉${index + 1}</b>${variants.join('／')}</div>
+        `).join('');
+      }
+
+      function renderLuohan() {
+        const ordered = [...currentRecords].sort((a, b) =>
+          compareCodes(a.normalized, b.normalized) || a.inputIndex - b.inputIndex
+        );
+        const analyzed = ordered.map(record => ({ record, hits: getLuohanMatches(record) }));
+        const hitRecords = analyzed.filter(item => item.hits.length).length;
+        const counts = Array(18).fill(0);
+        analyzed.forEach(item => item.hits.forEach(hit => { counts[hit.index - 1] += 1; }));
+        const activeLuohan = counts.filter(Boolean).length;
+
+        els.luohanStats.innerHTML = `
+          ${activeDataMode === 'multi' ? `<span class="stat">期号 <strong>${escapeHtml(currentRecords[0]?.periodLabel || '')}</strong></span>` : ''}
+          <span class="stat"><strong>${hitRecords}</strong>/${currentRecords.length} 个号码命中</span>
+          <span class="stat"><strong>${activeLuohan}</strong>/18 个罗汉出现</span>`;
+
+        els.summary.innerHTML = counts.map((count, index) => `
+          <div class="luohan-count ${count ? 'hit' : ''}">
+            <b>罗汉${index + 1}</b><span>${count} 个号码</span>
+          </div>`).join('');
+
+        els.matches.innerHTML = analyzed.map(({ record, hits }) => {
+          const chips = hits.length
+            ? hits.map(hit => `<span class="hit-chip">罗汉${hit.index}<small>命中 ${hit.variants.join('、')}</small></span>`).join('')
+            : '<span class="no-hit">未命中十八罗汉</span>';
+
+          return `<article class="match-card">
+            <div class="match-number">
+              <div class="match-original">${awardHtml(record, true)}原号 ${record.raw}</div>
+              <div class="match-sorted"><span class="match-arrow">→</span>${record.normalized}</div>
+            </div>
+            <div class="hits">${chips}</div>
+          </article>`;
+        }).join('');
+      }
+
+      function countLuohan(records) {
+        const counts = Array(18).fill(0);
+        records.forEach(record => getLuohanMatches(record).forEach(hit => { counts[hit.index - 1] += 1; }));
+        return counts;
+      }
+
+      function renderLuohanCompare(periods) {
+        const rows = periods.map(period => ({ period, counts: countLuohan(period.records) }));
+        const totals = Array.from({ length: 18 }, (_, index) => rows.reduce((sum, row) => sum + row.counts[index], 0));
+        const header = Array.from({ length: 18 }, (_, index) => `<th>罗${index + 1}</th>`).join('');
+        const body = rows.map(({ period, counts }) => `<tr><td>${escapeHtml(period.label)}</td>${counts.map(count => `<td>${count}</td>`).join('')}<td>${counts.reduce((sum, count) => sum + count, 0)}</td></tr>`).join('');
+
+        els.luohanStats.innerHTML = `<span class="stat"><strong>${periods.length}</strong> 期对比</span><span class="stat">同一号码可计入多个罗汉</span>`;
+        els.summary.innerHTML = '';
+        els.matches.innerHTML = `<div class="table-stack" style="grid-column:1/-1"><div class="table-card">
+          <h3>十八罗汉数量对比 <span>横向滑动可查看全部18罗汉</span></h3>
+          <div class="data-table-wrap"><table class="data-table">
+            <thead><tr><th>期号</th>${header}<th>合计命中</th></tr></thead>
+            <tbody>${body}<tr class="total-row"><td>合计</td>${totals.map(count => `<td>${count}</td>`).join('')}<td>${totals.reduce((sum, count) => sum + count, 0)}</td></tr></tbody>
+          </table></div>
+        </div></div>`;
+      }
+
+      function renderLuohanAggregate(periods) {
+        const allRecords = periods.flatMap(period => period.records);
+        const buckets = Array.from({ length: 18 }, () => []);
+        allRecords.forEach(record => getLuohanMatches(record).forEach(hit => {
+          buckets[hit.index - 1].push({ record, variants: hit.variants });
+        }));
+        const activeCount = buckets.filter(bucket => bucket.length).length;
+
+        els.luohanStats.innerHTML = `<span class="stat"><strong>${periods.length}</strong> 期合并</span><span class="stat"><strong>${activeCount}</strong>/18 个罗汉出现</span>`;
+        els.summary.innerHTML = buckets.map((bucket, index) => `<div class="luohan-count ${bucket.length ? 'hit' : ''}"><b>罗汉${index + 1}</b><span>${bucket.length} 次命中</span></div>`).join('');
+        els.matches.innerHTML = `<div class="aggregate-grid" style="grid-column:1/-1">${buckets.map((bucket, index) => `
+          <article class="aggregate-card">
+            <h3>罗汉${index + 1} <span>${bucket.length} 次</span></h3>
+            <div class="frequency-list">${bucket.length ? bucket.map(({ record, variants }) => `
+              <div class="frequency-item"><span>${record.raw}→${record.normalized}</span><small>${escapeHtml(record.periodLabel)} · ${variants.join('、')}</small></div>`).join('') : '<span class="no-hit">暂无命中</span>'}</div>
+          </article>`).join('')}</div>`;
+      }
+
+      function renderLuohanDashboard() {
+        const periods = getScopedPeriods();
+        if (activeDataMode !== 'multi' || activeScope === 'period') renderLuohan();
+        else if (activeScope === 'compare') renderLuohanCompare(periods);
+        else renderLuohanAggregate(periods);
+      }
+
+      function renderDashboards() {
+        if (!currentRecords.length && !getScopedPeriods().length) return renderEmpty();
+        renderSortDashboard();
+        renderLuohanDashboard();
+      }
+
+      function renderEmpty() {
+        els.sortStats.innerHTML = '<span class="stat">0 个号码</span>';
+        els.luohanStats.innerHTML = '<span class="stat">0 个号码</span>';
+        els.groups.innerHTML = '<div class="empty-copy">请输入号码后开始分析</div>';
+        els.summary.innerHTML = '';
+        els.matches.innerHTML = '<div class="empty-copy">请输入号码后开始分析</div>';
+      }
+
+      function analyze() {
+        const { periods, errors } = activeDataMode === 'multi' ? parseBatchPeriods() : parseSinglePeriod();
+        if (errors.length) {
+          els.notice.textContent = errors.join('；');
+          els.notice.classList.add('show');
+          return false;
+        }
+
+        els.notice.classList.remove('show');
+        currentPeriods = periods;
+        currentRecords = periods[0]?.records || [];
+        refreshPeriodControls();
+        try {
+          localStorage.setItem('fourDToolStateV2', JSON.stringify({
+            mode: activeDataMode,
+            single: getSingleInputData(),
+            batch: els.batch.value
+          }));
+        } catch (_) { /* Local storage may be unavailable on some file browsers. */ }
+
+        if (!periods.length) {
+          renderEmpty();
+          return true;
+        }
+        renderDashboards();
+        return true;
+      }
+
+      function plainSortText() {
+        const groups = {};
+        currentRecords.forEach(record => {
+          const key = record.normalized[0];
+          (groups[key] ||= []).push(record);
+        });
+
+        return DIGIT_ORDER.filter(key => groups[key]?.length).map(key => {
+          const records = groups[key].sort((a, b) => compareCodes(a.normalized, b.normalized) || a.inputIndex - b.inputIndex);
+          const awardLine = records.map(record => record.mark || '－').join(' ');
+          const digitLines = [0,1,2,3].map(row => records.map(record => record.normalized[row]).join(''));
+          return `${key}组合（${records.length}个）\n大奖：${awardLine}\n号码：${records.map(r => r.normalized).join('｜')}\n${digitLines.join('\n')}`;
+        }).join('\n\n');
+      }
+
+      function plainLuohanText() {
+        const ordered = [...currentRecords].sort((a, b) => compareCodes(a.normalized, b.normalized) || a.inputIndex - b.inputIndex);
+        return ordered.map(record => {
+          const hits = getLuohanMatches(record);
+          const prefix = record.mark ? `${record.mark} ` : '';
+          const result = hits.length
+            ? hits.map(hit => `罗汉${hit.index}（${hit.variants.join('、')}）`).join('、')
+            : '未命中';
+          return `${prefix}${record.raw}→${record.normalized}：${result}`;
+        }).join('\n');
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (_) {
+          const helper = document.createElement('textarea');
+          helper.value = text;
+          helper.style.position = 'fixed';
+          helper.style.opacity = '0';
+          document.body.appendChild(helper);
+          helper.select();
+          document.execCommand('copy');
+          helper.remove();
+        }
+        showToast('当前结果已复制');
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        els.toast.textContent = message;
+        els.toast.classList.add('show');
+        toastTimer = setTimeout(() => els.toast.classList.remove('show'), 1800);
+      }
+
+      function setInputs(values) {
+        Object.keys(DEFAULTS).forEach(key => { els[key].value = values[key] ?? ''; });
+      }
+
+      function setDataMode(mode, runAnalysis = true) {
+        activeDataMode = mode;
+        activeScope = 'period';
+        document.querySelectorAll('.data-mode-btn').forEach(button => {
+          button.classList.toggle('active', button.dataset.dataMode === mode);
+        });
+        document.querySelectorAll('.input-pane').forEach(pane => {
+          pane.classList.toggle('active', pane.id === `${mode}InputPane`);
+        });
+        document.getElementById('sampleBtn').textContent = mode === 'multi' ? '载入格式范例' : '恢复本期号码';
+        if (runAnalysis) analyze();
+      }
+
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          activeView = tab.dataset.view;
+          document.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === tab));
+          document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === `${activeView}View`));
+        });
+      });
+
+      document.querySelectorAll('.data-mode-btn').forEach(button => {
+        button.addEventListener('click', () => setDataMode(button.dataset.dataMode));
+      });
+
+      document.querySelectorAll('.scope-btn').forEach(button => {
+        button.addEventListener('click', () => {
+          activeScope = button.dataset.scope;
+          refreshPeriodControls();
+          renderDashboards();
+        });
+      });
+
+      els.rangeSelect.addEventListener('change', () => {
+        refreshPeriodSelector(els.periodSelect.value);
+        renderDashboards();
+      });
+
+      els.periodSelect.addEventListener('change', () => {
+        const selected = getScopedPeriods().find(period => period.label === els.periodSelect.value);
+        currentRecords = selected?.records || [];
+        renderDashboards();
+      });
+
+      document.getElementById('analyzeBtn').addEventListener('click', () => {
+        if (analyze()) showToast('分析已更新');
+      });
+
+      document.getElementById('sampleBtn').addEventListener('click', () => {
+        if (activeDataMode === 'multi') els.batch.value = DEFAULT_BATCH;
+        else setInputs(DEFAULTS);
+        analyze();
+        showToast(activeDataMode === 'multi' ? '已载入多期格式范例' : '已恢复本期23个号码');
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        if (activeDataMode === 'multi') els.batch.value = '';
+        else setInputs({ p1: '', p2: '', p3: '', special: '', consolation: '' });
+        analyze();
+        showToast('号码已清空');
+      });
+
+      document.getElementById('copyBtn').addEventListener('click', () => {
+        if (!currentRecords.length) return showToast('目前没有可复制的结果');
+        const isPeriodView = activeDataMode !== 'multi' || activeScope === 'period';
+        const text = isPeriodView
+          ? (activeView === 'sort' ? plainSortText() : plainLuohanText())
+          : document.getElementById(`${activeView}View`).innerText.trim();
+        copyText(text);
+      });
+
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+      ['p1','p2','p3'].forEach(id => {
+        els[id].addEventListener('input', event => {
+          event.target.value = event.target.value.replace(/\D/g, '').slice(0, 4);
+        });
+        els[id].addEventListener('keydown', event => {
+          if (event.key === 'Enter') analyze();
+        });
+      });
+
+      renderReference();
+      try {
+        const saved = JSON.parse(localStorage.getItem('fourDToolStateV2'));
+        if (saved && typeof saved === 'object') {
+          setInputs({ ...DEFAULTS, ...(saved.single || {}) });
+          els.batch.value = saved.batch || DEFAULT_BATCH;
+          setDataMode(saved.mode === 'multi' ? 'multi' : 'single', false);
+        }
+      } catch (_) { /* Ignore unavailable or invalid saved data. */ }
+      analyze();
+    })();
+  </script>
+</body>
+</html>
