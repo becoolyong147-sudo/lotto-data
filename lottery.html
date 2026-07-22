@@ -273,6 +273,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
     <div class="subtab" data-tab="zodiac" onclick="switchSubtab(this)">🐲 生肖图</div>
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
+    <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
   </div>
 </div>
@@ -7770,6 +7771,49 @@ function doBacktest(){
   </div>
 </div>
 <div id="pp-out"></div>
+</div>
+
+<!-- TAB: 号码排列 (1-9-0) -->
+<div id="tab-numsort" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🔢 号码排列 · 1→9→0</div>
+    <div style="font-size:12px;color:#99f6e4;margin-top:2px">将每个4位号码的数字按 1-2-3-4-5-6-7-8-9-0 次序排列，再按首位分组展示。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="ns-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    </div>
+    <div class="ig"><label>数据来源</label>
+      <select id="ns-source">
+        <option value="latest">最新一期（含特别/安慰奖）</option>
+        <option value="manual">手动输入号码</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doNumSort()">🔍 排列</button>
+    </div>
+  </div>
+  <div id="ns-manual-area" style="display:none;margin-top:10px">
+    <div class="g3">
+      <div class="ig"><label>头奖</label><input type="text" id="ns-p1" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+      <div class="ig"><label>二奖</label><input type="text" id="ns-p2" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+      <div class="ig"><label>三奖</label><input type="text" id="ns-p3" maxlength="4" placeholder="0000" style="letter-spacing:2px;font-family:monospace"></div>
+    </div>
+    <div class="g2" style="margin-top:8px">
+      <div class="ig"><label>特别奖（空格分隔）</label><input type="text" id="ns-sp" placeholder="1234 5678 ..."></div>
+      <div class="ig"><label>安慰奖（空格分隔）</label><input type="text" id="ns-cs" placeholder="1234 5678 ..."></div>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    排列次序：<b>1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9 → 0</b>（小到大，0 排最后）。<br>
+    每个号码的4个数字按此次序重新排列，再按排列后的首位数字分组。大奖号码标注 ①②③。
+  </div>
+</div>
+<div id="ns-out"></div>
 </div>
 
 <!-- TAB: 十八罗汉 -->
@@ -18069,6 +18113,150 @@ function doPrizeProfile() {
       </table></div>
     </div>`;
 }
+// ═══════════════════════════════════════════════════════
+// 号码排列引擎 (1-9-0 次序)
+// ═══════════════════════════════════════════════════════
+(function(){
+
+const NS_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+const NS_RANK = {};
+NS_ORDER.forEach((d,i)=>NS_RANK[d]=i);
+
+function nsSortDigits(s){
+  return [...s].sort((a,b)=>NS_RANK[a]-NS_RANK[b]).join('');
+}
+
+function nsCompare(a,b){
+  for(let i=0;i<Math.min(a.length,b.length);i++){
+    const d=NS_RANK[a[i]]-NS_RANK[b[i]];
+    if(d) return d;
+  }
+  return a.length-b.length;
+}
+
+document.getElementById('ns-source').addEventListener('change',function(){
+  document.getElementById('ns-manual-area').style.display = this.value==='manual'?'block':'none';
+});
+
+function nsCollectRecords(){
+  const market = document.getElementById('ns-market').value;
+  const source = document.getElementById('ns-source').value;
+  let records = [];
+
+  if(source==='manual'){
+    const p1=document.getElementById('ns-p1').value.trim();
+    const p2=document.getElementById('ns-p2').value.trim();
+    const p3=document.getElementById('ns-p3').value.trim();
+    const sp=(document.getElementById('ns-sp').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
+    const cs=(document.getElementById('ns-cs').value.trim()||'').split(/\s+/).filter(n=>/^\d{4}$/.test(n));
+    if(p1&&/^\d{4}$/.test(p1)) records.push({raw:p1, prize:0, label:'头奖'});
+    if(p2&&/^\d{4}$/.test(p2)) records.push({raw:p2, prize:1, label:'二奖'});
+    if(p3&&/^\d{4}$/.test(p3)) records.push({raw:p3, prize:2, label:'三奖'});
+    sp.forEach(n=>records.push({raw:n, prize:-1, label:'特别奖'}));
+    cs.forEach(n=>records.push({raw:n, prize:-1, label:'安慰奖'}));
+    return {records, dateLabel:'手动输入', warn:''};
+  }
+
+  const newData = typeof getNewResults==='function'?getNewResults():{};
+  const newRecs = newData[market]||[];
+  const latest = newRecs[0];
+  if(!latest){
+    const dbRecs = DB[market]||[];
+    if(!dbRecs.length) return {records:[], dateLabel:'', warn:'该市场暂无数据'};
+    const d = dbRecs[0];
+    ['头奖','二奖','三奖'].forEach((lbl,i)=>{
+      if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+    });
+    return {records, dateLabel:d.date, warn:'⚠️ 仅有头二三奖（历史数据不含特别/安慰奖），建议切换到「手动输入」填入完整23个号码。'};
+  }
+  const d = latest;
+  ['头奖','二奖','三奖'].forEach((lbl,i)=>{
+    if(d.nums[i]) records.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+  });
+  (d.sp||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'特别奖'}));
+  (d.cs||[]).forEach(n=>records.push({raw:String(n).padStart(4,'0'), prize:-1, label:'安慰奖'}));
+  const hasSpCs = (d.sp&&d.sp.length)||(d.cs&&d.cs.length);
+  return {records, dateLabel:d.date, warn:hasSpCs?'':'⚠️ 该期无特别/安慰奖数据，仅分析头二三奖。'};
+}
+
+window.doNumSort = function(){
+  const out = document.getElementById('ns-out');
+  const {records, dateLabel, warn} = nsCollectRecords();
+  if(!records.length){ out.innerHTML='<div class="warn">'+(warn||'请输入至少一个4位号码')+'</div>'; return; }
+
+  const items = records.map((r,idx)=>({...r, sorted:nsSortDigits(r.raw), idx}));
+
+  const groups = {};
+  NS_ORDER.forEach(k=>groups[k]=[]);
+  items.forEach(it=>{
+    const key = it.sorted[0];
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(it);
+  });
+  Object.values(groups).forEach(arr=>arr.sort((a,b)=>nsCompare(a.sorted,b.sorted)||a.idx-b.idx));
+
+  const activeGroups = NS_ORDER.filter(k=>groups[k].length);
+  let html = '';
+
+  if(warn) html += '<div class="warn" style="margin-bottom:8px">'+warn+'</div>';
+
+  // Stats
+  html += '<div class="card"><div class="g4">';
+  html += '<div class="sc"><div class="val">'+dateLabel+'</div><div class="lbl">日期/来源</div></div>';
+  html += '<div class="sc"><div class="val">'+records.length+'</div><div class="lbl">号码总数</div></div>';
+  html += '<div class="sc"><div class="val">'+activeGroups.length+'</div><div class="lbl">有号码的组</div></div>';
+  html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
+  html += '</div></div>';
+
+  // Group cards
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  NS_ORDER.forEach(key=>{
+    const arr = groups[key];
+    const isEmpty = !arr.length;
+    html += '<div class="card" style="'+(isEmpty?'opacity:.5':''')+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
+    html += '<span style="font-size:11px;color:#888">'+arr.length+' 个号码</span></div>';
+
+    if(!arr.length){
+      html += '<div style="text-align:center;padding:20px 0;color:#aaa;font-size:12px">暂无号码</div>';
+    } else {
+      // Vertical columns display
+      html += '<div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:40px;gap:5px;min-width:100%">';
+      arr.forEach(it=>{
+        const badge = it.prize===0?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:12px;font-weight:900;color:#7a5000">①</div>'
+          :it.prize===1?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:12px;font-weight:900;color:#17202b">②</div>'
+          :it.prize===2?'<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff">③</div>'
+          :'<div style="width:26px;height:26px"></div>';
+        html += '<div style="display:grid;gap:4px;justify-items:center">'+badge;
+        [...it.sorted].forEach(d=>{
+          html += '<div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #ddd;border-radius:8px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:20px;font-weight:800">'+d+'</div>';
+        });
+        html += '</div>';
+      });
+      html += '</div></div>';
+
+      // Sorted line
+      const sortedLine = arr.map(it=>it.sorted).join(' · ');
+      const originalLine = arr.map(it=>it.raw+'→'+it.sorted).join('、');
+      html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc;font-size:11px;color:#888;line-height:1.7;overflow-wrap:anywhere"><b style="color:#333">'+sortedLine+'</b><br>'+originalLine+'</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  out.innerHTML = html;
+};
+
+setTimeout(()=>{
+  if(window.SCENE_MAP && SCENE_MAP.analysis && !SCENE_MAP.analysis.includes('numsort')){
+    SCENE_MAP.analysis.push('numsort');
+  }
+  if(window.TAB_TO_SCENE) TAB_TO_SCENE['numsort']='analysis';
+},0);
+
+})();
+
 // ═══════════════════════════════════════════════════════
 // 十八罗汉匹配引擎
 // ═══════════════════════════════════════════════════════
