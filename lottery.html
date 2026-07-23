@@ -18149,11 +18149,77 @@ function doPrizeProfile() {
 }
 // ═══════════════════════════════════════════════════════
 // 号码排列引擎 (1-9-0 次序) + 十八罗汉匹配引擎
-// 支持: 单期(含特别/安慰奖) · 多期对比 · 合并统计
 // ═══════════════════════════════════════════════════════
 (function(){
 
-// --- Shared: 1-9-0 ordering ---
+// --- Inject scoped CSS ---
+var _css = document.createElement('style');
+_css.textContent = [
+  '.ns-grid{display:inline-grid;grid-auto-flow:column;grid-auto-columns:36px;gap:2px}',
+  '.ns-grid-sm{grid-auto-columns:30px}',
+  '.ns-col{display:grid;gap:2px;justify-items:center}',
+  '.ns-cell{width:32px;height:32px;display:grid;place-items:center;border-radius:7px;font-family:"Arial Narrow",Impact,sans-serif;font-size:18px;font-weight:800;transition:transform .1s}',
+  '.ns-cell:hover{transform:scale(1.15)}',
+  '.ns-cell-sm{width:26px;height:26px;font-size:14px;border-radius:5px}',
+  '.ns-sep{width:3px;border-right:2px dashed #e0ddd5;margin:0 1px}',
+  '.ns-sep div{height:32px}',
+  '.ns-sep-sm div{height:26px}',
+  // Group colors
+  '.ns-g1{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af}',
+  '.ns-g2{background:#f0fdf4;border:1px solid #86efac;color:#166534}',
+  '.ns-g3{background:#fefce8;border:1px solid #fde047;color:#854d0e}',
+  '.ns-g4{background:#fff7ed;border:1px solid #fdba74;color:#9a3412}',
+  '.ns-g5{background:#fdf2f8;border:1px solid #f9a8d4;color:#9d174d}',
+  '.ns-g6{background:#faf5ff;border:1px solid #d8b4fe;color:#7e22ce}',
+  '.ns-g7{background:#ecfeff;border:1px solid #67e8f9;color:#155e75}',
+  '.ns-g8{background:#fef2f2;border:1px solid #fca5a5;color:#991b1b}',
+  '.ns-g9{background:#f0fdfa;border:1px solid #5eead4;color:#115e59}',
+  '.ns-g0{background:#f5f5f4;border:1px solid #a8a29e;color:#44403c}',
+  // Badges
+  '.ns-b1{width:24px;height:24px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:11px;font-weight:900;color:#7a5000}',
+  '.ns-b2{width:24px;height:24px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:11px;font-weight:900;color:#17202b}',
+  '.ns-b3{width:24px;height:24px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:11px;font-weight:900;color:#fff}',
+  '.ns-b-{width:24px;height:24px}',
+  '.ns-b1-sm,.ns-b2-sm,.ns-b3-sm{width:20px;height:20px;font-size:9px}',
+  '.ns-b--sm{width:20px;height:20px}',
+  // Group pill
+  '.ns-pill{display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;transition:all .15s}',
+  '.ns-pill-active{color:#fff}',
+  '.ns-pill-dim{background:#f5f5f0;color:#bbb}',
+  // Timeline heatmap
+  '.lh-tl{border-collapse:separate;border-spacing:2px;font-size:10px}',
+  '.lh-tl th{padding:3px 4px;font-size:9px;white-space:nowrap;position:sticky;top:0;background:#fff;z-index:1}',
+  '.lh-tl td{padding:0;width:24px;height:22px;text-align:center;border-radius:4px;font-weight:700;font-size:10px}',
+  '.lh-tl-hit{background:#f59e0b;color:#fff}',
+  '.lh-tl-miss{background:#f5f5f0;color:#ddd}',
+  '.lh-tl .lh-tl-lbl{width:auto;text-align:left;font-weight:700;white-space:nowrap;position:sticky;left:0;background:#fff;z-index:1;padding:0 6px}',
+  '.lh-tl .lh-tl-var{width:auto;font-size:8px;color:#999;text-align:left;padding:0 4px}',
+  // Absence cards
+  '.lh-abs{text-align:center;padding:10px 6px;border-radius:10px;transition:transform .15s}',
+  '.lh-abs:hover{transform:translateY(-2px)}',
+  '.lh-abs-cold{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #93c5fd}',
+  '.lh-abs-hot{background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b}',
+  '.lh-abs-num{font-size:24px;font-weight:800;line-height:1}',
+  '.lh-abs-bar{height:5px;border-radius:3px;overflow:hidden;margin:4px 6px 0}',
+  // Co-occurrence
+  '.lh-pair{padding:8px;border-radius:8px;display:flex;align-items:center;gap:8px;border:1px solid #e4e4dc;transition:transform .15s}',
+  '.lh-pair:hover{transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.06)}',
+  '.lh-pair-badge{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:7px;color:#fff;font-size:12px;font-weight:700}',
+  // Triple chips
+  '.lh-triple{padding:4px 8px;border-radius:6px;font-size:11px;transition:all .15s}',
+  '.lh-triple:hover{transform:scale(1.05)}',
+  '.lh-triple-hit{background:#fef3c7;border:1px solid #f59e0b}',
+  '.lh-triple-miss{background:#f8f8f5;border:1px solid #e4e4dc}',
+  // Full/partial tag
+  '.ns-tag-full{font-size:9px;padding:1px 6px;border-radius:4px;background:#dcfce7;color:#166534;font-weight:600}',
+  '.ns-tag-partial{font-size:9px;padding:1px 6px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:600}'
+].join('\n');
+document.head.appendChild(_css);
+
+// Group color map
+var GRP_COLORS = {'1':'#2563eb','2':'#16a34a','3':'#ca8a04','4':'#ea580c','5':'#db2777','6':'#9333ea','7':'#0891b2','8':'#dc2626','9':'#0d9488','0':'#78716c'};
+var GRP_CLASS = {'1':'ns-g1','2':'ns-g2','3':'ns-g3','4':'ns-g4','5':'ns-g5','6':'ns-g6','7':'ns-g7','8':'ns-g8','9':'ns-g9','0':'ns-g0'};
+
 var SRT_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
 var SRT_RANK = {};
 SRT_ORDER.forEach(function(d,i){ SRT_RANK[d]=i; });
@@ -18269,17 +18335,50 @@ setupSourceToggle('lh');
 
 // ─── 号码排列 ──────────────────────────────────────────
 
-function nsPrizeBadge(prize){
-  if(prize===0) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:12px;font-weight:900;color:#7a5000">①</div>';
-  if(prize===1) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:12px;font-weight:900;color:#17202b">②</div>';
-  if(prize===2) return '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:12px;font-weight:900;color:#fff">③</div>';
-  return '<div style="width:26px;height:26px"></div>';
+function nsBadge(prize,sm){
+  var s=sm?'-sm':'';
+  if(prize===0) return '<div class="ns-b1'+s+'">①</div>';
+  if(prize===1) return '<div class="ns-b2'+s+'">②</div>';
+  if(prize===2) return '<div class="ns-b3'+s+'">③</div>';
+  return '<div class="ns-b-'+s+'"></div>';
+}
+function nsDigitCell(d,grp,sm){
+  return '<div class="ns-cell '+(sm?'ns-cell-sm ':'')+GRP_CLASS[grp]+'">'+d+'</div>';
+}
+
+function nsRenderGrid(items,sm){
+  var html = '<div style="overflow-x:auto;padding-bottom:4px"><div class="ns-grid'+(sm?' ns-grid-sm':'')+'">';
+  var prevGroup = '';
+  items.forEach(function(it){
+    var grp = it.sorted[0];
+    if(prevGroup && grp !== prevGroup){
+      html += '<div class="ns-sep'+(sm?' ns-sep-sm':'')+'"><div></div>';
+      for(var s=0;s<4;s++) html += '<div></div>';
+      html += '</div>';
+    }
+    prevGroup = grp;
+    html += '<div class="ns-col">'+nsBadge(it.prize,sm);
+    Array.from(it.sorted).forEach(function(d){ html += nsDigitCell(d,grp,sm); });
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function nsGroupPills(groupCounts){
+  var html = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">';
+  SRT_ORDER.forEach(function(k){
+    var c = groupCounts[k];
+    html += '<span class="ns-pill '+(c?'ns-pill-active':'ns-pill-dim')+'" style="'+(c?'background:'+GRP_COLORS[k]:'')+'">';
+    html += '<b>'+k+'</b>×'+c+'</span>';
+  });
+  html += '</div>';
+  return html;
 }
 
 function nsRenderSingle(records, dateLabel, warn){
   var items = records.map(function(r,idx){ return Object.assign({},r,{sorted:srtSort(r.raw),idx:idx}); });
   items.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; });
-  // Group counts
   var groupCounts = {};
   SRT_ORDER.forEach(function(k){ groupCounts[k]=0; });
   items.forEach(function(it){ groupCounts[it.sorted[0]]++; });
@@ -18294,37 +18393,11 @@ function nsRenderSingle(records, dateLabel, warn){
   html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
   html += '</div></div>';
 
-  // All numbers in one continuous grid
-  html += '<div class="card"><div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:40px;gap:3px">';
-  var prevGroup = '';
-  items.forEach(function(it){
-    var grp = it.sorted[0];
-    var needSep = prevGroup && grp !== prevGroup;
-    if(needSep){
-      html += '<div style="display:grid;gap:4px;justify-items:center;width:6px"><div style="height:26px"></div>';
-      for(var s=0;s<4;s++) html += '<div style="height:34px"></div>';
-      html += '</div>';
-    }
-    prevGroup = grp;
-    html += '<div style="display:grid;gap:4px;justify-items:center">'+nsPrizeBadge(it.prize);
-    Array.from(it.sorted).forEach(function(d){
-      html += '<div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #ddd;border-radius:8px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:20px;font-weight:800">'+d+'</div>';
-    });
-    html += '</div>';
-  });
-  html += '</div></div>';
-
-  // Group summary bar
-  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">';
-  SRT_ORDER.forEach(function(k){
-    var c = groupCounts[k];
-    html += '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;'+(c?'background:#1e3a5f;color:#fff':'background:#f0f0e8;color:#aaa')+'"><b>'+k+'</b>×'+c+'</span>';
-  });
-  html += '</div>';
-
-  // Original mapping
+  html += '<div class="card">';
+  html += nsRenderGrid(items, false);
+  html += nsGroupPills(groupCounts);
   html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc;font-size:11px;color:#888;line-height:1.7;overflow-wrap:anywhere">';
-  html += items.map(function(it){ return it.raw+'→<b style="color:#333">'+it.sorted+'</b>'; }).join(' ');
+  html += items.map(function(it){ return it.raw+'→<b style="color:'+GRP_COLORS[it.sorted[0]]+'">'+it.sorted+'</b>'; }).join(' ');
   html += '</div></div>';
   return html;
 }
