@@ -18500,8 +18500,68 @@ function lhMatch(raw){
   return hits;
 }
 
+function lhGetTriplesArr(code){
+  var arr = [];
+  for(var i=0;i<4;i++){
+    var t='';
+    for(var j=0;j<4;j++) if(i!==j) t+=code[j];
+    arr.push({raw:t, sorted:lhSort3(t), removed:code[i]});
+  }
+  var seen = {};
+  return arr.filter(function(x){ if(seen[x.sorted]) return false; seen[x.sorted]=true; return true; });
+}
+
+function lhMatchTriples(triples){
+  var hits = [];
+  LUOHAN.forEach(function(variants,idx){
+    var matched = [];
+    triples.forEach(function(t){
+      variants.forEach(function(v){ if(lhSort3(v)===t.sorted && matched.indexOf(t.sorted)<0) matched.push(t.sorted); });
+    });
+    if(matched.length) hits.push({index:idx+1, variants:matched});
+  });
+  return hits;
+}
+
+function lhStreaks(periods){
+  var streak = Array(18).fill(0);
+  var type = Array(18).fill('');
+  periods.forEach(function(p,pi){
+    var active = Array(18).fill(false);
+    p.records.forEach(function(r){ lhMatch(r.raw).forEach(function(h){ active[h.index-1]=true; }); });
+    for(var i=0;i<18;i++){
+      if(pi===0){ type[i]=active[i]?'hot':'cold'; streak[i]=1; }
+      else if((type[i]==='hot'&&active[i])||(type[i]==='cold'&&!active[i])) streak[i]++;
+    }
+  });
+  return {streak:streak, type:type};
+}
+
+function lhCooccurrence(periods){
+  var matrix = Array.from({length:18},function(){return Array(18).fill(0);});
+  periods.forEach(function(p){
+    var active = [];
+    p.records.forEach(function(r){ lhMatch(r.raw).forEach(function(h){ if(active.indexOf(h.index-1)<0) active.push(h.index-1); }); });
+    for(var i=0;i<active.length;i++)
+      for(var j=i+1;j<active.length;j++){
+        matrix[active[i]][active[j]]++;
+        matrix[active[j]][active[i]]++;
+      }
+  });
+  var pairs = [];
+  for(var i=0;i<18;i++)
+    for(var j=i+1;j<18;j++)
+      if(matrix[i][j]>1) pairs.push({a:i+1, b:j+1, count:matrix[i][j]});
+  pairs.sort(function(a,b){return b.count-a.count;});
+  return pairs;
+}
+
 function lhRenderSingle(records, dateLabel, warn){
-  var analyzed = records.map(function(r){return Object.assign({},r,{hits:lhMatch(r.raw)});});
+  var analyzed = records.map(function(r){
+    var triples = lhGetTriplesArr(r.raw);
+    var hits = lhMatchTriples(triples);
+    return Object.assign({},r,{triples:triples, hits:hits});
+  });
   var counts = Array(18).fill(0);
   analyzed.forEach(function(a){a.hits.forEach(function(h){counts[h.index-1]++;});});
   var hitCount = analyzed.filter(function(a){return a.hits.length;}).length;
@@ -18521,9 +18581,42 @@ function lhRenderSingle(records, dateLabel, warn){
     var color = c?'color:#92400e':'color:#888';
     html += '<div style="text-align:center;padding:8px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
     html += '<div style="font-size:13px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
+    html += '<div style="font-size:9px;color:#999">'+LUOHAN[i].join(' ')+'</div>';
     html += '<div style="font-size:11px;color:#666;margin-top:2px">'+c+' 个号码</div></div>';
   });
   html += '</div></div>';
+  // Per-number with full triple breakdown
+  html += '<div class="card"><h3>逐号匹配详情（含三位组合分析）</h3>';
+  analyzed.forEach(function(a){
+    var badge = a.prize===0?'<span class="p1">头奖</span>':a.prize===1?'<span class="p2">二奖</span>':a.prize===2?'<span class="p3">三奖</span>':'<span style="font-size:10px;color:#888">'+a.label+'</span>';
+    var sorted = srtSort(a.raw);
+    // Build hit set for quick lookup
+    var hitSet = {};
+    a.hits.forEach(function(h){ h.variants.forEach(function(v){ hitSet[lhSort3(v)]=h.index; }); });
+
+    html += '<div style="padding:10px;border:1px solid #e4e4dc;border-radius:8px;background:#fafaf5;margin-bottom:8px">';
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">';
+    html += '<div>'+badge+'<br><span style="font-family:monospace;font-size:11px;color:#888">'+a.raw+'→</span><span style="font-family:monospace;font-size:18px;font-weight:700;color:#1e3a5f">'+sorted+'</span></div>';
+    if(a.hits.length){
+      html += '<div style="flex:1">'+a.hits.map(function(h){return '<span class="by" style="margin:2px">罗汉'+h.index+'</span>';}).join('')+'</div>';
+    } else {
+      html += '<div style="flex:1;font-size:11px;color:#999">未命中任何罗汉</div>';
+    }
+    html += '</div>';
+    // Triple breakdown
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    a.triples.forEach(function(t){
+      var matchIdx = hitSet[t.sorted];
+      var isHit = !!matchIdx;
+      html += '<div style="padding:4px 8px;border-radius:6px;border:1px solid '+(isHit?'#f59e0b':'#e4e4dc')+';'+(isHit?'background:#fef3c7':'background:#f8f8f5')+';font-size:11px">';
+      html += '<span style="font-family:monospace;font-weight:700;'+(isHit?'color:#92400e':'color:#666')+'">'+t.sorted+'</span>';
+      html += ' <span style="font-size:9px;color:#aaa">(去'+t.removed+')</span>';
+      if(isHit) html += ' <span style="font-size:9px;color:#b45309;font-weight:700">→ 罗汉'+matchIdx+'</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
   // Reference
   html += '<div class="card"><details><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#1e3a5f">查看十八罗汉对照表</summary>';
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px">';
@@ -18532,34 +18625,40 @@ function lhRenderSingle(records, dateLabel, warn){
     html += '<b style="color:#b45309;min-width:48px;display:inline-block">罗汉'+(i+1)+'</b>'+variants.join(' / ')+'</div>';
   });
   html += '</div></details></div>';
-  // Per-number
-  html += '<div class="card"><h3>逐号匹配详情</h3><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  analyzed.forEach(function(a){
-    var badge = a.prize===0?'<span class="p1">头奖</span>':a.prize===1?'<span class="p2">二奖</span>':a.prize===2?'<span class="p3">三奖</span>':'<span style="font-size:10px;color:#888">'+a.label+'</span>';
-    var sorted = srtSort(a.raw);
-    var chips = a.hits.length
-      ? a.hits.map(function(h){return '<span class="by" style="margin:2px">罗汉'+h.index+' <span style="font-size:9px;color:#78350f">'+h.variants.join(',')+'</span></span>';}).join('')
-      : '<span style="font-size:11px;color:#999">未命中</span>';
-    html += '<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e4e4dc;border-radius:8px;background:#fafaf5">';
-    html += '<div style="min-width:90px">'+badge+'<br><span style="font-family:monospace;font-size:11px;color:#888">'+a.raw+'→</span><span style="font-family:monospace;font-size:16px;font-weight:700;color:#1e3a5f">'+sorted+'</span></div>';
-    html += '<div style="flex:1">'+chips+'</div></div>';
-  });
-  html += '</div></div>';
   return html;
 }
 
 function lhRenderCompare(periods){
   var html = '';
+  var sk = lhStreaks(periods);
+
+  // Streaks card (连现/遗漏)
+  html += '<div class="card"><h3>连现 / 遗漏 · 从最近一期起算</h3>';
+  html += '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
+  for(var si=0;si<18;si++){
+    var isHot = sk.type[si]==='hot';
+    var bg = isHot?'background:#fef3c7;border-color:#f59e0b':'background:#eff6ff;border-color:#3b82f6';
+    var color = isHot?'color:#92400e':'color:#1e40af';
+    html += '<div style="text-align:center;padding:6px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
+    html += '<div style="font-size:12px;font-weight:700;'+color+'">罗汉'+(si+1)+'</div>';
+    html += '<div style="font-size:16px;font-weight:800;'+color+';margin:2px 0">'+(isHot?'🔥':'❄️')+' '+sk.streak[si]+'</div>';
+    html += '<div style="font-size:9px;color:#888">'+(isHot?'连现'+sk.streak[si]+'期':'遗漏'+sk.streak[si]+'期')+'</div></div>';
+  }
+  html += '</div></div>';
+
   // Per-period detail cards
   periods.forEach(function(p){
-    var analyzed = p.records.map(function(r){return Object.assign({},r,{hits:lhMatch(r.raw), sorted:srtSort(r.raw)});});
+    var analyzed = p.records.map(function(r){
+      var triples = lhGetTriplesArr(r.raw);
+      return Object.assign({},r,{hits:lhMatchTriples(triples), sorted:srtSort(r.raw)});
+    });
     var counts = Array(18).fill(0);
     analyzed.forEach(function(a){a.hits.forEach(function(h){counts[h.index-1]++;});});
     var hitCount = analyzed.filter(function(a){return a.hits.length;}).length;
     var activeLH = counts.filter(Boolean).length;
 
     html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">命中 '+hitCount+'/'+p.records.length+' · 罗汉 '+activeLH+'/18</span></h3>';
-    // Vertical digit columns with luohan badges
+    // Continuous vertical digit columns
     html += '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:auto;gap:6px">';
     analyzed.forEach(function(a){
       var badge = a.prize===0?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:10px;font-weight:900;color:#7a5000">①</div>'
@@ -18570,7 +18669,6 @@ function lhRenderCompare(periods){
       Array.from(a.sorted).forEach(function(d){
         html += '<div style="width:28px;height:28px;display:grid;place-items:center;border:1px solid #ddd;border-radius:6px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:16px;font-weight:800">'+d+'</div>';
       });
-      // Luohan hits below digits
       if(a.hits.length){
         html += '<div style="font-size:8px;color:#b45309;font-weight:700;white-space:nowrap;margin-top:2px">'+a.hits.map(function(h){return '罗'+h.index;}).join(' ')+'</div>';
       } else {
@@ -18586,6 +18684,7 @@ function lhRenderCompare(periods){
     });
     html += '</div></div>';
   });
+
   // Summary count table
   html += '<div class="card"><h3>命中汇总 · '+periods.length+' 期</h3><div class="ot"><table>';
   html += '<tr><th>日期</th>';
@@ -18603,6 +18702,24 @@ function lhRenderCompare(periods){
   totals.forEach(function(t){ html += '<td>'+t+'</td>'; });
   html += '<td>'+totals.filter(Boolean).length+'/18</td></tr>';
   html += '</table></div></div>';
+
+  // Co-occurrence
+  var pairs = lhCooccurrence(periods);
+  if(pairs.length){
+    html += '<div class="card"><h3>罗汉同期关联 · 经常同期出现的组合</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+    pairs.slice(0,12).forEach(function(pair){
+      var pct = Math.round(pair.count/periods.length*100);
+      html += '<div style="padding:8px;border:1px solid #e4e4dc;border-radius:8px;display:flex;align-items:center;gap:6px">';
+      html += '<div style="display:flex;gap:4px"><span style="display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:#b45309;color:#fff;font-size:11px;font-weight:700">'+pair.a+'</span>';
+      html += '<span style="display:inline-grid;place-items:center;width:28px;height:28px;border-radius:6px;background:#b45309;color:#fff;font-size:11px;font-weight:700">'+pair.b+'</span></div>';
+      html += '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:#1e3a5f">同期 '+pair.count+'/'+periods.length+'</div>';
+      html += '<div style="height:6px;background:#f0f0e8;border-radius:3px;margin-top:3px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:3px"></div></div>';
+      html += '<div style="font-size:9px;color:#888;margin-top:1px">'+pct+'% 同期率</div></div></div>';
+    });
+    html += '</div></div>';
+  }
+
   // Prize tracking
   html += '<div class="card"><h3>大奖罗汉追踪</h3><div class="ot"><table>';
   html += '<tr><th>日期</th><th>① 头奖</th><th>命中罗汉</th><th>② 二奖</th><th>命中罗汉</th><th>③ 三奖</th><th>命中罗汉</th></tr>';
@@ -18632,40 +18749,46 @@ function lhRenderAggregate(periods){
   });
   var activeCount = buckets.filter(function(b){return b.length;}).length;
   var totalHits = buckets.reduce(function(a,b){return a+b.length;},0);
+  var sk = lhStreaks(periods);
+
   var html = '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
   html += '<div class="sc"><div class="val">'+allRecs.length+'</div><div class="lbl">号码总数</div></div>';
   html += '<div class="sc"><div class="val">'+activeCount+'/18</div><div class="lbl">罗汉出现</div></div>';
   html += '<div class="sc"><div class="val">'+totalHits+'</div><div class="lbl">总命中次数</div></div>';
   html += '</div></div>';
-  // Summary
-  html += '<div class="card"><h3>命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
+
+  // Summary with streaks integrated
+  html += '<div class="card"><h3>命中总览 + 连现/遗漏</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
   buckets.forEach(function(b,i){
-    var bg = b.length?'background:#fef3c7;border-color:#f59e0b':'';
-    var color = b.length?'color:#92400e':'color:#888';
-    html += '<div style="text-align:center;padding:8px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
-    html += '<div style="font-size:13px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
-    html += '<div style="font-size:11px;color:#666;margin-top:2px">'+b.length+' 次命中</div></div>';
+    var isHot = sk.type[i]==='hot';
+    var bg = b.length?(isHot?'background:#fef3c7;border-color:#f59e0b':'background:#eff6ff;border-color:#3b82f6'):'';
+    var color = b.length?(isHot?'color:#92400e':'color:#1e40af'):'color:#888';
+    html += '<div style="text-align:center;padding:6px 4px;border:1px solid #e4e4dc;border-radius:8px;'+bg+'">';
+    html += '<div style="font-size:12px;font-weight:700;'+color+'">罗汉'+(i+1)+'</div>';
+    html += '<div style="font-size:9px;color:#999">'+LUOHAN[i].join(' ')+'</div>';
+    html += '<div style="font-size:11px;color:#666;margin-top:2px">'+b.length+' 次命中</div>';
+    html += '<div style="font-size:10px;margin-top:2px;'+color+'">'+(isHot?'🔥连现':'❄️遗漏')+sk.streak[i]+'期</div>';
+    html += '</div>';
   });
   html += '</div></div>';
+
   // Detail per luohan with vertical columns
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
   buckets.forEach(function(bucket,idx){
     var pct = totalHits ? Math.round(bucket.length/totalHits*100) : 0;
+    var isHot = sk.type[idx]==='hot';
     html += '<div class="card" style="'+(bucket.length?'':'opacity:.5')+'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
-    html += '<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:'+(bucket.length?'#b45309':'#ccc')+';color:#fff;font-size:11px;font-weight:700">'+(idx+1)+'</span><b style="font-size:12px">罗汉'+(idx+1)+'</b></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px"><span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:'+(bucket.length?'#b45309':'#ccc')+';color:#fff;font-size:11px;font-weight:700">'+(idx+1)+'</span><b style="font-size:12px">罗汉'+(idx+1)+'</b>'+(bucket.length?'<span style="font-size:10px">'+(isHot?'🔥'+sk.streak[idx]:'❄️'+sk.streak[idx])+'</span>':'')+'</div>';
     html += '<span style="font-size:10px;color:#888">'+bucket.length+' 次'+(pct?' · '+pct+'%':'')+'</span></div>';
-    // Variants reference
     html += '<div style="font-size:9px;color:#999;margin-bottom:6px">'+LUOHAN[idx].join(' / ')+'</div>';
     if(!bucket.length){
       html += '<div style="text-align:center;padding:12px 0;color:#aaa;font-size:11px">暂无命中</div>';
     } else {
-      // Vertical digit columns
       var items = bucket.map(function(b){return {sorted:b.sorted, prize:b.prize};});
       items.sort(function(a,b){return srtCmp(a.sorted,b.sorted);});
       html += nsVerticalGrid(items);
-      // Detail list
       html += '<div style="margin-top:6px;padding-top:4px;border-top:1px dashed #e4e4dc;max-height:120px;overflow:auto">';
       bucket.forEach(function(b){
         var badge = b.prize===0?'①':b.prize===1?'②':b.prize===2?'③':'';
@@ -18677,6 +18800,24 @@ function lhRenderAggregate(periods){
     html += '</div>';
   });
   html += '</div>';
+
+  // Co-occurrence
+  var pairs = lhCooccurrence(periods);
+  if(pairs.length){
+    html += '<div class="card"><h3>罗汉同期关联</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">';
+    pairs.slice(0,12).forEach(function(pair){
+      var pctP = Math.round(pair.count/periods.length*100);
+      html += '<div style="padding:8px;border:1px solid #e4e4dc;border-radius:8px;display:flex;align-items:center;gap:6px">';
+      html += '<div style="display:flex;gap:4px"><span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:#b45309;color:#fff;font-size:11px;font-weight:700">'+pair.a+'</span>';
+      html += '<span style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:6px;background:#b45309;color:#fff;font-size:11px;font-weight:700">'+pair.b+'</span></div>';
+      html += '<div style="flex:1"><div style="font-size:11px;font-weight:700;color:#1e3a5f">'+pair.count+'/'+periods.length+'期</div>';
+      html += '<div style="height:5px;background:#f0f0e8;border-radius:3px;margin-top:2px;overflow:hidden"><div style="height:100%;width:'+pctP+'%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:3px"></div></div>';
+      html += '</div></div>';
+    });
+    html += '</div></div>';
+  }
+
   return html;
 }
 
