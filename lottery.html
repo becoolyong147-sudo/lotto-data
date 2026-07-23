@@ -18240,11 +18240,13 @@ function nsPrizeBadge(prize){
 
 function nsRenderSingle(records, dateLabel, warn){
   var items = records.map(function(r,idx){ return Object.assign({},r,{sorted:srtSort(r.raw),idx:idx}); });
-  var groups = {};
-  SRT_ORDER.forEach(function(k){ groups[k]=[]; });
-  items.forEach(function(it){ var key=it.sorted[0]; if(!groups[key]) groups[key]=[]; groups[key].push(it); });
-  Object.values(groups).forEach(function(arr){ arr.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; }); });
-  var activeGroups = SRT_ORDER.filter(function(k){ return groups[k].length; });
+  items.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; });
+  // Group counts
+  var groupCounts = {};
+  SRT_ORDER.forEach(function(k){ groupCounts[k]=0; });
+  items.forEach(function(it){ groupCounts[it.sorted[0]]++; });
+  var activeGroups = SRT_ORDER.filter(function(k){ return groupCounts[k]; });
+
   var html = '';
   if(warn) html += '<div class="warn" style="margin-bottom:8px">'+warn+'</div>';
   html += '<div class="card"><div class="g4">';
@@ -18253,33 +18255,39 @@ function nsRenderSingle(records, dateLabel, warn){
   html += '<div class="sc"><div class="val">'+activeGroups.length+'</div><div class="lbl">有号码的组</div></div>';
   html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
   html += '</div></div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  SRT_ORDER.forEach(function(key){
-    var arr = groups[key];
-    var isEmpty = !arr.length;
-    html += '<div class="card" style="'+(isEmpty?'opacity:.5':'')+'">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
-    html += '<span style="font-size:11px;color:#888">'+arr.length+' 个号码</span></div>';
-    if(!arr.length){
-      html += '<div style="text-align:center;padding:20px 0;color:#aaa;font-size:12px">暂无号码</div>';
-    } else {
-      html += '<div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:40px;gap:5px;min-width:100%">';
-      arr.forEach(function(it){
-        html += '<div style="display:grid;gap:4px;justify-items:center">'+nsPrizeBadge(it.prize);
-        Array.from(it.sorted).forEach(function(d){
-          html += '<div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #ddd;border-radius:8px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:20px;font-weight:800">'+d+'</div>';
-        });
-        html += '</div>';
-      });
-      html += '</div></div>';
-      var sortedLine = arr.map(function(it){return it.sorted;}).join(' · ');
-      var originalLine = arr.map(function(it){return it.raw+'→'+it.sorted;}).join('、');
-      html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc;font-size:11px;color:#888;line-height:1.7;overflow-wrap:anywhere"><b style="color:#333">'+sortedLine+'</b><br>'+originalLine+'</div>';
+
+  // All numbers in one continuous grid
+  html += '<div class="card"><div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:40px;gap:3px">';
+  var prevGroup = '';
+  items.forEach(function(it){
+    var grp = it.sorted[0];
+    var needSep = prevGroup && grp !== prevGroup;
+    if(needSep){
+      html += '<div style="display:grid;gap:4px;justify-items:center;width:6px"><div style="height:26px"></div>';
+      for(var s=0;s<4;s++) html += '<div style="height:34px"></div>';
+      html += '</div>';
     }
+    prevGroup = grp;
+    html += '<div style="display:grid;gap:4px;justify-items:center">'+nsPrizeBadge(it.prize);
+    Array.from(it.sorted).forEach(function(d){
+      html += '<div style="width:34px;height:34px;display:grid;place-items:center;border:1px solid #ddd;border-radius:8px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:20px;font-weight:800">'+d+'</div>';
+    });
     html += '</div>';
   });
+  html += '</div></div>';
+
+  // Group summary bar
+  html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">';
+  SRT_ORDER.forEach(function(k){
+    var c = groupCounts[k];
+    html += '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:11px;'+(c?'background:#1e3a5f;color:#fff':'background:#f0f0e8;color:#aaa')+'"><b>'+k+'</b>×'+c+'</span>';
+  });
   html += '</div>';
+
+  // Original mapping
+  html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc;font-size:11px;color:#888;line-height:1.7;overflow-wrap:anywhere">';
+  html += items.map(function(it){ return it.raw+'→<b style="color:#333">'+it.sorted+'</b>'; }).join(' ');
+  html += '</div></div>';
   return html;
 }
 
@@ -18303,28 +18311,44 @@ function nsVerticalGrid(items){
 
 function nsRenderCompare(periods){
   var html = '';
-  // Per-period vertical digit display
+  // Per-period continuous grid
   periods.forEach(function(p){
     var items = p.records.map(function(r,idx){ return Object.assign({},r,{sorted:srtSort(r.raw),idx:idx}); });
-    var groups = {};
-    SRT_ORDER.forEach(function(k){ groups[k]=[]; });
-    items.forEach(function(it){ groups[it.sorted[0]].push(it); });
-    Object.values(groups).forEach(function(arr){ arr.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; }); });
-    var activeGroups = SRT_ORDER.filter(function(k){ return groups[k].length; });
+    items.sort(function(a,b){ return srtCmp(a.sorted,b.sorted)||a.idx-b.idx; });
+    var groupCounts = {};
+    SRT_ORDER.forEach(function(k){ groupCounts[k]=0; });
+    items.forEach(function(it){ groupCounts[it.sorted[0]]++; });
+    var activeGroups = SRT_ORDER.filter(function(k){ return groupCounts[k]; });
 
     html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">'+items.length+' 个号码 · '+activeGroups.length+' 组</span></h3>';
-    html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">';
-    SRT_ORDER.forEach(function(key){
-      var arr = groups[key];
-      html += '<div style="border:1px solid '+(arr.length?'#e4e4dc':'#f0f0e8')+';border-radius:8px;padding:6px;'+(arr.length?'':'opacity:.4')+'">';
-      html += '<div style="text-align:center;margin-bottom:4px"><span style="display:inline-grid;place-items:center;width:24px;height:24px;border-radius:6px;background:#1e3a5f;color:#fff;font-size:13px;font-weight:700">'+key+'</span> <span style="font-size:10px;color:#888">'+arr.length+'</span></div>';
-      html += nsVerticalGrid(arr);
-      if(arr.length){
-        html += '<div style="font-size:9px;color:#999;margin-top:4px;text-align:center;overflow-wrap:anywhere">'+arr.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
+    html += '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:32px;gap:3px">';
+    var prevGroup = '';
+    items.forEach(function(it){
+      var grp = it.sorted[0];
+      if(prevGroup && grp !== prevGroup){
+        html += '<div style="display:grid;gap:2px;justify-items:center;width:4px"><div style="height:22px"></div><div style="height:28px"></div><div style="height:28px"></div><div style="height:28px"></div><div style="height:28px"></div></div>';
       }
+      prevGroup = grp;
+      var badge = it.prize===0?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:10px;font-weight:900;color:#7a5000">①</div>'
+        :it.prize===1?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:10px;font-weight:900;color:#17202b">②</div>'
+        :it.prize===2?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:10px;font-weight:900;color:#fff">③</div>'
+        :'<div style="width:22px;height:22px"></div>';
+      html += '<div style="display:grid;gap:2px;justify-items:center">'+badge;
+      Array.from(it.sorted).forEach(function(d){
+        html += '<div style="width:28px;height:28px;display:grid;place-items:center;border:1px solid #ddd;border-radius:6px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:16px;font-weight:800">'+d+'</div>';
+      });
       html += '</div>';
     });
     html += '</div></div>';
+    // Group summary
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:6px">';
+    SRT_ORDER.forEach(function(k){
+      var c = groupCounts[k];
+      html += '<span style="padding:2px 6px;border-radius:4px;font-size:10px;'+(c?'background:#1e3a5f;color:#fff':'background:#f0f0e8;color:#aaa')+'"><b>'+k+'</b>×'+c+'</span>';
+    });
+    html += '</div>';
+    html += '<div style="margin-top:4px;font-size:9px;color:#aaa;overflow-wrap:anywhere">'+items.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
+    html += '</div>';
   });
   // Summary count table
   var groupKeys = SRT_ORDER;
@@ -18363,48 +18387,72 @@ function nsRenderCompare(periods){
 function nsRenderAggregate(periods){
   var allItems = [];
   periods.forEach(function(p){ p.records.forEach(function(r){ allItems.push({raw:r.raw, sorted:srtSort(r.raw), date:p.date, prize:r.prize}); }); });
+  allItems.sort(function(a,b){ return srtCmp(a.sorted,b.sorted); });
+  var groupCounts = {};
+  SRT_ORDER.forEach(function(k){ groupCounts[k]=0; });
+  allItems.forEach(function(it){ groupCounts[it.sorted[0]]++; });
+  var activeGroups = SRT_ORDER.filter(function(k){ return groupCounts[k]; });
+
   var html = '<div class="card"><div class="g4">';
   html += '<div class="sc"><div class="val">'+periods.length+'</div><div class="lbl">期数</div></div>';
   html += '<div class="sc"><div class="val">'+allItems.length+'</div><div class="lbl">号码总数</div></div>';
-  var activeGroups = SRT_ORDER.filter(function(k){ return allItems.some(function(it){return it.sorted[0]===k;}); });
   html += '<div class="sc"><div class="val">'+activeGroups.length+'</div><div class="lbl">有号码的组</div></div>';
   html += '<div class="sc"><div class="val">1→9→0</div><div class="lbl">排列次序</div></div>';
   html += '</div></div>';
-  // Vertical digit columns per group
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
-  SRT_ORDER.forEach(function(key){
-    var items = allItems.filter(function(it){return it.sorted[0]===key;});
-    items.sort(function(a,b){ return srtCmp(a.sorted,b.sorted); });
-    var isEmpty = !items.length;
-    html += '<div class="card" style="'+(isEmpty?'opacity:.5':'')+'">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
-    html += '<div style="display:flex;align-items:center;gap:8px"><span style="display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:#1e3a5f;color:#fff;font-size:16px;font-weight:700">'+key+'</span><b>'+key+'组合</b></div>';
-    html += '<span style="font-size:11px;color:#888">'+items.length+' 个号码</span></div>';
-    html += nsVerticalGrid(items);
-    if(items.length){
-      // Frequency breakdown
-      var freq = {};
-      items.forEach(function(it){
-        if(!freq[it.sorted]) freq[it.sorted]={count:0, dates:[]};
-        freq[it.sorted].count++;
-        if(freq[it.sorted].dates.indexOf(it.date)<0) freq[it.sorted].dates.push(it.date);
-      });
-      var sorted = Object.entries(freq).sort(function(a,b){return b[1].count-a[1].count || srtCmp(a[0],b[0]);});
-      html += '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #e4e4dc;font-size:10px;color:#888;line-height:1.8;overflow-wrap:anywhere">';
-      sorted.forEach(function(entry){
-        var pct = Math.round(entry[1].count/items.length*100);
-        html += '<div style="display:flex;align-items:center;gap:4px"><b style="color:#333;min-width:36px">'+entry[0]+'</b>';
-        html += '<div style="flex:1;height:10px;background:#f0f0e8;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:4px"></div></div>';
-        html += '<span style="min-width:46px;text-align:right">×'+entry[1].count+' <span style="color:#aaa">'+pct+'%</span></span></div>';
-      });
-      html += '</div>';
-      // Original mapping
-      html += '<div style="margin-top:4px;font-size:9px;color:#aaa;overflow-wrap:anywhere">'+items.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
-    } else {
-      html += '<div style="text-align:center;padding:16px 0;color:#aaa;font-size:12px">暂无号码</div>';
+
+  // One continuous grid
+  html += '<div class="card"><h3>合并排列 · '+periods.length+' 期</h3>';
+  html += '<div style="overflow-x:auto;padding-bottom:6px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:32px;gap:3px">';
+  var prevGroup = '';
+  allItems.forEach(function(it){
+    var grp = it.sorted[0];
+    if(prevGroup && grp !== prevGroup){
+      html += '<div style="display:grid;gap:2px;justify-items:center;width:4px"><div style="height:22px"></div><div style="height:28px"></div><div style="height:28px"></div><div style="height:28px"></div><div style="height:28px"></div></div>';
     }
+    prevGroup = grp;
+    var badge = it.prize===0?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#ffd700,#d99a28);display:grid;place-items:center;font-size:10px;font-weight:900;color:#7a5000">①</div>'
+      :it.prize===1?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#e8ecf0,#98a7b8);display:grid;place-items:center;font-size:10px;font-weight:900;color:#17202b">②</div>'
+      :it.prize===2?'<div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(145deg,#f4b68e,#a75b30);display:grid;place-items:center;font-size:10px;font-weight:900;color:#fff">③</div>'
+      :'<div style="width:22px;height:22px"></div>';
+    html += '<div style="display:grid;gap:2px;justify-items:center">'+badge;
+    Array.from(it.sorted).forEach(function(d){
+      html += '<div style="width:28px;height:28px;display:grid;place-items:center;border:1px solid #ddd;border-radius:6px;background:#f8fafc;font-family:Arial Narrow,Impact,sans-serif;font-size:16px;font-weight:800">'+d+'</div>';
+    });
     html += '</div>';
   });
+  html += '</div></div>';
+
+  // Group summary bar
+  html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">';
+  SRT_ORDER.forEach(function(k){
+    var c = groupCounts[k];
+    var pct = allItems.length ? Math.round(c/allItems.length*100) : 0;
+    html += '<span style="padding:3px 8px;border-radius:6px;font-size:11px;'+(c?'background:#1e3a5f;color:#fff':'background:#f0f0e8;color:#aaa')+'"><b>'+k+'</b> ×'+c+(c?' <span style="opacity:.7">'+pct+'%</span>':'')+'</span>';
+  });
+  html += '</div>';
+
+  // Frequency breakdown
+  var freq = {};
+  allItems.forEach(function(it){
+    if(!freq[it.sorted]) freq[it.sorted]={count:0, dates:[]};
+    freq[it.sorted].count++;
+    if(freq[it.sorted].dates.indexOf(it.date)<0) freq[it.sorted].dates.push(it.date);
+  });
+  var freqSorted = Object.entries(freq).sort(function(a,b){return b[1].count-a[1].count || srtCmp(a[0],b[0]);});
+  var repeats = freqSorted.filter(function(e){return e[1].count>1;});
+  if(repeats.length){
+    html += '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #e4e4dc"><div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:4px">重复排列组合</div>';
+    repeats.forEach(function(entry){
+      var pct = Math.round(entry[1].count/allItems.length*100);
+      html += '<div style="display:flex;align-items:center;gap:4px;font-size:10px;margin-bottom:2px"><b style="color:#333;min-width:36px">'+entry[0]+'</b>';
+      html += '<div style="flex:1;height:8px;background:#f0f0e8;border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:4px"></div></div>';
+      html += '<span style="min-width:60px;text-align:right;color:#888">×'+entry[1].count+' '+entry[1].dates.join(',')+'</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // Original mapping
+  html += '<div style="margin-top:6px;font-size:9px;color:#aaa;overflow-wrap:anywhere">'+allItems.map(function(it){return it.raw+'→'+it.sorted;}).join(' ')+'</div>';
   html += '</div>';
   return html;
 }
