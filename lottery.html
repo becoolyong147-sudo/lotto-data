@@ -18201,20 +18201,58 @@ function collectManual(prefix){
   return {records:records, dateLabel:'手动输入', warn:''};
 }
 
-// --- Shared: collect multi-period data (DB only, 头二三奖) ---
+// --- Shared: collect multi-period data ---
+// 优先从 getNewResults() 取完整数据(含特别/安慰奖)，不够再从 DB 补(仅头二三)
 function collectMulti(prefix){
   var market = document.getElementById(prefix+'-market').value;
   var n = parseInt(document.getElementById(prefix+'-periods').value)||10;
-  var allRecs = (DB[market]||[]).slice(0, n);
-  if(!allRecs.length) return {periods:[], warn:'该市场暂无数据'};
-  var periods = allRecs.map(function(d){
+
+  // Step 1: getNewResults has full data (sp/cs)
+  var newData = typeof getNewResults==='function'?getNewResults():{};
+  var newRecs = (newData[market]||[]).slice(); // already sorted newest-first
+
+  // Step 2: DB has history (头二三 only)
+  var dbRecs = (DB[market]||[]).slice();
+
+  // Merge: newRecs first, then DB records not already covered
+  var seenDates = {};
+  var merged = [];
+
+  newRecs.forEach(function(d){
+    seenDates[d.date] = true;
     var recs = [];
     ['头奖','二奖','三奖'].forEach(function(lbl,i){
       if(d.nums[i]) recs.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
     });
-    return {date:d.date, records:recs};
+    (d.sp||[]).forEach(function(num){ recs.push({raw:String(num).padStart(4,'0'), prize:-1, label:'特别奖'}); });
+    (d.cs||[]).forEach(function(num){ recs.push({raw:String(num).padStart(4,'0'), prize:-1, label:'安慰奖'}); });
+    var hasSpCs = (d.sp&&d.sp.length)||(d.cs&&d.cs.length);
+    merged.push({date:d.date, records:recs, full:!!hasSpCs});
   });
-  return {periods:periods, warn:''};
+
+  dbRecs.forEach(function(d){
+    if(seenDates[d.date]) return;
+    seenDates[d.date] = true;
+    var recs = [];
+    ['头奖','二奖','三奖'].forEach(function(lbl,i){
+      if(d.nums[i]) recs.push({raw:String(d.nums[i]).padStart(4,'0'), prize:i, label:lbl});
+    });
+    merged.push({date:d.date, records:recs, full:false});
+  });
+
+  // Sort newest-first, take n
+  merged.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  var periods = merged.slice(0, n);
+
+  if(!periods.length) return {periods:[], warn:'该市场暂无数据'};
+
+  var fullCount = periods.filter(function(p){return p.full;}).length;
+  var partialCount = periods.length - fullCount;
+  var warn = '';
+  if(partialCount && fullCount) warn = '⚠️ '+fullCount+'期含完整23号，'+partialCount+'期仅有头二三奖';
+  else if(!fullCount) warn = '⚠️ 所有期数仅有头二三奖（历史数据不含特别/安慰奖）';
+
+  return {periods:periods, warn:warn};
 }
 
 // --- Shared: source change handler ---
@@ -18320,7 +18358,8 @@ function nsRenderCompare(periods){
     items.forEach(function(it){ groupCounts[it.sorted[0]]++; });
     var activeGroups = SRT_ORDER.filter(function(k){ return groupCounts[k]; });
 
-    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">'+items.length+' 个号码 · '+activeGroups.length+' 组</span></h3>';
+    var fullTag = p.full?'<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:#dcfce7;color:#166534">完整23号</span>':'<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e">仅头二三</span>';
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' '+fullTag+' <span style="font-size:11px;color:#888;font-weight:400">'+items.length+' 个号码 · '+activeGroups.length+' 组</span></h3>';
     html += '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:32px;gap:3px">';
     var prevGroup = '';
     items.forEach(function(it){
@@ -18464,8 +18503,9 @@ window.doNumSort = function(){
     var data = collectMulti('ns');
     if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
     var view = document.getElementById('ns-view').value;
-    if(view==='aggregate') out.innerHTML = nsRenderAggregate(data.periods);
-    else out.innerHTML = nsRenderCompare(data.periods);
+    var warnHtml = data.warn ? '<div class="warn" style="margin-bottom:8px">'+data.warn+'</div>' : '';
+    if(view==='aggregate') out.innerHTML = warnHtml + nsRenderAggregate(data.periods);
+    else out.innerHTML = warnHtml + nsRenderCompare(data.periods);
     return;
   }
   var info = source==='manual' ? collectManual('ns') : collectSingle('ns');
@@ -18720,7 +18760,8 @@ function lhRenderCompare(periods){
     var hitCount = analyzed.filter(function(a){return a.hits.length;}).length;
     var activeLH = counts.filter(Boolean).length;
 
-    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' <span style="font-size:11px;color:#888;font-weight:400">命中 '+hitCount+'/'+p.records.length+' · 罗汉 '+activeLH+'/18</span></h3>';
+    var fullTag = p.full?'<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:#dcfce7;color:#166534">完整23号</span>':'<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e">仅头二三</span>';
+    html += '<div class="card"><h3 style="display:flex;justify-content:space-between;align-items:center">'+p.date+' '+fullTag+' <span style="font-size:11px;color:#888;font-weight:400">命中 '+hitCount+'/'+p.records.length+' · 罗汉 '+activeLH+'/18</span></h3>';
     // Continuous vertical digit columns
     html += '<div style="overflow-x:auto;padding-bottom:4px"><div style="display:inline-grid;grid-auto-flow:column;grid-auto-columns:auto;gap:6px">';
     analyzed.forEach(function(a){
@@ -18893,8 +18934,9 @@ window.doLuohan = function(){
     var data = collectMulti('lh');
     if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
     var view = document.getElementById('lh-view').value;
-    if(view==='aggregate') out.innerHTML = lhRenderAggregate(data.periods);
-    else out.innerHTML = lhRenderCompare(data.periods);
+    var warnHtml = data.warn ? '<div class="warn" style="margin-bottom:8px">'+data.warn+'</div>' : '';
+    if(view==='aggregate') out.innerHTML = warnHtml + lhRenderAggregate(data.periods);
+    else out.innerHTML = warnHtml + lhRenderCompare(data.periods);
     return;
   }
   var info = source==='manual' ? collectManual('lh') : collectSingle('lh');
