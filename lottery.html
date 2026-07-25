@@ -18992,6 +18992,7 @@ function fdAnalyze(rows){
   const cover={}, bigSmall={}, oddEven={}, front={}, back={};
   const pairPos={}; // key -> {posCombo:count}
   const prizePos=[{},{},{}]; // prize -> digit -> [4]
+  const pSum={}; // point sum (0-36) -> count
   for(let d=0;d<10;d++){cover[d]=0;}
   let totalNums=0, nDraws=0;
   for(const r of rows){
@@ -19017,10 +19018,11 @@ function fdAnalyze(rows){
       }
       front[num.slice(0,2)]=(front[num.slice(0,2)]||0)+1;
       back[num.slice(2,4)]=(back[num.slice(2,4)]||0)+1;
-      let bs='',oe='';
-      for(const c of num){ bs+=(+c>=5?'大':'小'); oe+=(+c%2?'奇':'偶'); }
+      let bs='',oe='',sum=0;
+      for(const c of num){ bs+=(+c>=5?'大':'小'); oe+=(+c%2?'奇':'偶'); sum+=+c; }
       bigSmall[bs]=(bigSmall[bs]||0)+1;
       oddEven[oe]=(oddEven[oe]||0)+1;
+      pSum[sum]=(pSum[sum]||0)+1;
     }
   }
   const coverPct={};
@@ -19050,7 +19052,11 @@ function fdAnalyze(rows){
   const oe=Object.entries(oddEven).map(([k,v])=>[k,+(v/tn*100).toFixed(1)]).sort((a,b)=>b[1]-a[1]);
   const fr=Object.entries(front).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const bk=Object.entries(back).sort((a,b)=>b[1]-a[1]).slice(0,10);
-  return {draws:nDraws,nums:totalNums,cover:coverPct,pairs:pairTot,prize,bs,oe,front:fr,back:bk};
+  // point sum: distribution + top ranges
+  const psTot=Object.values(pSum).reduce((a,b)=>a+b,0)||1;
+  const psTop=Object.entries(pSum).map(([k,v])=>[+k,v,+(v/psTot*100).toFixed(1)]).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  let psMean=0; for(const k in pSum) psMean+=(+k)*pSum[k]; psMean=+(psMean/psTot).toFixed(1);
+  return {draws:nDraws,nums:totalNums,cover:coverPct,pairs:pairTot,prize,bs,oe,front:fr,back:bk,psTop,psMean};
 }
 
 function fdWindowRows(m){
@@ -19148,6 +19154,37 @@ function fdRenderPair(r){
   return html;
 }
 
+const FD_WLABEL={'3m':'近3月','6m':'近6月','1y':'近1年','2y':'近2年','all':'全部'};
+function fdRenderSummary(r,base,m){
+  // cold/hot vs baseline
+  const order='1234567890'.split('');
+  const cyc={};
+  for(const d of order){ cyc[d]=+(r.cover[+d]-base.cover[+d]).toFixed(1); }
+  const hots=order.filter(d=>cyc[d]>1.5).sort((a,b)=>cyc[b]-cyc[a]);
+  const colds=order.filter(d=>cyc[d]<-1.5).sort((a,b)=>cyc[a]-cyc[b]);
+  const same=r.prize.filter(x=>x.same).length;
+  const bs=r.bs, oe=r.oe;
+  const bsRange=(bs[0][1]-bs[bs.length-1][1]).toFixed(1);
+  // 整十结尾占比（后两位以0结尾）
+  const zeroEnd=r.back.filter(x=>x[0][1]==='0');
+  // point sum
+  const ps=r.psTop.map(x=>`${x[0]}点(${x[2]}%)`).join(' ');
+  const cycNote = fdWin==='all'
+    ? '<span style="color:#94a3b8">全量视图无近期偏离</span>'
+    : ((hots.length?`🔥 偏热 <b>${hots.join(' ')}</b>　`:'')+(colds.length?`❄️ 偏冷 <b>${colds.join(' ')}</b>`:'')||'<span style="color:#94a3b8">无明显冷热偏离</span>');
+  let html=`<div class="card" style="border:2px solid #7c2d12">
+    <h3 style="margin-top:0">📊 ${m} · ${FD_WLABEL[fdWin]} 态势速览</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;font-size:12px">
+      <div style="background:#fff7ed;border-radius:5px;padding:8px"><div style="font-weight:700;color:#7c2d12;margin-bottom:2px">🌡️ 冷热</div>${cycNote}</div>
+      <div style="background:#f0f9ff;border-radius:5px;padding:8px"><div style="font-weight:700;color:#075985;margin-bottom:2px">📐 大小/奇偶</div>最常见 <b>${bs[0][0]}</b>(${bs[0][1]}%) / <b>${oe[0][0]}</b>(${oe[0][1]}%)，大小极差 ${bsRange}%${bsRange>2?'（偏离明显）':'（接近均匀）'}</div>
+      <div style="background:#f0fdf4;border-radius:5px;padding:8px"><div style="font-weight:700;color:#166534;margin-bottom:2px">🎯 奖级站位</div>头奖/三奖一致率 <b>${same}/10</b>${same>=6?'（较稳）':same<=3?'（差异大）':''}</div>
+      <div style="background:#faf5ff;border-radius:5px;padding:8px"><div style="font-weight:700;color:#6b21a8;margin-bottom:2px">🔢 点数(数字和)</div>均值 <b>${r.psMean}</b>，热门 ${ps}</div>
+      <div style="background:#fef2f2;border-radius:5px;padding:8px"><div style="font-weight:700;color:#991b1b;margin-bottom:2px">🔗 后两位</div>热门 ${r.back.slice(0,4).map(x=>`<b>${x[0]}</b>`).join(' ')}${zeroEnd.length>=2?'　整十结尾偏多':''}</div>
+    </div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:8px;border-top:1px dashed #e2e8f0;padding-top:6px">⚠️ 以上为该窗口的<b>历史描述</b>，供选号时作背景参考。号码每期独立开出，本卡<b>不预测</b>下期，也不构成投注建议。</div>
+  </div>`;
+  return html;
+}
 window.fdRender=function(){
   const out=document.getElementById('fd-out');
   if(!out) return;
@@ -19156,10 +19193,10 @@ window.fdRender=function(){
   const wr=fdWindowRows(m);
   const r=fdAnalyze(wr);
   const base=fdBaseline(m);
-  const WLABEL={'3m':'近3月','6m':'近6月','1y':'近1年','2y':'近2年','all':'全部'};
   let html='';
   if(r.draws<60) html+=`<div class="card" style="background:#f59e0b;color:#111;padding:6px 12px;font-size:12px;font-weight:700">⚠️ 样本仅 ${r.draws} 期，偏差易被随机噪音放大，仅供参考</div>`;
-  html+=`<div style="font-size:12px;color:#64748b;margin:0 0 8px 2px">窗口 <b>${WLABEL[fdWin]}</b> · <b>${r.draws}</b> 期 · <b>${r.nums}</b> 组正字</div>`;
+  html+=`<div style="font-size:12px;color:#64748b;margin:0 0 8px 2px">窗口 <b>${FD_WLABEL[fdWin]}</b> · <b>${r.draws}</b> 期 · <b>${r.nums}</b> 组正字</div>`;
+  html+=fdRenderSummary(r,base,m);
   html+=[()=>fdRenderCycle(r,base),()=>fdRenderPrize(r),()=>fdRenderPattern(r),()=>fdRenderPair(r)][fdSec]();
   out.innerHTML=html;
 };
