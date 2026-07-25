@@ -18986,7 +18986,7 @@ const fdBaseCache={};
 function fdMarket(){ const el=document.getElementById('fd-market'); return el?el.value:'万能'; }
 
 // rows: newest-first [{date,nums:[p1,p2,p3]}]
-function fdRows(m){ return (window.DB&&DB[m])?DB[m]:[]; }
+function fdRows(m){ try{ return (typeof DB!=='undefined'&&DB[m])?DB[m]:[]; }catch(e){ return []; } }
 
 function fdAnalyze(rows){
   const cover={}, bigSmall={}, oddEven={}, front={}, back={};
