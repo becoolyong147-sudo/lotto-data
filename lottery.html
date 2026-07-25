@@ -275,6 +275,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
+    <div class="subtab" data-tab="fourdim" onclick="switchSubtab(this);fdRender();">📅 时间窗四维</div>
   </div>
 </div>
 
@@ -7831,6 +7832,36 @@ function doBacktest(){
   </div>
 </div>
 <div id="ns-out"></div>
+</div>
+
+<!-- TAB: 时间窗四维分析 -->
+<div id="tab-fourdim" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#7c2d12 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">📅 时间窗四维分析</div>
+    <div style="font-size:12px;color:#fed7aa;margin-top:2px">冷热周期 · 奖级站位 · 大小奇偶模式 · 2D配对，可按近3月/6月/1年/2年/全部切换。数据实时取自当前库（含新录入成绩）。</div>
+  </div>
+</div>
+<div class="card">
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <span style="font-size:12px;color:#555;font-weight:700">时间窗:</span>
+    <button class="fd-win btn" data-w="3m" onclick="fdSetWin(this)">近3月</button>
+    <button class="fd-win btn" data-w="6m" onclick="fdSetWin(this)">近6月</button>
+    <button class="fd-win btn" data-w="1y" onclick="fdSetWin(this)">近1年</button>
+    <button class="fd-win btn" data-w="2y" onclick="fdSetWin(this)">近2年</button>
+    <button class="fd-win btn btn-green" data-w="all" onclick="fdSetWin(this)">全部</button>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+    <span style="font-size:12px;color:#555;font-weight:700">市场:</span>
+    <select id="fd-market" onchange="fdRender()"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option></select>
+    <span style="font-size:12px;color:#555;font-weight:700;margin-left:8px">维度:</span>
+    <button class="fd-sec btn btn-blue" data-s="0" onclick="fdSetSec(this)">冷热周期</button>
+    <button class="fd-sec btn" data-s="1" onclick="fdSetSec(this)">奖级站位</button>
+    <button class="fd-sec btn" data-s="2" onclick="fdSetSec(this)">大小/奇偶</button>
+    <button class="fd-sec btn" data-s="3" onclick="fdSetSec(this)">2D配对/前后</button>
+  </div>
+</div>
+<div id="fd-out"></div>
 </div>
 
 <!-- TAB: 十八罗汉 -->
@@ -18936,10 +18967,219 @@ setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
+    if(!SCENE_MAP.analysis.includes('fourdim')) SCENE_MAP.analysis.push('fourdim');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['fourdim']='analysis'; }
 },0);
 
+})();
+</script>
+
+<!-- ===== 时间窗四维分析 ===== -->
+<script>
+(function(){
+const FD_POS=['千','百','十','个'];
+const FD_DAYS={'3m':91,'6m':182,'1y':365,'2y':730};
+let fdWin='all', fdSec=0;
+const fdBaseCache={};
+
+function fdMarket(){ const el=document.getElementById('fd-market'); return el?el.value:'万能'; }
+
+// rows: newest-first [{date,nums:[p1,p2,p3]}]
+function fdRows(m){ return (window.DB&&DB[m])?DB[m]:[]; }
+
+function fdAnalyze(rows){
+  const cover={}, bigSmall={}, oddEven={}, front={}, back={};
+  const pairPos={}; // key -> {posCombo:count}
+  const prizePos=[{},{},{}]; // prize -> digit -> [4]
+  for(let d=0;d<10;d++){cover[d]=0;}
+  let totalNums=0, nDraws=0;
+  for(const r of rows){
+    nDraws++;
+    const nums=r.nums||[];
+    for(let pi=0;pi<nums.length && pi<3;pi++){
+      const num=nums[pi];
+      if(!num||num.length!==4||!/^\d{4}$/.test(num)) continue;
+      totalNums++;
+      const seen={};
+      for(let pos=0;pos<4;pos++){
+        const ch=num[pos];
+        if(!prizePos[pi][ch]) prizePos[pi][ch]=[0,0,0,0];
+        prizePos[pi][ch][pos]++;
+        if(!seen[ch]){ cover[+ch]++; seen[ch]=1; }
+      }
+      for(let i=0;i<4;i++)for(let j=i+1;j<4;j++){
+        const a=num[i],b=num[j];
+        const key=(+a<=+b)?a+'-'+b:b+'-'+a;
+        const pk=FD_POS[i]+FD_POS[j];
+        if(!pairPos[key]) pairPos[key]={};
+        pairPos[key][pk]=(pairPos[key][pk]||0)+1;
+      }
+      front[num.slice(0,2)]=(front[num.slice(0,2)]||0)+1;
+      back[num.slice(2,4)]=(back[num.slice(2,4)]||0)+1;
+      let bs='',oe='';
+      for(const c of num){ bs+=(+c>=5?'大':'小'); oe+=(+c%2?'奇':'偶'); }
+      bigSmall[bs]=(bigSmall[bs]||0)+1;
+      oddEven[oe]=(oddEven[oe]||0)+1;
+    }
+  }
+  const coverPct={};
+  for(let d=0;d<10;d++) coverPct[d]= totalNums? cover[d]/totalNums*100 : 0;
+  // top pairs
+  const pairTot=Object.keys(pairPos).map(k=>{
+    let t=0,combos=pairPos[k];
+    for(const pk in combos) t+=combos[pk];
+    let top='',tc=-1;
+    for(const pk in combos){ if(combos[pk]>tc){tc=combos[pk];top=pk;} }
+    return {pair:k,total:t,top:top,topPct:t?tc/t*100:0};
+  }).sort((a,b)=>b.total-a.total).slice(0,10);
+  // prize position preference
+  const prize=[];
+  const order='1234567890';
+  for(const d of order){
+    const p0=prizePos[0][d], p2=prizePos[2][d];
+    if(!p0||!p2){ prize.push({d,p1:'-',p1p:0,p3:'-',p3p:0,same:false}); continue; }
+    const t0=p0.reduce((a,b)=>a+b,0), t2=p2.reduce((a,b)=>a+b,0);
+    let i0=0,i2=0;
+    for(let i=1;i<4;i++){ if(p0[i]>p0[i0])i0=i; if(p2[i]>p2[i2])i2=i; }
+    prize.push({d,p1:FD_POS[i0]+'位',p1p:t0?+(p0[i0]/t0*100).toFixed(1):0,
+                p3:FD_POS[i2]+'位',p3p:t2?+(p2[i2]/t2*100).toFixed(1):0,same:i0===i2});
+  }
+  const tn=Object.values(bigSmall).reduce((a,b)=>a+b,0)||1;
+  const bs=Object.entries(bigSmall).map(([k,v])=>[k,+(v/tn*100).toFixed(1)]).sort((a,b)=>b[1]-a[1]);
+  const oe=Object.entries(oddEven).map(([k,v])=>[k,+(v/tn*100).toFixed(1)]).sort((a,b)=>b[1]-a[1]);
+  const fr=Object.entries(front).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const bk=Object.entries(back).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  return {draws:nDraws,nums:totalNums,cover:coverPct,pairs:pairTot,prize,bs,oe,front:fr,back:bk};
+}
+
+function fdWindowRows(m){
+  const rows=fdRows(m);
+  if(fdWin==='all'||!rows.length) return rows;
+  // find latest date
+  let latest=rows[0].date;
+  for(const r of rows) if(r.date>latest) latest=r.date;
+  const cut=new Date(latest); cut.setDate(cut.getDate()-FD_DAYS[fdWin]);
+  const cutStr=cut.toISOString().slice(0,10);
+  return rows.filter(r=>r.date>=cutStr);
+}
+
+function fdBaseline(m){
+  if(!fdBaseCache[m]) fdBaseCache[m]=fdAnalyze(fdRows(m));
+  return fdBaseCache[m];
+}
+
+// ---- renderers ----
+function esc(s){return String(s);}
+function fdRenderCycle(r,base){
+  const order='1234567890'.split('');
+  const cyc={};
+  for(const d of order){ const cur=r.cover[+d], b=base.cover[+d]; cyc[d]={cur:+cur.toFixed(1),base:+b.toFixed(1),delta:+(cur-b).toFixed(1)}; }
+  const sorted=order.slice().sort((a,b)=>cyc[b].delta-cyc[a].delta);
+  const maxCur=Math.max(...order.map(d=>cyc[d].cur),1);
+  let html='';
+  if(fdWin!=='all'){
+    const hots=sorted.filter(d=>cyc[d].delta>1.5), colds=sorted.filter(d=>cyc[d].delta<-1.5);
+    if(hots.length||colds.length){
+      html+='<div class="card" style="background:#7c2d12;color:#fff;padding:8px 12px;font-size:12px">';
+      if(hots.length) html+='🔥 升温: '+hots.map(d=>`${d}(+${cyc[d].delta})`).join('  ')+'　';
+      if(colds.length) html+='❄️ 降温: '+colds.map(d=>`${d}(${cyc[d].delta})`).join('  ');
+      html+=' <span style="opacity:.8">(对比全量基准)</span></div>';
+    }
+  }
+  html+='<div class="card"><h3>冷热周期 — 覆盖率 vs 全量基准</h3>';
+  for(const d of sorted){
+    const o=cyc[d];
+    const col=o.delta>1.5?'#dc2626':o.delta<-1.5?'#2563eb':'#94a3b8';
+    const lab=o.delta>1.5?'🔥热':o.delta<-1.5?'❄️冷':'平';
+    html+=`<div style="display:flex;align-items:center;gap:8px;margin:3px 0;font-size:12px">
+      <span style="width:52px;text-align:right"><b>${d}</b> <span style="color:${col};font-weight:700">${lab}</span></span>
+      <div style="flex:1;height:15px;background:#f1f5f9;border-radius:3px;overflow:hidden"><div style="height:100%;width:${o.cur/maxCur*100}%;background:${col}"></div></div>
+      <span style="width:120px;font-variant-numeric:tabular-nums">${o.cur}% <span style="color:#94a3b8">Δ${o.delta>0?'+':''}${o.delta}</span></span>
+    </div>`;
+  }
+  html+='<div style="font-size:10px;color:#94a3b8;margin-top:6px">覆盖率=该数字在窗口内每期至少出现1次的比率。Δ=本窗口 vs 全量基准偏差。全量视图Δ≈0属正常。</div></div>';
+  return html;
+}
+function fdRenderPrize(r){
+  const same=r.prize.filter(x=>x.same).length;
+  let html=`<div class="card"><h3>奖级站位差异 — 头奖 vs 三奖</h3>
+    <div style="font-size:12px;margin-bottom:8px">站位一致率: <b>${same}/10</b> · ✓=偏好同位 ✗=不同位</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px">`;
+  for(const x of r.prize){
+    const col=x.same?'#16a34a':'#dc2626';
+    html+=`<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:5px;padding:6px;text-align:center;font-size:11px">
+      <div style="font-size:16px;font-weight:700">${x.d}</div>
+      <div>头 <b>${x.p1}</b> ${x.p1p}%</div>
+      <div>三 <b>${x.p3}</b> ${x.p3p}%</div>
+      <div style="color:${col};font-weight:700">${x.same?'✓':'✗'}</div></div>`;
+  }
+  html+='</div></div>';
+  return html;
+}
+function fdRenderPattern(r){
+  function grid(arr){
+    let h='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:11px">';
+    for(const [p,v] of arr){
+      const bg=v>=6.6?'#dc2626':v<=5.9?'#2563eb':'';
+      const c=bg?'#fff':'';
+      h+=`<div style="background:${bg||'#f8fafc'};color:${c||'#1e293b'};border-radius:3px;padding:4px;text-align:center"><div>${p}</div><div style="font-weight:700;font-variant-numeric:tabular-nums">${v}%</div></div>`;
+    }
+    return h+'</div>';
+  }
+  const bs=r.bs, oe=r.oe;
+  let html='<div class="card"><h3>大小模式 (5-9=大, 0-4=小)</h3>';
+  html+=`<div style="font-size:11px;color:#64748b;margin-bottom:6px">最热 <b>${bs[0][0]} ${bs[0][1]}%</b> · 最冷 <b>${bs[bs.length-1][0]} ${bs[bs.length-1][1]}%</b> · 极差 ${(bs[0][1]-bs[bs.length-1][1]).toFixed(1)}% (均匀=6.25%)</div>`;
+  html+=grid(bs)+'</div>';
+  html+='<div class="card"><h3>奇偶模式</h3>';
+  html+=`<div style="font-size:11px;color:#64748b;margin-bottom:6px">最热 <b>${oe[0][0]} ${oe[0][1]}%</b> · 最冷 <b>${oe[oe.length-1][0]} ${oe[oe.length-1][1]}%</b> · 极差 ${(oe[0][1]-oe[oe.length-1][1]).toFixed(1)}%</div>`;
+  html+=grid(oe)+'</div>';
+  return html;
+}
+function fdRenderPair(r){
+  let html='<div class="card"><h3>Top 10 数字对 & 首选位置</h3><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f1f5f9"><th style="padding:4px;border:1px solid #e2e8f0">数字对</th><th style="padding:4px;border:1px solid #e2e8f0">同框次数</th><th style="padding:4px;border:1px solid #e2e8f0">首选位置</th></tr>';
+  for(const p of r.pairs){
+    html+=`<tr><td style="padding:4px;border:1px solid #e2e8f0;text-align:center"><b>${p.pair}</b></td><td style="padding:4px;border:1px solid #e2e8f0;text-align:center">${p.total}</td><td style="padding:4px;border:1px solid #e2e8f0;text-align:center">${p.top} ${p.topPct.toFixed(1)}%</td></tr>`;
+  }
+  html+='</table></div><div style="font-size:10px;color:#94a3b8;margin-top:4px">6种位置组合随机基准≈16.7%，超过才算偏好。</div></div>';
+  function pills(arr){ return '<div style="display:flex;flex-wrap:wrap;gap:4px">'+arr.map(([n,c])=>`<span style="background:#f1f5f9;border-radius:3px;padding:2px 8px;font-size:12px"><b>${n}</b> ×${c}</span>`).join('')+'</div>'; }
+  html+='<div class="card"><h3>千百(前两位)热门 Top 10</h3>'+pills(r.front)+'</div>';
+  html+='<div class="card"><h3>十个(后两位)热门 Top 10</h3>'+pills(r.back)+'</div>';
+  return html;
+}
+
+window.fdRender=function(){
+  const out=document.getElementById('fd-out');
+  if(!out) return;
+  const m=fdMarket();
+  if(!fdRows(m).length){ out.innerHTML='<div class="warn">暂无数据，请先加载 slim_data.json</div>'; return; }
+  const wr=fdWindowRows(m);
+  const r=fdAnalyze(wr);
+  const base=fdBaseline(m);
+  const WLABEL={'3m':'近3月','6m':'近6月','1y':'近1年','2y':'近2年','all':'全部'};
+  let html='';
+  if(r.draws<60) html+=`<div class="card" style="background:#f59e0b;color:#111;padding:6px 12px;font-size:12px;font-weight:700">⚠️ 样本仅 ${r.draws} 期，偏差易被随机噪音放大，仅供参考</div>`;
+  html+=`<div style="font-size:12px;color:#64748b;margin:0 0 8px 2px">窗口 <b>${WLABEL[fdWin]}</b> · <b>${r.draws}</b> 期 · <b>${r.nums}</b> 组正字</div>`;
+  html+=[()=>fdRenderCycle(r,base),()=>fdRenderPrize(r),()=>fdRenderPattern(r),()=>fdRenderPair(r)][fdSec]();
+  out.innerHTML=html;
+};
+window.fdSetWin=function(el){
+  fdWin=el.dataset.w;
+  document.querySelectorAll('.fd-win').forEach(b=>{ b.style.opacity=(b===el)?'1':'0.5'; b.style.outline=(b===el)?'2px solid #7c2d12':'none'; });
+  fdRender();
+};
+window.fdSetSec=function(el){
+  fdSec=+el.dataset.s;
+  document.querySelectorAll('.fd-sec').forEach(b=>{ b.style.opacity=(b===el)?'1':'0.5'; b.style.outline=(b===el)?'2px solid #1e3a5f':'none'; });
+  fdRender();
+};
+// init active visuals when panel first shown
+const _origFdRender=window.fdRender;
+window.fdRender=function(){
+  document.querySelectorAll('.fd-win').forEach(b=>{ const a=b.dataset.w===fdWin; b.style.opacity=a?'1':'0.5'; b.style.outline=a?'2px solid #7c2d12':'none'; });
+  document.querySelectorAll('.fd-sec').forEach(b=>{ const a=(+b.dataset.s)===fdSec; b.style.opacity=a?'1':'0.5'; b.style.outline=a?'2px solid #1e3a5f':'none'; });
+  _origFdRender();
+};
 })();
 </script>
 
