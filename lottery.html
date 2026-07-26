@@ -1392,6 +1392,22 @@ setTimeout(()=>{ if(document.getElementById('tab-huaz-trend') && document.getEle
     </div>
   </div>
 
+  <!-- Row 5g2: 1-9-0 组合 -->
+  <div style="margin-top:8px;background:#fdf2f8;border-radius:7px;padding:10px;border:1px solid #fbcfe8">
+    <div style="font-size:11px;font-weight:700;color:#9d174d;margin-bottom:8px">🎯 1-9-0 组合（可多选）— 号码4位数字按 1→9→0 排序后取「首位」归组</div>
+    <div id="flt-grp-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <script>['1','2','3','4','5','6','7','8','9','0'].forEach(g=>document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fce7f3;border:2px solid transparent;border-radius:5px;padding:4px 10px;font-size:13px;font-weight:700;color:#9d174d;transition:all .15s" id="grp-lbl-${g}"><input type="checkbox" id="flt-grp-${g}" value="${g}" onchange="updateChipStyle('grp','${g}')" style="display:none">${g}组</label>`))</script>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('grp')">全选</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('grp')">清除</button>
+    </div>
+    <div class="warn" style="margin-top:6px;font-size:11px">
+      每个4位号码的数字按 <b>1→9→0</b> 排序后，看排在最前的数字属于哪组。例：<b>3092</b> → 排序 <b>2390</b> → 首位 2 → <b>2组</b>；<b>1746</b> → <b>1467</b> → <b>1组</b>。<br>
+      勾选后只保留属于所选组的号码。多选 = 任一组即通过（OR）。
+    </div>
+  </div>
+
   <!-- Row 5h: 开奖次数筛选 -->
   <div style="margin-top:8px;background:#ecfdf5;border-radius:7px;padding:10px;border:1px solid #a7f3d0">
     <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:8px">🔢 开奖次数筛选 — 按号码在筛选范围内出现的次数过滤</div>
@@ -4402,7 +4418,8 @@ function updateChipStyle(prefix,r){
     perm:{on:'#d97706',onBorder:'#78350f',off:'#fef3c7',offColor:'#78350f'},  // V48 号码打数
     freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'},  // 频率档
     p4s:{on:'#2563eb',onBorder:'#1e40af',off:'#dbeafe',offColor:'#1e3a5f'},  // 4D指定点数
-    mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'}   // 指定月份
+    mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'},   // 指定月份
+    grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'}    // 1-9-0 组合
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -4411,6 +4428,7 @@ function updateChipStyle(prefix,r){
   }
 }
 const FREQ_TIER_KEYS = ['热门','中性','冷门'];
+const GRP_KEYS = ['1','2','3','4','5','6','7','8','9','0']; // 1-9-0 组合（含0）
 const CHIP_GROUP_MAX={p4s:36,mth:12}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份）
 function getSelectedRoots(prefix){
   if(prefix==='perm'){
@@ -4423,6 +4441,11 @@ function getSelectedRoots(prefix){
     FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb&&cb.checked)sel.push(v);});
     return sel;
   }
+  if(prefix==='grp'){
+    const sel=[];
+    GRP_KEYS.forEach(v=>{const cb=document.getElementById('flt-grp-'+v);if(cb&&cb.checked)sel.push(v);});
+    return sel;
+  }
   const sel=[];
   const max=CHIP_GROUP_MAX[prefix]||9;
   for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb&&cb.checked)sel.push(r);}
@@ -4431,12 +4454,14 @@ function getSelectedRoots(prefix){
 function selectAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=true;updateChipStyle('perm',v);}});return;}
   if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=true;updateChipStyle('freq',v);}});return;}
+  if(prefix==='grp'){GRP_KEYS.forEach(v=>{const cb=document.getElementById('flt-grp-'+v);if(cb){cb.checked=true;updateChipStyle('grp',v);}});return;}
   const max=CHIP_GROUP_MAX[prefix]||9;
   for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=true;updateChipStyle(prefix,r);}}
 }
 function clearAllRoots(prefix){
   if(prefix==='perm'){[24,12,6,4,1].forEach(v=>{const cb=document.getElementById('flt-perm-'+v);if(cb){cb.checked=false;updateChipStyle('perm',v);}});return;}
   if(prefix==='freq'){FREQ_TIER_KEYS.forEach(v=>{const cb=document.getElementById('flt-freq-'+v);if(cb){cb.checked=false;updateChipStyle('freq',v);}});return;}
+  if(prefix==='grp'){GRP_KEYS.forEach(v=>{const cb=document.getElementById('flt-grp-'+v);if(cb){cb.checked=false;updateChipStyle('grp',v);}});return;}
   const max=CHIP_GROUP_MAX[prefix]||9;
   for(let r=1;r<=max;r++){const cb=document.getElementById('flt-'+prefix+'-'+r);if(cb){cb.checked=false;updateChipStyle(prefix,r);}}
 }
@@ -4825,6 +4850,14 @@ function runRepeatRateCheck(){
     </div>`;
 }
 
+// 1-9-0 组合：4位数字按 1→9→0 排序后取首位所属组
+function flt1990Group(num){
+  const SRT='1234567890';
+  const s=String(num).padStart(4,'0');
+  let bestCh='', bestRank=99;
+  for(const ch of s){ const rk=SRT.indexOf(ch); if(rk>=0&&rk<bestRank){bestRank=rk;bestCh=ch;} }
+  return bestCh;
+}
 function runAdvancedFilter(){
   const market=document.getElementById('flt-market').value;
   _b3dZoneCache = {}; // 每次筛选清空缓存，保证数据最新
@@ -4843,6 +4876,7 @@ function runAdvancedFilter(){
   const freqTiers=getSelectedRoots('freq');    // 频率档
   const pts4Picks=getSelectedRoots('p4s');     // 4D指定点数（勾选优先于范围）
   const monthPicks=getSelectedRoots('mth');    // 指定月份（跨年份）
+  const grpPicks=getSelectedRoots('grp');      // 1-9-0 组合
   const pts4Range=getRangeFromDropdowns('flt-pts4-from','flt-pts4-to');
   const pts3fRange=getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to');
   const pts3bRange=getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to');
@@ -4904,6 +4938,7 @@ function runAdvancedFilter(){
         if(!pass) return;
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
+      if(grpPicks.length&&!grpPicks.includes(flt1990Group(num)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({rowIndex:ri,date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
@@ -5558,6 +5593,14 @@ function seaConcBadge(conc,reliable){
   return '<span style="background:'+col+';color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;opacity:'+op+'">'+conc.toFixed(2)+'x</span>';
 }
 
+// 审核判定：窗口命中的跨年份分布（戳破"扎堆一年"的假偏好）
+function seaAuditVerdict(hitsInWin,distinctYears,maxYr){
+  if(hitsInWin<3) return {color:'#94a3b8',badge:'🔴 样本少'};
+  const clustered=maxYr/hitsInWin;
+  if(distinctYears>=3 && clustered<=0.6) return {color:'#16a34a',badge:'🟢 '+distinctYears+'年分散'};
+  if(clustered>=0.7) return {color:'#dc2626',badge:'🔴 扎堆'+(distinctYears===1?'1年':distinctYears+'年')};
+  return {color:'#d97706',badge:'🟡 '+distinctYears+'年'};
+}
 function doSeasonRank(){
   const market=document.getElementById('sea-market').value;
   const period=document.getElementById('sea-period').value;
@@ -5579,13 +5622,25 @@ function doSeasonRank(){
   // 对每个 key 统计: 总命中 + 各窗口命中
   const stat={}; // key -> {total, win:[...], sampleNum}
   samples.forEach(s=>{
-    if(!stat[s.key]) stat[s.key]={total:0,win:new Array(w.count).fill(0),sample:s.num,dates:[]};
+    if(!stat[s.key]) stat[s.key]={total:0,win:new Array(w.count).fill(0),sample:s.num,dates:[],winYears:Array.from({length:w.count},()=>({})),last:''};
     stat[s.key].total++;
     stat[s.key].win[s.winIdx]++;
+    const yr=String(s.date).slice(0,4);
+    const yc=stat[s.key].winYears[s.winIdx]; yc[yr]=(yc[yr]||0)+1;
+    if(s.date>stat[s.key].last) stat[s.key].last=s.date;
     if(stat[s.key].dates.length<30) stat[s.key].dates.push({date:s.date,num:s.num,prize:s.prize});
   });
 
   const uniform=1/w.count; // 理论均匀占比
+
+  // 「本年出现」核对：最新年份里，各窗口该组是否真的开出过（像生肖图的本月已开）
+  let refYear=0; samples.forEach(s=>{const y=parseInt(String(s.date).slice(0,4),10); if(y>refYear)refYear=y;});
+  const curHit={}; // key -> [win.count] of {date,num,prize} 或 null（取最新一次）
+  samples.forEach(s=>{
+    if(parseInt(String(s.date).slice(0,4),10)!==refYear) return;
+    if(!curHit[s.key]) curHit[s.key]=new Array(w.count).fill(null);
+    if(!curHit[s.key][s.winIdx]) curHit[s.key][s.winIdx]={date:s.date,num:s.num,prize:s.prize}; // samples 新→旧，首次即最新
+  });
 
   // 为每个窗口建一个排行: 在该窗口里集中度最高的 key
   const perWindow=[]; // [{winIdx, label, entries:[...]}]
@@ -5600,7 +5655,10 @@ function doSeasonRank(){
       if(conc<minConc) continue;
       // 可靠性: 总命中越多 + 窗口命中越多越可靠
       const reliable=st.total>=minHits+2 && hitsInWin>=Math.max(3,minHits);
-      entries.push({key,sample:st.sample,total:st.total,hitsInWin,share,conc,reliable,dates:st.dates});
+      const yc=st.winYears[wi];
+      const distinctYears=Object.keys(yc).length;
+      const maxYr=distinctYears?Math.max(...Object.values(yc)):0;
+      entries.push({key,sample:st.sample,total:st.total,hitsInWin,share,conc,reliable,dates:st.dates,distinctYears,maxYr,last:st.last});
     }
     // 排序: 可靠优先, 然后集中度, 然后窗口命中数
     entries.sort((a,b)=>{
@@ -5639,7 +5697,7 @@ function doSeasonRank(){
     if(!pw.entries.length){
       html+='<div class="warn">这个窗口没有符合条件的'+levelName+'（命中≥'+minHits+' 且 集中度≥'+minConc+'x）。试试放宽门槛。</div>';
     }else{
-      html+='<div class="ot"><table><tr><th>#</th><th>'+levelName+'</th><th>'+pw.label+'命中</th><th>总命中</th><th>窗口占比</th><th>集中度</th><th>状态</th><th></th></tr>';
+      html+='<div class="ot"><table><tr><th>#</th><th>'+levelName+'</th><th>'+pw.label+'命中</th><th>总命中</th><th>窗口占比</th><th>集中度</th><th title="'+refYear+'年该窗口是否真的开出过">本年出现<br><span style="font-size:9px;font-weight:400;color:#94a3b8">'+refYear+'</span></th><th>状态</th><th>审核</th><th></th></tr>';
       pw.entries.forEach((e,idx)=>{
         const rowStyle=e.reliable?'':'opacity:.5';
         const numDisplay=level==='perm'
@@ -5651,6 +5709,8 @@ function doSeasonRank(){
             :'<span class="by">轻微</span>')
           : '<span style="color:#94a3b8;font-size:10px">样本少·噪音</span>';
         const onclick="seaDrill('"+market+"','"+e.sample+"','"+level+"','"+prize+"')";
+        const auditClick="event.stopPropagation();seaAudit('"+market+"','"+e.sample+"','"+level+"','"+prize+"',"+pw.winIdx+")";
+        const av=seaAuditVerdict(e.hitsInWin,e.distinctYears,e.maxYr);
         html+='<tr style="'+rowStyle+'cursor:pointer" onclick="'+onclick+'" title="点击查看 '+e.sample+' 的完整季节分布">'
           +'<td style="color:#888;font-size:11px">'+(idx+1)+'</td>'
           +'<td>'+numDisplay+'</td>'
@@ -5658,8 +5718,10 @@ function doSeasonRank(){
           +'<td>'+e.total+'</td>'
           +'<td>'+(e.share*100).toFixed(0)+'%</td>'
           +'<td>'+seaConcBadge(e.conc,e.reliable)+'</td>'
+          +'<td>'+(function(){var ch=(curHit[e.key]||[])[pw.winIdx]; return ch?'<span style="color:#16a34a;font-weight:700;font-size:11px" title="'+ch.num+' '+['头','二','三'][ch.prize]+'奖">✓ '+String(ch.date).slice(5)+'</span>':'<span style="color:#cbd5e1;font-size:11px">✗ 未开</span>';})()+'</td>'
           +'<td>'+status+'</td>'
-          +'<td style="color:#1e3a5f;font-size:11px;white-space:nowrap">🔍 查明细</td></tr>';
+          +'<td><span style="color:'+av.color+';font-weight:700;font-size:11px" title="窗口命中分布在 '+e.distinctYears+' 个不同年份">'+av.badge+'</span></td>'
+          +'<td style="white-space:nowrap;font-size:11px"><span style="color:#1e3a5f">🔍 明细</span> · <span onclick="'+auditClick+'" style="color:#9d174d;cursor:pointer" title="审核跨年份稳健性">🔬 审核</span></td></tr>';
       });
       html+='</table></div>';
     }
@@ -5679,6 +5741,75 @@ function seaDrill(market,num,level,prize){
   doSeasonQuery();
   const target=document.getElementById('season-query-result');
   if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🔬 审核：重算这一组在指定窗口的跨年份稳健性 + 最近出现 + 全量vs近年对比
+function seaAudit(market,sample,level,prize,winIdx){
+  const period=document.getElementById('sea-period').value;
+  const yearsBack=parseInt(document.getElementById('sea-years').value,10)||0;
+  const targetKey=level==='perm'?seaPermKey(sample):pz(sample);
+  const out=document.getElementById('season-audit-result');
+  const full=seaCollect(market,prize,level,period,0); // 全部年份
+  const w=full.w;
+  const winLabel=w.label(winIdx);
+  const uniform=1/w.count;
+  const mine=full.samples.filter(s=>s.key===targetKey); // 全部年份、该组所有命中
+  if(!mine.length){ out.innerHTML='<div class="card"><div class="warn">没找到 '+sample+' 的历史记录。</div></div>'; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // 全量：窗口命中按年份
+  const byYearWin={}; let totalAll=0, winAll=0;
+  mine.forEach(s=>{ const y=String(s.date).slice(0,4); totalAll++; if(s.winIdx===winIdx){ byYearWin[y]=(byYearWin[y]||0)+1; winAll++; } });
+  const concAll= totalAll? (winAll/totalAll)/uniform : 0;
+  // 近 yearsBack 年（当前排行用的范围）
+  const minYear=seaMinYear(DB[market]||[],yearsBack);
+  let totalW=0, winW=0;
+  mine.forEach(s=>{ if(minYear!==null && parseInt(String(s.date).slice(0,4),10)<minYear) return; totalW++; if(s.winIdx===winIdx) winW++; });
+  const concWin= totalW? (winW/totalW)/uniform : 0;
+  // 跨年份指标
+  const years=Object.keys(byYearWin).sort();
+  const distinctYears=years.length;
+  const maxYr=distinctYears?Math.max(...years.map(y=>byYearWin[y])):0;
+  const clustered= winAll? maxYr/winAll : 0;
+  const expected= totalAll*uniform; // 若无偏好，窗口命中的期望次数
+  // 最近出现（任意窗口），mine 已是最新在前
+  const recent=mine.slice(0,6);
+  // 最新数据日期（判断"多久没出现"）
+  let latest=''; (DB[market]||[]).forEach(r=>{ if(r.date>latest) latest=r.date; });
+  const last=mine[0]?mine[0].date:'';
+  function daysBetween(a,b){ if(!a||!b)return null; return Math.round((new Date(b)-new Date(a))/86400000); }
+  const sinceDays=daysBetween(last,latest);
+  // 判定
+  let verdict,vcolor;
+  if(winAll<3){ verdict='样本太少 —— '+winLabel+'总共才命中 '+winAll+' 次，几乎等于随机噪音，谈不上"偏好"。'; vcolor='#94a3b8'; }
+  else if(distinctYears>=3 && clustered<=0.6){ verdict='相对稳健 —— '+winLabel+'的命中分布在 '+distinctYears+' 个不同年份，不是扎堆某一年。比多数结果可信，但仍属历史巧合，不保证未来会重演。'; vcolor='#16a34a'; }
+  else if(clustered>=0.7){ verdict='疑似噪音 —— '+winLabel+'的 '+winAll+' 次命中里，'+maxYr+' 次挤在同一年（占 '+(clustered*100).toFixed(0)+'%），实际只跨 '+distinctYears+' 个年份。这是"某年扎堆"，不是"每年都来"，别当规律。'; vcolor='#dc2626'; }
+  else{ verdict='一般 —— 跨 '+distinctYears+' 个年份，有点分散但不算强。谨慎看待。'; vcolor='#d97706'; }
+
+  const yearBars=years.length? years.map(y=>{
+    const c=byYearWin[y]; const bw=Math.min(100,c/Math.max(1,maxYr)*100);
+    return '<div style="display:flex;align-items:center;gap:6px;font-size:11px;margin:2px 0"><span style="width:42px">'+y+'</span><div style="flex:1;height:13px;background:#f1f5f9;border-radius:3px;overflow:hidden"><div style="height:100%;width:'+bw+'%;background:'+vcolor+'"></div></div><span style="width:30px">×'+c+'</span></div>';
+  }).join('') : '<div class="warn">该窗口无命中。</div>';
+
+  const recentRows=recent.map(s=>{
+    const inWin=s.winIdx===winIdx;
+    return '<tr><td>'+s.date+'</td><td><span class="nc nc-sm">'+s.num+'</span></td><td>'+['头','二','三'][s.prize]+'奖</td><td style="color:'+(inWin?'#16a34a':'#94a3b8')+'">'+(inWin?'✓ 在'+winLabel:'—')+'</td></tr>';
+  }).join('');
+
+  let html='<div class="card" style="border:2px solid '+vcolor+'">';
+  html+='<h3>🔬 审核 · '+sample+(level==='perm'?' 组':'')+' 在「'+winLabel+'」的稳健性 — '+market+'</h3>';
+  html+='<div style="background:'+vcolor+';color:#fff;border-radius:6px;padding:9px 12px;font-size:13px;font-weight:600;margin-bottom:10px">'+verdict+'</div>';
+  html+='<div class="g3" style="margin-bottom:10px">';
+  html+='<div class="sc"><div class="val">'+winAll+'</div><div class="lbl">'+winLabel+'命中(全量)</div></div>';
+  html+='<div class="sc"><div class="val">'+distinctYears+'</div><div class="lbl">跨年份数</div></div>';
+  html+='<div class="sc"><div class="val">'+expected.toFixed(1)+'</div><div class="lbl">随机期望次数</div></div>';
+  html+='</div>';
+  html+='<div style="font-size:11px;color:#64748b;margin-bottom:8px">实际 '+winAll+' 次 vs 随机期望 '+expected.toFixed(1)+' 次。差距越大越可能是真偏好；接近或低于期望 = 没偏好。集中度：全量 '+concAll.toFixed(2)+'x｜近'+(yearsBack||'全')+'年 '+concWin.toFixed(2)+'x'+(yearsBack&&Math.abs(concAll-concWin)>0.5?'（<b>拉到全部年份后集中度'+(concAll<concWin?'下降':'上升')+'</b>，说明近年的偏好'+(concAll<concWin?'不稳':'更稳')+'）':'')+'。</div>';
+  html+='<div style="font-weight:700;font-size:12px;margin:8px 0 4px">📅 '+winLabel+'命中的年份分布（全部年份）</div>'+yearBars;
+  html+='<div style="font-weight:700;font-size:12px;margin:12px 0 4px">🕐 最近出现（是否有在开）</div>';
+  html+='<div style="font-size:11px;color:#64748b;margin-bottom:4px">最后一次出现：<b>'+(last||'—')+'</b>'+(sinceDays!=null?'（距今约 '+sinceDays+' 天）':'')+'</div>';
+  html+='<div class="ot"><table><tr><th>日期</th><th>号码</th><th>奖位</th><th>是否在窗口</th></tr>'+recentRows+'</table></div>';
+  html+='<div style="font-size:10px;color:#94a3b8;margin-top:8px">⚠️ 审核只是帮你分辨"真规律 vs 扎堆巧合"，即使标🟢也仍是历史统计，彩票每期独立，不预测未来。</div>';
+  html+='</div>';
+  out.innerHTML=html;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function seaSwitchWin(i){
   const n=window._seaWinCount||0;
@@ -7358,6 +7489,7 @@ function doBacktest(){
   </div>
 </div>
 <div id="season-rank-result"></div>
+<div id="season-audit-result"></div>
 
 <div class="card">
   <h3>🔍 单号查询 — 看一个号码 / 分身组的季节分布</h3>
