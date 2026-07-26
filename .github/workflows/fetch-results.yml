@@ -1,0 +1,44 @@
+name: Fetch 4D Results
+
+on:
+  schedule:
+    # GitHub Actions 用 UTC; 马来西亚 = UTC+8
+    - cron: '35 13 * * *'   # 每天 21:35 MYT 主抓
+    - cron: '30 15 * * *'   # 每天 23:30 MYT 补一轮(迟公布的成绩)
+  workflow_dispatch: {}      # 手动触发按钮
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-results
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install requests
+
+      - name: Fetch results
+        run: python auto_fetch_results.py
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add auto_results.json auto_fetch.log
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "cloud-fetch: $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git pull --rebase origin main
+            git push origin main
+          fi
