@@ -143,3 +143,6 @@
 [2026-07-27 16:00:48] huat3 补漏 山打根 失败: ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))
 [2026-07-27 16:00:48] huat3 补漏(7天) OK: 补回 0 条
 [2026-07-27 16:00:48] 写出 /home/runner/work/lotto-data/lotto-data/auto_results.json: 共 103 条 (新增 2, 补sp/cs 0)
+[2026-07-27 17:18:53] huat5 最新抓取 OK: 新增 0 条, 补 sp/cs 0 处
+[2026-07-27 17:19:09] huat3 补漏(7天) OK: 补回 0 条
+[2026-07-27 17:19:09] 无新数据, 文件保持不变
