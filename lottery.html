@@ -1974,9 +1974,24 @@ function v51ShowImportUI(message){
 async function v51HandleFile(file){
   const status = document.getElementById('v51-import-status');
   if(!file){ status.innerHTML = '<div style="color:#dc2626;font-size:12px">未选择文件</div>'; return; }
+  const text = await file.text();
+  return v51ImportText(text);
+}
+// V64: 手机零操作——IndexedDB 空时自动从同源下载 slim_data.json
+async function v51TryAutoFetch(){
+  const status = document.getElementById('v51-import-status');
+  try{
+    const r = await fetch('slim_data.json?t='+Date.now(), {cache:'no-store'});
+    if(!r.ok) return;
+    if(status) status.innerHTML = '<div style="color:#0369a1;font-size:12px">☁️ 检测到云端历史库，自动导入中⋯</div>';
+    const text = await r.text();
+    await v51ImportText(text);
+  }catch(e){ /* file:// 或离线时静默失败, 用户手动拖入 */ }
+}
+async function v51ImportText(text){
+  const status = document.getElementById('v51-import-status');
   status.innerHTML = '<div style="color:#64748b;font-size:12px">解析中⋯</div>';
   try{
-    const text = await file.text();
     const obj = JSON.parse(text);
     // Validate
     if(!obj._meta || obj._meta.schema !== V51_SCHEMA){
@@ -2047,6 +2062,7 @@ async function bootstrapV51(){
   } else {
     // Show import UI
     v51ShowImportUI(null);
+    v51TryAutoFetch();   // V64: 同源有 slim_data.json 就自动导入(手机零操作)
   }
 }
 
