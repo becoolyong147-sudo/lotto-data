@@ -2711,7 +2711,7 @@ function commitSmartAll(){
   const conflictMode=document.getElementById('paste-conflict').value;
   const msg=document.getElementById('smart-save-msg');
   const data=getNewResults();
-  let totalAdded=0, totalOverwritten=0, totalSkipped=0;
+  let totalAdded=0, totalOverwritten=0, totalSkipped=0, totalEnriched=0;
 
   for(const {market, draws} of _smartPendingGroups){
     if(!data[market]) data[market]=[];
@@ -2721,16 +2721,36 @@ function commitSmartAll(){
       const n2=(p.n123[1]||'').padStart(4,'0');
       const n3=(p.n123[2]||'').padStart(4,'0');
       if(!/^\d{4}$/.test(n1)||!/^\d{4}$/.test(n2)||!/^\d{4}$/.test(n3)) continue;
+      const psp=p.sp||[], pcs=p.cs||[];
       const existsLocal=data[market].some(r=>r.date===p.date);
       const existsDB=(DB[market]||[]).some(r=>r.date===p.date);
+      let prevEx=null;
       if(existsLocal||existsDB){
-        if(conflictMode==='skip'){totalSkipped++;continue;}
+        if(conflictMode==='skip'){
+          // V64: 跳过模式下号码不动，但补上缺失的特别奖/安慰奖（仅新增成绩里的记录）
+          const ex=data[market].find(r=>r.date===p.date);
+          let touched=false;
+          if(ex){
+            if(psp.length&&!(ex.sp&&ex.sp.length)){ ex.sp=psp; touched=true; }
+            if(pcs.length&&!(ex.cs&&ex.cs.length)){ ex.cs=pcs; touched=true; }
+          }
+          if(touched){
+            totalEnriched++;
+            const dbi=(DB[market]||[]).findIndex(r=>r.date===p.date);
+            if(dbi>=0){ if(ex.sp) DB[market][dbi].sp=ex.sp; if(ex.cs) DB[market][dbi].cs=ex.cs; }
+          } else totalSkipped++;
+          continue;
+        }
+        prevEx=data[market].find(r=>r.date===p.date);
         data[market]=data[market].filter(r=>r.date!==p.date);
         totalOverwritten++;
       } else {
         totalAdded++;
       }
       const entry={date:p.date, draw:p.draw||'', nums:[n1,n2,n3]};
+      // 特/安：本次解析到的优先；没解析到但旧记录有 → 保留
+      if(psp.length) entry.sp=psp; else if(prevEx&&prevEx.sp&&prevEx.sp.length) entry.sp=prevEx.sp;
+      if(pcs.length) entry.cs=pcs; else if(prevEx&&prevEx.cs&&prevEx.cs.length) entry.cs=prevEx.cs;
       data[market].push(entry);
       if(!DB[market]) DB[market]=[];
       DB[market]=DB[market].filter(r=>r.date!==p.date);
@@ -2743,7 +2763,7 @@ function commitSmartAll(){
   const newCount=Object.values(data).reduce((a,v)=>a+v.length,0);
   const total=Object.values(DB).reduce((a,v)=>a+v.length,0);
   document.getElementById('data-count').textContent=`历史${total-newCount}期 + 新增${newCount}期`;
-  if(msg) msg.innerHTML=`<div class="success">✅ 保存完成 · 新增 <b>${totalAdded}</b> · 覆盖 <b>${totalOverwritten}</b> · 跳过 <b>${totalSkipped}</b></div>`;
+  if(msg) msg.innerHTML=`<div class="success">✅ 保存完成 · 新增 <b>${totalAdded}</b> · 覆盖 <b>${totalOverwritten}</b>${totalEnriched?` · 补特/安 <b>${totalEnriched}</b>`:''} · 跳过 <b>${totalSkipped}</b></div>`;
   _smartPendingGroups=null;
   setTimeout(()=>{
     document.getElementById('paste-input').value='';
