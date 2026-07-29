@@ -874,6 +874,10 @@ function renderPatternTrend(){
     </div>
     <button class="btn btn-green" onclick="addResult()">✓ 保存</button>
   </div>
+  <div class="g2" style="margin-top:8px">
+    <div class="ig"><label>⭐ 特别奖（选填，空格分隔）</label><input type="text" id="add-sp" placeholder="1234 5678 ..."/></div>
+    <div class="ig"><label>🎗️ 安慰奖（选填，空格分隔）</label><input type="text" id="add-cs" placeholder="1234 5678 ..."/></div>
+  </div>
   <div id="add-msg"></div>
 </div>
 
@@ -1985,17 +1989,26 @@ function addResult(){
   if(!/^\d{4}$/.test(n1)||!/^\d{4}$/.test(n2)||!/^\d{4}$/.test(n3)){
     msg.innerHTML='<div class="error">请输入正确的4位号码</div>';return
   }
-  
+
+  const parse4d=s=>(s||'').trim().split(/[\s,，、]+/).filter(n=>/^\d{4}$/.test(n)).slice(0,13);
+  const sp=parse4d(document.getElementById('add-sp').value);
+  const cs=parse4d(document.getElementById('add-cs').value);
+
   const data=getNewResults();
   if(!data[market]) data[market]=[];
-  
+
   // Check duplicate date
+  let prevEntry=null;
   if(data[market].some(r=>r.date===date)){
     if(!confirm(`${market} 的 ${date} 已存在，是否覆盖？`)) return;
+    prevEntry=data[market].find(r=>r.date===date);
     data[market]=data[market].filter(r=>r.date!==date);
   }
-  
+
   const entry={date,draw,nums:[n1,n2,n3]};
+  // 特/安：新填的优先；没填但旧记录有 → 保留旧的
+  if(sp.length) entry.sp=sp; else if(prevEntry&&prevEntry.sp&&prevEntry.sp.length) entry.sp=prevEntry.sp;
+  if(cs.length) entry.cs=cs; else if(prevEntry&&prevEntry.cs&&prevEntry.cs.length) entry.cs=prevEntry.cs;
   data[market].unshift(entry); // newest first
   data[market].sort((a,b)=>b.date.localeCompare(a.date)); // sort newest first
   saveNewResults(data);
@@ -2010,10 +2023,13 @@ function addResult(){
   // Update cold stats
   updateColdForNew(market, entry);
   
-  msg.innerHTML=`<div class="success">✅ 已保存 ${market} ${date} → 头${n1} 二${n2} 三${n3}</div>`;
+  const spcsNote=(entry.sp||entry.cs)?` · 特${(entry.sp||[]).length} 安${(entry.cs||[]).length}`:'';
+  msg.innerHTML=`<div class="success">✅ 已保存 ${market} ${date} → 头${n1} 二${n2} 三${n3}${spcsNote}</div>`;
   document.getElementById('add-n1').value='';
   document.getElementById('add-n2').value='';
   document.getElementById('add-n3').value='';
+  document.getElementById('add-sp').value='';
+  document.getElementById('add-cs').value='';
   
   showAdded();
   
@@ -2300,11 +2316,15 @@ function saveEdit(market, date, source){
   }
   
   const entry={date, draw, nums:[n1,n2,n3]};
-  
+
   if(source==='new'){
     // Edit in newResults
     const data=getNewResults();
     if(!data[market]) data[market]=[];
+    // 保留原记录的特别奖/安慰奖（编辑框只改头二三奖）
+    const prevRec=data[market].find(r=>r.date===date);
+    if(prevRec&&prevRec.sp&&prevRec.sp.length) entry.sp=prevRec.sp;
+    if(prevRec&&prevRec.cs&&prevRec.cs.length) entry.cs=prevRec.cs;
     data[market]=data[market].filter(r=>r.date!==date);
     data[market].unshift(entry);
     data[market].sort((a,b)=>b.date.localeCompare(a.date));
@@ -2504,13 +2524,28 @@ function _parseChunk(text, hintDate){
   if(drawNo) scrub=scrub.replace(drawNo[0],'DRP');
   scrub=scrub.replace(/\d{2,4}[-\s]\d{6,8}/g,'PP');
   scrub=scrub.replace(/RM\s*[\d,]+/gi,'CP');
-  const allFours=[];
+  const allFours=[]; let topEnd=-1;
   const re=/(?<![\d-])(\d{4})(?![\d-])/g;
   let mm;
-  while((mm=re.exec(scrub))!==null) allFours.push(mm[1]);
+  while((mm=re.exec(scrub))!==null){ allFours.push(mm[1]); if(allFours.length===3) topEnd=re.lastIndex; }
+  // V64: 按标签提取特别奖/安慰奖（special 后面跟 draw 的是"特别开彩"，不算；
+  // 标签必须出现在头二三奖号码之后，防止把大奖号码吞进特别奖）
+  const grab4d=seg=>{
+    const out=[]; const rx=/(?<![\d-])(\d{4})(?![\d-])/g; let g;
+    while((g=rx.exec(seg))!==null){ out.push(g[1]); if(out.length>=13) break; }
+    return out;
+  };
+  let spIdx=scrub.search(/special(?!\s*draw)|starter|特别奖|特別獎/i);
+  let csIdx=scrub.search(/consolation|安慰奖|安慰獎/i);
+  if(topEnd===-1||spIdx<topEnd) spIdx=-1;
+  if(topEnd===-1||csIdx<topEnd) csIdx=-1;
+  let sp=[], cs=[];
+  if(spIdx!==-1) sp=grab4d(scrub.slice(spIdx, csIdx>spIdx?csIdx:undefined));
+  if(csIdx!==-1) cs=grab4d(scrub.slice(csIdx, spIdx>csIdx?spIdx:undefined));
   return {
     date, draw,
     n123: allFours.slice(0,3),
+    sp, cs,
     leftover: allFours.slice(3),
     totalCount: allFours.length
   };
@@ -2638,12 +2673,19 @@ function _smartRenderResults(groups, out, summary){
       </div>
       <div style="overflow-x:auto">
       <table style="width:100%;font-size:12px">
-        <tr><th>状态</th><th>日期</th><th>期号</th><th>头奖</th><th>二奖</th><th>三奖</th></tr>`;
+        <tr><th>状态</th><th>日期</th><th>期号</th><th>头奖</th><th>二奖</th><th>三奖</th><th>特/安</th></tr>`;
     for(const p of draws){
       const isDup=existDates.has(p.date);
-      const statusBadge=isDup
+      const exRec=(existingData[market]||[]).find(r=>r.date===p.date);
+      const willEnrich=isDup&&exRec&&(((p.sp||[]).length&&!(exRec.sp&&exRec.sp.length))||((p.cs||[]).length&&!(exRec.cs&&exRec.cs.length)));
+      const statusBadge=willEnrich
+        ?'<span style="color:#0369a1;font-weight:700;font-size:11px">补特/安</span>'
+        :isDup
         ?'<span style="color:#9a3412;font-weight:700;font-size:11px">已存在</span>'
         :'<span style="color:#166534;font-weight:700;font-size:11px">新</span>';
+      const spcsCell=((p.sp||[]).length||(p.cs||[]).length)
+        ?`<span style="font-size:11px;color:#0369a1;font-weight:700">特${(p.sp||[]).length} 安${(p.cs||[]).length}</span>`
+        :'<span style="color:#ccc">—</span>';
       html+=`<tr style="background:${isDup?'#fff7ed':'#fff'}">
         <td>${statusBadge}</td>
         <td>${p.date}</td>
@@ -2651,6 +2693,7 @@ function _smartRenderResults(groups, out, summary){
         <td><span class="nc nc-sm">${p.n123[0]||'????'}</span></td>
         <td><span class="nc nc-sm">${p.n123[1]||'????'}</span></td>
         <td><span class="nc nc-sm">${p.n123[2]||'????'}</span></td>
+        <td>${spcsCell}</td>
       </tr>`;
     }
     html+=`</table></div></div>`;
