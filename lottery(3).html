@@ -7565,7 +7565,7 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成海报</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button> <select id="zo-bgm-sel" title="视频配乐"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button> <select id="zo-bgm-sel" title="视频配乐"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select> <select id="zo-vid-ratio" title="视频尺寸（public）"><option value="story" selected>📱 竖屏 9:16 (1080×1920)</option><option value="feed">🖼️ 方形 4:5 (1080×1350)</option></select></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
@@ -11307,16 +11307,35 @@ async function zoDownloadVideo(){
   const posterImg = await zoLoadPosterSprite();
   const L=ZO_LAST, S=ZO_STR[zoLang()];
   if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
-  // Phase2: public=中性化文字 + 精确 1080×1350 + 广告安检 + 禁 fire 配乐；member/legacy=原样 1.5x
+  // Phase2: public=中性化文字 + 广告安检 + 禁 fire 配乐 + 尺寸(story 9:16 / feed 4:5)；member/legacy=原样 1.5x
   const isPublic = zoOutputMode()==='public';
   if(!zoPublicAdGateForImage()) return;
-  zoPublicSyncBgm();   // 确保 public 下 fire→mystery
+  zoPublicSyncBgm();   // 确保 public 下 fire→mystery（两种尺寸都生效）
   const drawS = isPublic ? zoPublicWrapStr(S, zoLang()) : S;
-  const SC = isPublic ? 1 : 1.5;   // public 精确 1080×1350；legacy/member 1.5x 高清
-  const cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1350*SC);
-  const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
-  zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); },
-    zoFileNameK(L,'png').replace(/\.png$/,''),
+  const ratio = (document.getElementById('zo-vid-ratio')||{value:'story'}).value;
+  let cv, ctx, drawFrame, tag='';
+  if(isPublic && ratio==='story'){
+    // 9:16 竖屏：1080×1920，把 1080×1350 图表垂直居中，上下深色留白（不拉伸变形）
+    cv=document.createElement('canvas'); cv.width=1080; cv.height=1920;
+    ctx=cv.getContext('2d');
+    const offY=Math.round((1920-1350)/2);   // 285
+    drawFrame=function(t){
+      const bg=ctx.createLinearGradient(0,0,0,1920);
+      bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
+      ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1920);
+      ctx.save(); ctx.translate(0,offY); zoDrawChartK(ctx,L,drawS,t,posterImg); ctx.restore();
+    };
+    tag='_story';
+  } else {
+    // feed 4:5：public 精确 1080×1350（SC=1）；member/legacy 1.5x 高清
+    const SC = isPublic ? 1 : 1.5;
+    cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1350*SC);
+    ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+    drawFrame=function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); };
+    if(isPublic) tag='_feed';
+  }
+  zoRecVideo(cv, drawFrame,
+    zoFileNameK(L,'png').replace(/\.png$/,'')+tag,
     document.getElementById('zo-vid-btn'), '🎬 下载视频', zoBgmFromSel('zo-bgm-sel'));
 }
 // Season 模式保留旧版绘图
@@ -12554,15 +12573,74 @@ function zoRohanAddToPool(gid){
   try{ cpRender(); }catch(e){}
   try{ showToast('✅ 已加入 ' + added + ' 个罗汉结构到候选清单（' + R.market + '）'); }catch(e){ alert('已加入 ' + added + ' 个'); }
 }
+// Phase2: 罗汉 public 分页海报 — 固定 1080×1350，每页≤4组，少于4组垂直居中，超过自动分页
+function zoRohanPublicPNG(R){
+  if(!zoPublicAdGateForImage()) return;
+  const W=1080, H=1350, pad=56, iW=W-2*pad;
+  // 罗汉专属中性化（叠加在通用 zoPublicSafe 之上，仅 public）
+  const ROHAN_MAP=[['18罗汉月度锦囊','18罗汉月度数据报告'],['本月已中','本月历史出现'],['月底公开复盘','月末数据复核'],['热组','高集中组'],['候选','数据筛选结果'],['x 热','x 集中度']];
+  const P=s=>{ let r=zoPublicSafe(String(s==null?'':s),'zh'); ROHAN_MAP.forEach(function(m){ r=r.split(m[0]).join(m[1]); }); return r; };
+  const mkAscii=(ZO_MKT_EN[R.market]||R.market).replace(/\s+/g,'');
+  const groups=R.groups||[];
+  const pages=[]; for(let i=0;i<groups.length;i+=4) pages.push(groups.slice(i,i+4));
+  if(!pages.length) pages.push([]);
+  const total=pages.length;
+  pages.forEach(function(pageGroups, pi){
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const ctx=cv.getContext('2d');
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#0d0620'); bg.addColorStop(.5,'#1e1040'); bg.addColorStop(1,'#0d0620');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    zoRR(ctx,6,6,W-12,H-12,20); ctx.strokeStyle='#a78bfa'; ctx.lineWidth=3; ctx.stroke();
+    // 页头：品牌 + 数据报告标题 + 月份·市场
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const tg=ctx.createLinearGradient(W/2-280,0,W/2+280,0);
+    tg.addColorStop(0,'#f59e0b'); tg.addColorStop(.5,'#fde047'); tg.addColorStop(1,'#f59e0b');
+    ctx.fillStyle=tg; ctx.font='900 46px '+ZO_FONT; ctx.fillText('WIN 4D WITH M3', W/2, 66);
+    ctx.fillStyle='#e9d5ff'; ctx.font='800 28px '+ZO_FONT; ctx.fillText(P('🔱 18罗汉月度锦囊'), W/2, 112);
+    ctx.fillStyle='#c4b5fd'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(R.month+'月 · '+R.market+' '+((ZO_MKT_EN[R.market]||'').toUpperCase()), W/2, 146);
+    // 内容区（少于4组垂直居中）
+    const top=190, bottom=H-150, gh=176, gap=20, n=pageGroups.length;
+    const blockH = n>0 ? n*gh+(n-1)*gap : 0;
+    let y = top + Math.max(0,(bottom-top-blockH)/2);
+    pageGroups.forEach(function(gr){
+      zoRR(ctx,pad,y,iW,gh,14);
+      const gg=ctx.createLinearGradient(0,y,0,y+gh);
+      gg.addColorStop(0,'rgba(76,29,149,.55)'); gg.addColorStop(1,'rgba(49,20,110,.35)');
+      ctx.fillStyle=gg; ctx.fill(); ctx.strokeStyle='#7c3aed'; ctx.lineWidth=2; ctx.stroke();
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillStyle='#e9d5ff'; ctx.font='900 26px '+ZO_FONT; ctx.fillText(P(gr.name), pad+22, y+40);
+      ctx.fillStyle='#fbbf24'; ctx.font='900 19px '+ZO_FONT; ctx.fillText(P(gr.bias.toFixed(1)+'x 热'), pad+200, y+40);
+      ctx.fillStyle='#a78bfa'; ctx.font='700 18px '+ZO_MONO; ctx.fillText((gr.patterns||[]).join(' '), pad+340, y+40);
+      ctx.textAlign='right'; ctx.fillStyle='#c4b5fd'; ctx.font='700 16px '+ZO_FONT;
+      ctx.fillText(P('本月已中 '+gr.gMonthHits+' 次 · 共振 '+gr.resoHot+'/5'), W-pad-18, y+40);
+      ctx.textAlign='left';
+      ctx.fillStyle='#fde047'; ctx.font='900 40px '+ZO_MONO;
+      ctx.fillText((gr.cands||[]).slice(0,5).map(function(c){return c.num;}).join('  '), pad+22, y+100);
+      ctx.fillStyle='#8b7bb8'; ctx.font='600 14px '+ZO_FONT;
+      ctx.fillText(P('调字组 · 生肖分/冷度排序 · 打数 '+(gr.cands||[]).slice(0,5).map(function(c){return c.da;}).join('/')), pad+22, y+142);
+      y += gh+gap;
+    });
+    // 页脚：数据来源 + 免责 + 页码 + 复盘标记（每页都有）
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#c4b5fd'; ctx.font='800 17px '+ZO_FONT;
+    ctx.fillText(P('📊 基于 '+R.draws+' 期历史 · '+R.curYear+'年'+R.month+'月锦囊 · 月底公开复盘'), W/2, H-108);
+    ctx.fillStyle='#94a3b8'; ctx.font='600 15px '+ZO_FONT;
+    ctx.fillText('⚠️ 彩票随机 · 历史统计整理 · 不构成预测', W/2, H-74);
+    if(total>1){ ctx.fillStyle='#a78bfa'; ctx.font='700 15px '+ZO_FONT; ctx.fillText('第 '+(pi+1)+' / '+total+' 页', W/2, H-46); }
+    ctx.fillStyle='#64748b'; ctx.font='600 12px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-24);
+    cv.toBlob(function(b){ if(b) zoSaveBlob(b, 'rohan_'+R.curYear+'-'+String(R.month).padStart(2,'0')+'_'+mkAscii+'_p'+(pi+1)+'.png'); });
+  });
+}
 // 罗汉月度锦囊海报（发FB/会员群）
 function zoRohanPNG(){
   const R = ZO_ROHAN_LAST;
   if(!R || !R.groups || !R.groups.length){ alert('请先跑一次「🔱 18罗汉月份分析」'); return; }
-  // Phase2: public=广告安检 + 精确像素(SC=1) + 动态文字防御性中性化；member/legacy=原样 2x
-  if(!zoPublicAdGateForImage()) return;
-  const isPublic = zoOutputMode()==='public';
-  const P = s => isPublic ? zoPublicSafe(s, 'zh') : s;
-  const SC = isPublic ? 1 : 2, W = 1080, pad = 36, iW = W-2*pad, gh = 112;
+  // Phase2: public 走固定 1080×1350 分页版；member/legacy 保留原动态高度 2x
+  if(zoOutputMode()==='public'){ return zoRohanPublicPNG(R); }
+  const isPublic = false;
+  const P = s => s;
+  const SC = 2, W = 1080, pad = 36, iW = W-2*pad, gh = 112;
   const H = 30 + 104 + R.groups.length*(gh+12) + 78 + 26;
   const cv = document.createElement('canvas'); cv.width = W*SC; cv.height = H*SC;
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
