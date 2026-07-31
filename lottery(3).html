@@ -10659,6 +10659,9 @@ function zoCopyText(){
   const ad = zoAdCfg();
   if(ad.t) txt += '\n\n💎 ' + ad.t;
   if(ad.c) txt += '\n📲 ' + ad.c;
+  // Phase2: 三路收尾（public 中性化+拦截 / member 拦硬词 / legacy 原样）
+  txt = zoPublicCopyGate(txt, zoLang());
+  if(txt === null) return;
   const btn = document.getElementById('zo-copy-btn');
   const done = () => { btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制月报文字'; }, 1500); };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -11119,10 +11122,14 @@ async function zoDownloadPNG(){
   if(L.mode==='season'){
     zoDownloadPNGClassic(); return;
   }
-  // 2x 超采样：FB 压缩后文字仍清晰
-  const cv=document.createElement('canvas'); cv.width=2160; cv.height=2700;
-  const ctx=cv.getContext('2d'); ctx.scale(2,2);
-  zoDrawChartK(ctx,L,S,null,posterImg);
+  // Phase2: public=中性化文字 + 精确 1080×1350 + 广告安检；member/legacy=原样 2x 超采样
+  const isPublic = zoOutputMode()==='public';
+  if(!zoPublicAdGateForImage()) return;
+  const drawS = isPublic ? zoPublicWrapStr(S, zoLang()) : S;
+  const SC = isPublic ? 1 : 2;   // public 精确 1080×1350；legacy/member 2x 高清
+  const cv=document.createElement('canvas'); cv.width=1080*SC; cv.height=1350*SC;
+  const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  zoDrawChartK(ctx,L,drawS,null,posterImg);
   cv.toBlob(function(b){
     zoSaveBlob(b,zoFileNameK(L,'png'));
     const btn=document.getElementById('zo-png-btn');
@@ -12030,6 +12037,7 @@ function zoFreqCopy(){
   txt += '\n【4打 最久未开 TOP8】\n';
   rows4.forEach((r,i) => { txt += (i+1) + '. ' + zoFreqLine(r) + '\n'; });
   txt += '\n⚠️ 纯历史统计，不构成预测，「超期」不代表「快要开」。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-freq-copy');
   const done = () => { if(btn){ btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制重点提示'; }, 1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -13262,13 +13270,14 @@ function zoPublicCheckAdText(){
 // —— [Phase2] 三语公开安全替换映射（把营销词换成中性历史数据语言）——
 // 长词在前，避免「完整旺号名单」被「旺号」先替换掉。
 const ZO_PUBLIC_TEXT_MAP = {
-  zh: [['本月主打号','本月数据焦点'],['十二生肖幸运数','十二生肖历史数据'],['完整旺号名单','完整历史数据名单'],
+  zh: [['仅供订购会员','完整数据见会员报告'],['订购会员','会员报告'],['会员专享','会员报告'],['仅供会员','会员报告'],
+       ['本月主打号','本月数据焦点'],['十二生肖幸运数','十二生肖历史数据'],['完整旺号名单','完整历史数据名单'],
        ['旺号名单','历史筛选名单'],['本月最强肖','本月生肖数据聚焦'],['押注价值','综合数据评分'],
        ['适合主推','数据表现较集中'],['会员话术','会员报告说明'],['胜率走势','历史回测走势'],
        ['月初推荐','月初公开记录'],['主打号','数据焦点'],['幸运数','历史数据组'],['旺号','历史数据'],
        ['命中率','历史覆盖比例'],['胜率','历史覆盖比例'],['成功率','历史覆盖比例'],
        ['最强','评分第1'],['次强','评分第2'],['选号','数据筛选']],
-  en: [['NUMBER OF THE MONTH','MONTHLY DATA FOCUS'],['MEMBERS ONLY HOT LIST','MEMBER DATA REPORT'],
+  en: [['NUMBER OF THE MONTH','MONTHLY DATA FOCUS'],['MEMBERS ONLY HOT LIST','MEMBER DATA REPORT'],['MEMBERS ONLY','MEMBER DATA REPORT'],
        ['LUCKY NUMBERS','HISTORICAL DATA GROUPS'],['LUCKY NUMBER','HISTORICAL DATA GROUP'],
        ['HOT NUMBERS','FREQUENCY DATA GROUPS'],['HOT NUMBER','FREQUENCY DATA GROUP'],
        ['HOT PICKS','FREQUENCY DATA GROUPS'],['HOT LIST','HISTORICAL DATA LIST'],
@@ -13314,6 +13323,26 @@ function zoPublicCopyGate(txt, lang){
     return null;
   }
   return r.text;
+}
+// 把整份文案字典 S 中性化（字符串直接换、函数包裹让「返回值」过滤、数组逐项过滤）。
+// 供海报/视频绘制在 public 模式下使用——绘制逻辑无需改动，只换喂进去的文字来源。
+function zoPublicWrapStr(S, lang){
+  const out = {};
+  for(const k in S){
+    const v = S[k];
+    if(typeof v === 'string') out[k] = zoPublicSafe(v, lang);
+    else if(typeof v === 'function') out[k] = function(){ const r = v.apply(S, arguments); return (typeof r==='string') ? zoPublicSafe(r, lang) : r; };
+    else if(Array.isArray(v)) out[k] = v.map(x => (typeof x==='string') ? zoPublicSafe(x, lang) : x);
+    else out[k] = v;
+  }
+  return out;
+}
+// 海报/视频公开导出前的广告语安检（public 才拦；返回 true=可继续）
+function zoPublicAdGateForImage(){
+  if(zoOutputMode()!=='public') return true;
+  const ad = zoPublicCheckAdText();
+  if(!ad.ok){ alert('广告语含高风险词：「'+ad.word+'」，公开版不能导出，请先修改广告语。'); return false; }
+  return true;
 }
 
 // —— [六] 发布日期文案（未存真实 publishedDate 时，绝不编造每月1日 / 生成当天）——
@@ -13687,6 +13716,7 @@ function zoTopZodiacsCopy(){
     z.top2.forEach(c => { txt += '   '+c.num+' · '+zoDaCount(c.num)+'打 · 月命中'+c.monthHits+'次 · 沉睡'+c.drawsSince+'期\n'; });
   });
   txt += '\n⚠️ 历史统计，不构成预测。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-top-copy');
   const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制'; },1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
@@ -13916,6 +13946,7 @@ function zoGaugeCopy(){
     txt += '\n';
   });
   txt += '\n⚠️ 历史统计，不构成预测。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-gauge-copy');
   const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制排名'; },1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
