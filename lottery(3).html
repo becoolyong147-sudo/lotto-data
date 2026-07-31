@@ -13229,19 +13229,91 @@ const ZO_PUBLIC_REVIEW_STR = {
     total:n=>n+' padanan rekod bulan ini',
     arrow:(record,result)=>'Rekod diterbitkan '+record+' → Keputusan rasmi '+result,
     footer1:'Rekod penerbitan dan keputusan rasmi boleh disemak',
-    footer2:'Keputusan loteri adalah rawak · Data sejarah sahaja · Tiada jaminan masa depan'
+    footer2:'Loteri bersifat rawak · Data sejarah sahaja · Bukan ramalan masa depan'
   }
 };
 const ZO_PUBLIC_MONTHS_EN = (typeof ZO_MONTHS_EN!=='undefined') ? ZO_MONTHS_EN : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // —— [四] 公开文案违禁词校验（只用于 public 图片/视频/话术；内部回测「命中率」不受影响）——
-function zoValidatePublicText(text){
-  const banned = [
-    /命中战报|命中！|必中|包中|稳中|本月累计命中|月初公开推荐|押注价值|建议跟进/gi,
-    /WE\s+CALLED\s+IT|H\s*I\s*T\s*!|GUARANTEED|WINNING NUMBER|PUBLICLY TIPPED|BET NOW/gi,
-    /KAMI\s+KENA|PASTI\s+KENA|JAMINAN\s+MENANG|CADANGAN\s+TARUHAN/gi
-  ];
-  return !banned.some(r=>r.test(String(text||'')));
+// Phase1 原始清单 + Phase2 扩充（生肖/会员/罗汉公开输出）。词级定位见 zoPublicBadWord。
+const ZO_PUBLIC_BANNED = [
+  // 中文
+  /命中战报|命中！|本月累计命中|月初公开推荐|必中|包中|稳中|稳赢|押注价值|建议跟进|想搏|跟进|主打号|旺号|幸运数|命中率|胜率|成功率|适合主推|保证中奖/gi,
+  // 英文（单词用边界，避免误伤 Better/Betting 之外的正常词）
+  /WE\s+CALLED\s+IT|H\s*I\s*T\s*!|GUARANTEED|WINNING\s+NUMBER|PUBLICLY\s+TIPPED|LUCKY\s+NUMBERS?|HOT\s+NUMBERS?|HOT\s+PICKS?|WIN\s+RATE|\bBET\s+NOW\b|\bBET\b/gi,
+  // 马来文
+  /\bKAMI\s+KENA\b|\bPASTI\s+KENA\b|JAMINAN\s+MENANG|CADANGAN\s+TARUHAN|\bKENA\b|\bMENANG\b|\bBERTUAH\b|\bPASTI\b|\bTARUH\b|\bTARUHAN\b|\bJAMINAN\b/gi
+];
+// 返回第一个命中的违禁词（供导出前明确提示是哪个词）；无 → null
+function zoPublicBadWord(text){
+  const s = String(text||'');
+  for(const r of ZO_PUBLIC_BANNED){ r.lastIndex=0; const m = r.exec(s); if(m) return m[0].trim(); }
+  return null;
+}
+function zoValidatePublicText(text){ return zoPublicBadWord(text) === null; }
+// 广告语安检（含联系方式）：public 模式导出前调用；返回 {ok, word}
+function zoPublicCheckAdText(){
+  if(zoOutputMode()!=='public') return {ok:true};
+  const ad = (typeof zoAdCfg==='function') ? zoAdCfg() : {t:'',c:''};
+  const bad = zoPublicBadWord(ad.t) || zoPublicBadWord(ad.c);
+  return bad ? {ok:false, word:bad} : {ok:true};
+}
+
+// —— [Phase2] 三语公开安全替换映射（把营销词换成中性历史数据语言）——
+// 长词在前，避免「完整旺号名单」被「旺号」先替换掉。
+const ZO_PUBLIC_TEXT_MAP = {
+  zh: [['本月主打号','本月数据焦点'],['十二生肖幸运数','十二生肖历史数据'],['完整旺号名单','完整历史数据名单'],
+       ['旺号名单','历史筛选名单'],['本月最强肖','本月生肖数据聚焦'],['押注价值','综合数据评分'],
+       ['适合主推','数据表现较集中'],['会员话术','会员报告说明'],['胜率走势','历史回测走势'],
+       ['月初推荐','月初公开记录'],['主打号','数据焦点'],['幸运数','历史数据组'],['旺号','历史数据'],
+       ['命中率','历史覆盖比例'],['胜率','历史覆盖比例'],['成功率','历史覆盖比例'],
+       ['最强','评分第1'],['次强','评分第2'],['选号','数据筛选']],
+  en: [['NUMBER OF THE MONTH','MONTHLY DATA FOCUS'],['MEMBERS ONLY HOT LIST','MEMBER DATA REPORT'],
+       ['LUCKY NUMBERS','HISTORICAL DATA GROUPS'],['LUCKY NUMBER','HISTORICAL DATA GROUP'],
+       ['HOT NUMBERS','FREQUENCY DATA GROUPS'],['HOT NUMBER','FREQUENCY DATA GROUP'],
+       ['HOT PICKS','FREQUENCY DATA GROUPS'],['HOT LIST','HISTORICAL DATA LIST'],
+       ['TOP PICK','RANKED NO. 1'],['2ND PICK','RANKED NO. 2'],['WIN RATE','HISTORICAL COVERAGE RATE'],
+       ['RECOMMENDATION','DATA SELECTION'],['PICKS','FILTERED DATA'],['PICK','FILTERED DATA']],
+  ms: [['NOMBOR BERTUAH','KUMPULAN DATA SEJARAH'],['SENARAI PANAS','SENARAI DATA AHLI'],
+       ['BERTUAH','STATISTIK'],['MENANG','KEPUTUSAN'],['JAMINAN','ANALISIS'],
+       ['PASTI','DATA'],['TARUHAN','DATA'],['TARUH','DATA'],['KENA','PADANAN']]
+};
+// 对公开文本套用替换（大小写不敏感匹配，尽量保留可读）
+function zoPublicSafe(str, lang){
+  let s = String(str==null?'':str);
+  const map = ZO_PUBLIC_TEXT_MAP[lang] || ZO_PUBLIC_TEXT_MAP.zh;
+  for(const [from,to] of map){
+    s = s.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'), to);
+  }
+  return s;
+}
+// member 也不允许的「硬词」（保证类/必中类）——member 可用「历史覆盖比例」但不可用「必中/保证」
+const ZO_PUBLIC_HARD = /必中|包中|稳中|稳赢|稳赚|保证中奖|保证|包赢|GUARANTEED|\bPASTI\s+KENA\b|JAMINAN\s+MENANG/gi;
+function zoPublicHardWord(text){ ZO_PUBLIC_HARD.lastIndex=0; const m=ZO_PUBLIC_HARD.exec(String(text||'')); return m?m[0].trim():null; }
+// 三路复制收尾：public=中性化+全违禁拦截+广告安检；member=只拦硬词；legacy=原样。
+// 返回 {ok, text, word}
+function zoPublicizeCopy(txt, lang){
+  const mode = zoOutputMode();
+  if(mode==='legacy') return {ok:true, text:txt};
+  if(mode==='member'){
+    const bad = zoPublicHardWord(txt);
+    return bad ? {ok:false, word:bad} : {ok:true, text:txt};
+  }
+  // public
+  const adChk = zoPublicCheckAdText();
+  if(!adChk.ok) return {ok:false, word:adChk.word};
+  const safe = zoPublicSafe(txt, lang);
+  const bad = zoPublicBadWord(safe);
+  return bad ? {ok:false, word:bad} : {ok:true, text:safe};
+}
+// 复制前统一调用：处理三路 + 弹窗提示是哪个词。通过返回最终文本，被拦返回 null。
+function zoPublicCopyGate(txt, lang){
+  const r = zoPublicizeCopy(txt, lang);
+  if(!r.ok){
+    alert((zoOutputMode()==='member'?'会员版':'公开版')+'含高风险词：「'+r.word+'」，请先修改后再复制。');
+    return null;
+  }
+  return r.text;
 }
 
 // —— [六] 发布日期文案（未存真实 publishedDate 时，绝不编造每月1日 / 生成当天）——
@@ -13409,8 +13481,11 @@ function zoPublicAllText(HIT, lang){
   return parts.join(' | ');
 }
 function zoPublicGuard(HIT, lang){
-  if(zoOutputMode()==='public' && !zoValidatePublicText(zoPublicAllText(HIT, lang))){
-    alert('公开版仍含高风险文案，请先检查。'); return false;
+  if(zoOutputMode()==='public'){
+    const bad = zoPublicBadWord(zoPublicAllText(HIT, lang));
+    if(bad){ alert('公开版文案含高风险词：「'+bad+'」，请先检查。'); return false; }
+    const ad = zoPublicCheckAdText();
+    if(!ad.ok){ alert('广告语含高风险词：「'+ad.word+'」，公开版不能导出，请先修改广告语。'); return false; }
   }
   return true;
 }
