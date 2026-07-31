@@ -11307,10 +11307,15 @@ async function zoDownloadVideo(){
   const posterImg = await zoLoadPosterSprite();
   const L=ZO_LAST, S=ZO_STR[zoLang()];
   if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
-  // 1.5x 超采样：FB 再压缩后号码仍可读
-  const cv=document.createElement('canvas'); cv.width=1620; cv.height=zoEven(2025);
-  const ctx=cv.getContext('2d'); ctx.scale(1.5,1.5);
-  zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,S,t,posterImg); },
+  // Phase2: public=中性化文字 + 精确 1080×1350 + 广告安检 + 禁 fire 配乐；member/legacy=原样 1.5x
+  const isPublic = zoOutputMode()==='public';
+  if(!zoPublicAdGateForImage()) return;
+  zoPublicSyncBgm();   // 确保 public 下 fire→mystery
+  const drawS = isPublic ? zoPublicWrapStr(S, zoLang()) : S;
+  const SC = isPublic ? 1 : 1.5;   // public 精确 1080×1350；legacy/member 1.5x 高清
+  const cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1350*SC);
+  const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); },
     zoFileNameK(L,'png').replace(/\.png$/,''),
     document.getElementById('zo-vid-btn'), '🎬 下载视频', zoBgmFromSel('zo-bgm-sel'));
 }
@@ -12553,7 +12558,11 @@ function zoRohanAddToPool(gid){
 function zoRohanPNG(){
   const R = ZO_ROHAN_LAST;
   if(!R || !R.groups || !R.groups.length){ alert('请先跑一次「🔱 18罗汉月份分析」'); return; }
-  const SC = 2, W = 1080, pad = 36, iW = W-2*pad, gh = 112;
+  // Phase2: public=广告安检 + 精确像素(SC=1) + 动态文字防御性中性化；member/legacy=原样 2x
+  if(!zoPublicAdGateForImage()) return;
+  const isPublic = zoOutputMode()==='public';
+  const P = s => isPublic ? zoPublicSafe(s, 'zh') : s;
+  const SC = isPublic ? 1 : 2, W = 1080, pad = 36, iW = W-2*pad, gh = 112;
   const H = 30 + 104 + R.groups.length*(gh+12) + 78 + 26;
   const cv = document.createElement('canvas'); cv.width = W*SC; cv.height = H*SC;
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
@@ -12576,7 +12585,7 @@ function zoRohanPNG(){
     ctx.fillStyle=gg; ctx.fill(); ctx.strokeStyle='#7c3aed'; ctx.lineWidth=2; ctx.stroke();
     ctx.textAlign='left'; ctx.textBaseline='middle';
     ctx.fillStyle='#e9d5ff'; ctx.font='900 22px '+ZO_FONT;
-    ctx.fillText(gr.name, pad+18, y+26);
+    ctx.fillText(P(gr.name), pad+18, y+26);
     ctx.fillStyle='#fbbf24'; ctx.font='900 17px '+ZO_FONT;
     ctx.fillText(gr.bias.toFixed(1)+'x 热', pad+152, y+26);
     ctx.fillStyle='#a78bfa'; ctx.font='700 16px '+ZO_MONO;
@@ -13199,12 +13208,15 @@ function zoOutputMode(){
 }
 // public 模式禁用「🔥 热血上扬」配乐（选中则切回 mystery）；member/legacy 保留
 function zoPublicSyncBgm(){
-  const sel = document.getElementById('zo-hit-bgm');
-  if(!sel) return;
   const isPublic = zoOutputMode()==='public';
-  const fire = Array.from(sel.options).find(o=>o.value==='fire');
-  if(fire){ fire.disabled = isPublic; fire.hidden = isPublic; }
-  if(isPublic && sel.value==='fire') sel.value='mystery';
+  const ids = (typeof ZO_MUSIC_SELS!=='undefined') ? ZO_MUSIC_SELS : ['zo-hit-bgm','zo-bgm-sel','zo-bgm-sel-mem'];
+  ids.forEach(function(id){
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const fire = Array.from(sel.options).find(o=>o.value==='fire');
+    if(fire){ fire.disabled = isPublic; fire.hidden = isPublic; }
+    if(isPublic && sel.value==='fire') sel.value='mystery';
+  });
 }
 
 // —— [三] 公开版三语文案（图片 / 视频 / 复制话术共用同一来源）——
