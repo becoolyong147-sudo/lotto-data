@@ -7680,7 +7680,7 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><label>输出模式</label>
-      <select id="zo-public-output-mode" onchange="var n=document.getElementById('zo-legacy-note');if(n)n.style.display=(this.value==='legacy')?'inline':'none';">
+      <select id="zo-public-output-mode" onchange="var n=document.getElementById('zo-legacy-note');if(n)n.style.display=(this.value==='legacy')?'inline':'none';if(typeof zoPublicSyncBgm==='function')zoPublicSyncBgm();">
         <option value="public" selected>📊 Facebook公开复盘</option>
         <option value="member">💎 会员数据报告</option>
         <option value="legacy">🔒 内部原版预览</option>
@@ -13189,6 +13189,15 @@ function zoOutputMode(){
   const el = document.getElementById('zo-public-output-mode');
   return el ? el.value : 'public';
 }
+// public 模式禁用「🔥 热血上扬」配乐（选中则切回 mystery）；member/legacy 保留
+function zoPublicSyncBgm(){
+  const sel = document.getElementById('zo-hit-bgm');
+  if(!sel) return;
+  const isPublic = zoOutputMode()==='public';
+  const fire = Array.from(sel.options).find(o=>o.value==='fire');
+  if(fire){ fire.disabled = isPublic; fire.hidden = isPublic; }
+  if(isPublic && sel.value==='fire') sel.value='mystery';
+}
 
 // —— [三] 公开版三语文案（图片 / 视频 / 复制话术共用同一来源）——
 const ZO_PUBLIC_REVIEW_STR = {
@@ -13406,17 +13415,22 @@ function zoPublicGuard(HIT, lang){
   return true;
 }
 
-// 公开海报导出（PNG 1080×1350）
+// 公开版文件名基（review_ 开头，与 legacy 的 hit_ 区分）
+function zoPublicFileBase(HIT){
+  const mkAscii = ((typeof ZO_MKT_EN!=='undefined' && ZO_MKT_EN[HIT.market]) || HIT.market).replace(/\s+/g,'');
+  return 'review_' + HIT.year + '-' + String(HIT.month).padStart(2,'0') + '_' + mkAscii;
+}
+// 公开海报导出（PNG 精确 1080×1350）
 function zoPublicReviewPNG(){
   const HIT = zoExtractHits(); if(!HIT) return;
   const lang = zoHitLang();
   if(!zoPublicGuard(HIT, lang)) return;
   try{
-    const SC=2, cv=document.createElement('canvas'); cv.width=1080*SC; cv.height=1350*SC;
-    const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+    const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;   // 精确 1080×1350
+    const ctx=cv.getContext('2d');
     zoDrawPublicReview(ctx, HIT, lang);
     cv.toBlob(function(b){
-      zoSaveBlob(b, zoHitFileBase(HIT)+'_review_'+lang+'.png');
+      zoSaveBlob(b, zoPublicFileBase(HIT)+'_'+lang+'.png');
       const btn=document.getElementById('zo-hit-png');
       if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='📊 公开复盘图';},1500); }
     });
@@ -13472,8 +13486,8 @@ function zoDrawPublicStory(ctx, HIT, t, lang, dur){
     ctx.fillStyle='#94a3b8'; ctx.font='600 19px '+ZO_FONT; ctx.fillText(S.arrow(hero.recNum,hero.num), W/2, y+40);
     if(HIT.others.length){ ctx.fillStyle='#a5b4fc'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(S.total(HIT.total), W/2, y+78); }
     ctx.restore(); }
-  // 阶段6：底部免责声明淡入并停留（最后20% ≈ 2s@10s）
-  const a6=ease(seg(0.80,0.92));
+  // 阶段6：底部免责声明淡入并停留（0.78 完全显示 → 停留至 1.0 ≈ 2.2s@10s）
+  const a6=ease(seg(0.68,0.78));
   if(a6>0.01){ ctx.save(); ctx.globalAlpha=a6; ctx.textAlign='center'; ctx.textBaseline='middle';
     zoPublicVerified(ctx, W/2-ctx.measureText(S.footer1).width/2-24, H-190, lang);
     ctx.fillStyle='#fbbf24'; ctx.font='700 22px '+ZO_FONT; ctx.fillText(S.footer1, W/2, H-186);
@@ -13490,7 +13504,7 @@ function zoPublicReviewVideo(){
     const ctx=cv.getContext('2d'); if(SC!==1) ctx.scale(SC,SC);
     const DUR=10;  // 10s：免责声明停留约2s
     zoRecVideo(cv, function(t){ zoDrawPublicStory(ctx, HIT, t, lang, DUR); },
-      zoHitFileBase(HIT)+'_review_'+lang,
+      zoPublicFileBase(HIT)+'_'+lang,
       document.getElementById('zo-hit-vid'), '🎬 公开复盘视频', zoBgmFromSel('zo-hit-bgm'), DUR*1000);
   }catch(e){ alert('生成失败：'+e.message); }
 }
@@ -13517,6 +13531,7 @@ function zoPublicReviewCopy(lang, btn){
 function zoHitPNG(){ return zoOutputMode()==='legacy' ? zoHitLegacyPNG() : zoPublicReviewPNG(); }
 function zoHitVideo(){ return zoOutputMode()==='legacy' ? zoHitLegacyVideo() : zoPublicReviewVideo(); }
 function zoHitCopy(lang, btn){ return zoOutputMode()==='legacy' ? zoHitLegacyCopy(lang, btn) : zoPublicReviewCopy(lang, btn); }
+try{ zoPublicSyncBgm(); }catch(e){}   // 初始 public 默认即禁用 fire 配乐
 
 // 打开生肖图分页时，月份默认当月；复盘默认上个月；恢复保存过的广告词
 (function(){
