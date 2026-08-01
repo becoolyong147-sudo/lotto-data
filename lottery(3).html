@@ -7625,6 +7625,22 @@ function doBacktest(){
     <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
     <div class="ig"><label>视频配乐</label><select id="zo-bgm-sel-mem"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
+  </div>
+  <div class="row" style="margin-top:8px;padding-top:8px;border-top:1px dashed #4338ca">
+    <div class="ig"><label>🎯 会员命中回顾 · 对照期</label>
+      <select id="zo-memhit-period" onchange="var d=document.getElementById('zo-memhit-date');if(d)d.style.display=(this.value==='date')?'inline-block':'none';">
+        <option value="month" selected>本月全部</option>
+        <option value="latest">最新一期</option>
+        <option value="date">指定某期</option>
+      </select>
+      <input type="date" id="zo-memhit-date" style="display:none;margin-left:4px">
+    </div>
+    <div class="ig"><label>风格</label>
+      <select id="zo-memhit-style"><option value="A">📊 复盘数据卡风</option><option value="B">🎉 庆祝战报风(内部)</option></select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-png" onclick="zoMemHitPNG()">📊 命中回顾图</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-vid" onclick="zoMemHitVideo()">🎬 命中回顾视频</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-memhit-copy" onclick="zoMemHitCopy()">📋 复制命中说明</button></div>
     <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
       <button class="btn" onclick="zoMemGlossCopy('zh',this)">中文</button>
       <button class="btn" onclick="zoMemGlossCopy('en',this)">English</button>
@@ -11988,6 +12004,84 @@ async function zoMemberVideo(){
     document.getElementById('zo-mem-vid'), '🎬 下载会员视频', zoBgmFromSel('zo-bgm-sel-mem'));
 }
 
+// ===== 会员命中回顾（拿会员推荐名单对照实际开奖，复用现成渲染器）=====
+// 命中判定：推荐号码的全排列组(seaPermKey)命中实际开奖号 → 调字命中天然适用
+function zoMemHitSpec(){
+  const t=(document.getElementById('zo-memhit-period')||{value:'month'}).value;
+  if(t==='date') return {type:'date', date:(document.getElementById('zo-memhit-date')||{}).value};
+  if(t==='latest') return {type:'latest'};
+  return {type:'month'};
+}
+function zoMemHitStyle(){ return (document.getElementById('zo-memhit-style')||{value:'A'}).value; }
+function zoMemHitDraws(market, spec){
+  const recs = DB[market]||[];
+  if(spec.type==='latest') return recs[0]?[recs[0]]:[];
+  if(spec.type==='date') return recs.filter(r=>r.date===spec.date);
+  const ym = (ZO_MEM? ZO_MEM.refYear+'-'+String(ZO_MEM.month).padStart(2,'0') : '');
+  return recs.filter(r=>r.date && r.date.startsWith(ym) && !r.date.endsWith('-00'));
+}
+function zoMemHitExtract(spec){
+  if(!ZO_MEM) return null;
+  const M = ZO_MEM;
+  const draws = zoMemHitDraws(M.market, spec);
+  const hitMap = {};   // permKey -> {date, drawn, prizeIdx}（保留最高奖位）
+  draws.forEach(r=>{ (r.nums||[]).forEach((n,pi)=>{ if(n==null||n==='')return; const k=seaPermKey(n);
+    if(!hitMap[k] || pi < hitMap[k].prizeIdx) hitMap[k]={date:r.date, drawn:pz(n), prizeIdx:pi}; }); });
+  // 收集会员推荐号（主打 + 各打数组），按号码去重
+  const cands=[], seen={};
+  const push=c=>{ if(!c||!c.num||seen[c.num])return; seen[c.num]=1; cands.push(c); };
+  push(M.star); (M.selDa||[]).forEach(da=>(M.groups[da]||[]).forEach(push));
+  const hits=[];
+  cands.forEach(c=>{ const h=hitMap[seaPermKey(c.num)]; if(h){
+    hits.push({date:h.date, prizeIdx:h.prizeIdx, num:h.drawn, zi:c.zi, recNum:c.num, tags:[], twisted:(h.drawn!==c.num), da:zoDaCount(c.num)}); }});
+  if(!hits.length) return {none:true, market:M.market};
+  hits.sort((a,b)=> a.prizeIdx-b.prizeIdx || (a.twisted?1:0)-(b.twisted?1:0));
+  return {market:M.market, year:M.refYear, month:M.month, hero:hits[0], others:hits.slice(1), total:hits.length};
+}
+function zoMemHitFileBase(HIT){ return 'memhit_'+HIT.year+'-'+String(HIT.month).padStart(2,'0')+'_'+((ZO_MKT_EN[HIT.market]||HIT.market).replace(/\s+/g,'')); }
+function zoMemHitGuard(){
+  if(zoMemberPublicBlocked()) return null;          // public 拦截（会员交付内容）
+  if(!ZO_MEM){ alert('请先「生成会员版名单」，再做命中回顾。'); return null; }
+  const HIT = zoMemHitExtract(zoMemHitSpec());
+  if(!HIT || HIT.none){ alert('所选对照期里，会员名单没有命中记录。换个对照期试试。'); return null; }
+  return HIT;
+}
+function zoMemHitPNG(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const style = zoMemHitStyle();
+  try{
+    const cv=document.createElement('canvas');
+    if(style==='B'){ cv.width=1080; cv.height=zoHitH(HIT); zoDrawHitLegacy(cv.getContext('2d'),HIT,null,'zh'); }
+    else { cv.width=1080; cv.height=1350; zoDrawPublicReview(cv.getContext('2d'),HIT,'zh'); }
+    cv.toBlob(function(b){ zoSaveBlob(b, zoMemHitFileBase(HIT)+'_'+style+'.png');
+      const btn=document.getElementById('zo-memhit-png'); if(btn){ btn.textContent='✅ 已下载'; setTimeout(()=>btn.textContent='📊 命中回顾图',1500);} });
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+function zoMemHitVideo(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const style = zoMemHitStyle();
+  try{
+    let cv, ctx, draw, dur;
+    if(style==='B'){ dur=8; cv=document.createElement('canvas'); cv.width=zoEven(1080); cv.height=zoEven(zoHitH(HIT)); ctx=cv.getContext('2d'); draw=function(t){ zoDrawHitLegacy(ctx,HIT,t,'zh',dur); }; }
+    else { dur=10; cv=document.createElement('canvas'); cv.width=1080; cv.height=1920; ctx=cv.getContext('2d'); draw=function(t){ zoDrawPublicStory(ctx,HIT,t,'zh',dur); }; }
+    zoRecVideo(cv, draw, zoMemHitFileBase(HIT)+'_'+style,
+      document.getElementById('zo-memhit-vid'), '🎬 命中回顾视频', zoBgmFromSel('zo-bgm-sel-mem'), dur*1000);
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+function zoMemHitCopy(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const zn = ZO_STR.zh.zodiacNames;
+  const line = h => '🎯 推荐 '+h.recNum+' → 开出 '+h.num+' · '+['头奖','二奖','三奖'][h.prizeIdx]+' · '+zn[h.zi]+' '+h.da+'打 · '+(h.twisted?'调字命中':'原号命中')+'（'+h.date+'）\n';
+  let t = '📊 '+HIT.market+' '+HIT.year+'年'+HIT.month+'月 会员命中回顾\n\n';
+  t += line(HIT.hero); HIT.others.forEach(h=>{ t+=line(h); });
+  t += '\n🏆 本期对照共命中 '+HIT.total+' 项\n⚠️ 历史统计整理，不构成预测 · 会员专享，请勿外传';
+  const bad = zoPublicHardWord(t); if(bad){ alert('含高风险词：「'+bad+'」，请检查。'); return; }
+  const btn=document.getElementById('zo-memhit-copy');
+  const done=()=>{ if(btn){ const o=btn.textContent; btn.textContent='✅ 已复制'; setTimeout(()=>btn.textContent=o,1200);} };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>{zoCopyFallback(t);done();}); }
+  else { zoCopyFallback(t); done(); }
+}
+
 // ===== V63: 6打/4打 号码出现频率总表（全部45组6打 + 90组4打，不按月份过滤） =====
 let ZO_FREQ = null;
 function zoFreqLine(r){
@@ -13308,7 +13402,7 @@ function zoMemberPublicBlocked(){
   return false;
 }
 // public 模式把会员按钮显示为禁用态（仍可点，点了给提示）；member/legacy 恢复
-const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-vid','zo-mem-backtest'];
+const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-vid','zo-mem-backtest','zo-memhit-png','zo-memhit-vid','zo-memhit-copy'];
 function zoMemberBtnSync(){
   const dim = zoOutputMode()==='public';
   ZO_MEMBER_BTN_IDS.forEach(function(id){
