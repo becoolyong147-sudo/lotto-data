@@ -13477,10 +13477,17 @@ const ZO_PUBLIC_ASSETS = {
 const ZO_PUBLIC_IMG = {};
 function zoPublicLoadAssets(){
   for(const k in ZO_PUBLIC_ASSETS){
-    const img = new Image();
-    img.onload = ()=>{ ZO_PUBLIC_IMG[k] = img; };
-    img.onerror = ()=>{ ZO_PUBLIC_IMG[k] = null; };   // 失败=兜底，绝不阻断生成
-    try{ img.src = ZO_PUBLIC_ASSETS[k]; }catch(e){ ZO_PUBLIC_IMG[k]=null; }
+    const primary = ZO_PUBLIC_ASSETS[k];
+    const alts = [primary];
+    if(/\.webp$/i.test(primary)) alts.push(primary.replace(/\.webp$/i,'.png'));   // webp 缺失自动回退 png
+    else if(/\.png$/i.test(primary)) alts.push(primary.replace(/\.png$/i,'.webp'));
+    (function tryLoad(i){
+      if(i>=alts.length){ ZO_PUBLIC_IMG[k]=null; return; }   // 全失败=兜底，绝不阻断生成
+      const img = new Image();
+      img.onload = ()=>{ ZO_PUBLIC_IMG[k] = img; };
+      img.onerror = ()=>{ tryLoad(i+1); };
+      try{ img.src = alts[i]; }catch(e){ tryLoad(i+1); }
+    })(0);
   }
 }
 zoPublicLoadAssets();
