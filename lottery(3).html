@@ -13507,7 +13507,10 @@ function zoPublicBg(ctx, bgKey, W, H){
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
   const bgImg = ZO_PUBLIC_IMG[bgKey];
   if(bgImg && bgImg.complete && bgImg.naturalWidth && typeof zoDrawBgCover==='function'){
-    if(zoDrawBgCover(ctx, bgImg, W, H)){ ctx.save(); ctx.globalAlpha=0.55; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore(); }
+    // 完整背景图（自带龙纹/网格/光柱）→ 直接铺满 + 轻度压暗保证白字可读，不再叠加多余网格/水印
+    zoDrawBgCover(ctx, bgImg, W, H);
+    ctx.save(); ctx.globalAlpha=0.30; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore();
+    return;
   }
   const gridImg = ZO_PUBLIC_IMG.grid;
   if(gridImg && gridImg.complete && gridImg.naturalWidth){
