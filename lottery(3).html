@@ -7618,7 +7618,7 @@ function doBacktest(){
     </div>
   </div>
   <div class="row" style="margin-top:10px">
-    <div class="ig"><button class="btn btn-red" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
+    <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
@@ -7680,7 +7680,7 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><label>输出模式</label>
-      <select id="zo-public-output-mode" onchange="var n=document.getElementById('zo-legacy-note');if(n)n.style.display=(this.value==='legacy')?'inline':'none';if(typeof zoPublicSyncBgm==='function')zoPublicSyncBgm();">
+      <select id="zo-public-output-mode" onchange="var n=document.getElementById('zo-legacy-note');if(n)n.style.display=(this.value==='legacy')?'inline':'none';if(typeof zoPublicSyncBgm==='function')zoPublicSyncBgm();if(typeof zoMemberBtnSync==='function')zoMemberBtnSync();">
         <option value="public" selected>📊 Facebook公开复盘</option>
         <option value="member">💎 会员数据报告</option>
         <option value="legacy">🔒 内部原版预览</option>
@@ -7697,7 +7697,7 @@ function doBacktest(){
       <button class="btn" onclick="zoMusicDel()" title="删除当前选中的自定义音乐" style="background:#7f1d1d;color:#fff">🗑</button>
       <button class="btn" onclick="zoHitCopy(zoHitLang(),this)">📋 复制复盘说明</button>
     </div></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版历史回测</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-mem-backtest" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版历史回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff" onclick="zoScoreBacktest()">🔬 评分回测对比</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#d97706;color:#fff" onclick="zoDaMonthReport()">🎲 打数月份分析</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#6d28d9;color:#fff" onclick="zoRohanReport()">🔱 18罗汉月份分析</button></div>
@@ -11586,6 +11586,7 @@ function zoMemConfStars(c, refYear, demoted, alreadyHit){
 }
 // 生成多家公司的会员名单（主入口）
 function zoMemberGenAll(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员内容
   const MK = ['万能','跑马','多多','新加坡','豪龙'];
   const sel = MK.filter(m => { const el = document.getElementById('zo-mem-mk-'+m); return el && el.checked; });
   const out = document.getElementById('zo-member-result');
@@ -11802,6 +11803,7 @@ function zoMemGlossCopy(lang, btn){
 }
 // V67-④: 复制话术 = 全部已生成公司（多家一次发给会员）
 function zoMemberCopy(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不复制会员报告
   if(!ZO_MEM) return;
   const list = (ZO_MEM_ALL && ZO_MEM_ALL.length) ? ZO_MEM_ALL : [ZO_MEM];
   const all = list.map(function(M){ return zoMemberCopyOne(M); }).join('\n\n──────────\n\n');
@@ -11956,6 +11958,7 @@ function zoMemFileBase(M){
 }
 function zoMemLang(){ return (document.getElementById('zo-mem-lang') || {value:'zh'}).value; }
 async function zoMemberPNG(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员图
   if(!ZO_MEM) return;
   await zoLoadAnimalSprite();
   const M = ZO_MEM, lang = zoMemLang();
@@ -11972,6 +11975,7 @@ async function zoMemberPNG(){
 }
 // 会员版动画视频（带配乐，发付费群）
 async function zoMemberVideo(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员视频
   if(!ZO_MEM) return;
   await zoLoadAnimalSprite();
   const M = ZO_MEM, lang = zoMemLang();
@@ -12075,6 +12079,7 @@ const ZO_RV_TAG = {top1:'🥇最强位', top2:'🥈次强位', star:'🔥主打�
 const ZO_RV_PRIZE = ['头奖','二奖','三奖'];
 // ===== 会员版命中回测：各打数 Top N 历史命中率 =====
 function zoMemberBacktest(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员历史回测报告
   const out = document.getElementById('zo-review-result');
   out.innerHTML = '<div class="warn">会员版回测运行中（近3年，5市场）…</div>';
   setTimeout(function(){
@@ -13296,6 +13301,24 @@ function zoPublicSyncBgm(){
     if(isPublic && sel.value==='fire') sel.value='mystery';
   });
 }
+// —— [会员层] public 模式拦截：会员图片/视频/报告只在 member 模式生成 ——
+const ZO_MEMBER_BLOCK_MSG = '当前为 Facebook 公开复盘模式。\n会员图片、视频及详细报告仅可在「会员数据报告」模式生成。\n公开发布请使用生肖公开海报、生肖公开视频或18罗汉公开海报。';
+function zoMemberPublicBlocked(){
+  if(zoOutputMode()==='public'){ alert(ZO_MEMBER_BLOCK_MSG); return true; }
+  return false;
+}
+// public 模式把会员按钮显示为禁用态（仍可点，点了给提示）；member/legacy 恢复
+const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-vid','zo-mem-backtest'];
+function zoMemberBtnSync(){
+  const dim = zoOutputMode()==='public';
+  ZO_MEMBER_BTN_IDS.forEach(function(id){
+    const b = document.getElementById(id);
+    if(!b) return;
+    b.style.opacity = dim ? '0.45' : '';
+    b.style.filter = dim ? 'grayscale(1)' : '';
+    b.title = dim ? '公开模式下不可生成会员内容，请切换到「会员数据报告」模式' : '';
+  });
+}
 
 // —— [三] 公开版三语文案（图片 / 视频 / 复制话术共用同一来源）——
 const ZO_PUBLIC_REVIEW_STR = {
@@ -13726,6 +13749,7 @@ function zoHitPNG(){ return zoOutputMode()==='legacy' ? zoHitLegacyPNG() : zoPub
 function zoHitVideo(){ return zoOutputMode()==='legacy' ? zoHitLegacyVideo() : zoPublicReviewVideo(); }
 function zoHitCopy(lang, btn){ return zoOutputMode()==='legacy' ? zoHitLegacyCopy(lang, btn) : zoPublicReviewCopy(lang, btn); }
 try{ zoPublicSyncBgm(); }catch(e){}   // 初始 public 默认即禁用 fire 配乐
+try{ zoMemberBtnSync(); }catch(e){}   // 初始 public 默认即置灰会员按钮
 
 // 打开生肖图分页时，月份默认当月；复盘默认上个月；恢复保存过的广告词
 (function(){
