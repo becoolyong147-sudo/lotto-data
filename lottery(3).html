@@ -275,6 +275,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
+    <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
 </div>
 
@@ -7907,6 +7908,55 @@ function doBacktest(){
 </div>
 <div id="pp-out"></div>
 </div>
+
+<!-- TAB: 缺席的它（万里挑一）— 逐位算已出现/缺席号码 -->
+<div id="tab-absent" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 100%);color:#fff;margin-bottom:8px">
+  <div style="font-size:16px;font-weight:700">🎯 缺席的它 · 万里挑一</div>
+  <div style="font-size:12px;color:#99f6e4;margin-top:2px">贴入若干 4D 号码，逐位（千/百/十/个）算出「已出现」与「缺席号码」。缺席=该位 0-9 里没出现过的数字。</div>
+</div>
+<div class="card">
+  <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap">
+    <div class="ig" style="flex:1;min-width:280px"><label>4D 号码（空格 / 逗号 / 换行分隔，可多个）</label>
+      <textarea id="abs-input" placeholder="例：0567 2354 5789" style="width:100%;min-height:80px;font-family:monospace;font-size:15px;letter-spacing:2px;border:1px solid #cbd5e1;border-radius:6px;padding:8px"></textarea>
+    </div>
+    <div class="ig">
+      <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
+      <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:8px">每个号码取满4位（不足前面补0）。「已出现」= 该位所有号码出现过的数字（去重）；「缺席号码」= 0-9 里剩下没出现的。</div>
+</div>
+<div id="abs-out"></div>
+</div>
+<script>
+function doAbsent(){
+  const raw=(document.getElementById('abs-input').value||'');
+  const nums=(raw.match(/\d{1,4}/g)||[]).map(function(n){return n.padStart(4,'0').slice(-4);});
+  const out=document.getElementById('abs-out');
+  if(!nums.length){ out.innerHTML='<div class="warn">请先贴入至少一个数字。</div>'; return; }
+  const posName=['第一位（千）','第二位（百）','第三位（十）','第四位（个）'];
+  const seen=[new Set(),new Set(),new Set(),new Set()];
+  nums.forEach(function(n){ for(var p=0;p<4;p++) seen[p].add(n[p]); });
+  var html='<div class="card"><div style="font-size:12px;color:#475569;margin-bottom:8px">共 <b>'+nums.length+'</b> 个号码：<span style="font-family:monospace;letter-spacing:1px">'+nums.join(' ')+'</span></div>';
+  html+='<div class="ot"><table style="width:100%;font-size:14px;border-collapse:collapse">';
+  html+='<tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">位子</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">已出现</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">缺席号码</th></tr>';
+  for(var p=0;p<4;p++){
+    var appeared=[],absent=[];
+    for(var d=0;d<=9;d++){ (seen[p].has(String(d))?appeared:absent).push(d); }
+    var chip=function(d,on){ return '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin:2px;border-radius:5px;font-weight:700;font-size:14px;'+(on?'background:#e0edff;color:#1e3a5f':'background:#0f766e;color:#fff')+'">'+d+'</span>'; };
+    html+='<tr>';
+    html+='<td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e3a5f;white-space:nowrap">'+posName[p]+'</td>';
+    html+='<td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">'+(appeared.length?appeared.map(function(d){return chip(d,true);}).join(''):'<span style="color:#94a3b8">—</span>')+'</td>';
+    html+='<td style="padding:6px 8px;border-bottom:1px solid #f1f5f9"><b>'+(absent.length?absent.map(function(d){return chip(d,false);}).join(''):'<span style="color:#16a34a">无（0-9全出现）</span>')+'</b></td>';
+    html+='</tr>';
+  }
+  html+='</table></div>';
+  html+='<div style="font-size:11px;color:#64748b;margin-top:8px">🟦 已出现　🟩 缺席。想用缺席数字去筛历史号码？到「条件筛选 → 🔢 可视化点选」把这些缺席数字点上即可。</div>';
+  html+='</div>';
+  out.innerHTML=html;
+}
+</script>
 
 <!-- TAB: 号码排列 (1-9-0) -->
 <div id="tab-numsort" class="panel">
@@ -19303,8 +19353,9 @@ setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
+    if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
 },0);
 
 })();
