@@ -1325,6 +1325,13 @@ function renderPatternTrend(){
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('4xxx')">4xxx</button>
       <button class="btn btn-red" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('')">清除</button>
     </div>
+    <!-- 可视化点选（每位可多选数字）-->
+    <div style="margin-top:10px;border-top:1px dashed #bfdbfe;padding-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:6px">🔢 可视化点选 — 每位点数字＝只保留「该位是这些数字」的号码；不点＝不限（跟上面文字框可叠加）</div>
+      <div id="flt-posgrid">
+        <script>['第1位（千）','第2位（百）','第3位（十）','第4位（个）'].forEach(function(lbl,pi){var row='<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#1e3a5f;width:78px">'+lbl+'</span>';for(var d=0;d<=9;d++){row+='<span id="posd-'+pi+'-'+d+'" data-on="0" onclick="togglePosDigit('+pi+','+d+',this)" style="cursor:pointer;width:27px;height:27px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-size:13px;font-weight:700;background:#e0edff;color:#1e3a5f;border:2px solid transparent;transition:all .1s">'+d+'</span>';}row+='<button class="btn" style="padding:2px 9px;font-size:10px;margin-left:4px" onclick="clearPosRow('+pi+')">清该位</button></div>';document.write(row);});</script>
+      </div>
+    </div>
     <div class="warn" style="margin-top:6px">例：x1xx = 第二位必须是1；4xxx = 第一位必须是4。<b>可一次输入多组</b>（每组4位，用空格/逗号/斜杠分隔），任一组符合就算命中——如 <code>4xxx 1xxx 7xxx 8xxx 3xxx 5xxx</code> = 第一位是4/1/7/8/3/5都要。快捷按钮可叠加，再点一次取消该组。</div>
   </div>
 
@@ -4672,6 +4679,7 @@ function fillFilterExample2(){
 }
 function clearAdvancedFilter(){
   ['flt-year-from','flt-year-to','flt-patterns','flt-contains-digit','flt-pos-pattern','flt-occ-n'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
+  if(typeof clearPosGrid==='function') clearPosGrid();
   { const el=document.getElementById('flt-occ-cmp'); if(el)el.value='gte'; }
   { const el=document.getElementById('flt-exclude-recent'); if(el)el.checked=false; }
   { const el=document.getElementById('flt-exclude-months'); if(el)el.value='12'; }
@@ -4696,6 +4704,20 @@ function setPosPattern(v){
   const i=toks.indexOf(v);
   if(i>=0)toks.splice(i,1);else toks.push(v);
   el.value=toks.join(' ');
+}
+// 可视化点选：每位允许的数字集合
+function togglePosDigit(pos,digit,el){
+  const on = el.dataset.on==='1';
+  el.dataset.on = on?'0':'1';
+  if(!on){ el.style.background='#2563eb'; el.style.color='#fff'; el.style.borderColor='#1e40af'; }
+  else { el.style.background='#e0edff'; el.style.color='#1e3a5f'; el.style.borderColor='transparent'; }
+}
+function clearPosRow(pos){ for(let d=0;d<=9;d++){ const el=document.getElementById('posd-'+pos+'-'+d); if(el&&el.dataset.on==='1') togglePosDigit(pos,d,el); } }
+function clearPosGrid(){ for(let p=0;p<4;p++) clearPosRow(p); }
+function getPosDigitSets(){
+  const sets=[];
+  for(let p=0;p<4;p++){ const s=new Set(); for(let d=0;d<=9;d++){ const el=document.getElementById('posd-'+p+'-'+d); if(el&&el.dataset.on==='1') s.add(String(d)); } sets.push(s); }
+  return sets;
 }
 function matchPosPattern(num,pat){
   pat=(pat||'').toLowerCase().replace(/[^0-9x]/g,'');
@@ -4838,6 +4860,8 @@ function runAdvancedFilter(){
   const containsTokens = containsDigitsRaw.toLowerCase().split(/[\s,，]+/).map(t=>t.trim()).filter(Boolean);
   // 指定位数条件：支持多组（空格/逗号/斜杠分隔），任一组匹配即通过
   const posPatterns=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().split(/[^0-9x]+/).filter(t=>/^[0-9x]{4}$/.test(t));
+  const posSets=getPosDigitSets();                       // 可视化点选：每位允许数字
+  const posSetsActive=posSets.some(s=>s.size);
   const recs=DB[market]||[];
   // 冷热档：直接复用 fltGetCategory（与结果分类列完全一致）
   const _freqTierFn = freqTiers.length ? (num=>fltGetCategory(market,pz(num)).tier) : null;
@@ -4886,6 +4910,7 @@ function runAdvancedFilter(){
         if(!pass) return;
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
+      if(posSetsActive){ const _s4=String(num).padStart(4,'0'); for(let _pi=0;_pi<4;_pi++){ if(posSets[_pi].size&&!posSets[_pi].has(_s4[_pi])) return; } }
       if(grpPicks.length&&!grpPicks.includes(flt1990Group(num)))return;
       if(rhnPicks.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(h=>rhnPicks.includes(h.index)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
