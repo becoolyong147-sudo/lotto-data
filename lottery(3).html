@@ -1256,7 +1256,7 @@ function renderPatternTrend(){
   <div style="margin-top:8px;background:#fff7ed;border-radius:7px;padding:10px;border:1px solid #fed7aa">
     <div style="font-size:11px;font-weight:700;color:#7c2d12;margin-bottom:8px">🔱 18罗汉（可多选）— 4位号码任取3位排序后匹配罗汉图案（含调字/重复位）</div>
     <div id="flt-rhn-chips" style="display:flex;gap:6px;flex-wrap:wrap">
-      <script>[['1','147/247/047'],['2','258/358/058'],['3','369/269/469'],['4','157/137'],['5','248/268'],['6','359/379'],['7','148/146'],['8','259/279'],['9','368/360'],['10','123/023/223'],['11','456/556/356'],['12','789/889/689'],['13','113/133'],['14','466/446'],['15','779/799'],['16','122/124'],['17','455/457'],['18','788/780']].forEach(a=>document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fed7aa;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:12px;font-weight:700;color:#7c2d12;transition:all .15s" id="rhn-lbl-${a[0]}" title="第${a[0]}罗汉 · ${a[1]}"><input type="checkbox" id="flt-rhn-${a[0]}" value="${a[0]}" onchange="updateChipStyle('rhn','${a[0]}')" style="display:none"><b>${a[0]}</b>·${a[1]}</label>`))</script>
+      <script>[['1','147/047/247'],['2','137/157'],['3','148/146'],['4','258/158/358'],['5','248/268'],['6','259/279'],['7','269/369/469'],['8','359/379'],['9','368/360'],['10','123/023/223'],['11','113/133'],['12','124/122'],['13','456/356/556'],['14','446/466'],['15','457/455'],['16','789/689/889'],['17','799/779'],['18','780/788']].forEach(a=>document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fed7aa;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:12px;font-weight:700;color:#7c2d12;transition:all .15s" id="rhn-lbl-${a[0]}" title="第${a[0]}罗汉 · ${a[1]}"><input type="checkbox" id="flt-rhn-${a[0]}" value="${a[0]}" onchange="updateChipStyle('rhn','${a[0]}')" style="display:none"><b>${a[0]}</b>·${a[1]}</label>`))</script>
     </div>
     <div style="margin-top:6px">
       <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('rhn')">全选</button>
@@ -4887,7 +4887,7 @@ function runAdvancedFilter(){
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
       if(grpPicks.length&&!grpPicks.includes(flt1990Group(num)))return;
-      if(rhnPicks.length&&!zoRohanOf(num).some(g=>rhnPicks.includes(g.id)))return;
+      if(rhnPicks.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(h=>rhnPicks.includes(h.index)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({rowIndex:ri,date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
@@ -7976,9 +7976,18 @@ function doBacktest(){
     </div>
     <div class="ig" id="lh-view-wrap" style="display:none"><label>查看方式</label>
       <select id="lh-view">
+        <option value="aggregate">合并统计（含缺席罗汉）</option>
         <option value="compare">多期对比表</option>
-        <option value="aggregate">合并统计</option>
       </select>
+    </div>
+    <div class="ig" id="lh-prize-scope"><label>奖项范围（多期对比用 · 特/安仅近期有）</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;padding-top:4px">
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-0" checked>头</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-1" checked>二</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-2" checked>三</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-sp" checked>特</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-cs" checked>安</label>
+      </div>
     </div>
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doLuohan()">🔍 分析</button>
@@ -7998,7 +8007,7 @@ function doBacktest(){
   <div class="warn" style="margin-top:10px">
     <b>十八罗汉规则</b>：4位号码的4个数字中任选3个（共4种组合），将选出的3位数字排序后，与18组罗汉号码比对。<br>
     同一罗汉对每个号码只计算一次命中。数据来源选「最新一期」会自动读取含特别奖/安慰奖的完整23个号码。<br>
-    <b>多期对比</b>仅含头二三奖（历史数据不含特别/安慰奖）。
+    <b>多期对比</b>可用上方「<b>奖项范围</b>」勾选 头/二/三/特/安（特、安仅最近有数据的期数才有）。选「<b>合并统计</b>」→ 顶部直接列出 <b>🕳️ 缺席罗汉</b>（本范围内 0 次出现的罗汉），方便找缺席。
   </div>
 </div>
 <div id="lh-out"></div>
@@ -18851,6 +18860,8 @@ var LUOHAN = [
   ['456','356','556'],['446','466'],['457','455'],
   ['789','689','889'],['799','779'],['780','788']
 ];
+// 暴露给条件筛选(功能1)用，保证两处罗汉编号完全一致
+window.LH_LUOHAN = LUOHAN;
 
 function lhSort3(s){ return Array.from(s).sort(function(a,b){return SRT_RANK[a]-SRT_RANK[b];}).join(''); }
 function lhGetTriples(code){
@@ -18867,6 +18878,7 @@ function lhMatch(raw){
   });
   return hits;
 }
+window.LH_MATCH = lhMatch;  // 供条件筛选(功能1)按同一 LUOHAN 编号匹配
 
 function lhGetTriplesArr(code){
   var arr = [];
@@ -19159,6 +19171,17 @@ function lhRenderAggregate(periods){
   html += '<div class="sc"><div class="val">'+totalHits+'</div><div class="lbl">总命中次数</div></div>';
   html += '</div></div>';
 
+  // 🕳️ 缺席罗汉清单（本范围 0 次）— 一眼看出哪些罗汉没出现
+  var absent = buckets.map(function(b,i){return b.length?null:(i+1);}).filter(function(x){return x;});
+  html += '<div class="card" style="background:'+(absent.length?'#eff6ff':'#f0fdf4')+';border:2px solid '+(absent.length?'#3b82f6':'#22c55e')+'">';
+  html += '<div style="font-size:13px;font-weight:800;color:'+(absent.length?'#1e40af':'#166534')+';margin-bottom:'+(absent.length?'6px':'0')+'">🕳️ 缺席罗汉（本范围 '+periods.length+' 期内 0 次出现）：'+(absent.length? '<b>'+absent.length+' 个</b>' : '无 — 18罗汉全部出现过 ✅')+'</div>';
+  if(absent.length){
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    absent.forEach(function(id){ html += '<span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#1e40af" title="'+LUOHAN[id-1].join(' / ')+'">罗汉'+id+' · '+LUOHAN[id-1].join('/')+'</span>'; });
+    html += '</div><div style="font-size:11px;color:#64748b;margin-top:6px">提示：缺席=在所选奖项范围+期数内一次都没出现。含特/安需该期有特安数据。</div>';
+  }
+  html += '</div>';
+
   // Timeline + 遗漏排行
   html += lhRenderTimeline(periods);
 
@@ -19218,6 +19241,18 @@ function lhRenderAggregate(periods){
   return html;
 }
 
+// 奖项范围：读勾选（头0/二1/三2/特sp/安cs），过滤 record
+function lhPrizeScope(){
+  var g = function(id){ var c=document.getElementById(id); return c? c.checked : true; };
+  return {p0:g('lh-pz-0'), p1:g('lh-pz-1'), p2:g('lh-pz-2'), sp:g('lh-pz-sp'), cs:g('lh-pz-cs')};
+}
+function lhInScope(r, s){
+  if(r.prize===0) return s.p0;
+  if(r.prize===1) return s.p1;
+  if(r.prize===2) return s.p2;
+  if(r.prize===-1){ if(r.label==='特别奖') return s.sp; if(r.label==='安慰奖') return s.cs; return true; }
+  return true;
+}
 window.doLuohan = function(){
   var out = document.getElementById('lh-out');
   var source = document.getElementById('lh-source').value;
@@ -19226,8 +19261,11 @@ window.doLuohan = function(){
     if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
     var view = document.getElementById('lh-view').value;
     var warnHtml = data.warn ? '<div class="warn" style="margin-bottom:8px">'+data.warn+'</div>' : '';
-    if(view==='aggregate') out.innerHTML = warnHtml + lhRenderAggregate(data.periods);
-    else out.innerHTML = warnHtml + lhRenderCompare(data.periods);
+    // 按奖项范围过滤每期号码（特/安仅近期有数据）
+    var scope = lhPrizeScope();
+    var periods = data.periods.map(function(p){ return {date:p.date, full:p.full, records:(p.records||[]).filter(function(r){ return lhInScope(r,scope); })}; });
+    if(view==='aggregate') out.innerHTML = warnHtml + lhRenderAggregate(periods);
+    else out.innerHTML = warnHtml + lhRenderCompare(periods);
     return;
   }
   var info = source==='manual' ? collectManual('lh') : collectSingle('lh');
