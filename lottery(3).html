@@ -1252,6 +1252,22 @@ function renderPatternTrend(){
     </div>
   </div>
 
+  <!-- Row 5g3: 18罗汉 -->
+  <div style="margin-top:8px;background:#fff7ed;border-radius:7px;padding:10px;border:1px solid #fed7aa">
+    <div style="font-size:11px;font-weight:700;color:#7c2d12;margin-bottom:8px">🔱 18罗汉（可多选）— 4位号码任取3位排序后匹配罗汉图案（含调字/重复位）</div>
+    <div id="flt-rhn-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <script>[['1','147/247/047'],['2','258/358/058'],['3','369/269/469'],['4','157/137'],['5','248/268'],['6','359/379'],['7','148/146'],['8','259/279'],['9','368/360'],['10','123/023/223'],['11','456/556/356'],['12','789/889/689'],['13','113/133'],['14','466/446'],['15','779/799'],['16','122/124'],['17','455/457'],['18','788/780']].forEach(a=>document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fed7aa;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:12px;font-weight:700;color:#7c2d12;transition:all .15s" id="rhn-lbl-${a[0]}" title="第${a[0]}罗汉 · ${a[1]}"><input type="checkbox" id="flt-rhn-${a[0]}" value="${a[0]}" onchange="updateChipStyle('rhn','${a[0]}')" style="display:none"><b>${a[0]}</b>·${a[1]}</label>`))</script>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('rhn')">全选</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('rhn')">清除</button>
+    </div>
+    <div class="warn" style="margin-top:6px;font-size:11px">
+      勾选后只保留「4位号码任取3位能匹配所选罗汉图案」的开奖号码（重复数字也算）。多选 = 任一罗汉即通过（OR）。<br>
+      配合「奖项」「年份/月份」等条件，可查特定罗汉在历史上出现的号码与频率。
+    </div>
+  </div>
+
   <!-- Row 5h: 开奖次数筛选 -->
   <div style="margin-top:8px;background:#ecfdf5;border-radius:7px;padding:10px;border:1px solid #a7f3d0">
     <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:8px">🔢 开奖次数筛选 — 按号码在筛选范围内出现的次数过滤</div>
@@ -4349,7 +4365,8 @@ function updateChipStyle(prefix,r){
     freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'},  // 频率档
     p4s:{on:'#2563eb',onBorder:'#1e40af',off:'#dbeafe',offColor:'#1e3a5f'},  // 4D指定点数
     mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'},   // 指定月份
-    grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'}    // 1-9-0 组合
+    grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'},    // 1-9-0 组合
+    rhn:{on:'#7c2d12',onBorder:'#431407',off:'#fed7aa',offColor:'#7c2d12'}     // 18罗汉
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -4359,7 +4376,7 @@ function updateChipStyle(prefix,r){
 }
 const FREQ_TIER_KEYS = ['热门','中性','冷门'];
 const GRP_KEYS = ['1','2','3','4','5','6','7','8','9','0']; // 1-9-0 组合（含0）
-const CHIP_GROUP_MAX={p4s:36,mth:12}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份）
+const CHIP_GROUP_MAX={p4s:36,mth:12,rhn:18}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份, rhn=18罗汉）
 function getSelectedRoots(prefix){
   if(prefix==='perm'){
     const sel=[];
@@ -4807,6 +4824,7 @@ function runAdvancedFilter(){
   const pts4Picks=getSelectedRoots('p4s');     // 4D指定点数（勾选优先于范围）
   const monthPicks=getSelectedRoots('mth');    // 指定月份（跨年份）
   const grpPicks=getSelectedRoots('grp');      // 1-9-0 组合
+  const rhnPicks=getSelectedRoots('rhn');      // 18罗汉
   const pts4Range=getRangeFromDropdowns('flt-pts4-from','flt-pts4-to');
   const pts3fRange=getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to');
   const pts3bRange=getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to');
@@ -4869,6 +4887,7 @@ function runAdvancedFilter(){
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
       if(grpPicks.length&&!grpPicks.includes(flt1990Group(num)))return;
+      if(rhnPicks.length&&!zoRohanOf(num).some(g=>rhnPicks.includes(g.id)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({rowIndex:ri,date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
