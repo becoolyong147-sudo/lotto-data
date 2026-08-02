@@ -7916,30 +7916,90 @@ function doBacktest(){
   <div style="font-size:12px;color:#99f6e4;margin-top:2px">贴入若干 4D 号码，逐位（千/百/十/个）算出「已出现」与「缺席号码」。缺席=该位 0-9 里没出现过的数字。</div>
 </div>
 <div class="card">
-  <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap">
-    <div class="ig" style="flex:1;min-width:280px"><label>4D 号码（空格 / 逗号 / 换行分隔，可多个）</label>
-      <textarea id="abs-input" placeholder="例：0567 2354 5789" style="width:100%;min-height:80px;font-family:monospace;font-size:15px;letter-spacing:2px;border:1px solid #cbd5e1;border-radius:6px;padding:8px"></textarea>
+  <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+    <div class="ig"><label>数据来源</label>
+      <select id="abs-source" onchange="absToggleSource()">
+        <option value="manual">✍️ 手动输入</option>
+        <option value="auto">📚 从历史自动取</option>
+      </select>
     </div>
-    <div class="ig">
+    <div class="ig" id="abs-mk-wrap" style="display:none"><label>市场</label>
+      <select id="abs-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig" id="abs-pd-wrap" style="display:none"><label>最近期数</label>
+      <select id="abs-periods"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option><option value="100">100</option></select>
+    </div>
+    <div class="ig" id="abs-pz-wrap" style="display:none"><label>奖项范围（特/安仅近期有）</label>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;padding-top:5px;font-size:13px">
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-0" checked>头</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-1" checked>二</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-2" checked>三</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-sp">特</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-cs">安</label>
+      </div>
+    </div>
+    <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
     </div>
   </div>
-  <div class="warn" style="margin-top:8px">每个号码取满4位（不足前面补0）。「已出现」= 该位所有号码出现过的数字（去重）；「缺席号码」= 0-9 里剩下没出现的。</div>
+  <div class="ig" id="abs-manual-wrap" style="width:100%"><label>4D 号码（空格 / 逗号 / 换行分隔，可多个）</label>
+    <textarea id="abs-input" placeholder="例：0567 2354 5789" style="width:100%;min-height:70px;font-family:monospace;font-size:15px;letter-spacing:2px;border:1px solid #cbd5e1;border-radius:6px;padding:8px"></textarea>
+  </div>
+  <div class="warn" style="margin-top:8px">每个号码取满4位（不足前面补0）。<b>从历史自动取</b>＝拉该市场最近 N 期、所选奖项的开奖号码来算缺席。「缺席号码」= 该位 0-9 里没出现过的数字。</div>
 </div>
 <div id="abs-out"></div>
 </div>
 <script>
+function absToggleSource(){
+  var auto=(document.getElementById('abs-source')||{value:'manual'}).value==='auto';
+  ['abs-mk-wrap','abs-pd-wrap','abs-pz-wrap'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=auto?'':'none';});
+  var m=document.getElementById('abs-manual-wrap'); if(m) m.style.display=auto?'none':'';
+}
+function absCollectHistory(){
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var n=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
+  var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  merged=merged.slice(0,n);
+  var nums=[];
+  merged.forEach(function(d){
+    if(pz.p0&&d.nums&&d.nums[0]) nums.push(d.nums[0]);
+    if(pz.p1&&d.nums&&d.nums[1]) nums.push(d.nums[1]);
+    if(pz.p2&&d.nums&&d.nums[2]) nums.push(d.nums[2]);
+    if(pz.sp&&Array.isArray(d.sp)) d.sp.forEach(function(x){nums.push(x);});
+    if(pz.cs&&Array.isArray(d.cs)) d.cs.forEach(function(x){nums.push(x);});
+  });
+  nums=nums.map(function(x){return String(x).padStart(4,'0').slice(-4);}).filter(function(x){return /^\d{4}$/.test(x);});
+  return {nums:nums, market:mk, periods:merged.length, first:merged.length?merged[merged.length-1].date:'', last:merged.length?merged[0].date:''};
+}
 function doAbsent(){
-  const raw=(document.getElementById('abs-input').value||'');
-  const nums=(raw.match(/\d{1,4}/g)||[]).map(function(n){return n.padStart(4,'0').slice(-4);});
   const out=document.getElementById('abs-out');
-  if(!nums.length){ out.innerHTML='<div class="warn">请先贴入至少一个数字。</div>'; return; }
+  const source=(document.getElementById('abs-source')||{value:'manual'}).value;
+  let nums, srcNote='';
+  if(source==='auto'){
+    const c=absCollectHistory();
+    nums=c.nums;
+    if(!nums.length){ out.innerHTML='<div class="warn">该市场 / 所选奖项范围暂无数据（特/安只有近期有）。</div>'; return; }
+    srcNote='📚 来源：'+c.market+' 最近 <b>'+c.periods+'</b> 期（'+c.last+' ~ '+c.first+'）';
+  } else {
+    const raw=(document.getElementById('abs-input').value||'');
+    nums=(raw.match(/\d{1,4}/g)||[]).map(function(n){return n.padStart(4,'0').slice(-4);});
+    if(!nums.length){ out.innerHTML='<div class="warn">请先贴入至少一个数字。</div>'; return; }
+  }
   const posName=['第一位（千）','第二位（百）','第三位（十）','第四位（个）'];
   const seen=[new Set(),new Set(),new Set(),new Set()];
   nums.forEach(function(n){ for(var p=0;p<4;p++) seen[p].add(n[p]); });
   var absentAll=[[],[],[],[]];
-  var html='<div class="card"><div style="font-size:12px;color:#475569;margin-bottom:8px">共 <b>'+nums.length+'</b> 个号码：<span style="font-family:monospace;letter-spacing:1px">'+nums.join(' ')+'</span></div>';
+  var numsShow = nums.length>40 ? (nums.slice(0,40).join(' ')+' …') : nums.join(' ');
+  var html='<div class="card">';
+  if(srcNote) html+='<div style="font-size:12px;color:#0f766e;font-weight:700;margin-bottom:4px">'+srcNote+'</div>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">共 <b>'+nums.length+'</b> 个号码：<span style="font-family:monospace;letter-spacing:1px">'+numsShow+'</span></div>';
   html+='<div class="ot"><table style="width:100%;font-size:14px;border-collapse:collapse">';
   html+='<tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">位子</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">已出现</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">缺席号码</th></tr>';
   for(var p=0;p<4;p++){
