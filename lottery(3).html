@@ -7938,12 +7938,14 @@ function doAbsent(){
   const posName=['第一位（千）','第二位（百）','第三位（十）','第四位（个）'];
   const seen=[new Set(),new Set(),new Set(),new Set()];
   nums.forEach(function(n){ for(var p=0;p<4;p++) seen[p].add(n[p]); });
+  var absentAll=[[],[],[],[]];
   var html='<div class="card"><div style="font-size:12px;color:#475569;margin-bottom:8px">共 <b>'+nums.length+'</b> 个号码：<span style="font-family:monospace;letter-spacing:1px">'+nums.join(' ')+'</span></div>';
   html+='<div class="ot"><table style="width:100%;font-size:14px;border-collapse:collapse">';
   html+='<tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">位子</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">已出现</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">缺席号码</th></tr>';
   for(var p=0;p<4;p++){
     var appeared=[],absent=[];
     for(var d=0;d<=9;d++){ (seen[p].has(String(d))?appeared:absent).push(d); }
+    absentAll[p]=absent.slice();
     var chip=function(d,on){ return '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin:2px;border-radius:5px;font-weight:700;font-size:14px;'+(on?'background:#e0edff;color:#1e3a5f':'background:#0f766e;color:#fff')+'">'+d+'</span>'; };
     html+='<tr>';
     html+='<td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e3a5f;white-space:nowrap">'+posName[p]+'</td>';
@@ -7952,9 +7954,24 @@ function doAbsent(){
     html+='</tr>';
   }
   html+='</table></div>';
-  html+='<div style="font-size:11px;color:#64748b;margin-top:8px">🟦 已出现　🟩 缺席。想用缺席数字去筛历史号码？到「条件筛选 → 🔢 可视化点选」把这些缺席数字点上即可。</div>';
+  html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  html+='<button class="btn btn-green" onclick="zoAbsentSendToFilter()" style="padding:8px 16px">📤 把缺席数字送到「条件筛选 → 可视化点选」</button>';
+  html+='<span style="font-size:11px;color:#64748b">一键把每位的缺席数字填入条件筛选，直接筛出「每位都是缺席数字」的历史号码。</span>';
   html+='</div>';
+  html+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">🟦 已出现　🟩 缺席。</div>';
+  html+='</div>';
+  window.__absentSets=absentAll;
   out.innerHTML=html;
+}
+function zoAbsentSendToFilter(){
+  if(!window.__absentSets){ alert('请先点「分析」。'); return; }
+  if(typeof clearPosGrid==='function') clearPosGrid();
+  window.__absentSets.forEach(function(digits,pos){
+    digits.forEach(function(d){ var el=document.getElementById('posd-'+pos+'-'+d); if(el&&el.dataset.on!=='1'&&typeof togglePosDigit==='function') togglePosDigit(pos,d,el); });
+  });
+  try{ if(typeof switchTab==='function') switchTab('filter'); }catch(e){}
+  setTimeout(function(){ var g=document.getElementById('flt-posgrid'); if(g) g.scrollIntoView({block:'center'}); },50);
+  try{ if(typeof showToast==='function') showToast('✅ 已把每位缺席数字填入「条件筛选 → 可视化点选」，点「筛选」即可'); }catch(e){}
 }
 </script>
 
@@ -13681,7 +13698,11 @@ function zoPublicLoadAssets(){
     (function tryLoad(i){
       if(i>=alts.length){ ZO_PUBLIC_IMG[k]=null; return; }   // 全失败=兜底，绝不阻断生成
       const img = new Image();
-      img.onload = ()=>{ ZO_PUBLIC_IMG[k] = img; };
+      img.onload = ()=>{
+        // 污染检测：file:// 下本地图会污染画布导致 toBlob 失败 → 会污染就弃用，退回CSS兜底保证能导出
+        try{ const t=document.createElement('canvas'); t.width=t.height=2; t.getContext('2d').drawImage(img,0,0,2,2); t.toDataURL(); ZO_PUBLIC_IMG[k]=img; }
+        catch(e){ ZO_PUBLIC_IMG[k]=null; }
+      };
       img.onerror = ()=>{ tryLoad(i+1); };
       try{ img.src = alts[i]; }catch(e){ tryLoad(i+1); }
     })(0);
