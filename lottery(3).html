@@ -7941,6 +7941,7 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
+      <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
     </div>
   </div>
@@ -8057,8 +8058,10 @@ function zoAbsentBacktest(){
   var detail=[]; var fullHits={};
   // 历史去重号码集（头二三），用于统计缺席组合里有多少组曾开过
   var distinctHist=new Set();
-  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&r.nums[i]) distinctHist.add(String(r.nums[i]).padStart(4,'0')); } });
+  var histFirstDate={};   // 号码 → 历史最早开出日期（判断全中号是不是"以前就开过"）
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&r.nums[i]){ var nn=String(r.nums[i]).padStart(4,'0'); distinctHist.add(nn); if(!histFirstDate[nn]||r.date<histFirstDate[nn]) histFirstDate[nn]=r.date; } } });
   var comboSum=0, histSpaceSum=0, comboPairs=0;
+  var hitOld=0, hitNew=0;   // 头奖全中里：以前就开过的(老号) / 首次出现(新号)
   for(var i=0;i<recs.length-1;i++){
     var prev=recs[i+1], cur=recs[i];
     var ab=absentOf(prev);
@@ -8072,7 +8075,7 @@ function zoAbsentBacktest(){
       n=String(n).padStart(4,'0');
       var matched=0; for(var p=0;p<4;p++){ if(ab.sets[p].has(n[p])) matched++; }
       var s=stat[pi]; s.pairs++; s.matchedSum+=matched; s.baseSum+=baseFull;
-      if(matched===4){ s.full++; if(!fullHits[n]) fullHits[n]={dates:[]}; fullHits[n].dates.push(cur.date+'·'+prizeName[pi]); } else if(matched===3) s.near++;
+      if(matched===4){ s.full++; if(!fullHits[n]) fullHits[n]={dates:[]}; fullHits[n].dates.push(cur.date+'·'+prizeName[pi]); if(pi===0){ if(histFirstDate[n] && histFirstDate[n]<cur.date) hitOld++; else hitNew++; } } else if(matched===3) s.near++;
       row.prizes.push({num:n, matched:matched});
     });
     detail.push(row);
@@ -8107,6 +8110,8 @@ function zoAbsentBacktest(){
     html+='<div class="sc"><div class="val" style="color:#dc2626">'+hr.toFixed(1)+'%</div><div class="lbl">头奖落在缺席空间（全中率）</div></div>';
     html+='</div>';
     html+='<div class="warn" style="margin-top:6px">读法：平均每期缺席数字能组成约 <b>'+avgN.toLocaleString()+'</b> 组号码——要「全买」这么多才保证覆盖当期的全中号；其中约 <b>'+avgHist.toLocaleString()+'</b> 组（'+histPct+'%）是历史上真开过的号码。而头奖真落在这一大堆里的概率只有 <b>'+hr.toFixed(1)+'%</b>（≈随机）。⚠️ 买 '+avgN.toLocaleString()+' 组 catch 1 组，性价比极低，仅数据参考。</div>';
+    var hf=stat[0].full;
+    html+='<div style="margin-top:6px;font-size:12px;color:#334155;background:#fff;border-radius:6px;padding:8px">🎯 <b>头奖全中 '+hf+' 次</b>里：<b style="color:#dc2626">'+hitOld+'</b> 次命中号是「以前就开过的老号」（只买「历史开过」那批子集也能catch）· <b style="color:#16a34a">'+hitNew+'</b> 次是「首次出现的新号」（只买历史子集会漏掉）。'+(hf?('<br>→ 若只买历史开过的子集，能 catch <b>'+(hitOld/hf*100).toFixed(0)+'%</b> 的头奖全中，且候选从 ~'+avgN.toLocaleString()+' 组缩到 ~'+avgHist.toLocaleString()+' 组。'):'')+'</div>';
     html+='</div>';
   }
   html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（数字后括号=命中位数，✅=四位全中，差1=3位）</div>';
@@ -8143,6 +8148,66 @@ function zoAbsentBacktest(){
     });
     html+='</table></div></div>';
   }
+  out.innerHTML=html;
+}
+// 前2D数根回测：上期头二三前2D数根→数根组(147/258/369)+顺序组(123/456/789)预测组；看下期前2D数根是否落在里面
+function zo2DRootBacktest(){
+  var out=document.getElementById('abs-out');
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var recs=merged.slice(0, N+1);
+  if(recs.length<2){ out.innerHTML='<div class="warn">该市场历史不足，无法回测。</div>'; return; }
+  function dr(n){ n=Math.abs(n); while(n>=10){ var s=0; String(n).split('').forEach(function(c){s+=+c;}); n=s; } return n; }
+  function f2root(num){ var s=String(num).padStart(4,'0'); return dr((+s[0])+(+s[1])); }
+  function g147(r){ return (r===1||r===4||r===7)?'147':(r===2||r===5||r===8)?'258':(r===3||r===6||r===9)?'369':'—'; }
+  function gSeq(r){ return (r>=1&&r<=3)?'123':(r>=4&&r<=6)?'456':(r>=7&&r<=9)?'789':'—'; }
+  var prizeName=['头奖','二奖','三奖'];
+  var stat=[0,1,2].map(function(){return {pairs:0, g1hit:0, g2hit:0, base1:0, base2:0};});
+  var detail=[];
+  for(var i=0;i<recs.length-1;i++){
+    var prev=recs[i+1], cur=recs[i];
+    var S1=new Set(), S2=new Set();
+    [0,1,2].forEach(function(pi){ var n=prev.nums&&prev.nums[pi]; if(n){ var r=f2root(n); var a=g147(r); if(a!=='—')S1.add(a); var b=gSeq(r); if(b!=='—')S2.add(b); } });
+    var base1=S1.size/3, base2=S2.size/3;
+    var row={date:cur.date, S1:Array.from(S1).join('·'), S2:Array.from(S2).join('·'), prizes:[]};
+    [0,1,2].forEach(function(pi){ var n=cur.nums&&cur.nums[pi]; if(!n){ row.prizes.push(null); return; }
+      var r=f2root(n); var a=g147(r), b=gSeq(r); var h1=S1.has(a), h2=S2.has(b);
+      var s=stat[pi]; s.pairs++; if(h1)s.g1hit++; if(h2)s.g2hit++; s.base1+=base1; s.base2+=base2;
+      row.prizes.push({num:String(n).padStart(4,'0'), r:r, h1:h1, h2:h2});
+    });
+    detail.push(row);
+  }
+  var html='<div class="card"><h3>🎲 前2D数根回测 — '+mk+'（'+detail.length+' 期滑动）</h3>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">规则：用<b>上一期头/二/三的前2D数根</b>各归入「数根组(147/258/369)」和「顺序组(123/456/789)」→ 得两套预测组。看<b>下一期</b>头/二/三的前2D数根是否落在预测组里。</div>';
+  html+='<div class="ot"><table style="width:100%;font-size:13px"><tr><th style="text-align:left;padding:4px 8px">奖项</th><th>期数</th><th>数根组命中率</th><th>随机基准</th><th>顺序组命中率</th><th>随机基准</th></tr>';
+  [0,1,2].forEach(function(pi){ var s=stat[pi]; if(!s.pairs)return;
+    var g1=(s.g1hit/s.pairs*100), b1=(s.base1/s.pairs*100), g2=(s.g2hit/s.pairs*100), b2=(s.base2/s.pairs*100);
+    var c1=g1>b1+3?'#16a34a':g1<b1-3?'#dc2626':'#64748b', c2=g2>b2+3?'#16a34a':g2<b2-3?'#dc2626':'#64748b';
+    html+='<tr><td style="text-align:left;font-weight:700;padding:4px 8px">'+prizeName[pi]+'</td><td style="text-align:center">'+s.pairs+'</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+c1+'">'+g1.toFixed(1)+'%</td><td style="text-align:center;color:#94a3b8">'+b1.toFixed(1)+'%</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+c2+'">'+g2.toFixed(1)+'%</td><td style="text-align:center;color:#94a3b8">'+b2.toFixed(1)+'%</td></tr>';
+  });
+  html+='</table></div>';
+  var h=stat[0];
+  if(h.pairs){ var g1=h.g1hit/h.pairs*100, b1=h.base1/h.pairs*100;
+    var v=g1>b1+3?'略高于随机基准（样本有限，勿过度解读）':(g1<b1-3?'低于随机基准':'与随机基准基本一致 → 前2D数根组法 ≈ 随机，不比缺席法更有优势');
+    html+='<div class="warn" style="margin-top:8px">📊 头奖「数根组」命中率 <b>'+g1.toFixed(1)+'%</b> vs 随机基准 <b>'+b1.toFixed(1)+'%</b> → '+v+'。<br>⚠️ 这里是「前2D数根落在组里」（较宽松，命中率天然高），跟缺席法「4位全中」不是同一粒度，别直接比数字大小——各自跟自己的随机基准比才对。彩票随机，仅参考。</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（上期预测组 → 本期各奖前2D数根，✓根组/✓序=命中对应系统）</div>';
+  html+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期</th><th>上期数根组</th><th>上期顺序组</th><th>头奖</th><th>二奖</th><th>三奖</th></tr>';
+  detail.slice(0,30).forEach(function(r){
+    html+='<tr><td style="white-space:nowrap">'+r.date+'</td><td style="color:#7c3aed;font-weight:700">'+r.S1+'</td><td style="color:#0891b2;font-weight:700">'+r.S2+'</td>';
+    r.prizes.forEach(function(p){ if(!p){html+='<td>—</td>';return;}
+      html+='<td style="text-align:center;font-family:monospace">'+p.num+' <span style="color:#64748b">根'+p.r+'</span> '+(p.h1?'<span style="color:#16a34a">✓根组</span>':'')+(p.h2?'<span style="color:#0891b2">✓序</span>':'')+((!p.h1&&!p.h2)?'<span style="color:#cbd5e1">✗</span>':'')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</table></div></div>';
   out.innerHTML=html;
 }
 </script>
