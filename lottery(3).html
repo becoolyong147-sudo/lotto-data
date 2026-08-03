@@ -8055,11 +8055,18 @@ function zoAbsentBacktest(){
   var prizeName=['头奖','二奖','三奖'];
   var stat=[0,1,2].map(function(){return {pairs:0, full:0, near:0, matchedSum:0, baseSum:0};});
   var detail=[]; var fullHits={};
+  // 历史去重号码集（头二三），用于统计缺席组合里有多少组曾开过
+  var distinctHist=new Set();
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&r.nums[i]) distinctHist.add(String(r.nums[i]).padStart(4,'0')); } });
+  var comboSum=0, histSpaceSum=0, comboPairs=0;
   for(var i=0;i<recs.length-1;i++){
     var prev=recs[i+1], cur=recs[i];
     var ab=absentOf(prev);
     var baseFull=(ab.sizes[0]/10)*(ab.sizes[1]/10)*(ab.sizes[2]/10)*(ab.sizes[3]/10);
-    var row={date:cur.date, prizes:[]};
+    var comboN=ab.sizes[0]*ab.sizes[1]*ab.sizes[2]*ab.sizes[3];   // 缺席组合数
+    var inHist=0; distinctHist.forEach(function(num){ var ok=true; for(var p=0;p<4;p++){ if(!ab.sets[p].has(num[p])){ok=false;break;} } if(ok) inHist++; });
+    comboSum+=comboN; histSpaceSum+=inHist; comboPairs++;
+    var row={date:cur.date, prizes:[], comboN:comboN, inHist:inHist};
     [0,1,2].forEach(function(pi){
       var n=cur.nums&&cur.nums[pi]; if(!n){ row.prizes.push(null); return; }
       n=String(n).padStart(4,'0');
@@ -8089,8 +8096,21 @@ function zoAbsentBacktest(){
     var verdict=f>b+3?'略高于随机基准（样本有限，勿过度解读）':(f<b-3?'低于随机基准':'与随机基准基本一致 —— 说明「缺席法」≈ 随机，不具预测力');
     html+='<div class="warn" style="margin-top:8px">📊 头奖全中率 <b>'+f.toFixed(1)+'%</b> vs 随机基准 <b>'+b.toFixed(1)+'%</b> → '+verdict+'。⚠️ 彩票随机，本回测仅供参考，不构成预测。</div>';
   }
+  if(comboPairs){
+    var avgN=Math.round(comboSum/comboPairs), avgHist=Math.round(histSpaceSum/comboPairs);
+    var histPct=avgN?(avgHist/avgN*100).toFixed(1):'0';
+    var hr=stat[0].pairs?(stat[0].full/stat[0].pairs*100):0;
+    html+='<div class="card" style="background:#fefce8;border:2px solid #fde047;margin-top:10px"><h3>🧮 缺席组合规模 × 历史覆盖（性价比）</h3>';
+    html+='<div class="g3">';
+    html+='<div class="sc"><div class="val" style="color:#b45309">~'+avgN.toLocaleString()+'</div><div class="lbl">平均每期缺席组合数</div></div>';
+    html+='<div class="sc"><div class="val" style="color:#16a34a">~'+avgHist.toLocaleString()+'</div><div class="lbl">其中历史开过的组数（'+histPct+'%）</div></div>';
+    html+='<div class="sc"><div class="val" style="color:#dc2626">'+hr.toFixed(1)+'%</div><div class="lbl">头奖落在缺席空间（全中率）</div></div>';
+    html+='</div>';
+    html+='<div class="warn" style="margin-top:6px">读法：平均每期缺席数字能组成约 <b>'+avgN.toLocaleString()+'</b> 组号码——要「全买」这么多才保证覆盖当期的全中号；其中约 <b>'+avgHist.toLocaleString()+'</b> 组（'+histPct+'%）是历史上真开过的号码。而头奖真落在这一大堆里的概率只有 <b>'+hr.toFixed(1)+'%</b>（≈随机）。⚠️ 买 '+avgN.toLocaleString()+' 组 catch 1 组，性价比极低，仅数据参考。</div>';
+    html+='</div>';
+  }
   html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（数字后括号=命中位数，✅=四位全中，差1=3位）</div>';
-  html+='<div class="ot" style="max-height:360px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期日期</th><th>头奖</th><th>二奖</th><th>三奖</th></tr>';
+  html+='<div class="ot" style="max-height:360px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期日期</th><th>头奖</th><th>二奖</th><th>三奖</th><th>缺席组合数</th><th>历史开过</th></tr>';
   detail.slice(0,30).forEach(function(r){
     html+='<tr><td style="white-space:nowrap">'+r.date+'</td>';
     r.prizes.forEach(function(p){
@@ -8099,6 +8119,8 @@ function zoAbsentBacktest(){
       var tag=p.matched===4?' ✅':p.matched===3?' 差1':'';
       html+='<td style="text-align:center;font-family:monospace"><b style="color:'+c+'">'+p.num+'</b> ('+p.matched+')'+tag+'</td>';
     });
+    html+='<td style="text-align:center;color:#b45309;font-weight:700">'+(r.comboN!=null?r.comboN.toLocaleString():'—')+'</td>';
+    html+='<td style="text-align:center;color:#16a34a">'+(r.inHist!=null?r.inHist:'—')+'</td>';
     html+='</tr>';
   });
   html+='</table></div></div>';
