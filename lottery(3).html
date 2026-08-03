@@ -8102,6 +8102,25 @@ function zoAbsentBacktest(){
     html+='</tr>';
   });
   html+='</table></div></div>';
+  // 🎯 全中号码 × 历史开出对比：这些"命中缺席"的号码，历史上一共开过几次
+  var fhNums=Object.keys(fullHits);
+  if(fhNums.length){
+    var allRecs=(typeof DB!=='undefined'&&DB[mk])||[];
+    var histOf=function(num){ var c=0,ds=[]; allRecs.forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&String(r.nums[i]).padStart(4,'0')===num){ c++; ds.push(r.date); } } }); return {count:c,dates:ds}; };
+    var rows2=fhNums.map(function(num){ var h=histOf(num); return {num:num, hitDates:fullHits[num].dates, histCount:h.count, histDates:h.dates}; });
+    rows2.sort(function(a,b){ return b.histCount-a.histCount; });
+    html+='<div class="card" style="margin-top:10px"><h3>🎯 全中号码 × 历史开出对比（共 '+fhNums.length+' 个不同号码曾全中）</h3>';
+    html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">这些「命中缺席」的号码，在 '+mk+' 整个历史(头/二/三)里一共开过几次。<b style="color:#dc2626">≥3次</b>=常客号；<b style="color:#16a34a">1次</b>=只这次开过(新面孔)。</div>';
+    html+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>号码</th><th>命中(缺席)于</th><th>历史总开出</th><th>历史开出日期</th></tr>';
+    rows2.forEach(function(r){
+      var col=r.histCount>=3?'#dc2626':r.histCount===2?'#d97706':'#16a34a';
+      html+='<tr><td style="text-align:center;font-family:monospace;font-weight:800;font-size:14px">'+r.num+'</td>';
+      html+='<td style="font-size:11px;color:#7c3aed">'+r.hitDates.join('、')+'</td>';
+      html+='<td style="text-align:center;font-weight:800;color:'+col+'">'+r.histCount+' 次</td>';
+      html+='<td style="font-size:11px;color:#64748b">'+r.histDates.slice(0,10).join(' ')+(r.histDates.length>10?' …':'')+'</td></tr>';
+    });
+    html+='</table></div></div>';
+  }
   out.innerHTML=html;
 }
 </script>
