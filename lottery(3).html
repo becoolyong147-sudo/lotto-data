@@ -8034,6 +8034,76 @@ function zoAbsentSendToFilter(){
   setTimeout(function(){ var g=document.getElementById('flt-posgrid'); if(g) g.scrollIntoView({block:'center'}); },50);
   try{ if(typeof showToast==='function') showToast('✅ 已把每位缺席数字填入「条件筛选 → 可视化点选」，点「筛选」即可'); }catch(e){}
 }
+// 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
+function zoAbsentBacktest(){
+  var out=document.getElementById('abs-out');
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var recs=merged.slice(0, N+1);
+  if(recs.length<2){ out.innerHTML='<div class="warn">该市场历史不足，无法回测。</div>'; return; }
+  function absentOf(r){
+    var sn=[new Set(),new Set(),new Set(),new Set()];
+    [0,1,2].forEach(function(pi){ var n=r.nums&&r.nums[pi]; if(n){ n=String(n).padStart(4,'0'); for(var p=0;p<4;p++) sn[p].add(n[p]); } });
+    var sets=[], sizes=[]; for(var p=0;p<4;p++){ var a=new Set(); for(var d=0;d<=9;d++){ if(!sn[p].has(String(d))) a.add(String(d)); } sets.push(a); sizes.push(a.size); }
+    return {sets:sets, sizes:sizes};
+  }
+  var prizeName=['头奖','二奖','三奖'];
+  var stat=[0,1,2].map(function(){return {pairs:0, full:0, near:0, matchedSum:0, baseSum:0};});
+  var detail=[]; var fullHits={};
+  for(var i=0;i<recs.length-1;i++){
+    var prev=recs[i+1], cur=recs[i];
+    var ab=absentOf(prev);
+    var baseFull=(ab.sizes[0]/10)*(ab.sizes[1]/10)*(ab.sizes[2]/10)*(ab.sizes[3]/10);
+    var row={date:cur.date, prizes:[]};
+    [0,1,2].forEach(function(pi){
+      var n=cur.nums&&cur.nums[pi]; if(!n){ row.prizes.push(null); return; }
+      n=String(n).padStart(4,'0');
+      var matched=0; for(var p=0;p<4;p++){ if(ab.sets[p].has(n[p])) matched++; }
+      var s=stat[pi]; s.pairs++; s.matchedSum+=matched; s.baseSum+=baseFull;
+      if(matched===4){ s.full++; if(!fullHits[n]) fullHits[n]={dates:[]}; fullHits[n].dates.push(cur.date+'·'+prizeName[pi]); } else if(matched===3) s.near++;
+      row.prizes.push({num:n, matched:matched});
+    });
+    detail.push(row);
+  }
+  var html='<div class="card"><h3>🔬 缺席命中回测 — '+mk+'（'+detail.length+' 期滑动 · '+recs[recs.length-1].date+' ~ '+recs[0].date+'）</h3>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">规则：用<b>上一期头二三</b>算每位缺席数字 → 看<b>下一期</b>的头/二/三，数「四位中有几位落在上期缺席里」。<b>四位全中=命中</b>，3位=差一位。</div>';
+  html+='<div class="ot"><table style="width:100%;font-size:13px"><tr><th style="text-align:left;padding:4px 8px">奖项</th><th>回测期数</th><th>全中(4/4)</th><th>差一位(3/4)</th><th>平均命中位数</th><th>随机基准全中率</th></tr>';
+  [0,1,2].forEach(function(pi){
+    var s=stat[pi]; if(!s.pairs) return;
+    var fullPct=(s.full/s.pairs*100), basePct=(s.baseSum/s.pairs*100), avg=(s.matchedSum/s.pairs);
+    var col=fullPct>basePct+3?'#16a34a':(fullPct<basePct-3?'#dc2626':'#64748b');
+    html+='<tr><td style="text-align:left;font-weight:700;padding:4px 8px">'+prizeName[pi]+'</td><td style="text-align:center">'+s.pairs+'</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+col+'">'+s.full+' ('+fullPct.toFixed(1)+'%)</td>';
+    html+='<td style="text-align:center">'+s.near+'</td><td style="text-align:center">'+avg.toFixed(2)+' / 4</td>';
+    html+='<td style="text-align:center;color:#94a3b8">'+basePct.toFixed(1)+'%</td></tr>';
+  });
+  html+='</table></div>';
+  var h0=stat[0];
+  if(h0.pairs){
+    var f=h0.full/h0.pairs*100, b=h0.baseSum/h0.pairs*100;
+    var verdict=f>b+3?'略高于随机基准（样本有限，勿过度解读）':(f<b-3?'低于随机基准':'与随机基准基本一致 —— 说明「缺席法」≈ 随机，不具预测力');
+    html+='<div class="warn" style="margin-top:8px">📊 头奖全中率 <b>'+f.toFixed(1)+'%</b> vs 随机基准 <b>'+b.toFixed(1)+'%</b> → '+verdict+'。⚠️ 彩票随机，本回测仅供参考，不构成预测。</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（数字后括号=命中位数，✅=四位全中，差1=3位）</div>';
+  html+='<div class="ot" style="max-height:360px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期日期</th><th>头奖</th><th>二奖</th><th>三奖</th></tr>';
+  detail.slice(0,30).forEach(function(r){
+    html+='<tr><td style="white-space:nowrap">'+r.date+'</td>';
+    r.prizes.forEach(function(p){
+      if(!p){ html+='<td>—</td>'; return; }
+      var c=p.matched===4?'#16a34a':p.matched===3?'#d97706':'#94a3b8';
+      var tag=p.matched===4?' ✅':p.matched===3?' 差1':'';
+      html+='<td style="text-align:center;font-family:monospace"><b style="color:'+c+'">'+p.num+'</b> ('+p.matched+')'+tag+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</table></div></div>';
+  out.innerHTML=html;
+}
 </script>
 
 <!-- TAB: 号码排列 (1-9-0) -->
