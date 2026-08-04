@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>万马多新豪 号码分析系统 v62</title>
+<title>WIN 4D WITH M3｜号码数据分析系统</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;background:#f4f4ef;color:#1a1a1a;font-size:14px}
@@ -239,7 +239,7 @@ tr:hover td{background:#fafaf5}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-<h1>🎯 万马多新豪 号码分析系统 v62 <span id="data-count">加载中...</span></h1>
+<h1>🎯 WIN 4D WITH M3 · 号码数据分析系统 <span style="font-size:12px;font-weight:600;color:#94a3b8">v62</span> <span id="data-count">加载中...</span></h1>
 
 <!-- V20 Scene-based navigation -->
 <div class="scenes">
@@ -275,6 +275,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
+    <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
 </div>
 
@@ -1252,6 +1253,22 @@ function renderPatternTrend(){
     </div>
   </div>
 
+  <!-- Row 5g3: 18罗汉 -->
+  <div style="margin-top:8px;background:#fff7ed;border-radius:7px;padding:10px;border:1px solid #fed7aa">
+    <div style="font-size:11px;font-weight:700;color:#7c2d12;margin-bottom:8px">🔱 18罗汉（可多选）— 4位号码任取3位排序后匹配罗汉图案（含调字/重复位）</div>
+    <div id="flt-rhn-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <script>[['1','147/047/247'],['2','137/157'],['3','148/146'],['4','258/158/358'],['5','248/268'],['6','259/279'],['7','269/369/469'],['8','359/379'],['9','368/360'],['10','123/023/223'],['11','113/133'],['12','124/122'],['13','456/356/556'],['14','446/466'],['15','457/455'],['16','789/689/889'],['17','799/779'],['18','780/788']].forEach(a=>document.write(`<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#fed7aa;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:12px;font-weight:700;color:#7c2d12;transition:all .15s" id="rhn-lbl-${a[0]}" title="第${a[0]}罗汉 · ${a[1]}"><input type="checkbox" id="flt-rhn-${a[0]}" value="${a[0]}" onchange="updateChipStyle('rhn','${a[0]}')" style="display:none"><b>${a[0]}</b>·${a[1]}</label>`))</script>
+    </div>
+    <div style="margin-top:6px">
+      <button class="btn" style="padding:4px 10px;font-size:11px" onclick="selectAllRoots('rhn')">全选</button>
+      <button class="btn btn-red" style="padding:4px 10px;font-size:11px" onclick="clearAllRoots('rhn')">清除</button>
+    </div>
+    <div class="warn" style="margin-top:6px;font-size:11px">
+      勾选后只保留「4位号码任取3位能匹配所选罗汉图案」的开奖号码（重复数字也算）。多选 = 任一罗汉即通过（OR）。<br>
+      配合「奖项」「年份/月份」等条件，可查特定罗汉在历史上出现的号码与频率。
+    </div>
+  </div>
+
   <!-- Row 5h: 开奖次数筛选 -->
   <div style="margin-top:8px;background:#ecfdf5;border-radius:7px;padding:10px;border:1px solid #a7f3d0">
     <div style="font-size:11px;font-weight:700;color:#065f46;margin-bottom:8px">🔢 开奖次数筛选 — 按号码在筛选范围内出现的次数过滤</div>
@@ -1308,6 +1325,13 @@ function renderPatternTrend(){
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('xxx3')">xxx3</button>
       <button class="btn" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('4xxx')">4xxx</button>
       <button class="btn btn-red" style="margin-top:auto;padding:5px 10px;font-size:11px" onclick="setPosPattern('')">清除</button>
+    </div>
+    <!-- 可视化点选（每位可多选数字）-->
+    <div style="margin-top:10px;border-top:1px dashed #bfdbfe;padding-top:8px">
+      <div style="font-size:11px;font-weight:700;color:#1e3a5f;margin-bottom:6px">🔢 可视化点选 — 每位点数字＝只保留「该位是这些数字」的号码；不点＝不限（跟上面文字框可叠加）</div>
+      <div id="flt-posgrid">
+        <script>['第1位（千）','第2位（百）','第3位（十）','第4位（个）'].forEach(function(lbl,pi){var row='<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px;flex-wrap:wrap"><span style="font-size:11px;font-weight:700;color:#1e3a5f;width:78px">'+lbl+'</span>';for(var d=0;d<=9;d++){row+='<span id="posd-'+pi+'-'+d+'" data-on="0" onclick="togglePosDigit('+pi+','+d+',this)" style="cursor:pointer;width:27px;height:27px;display:inline-flex;align-items:center;justify-content:center;border-radius:5px;font-size:13px;font-weight:700;background:#e0edff;color:#1e3a5f;border:2px solid transparent;transition:all .1s">'+d+'</span>';}row+='<button class="btn" style="padding:2px 9px;font-size:10px;margin-left:4px" onclick="clearPosRow('+pi+')">清该位</button></div>';document.write(row);});</script>
+      </div>
     </div>
     <div class="warn" style="margin-top:6px">例：x1xx = 第二位必须是1；4xxx = 第一位必须是4。<b>可一次输入多组</b>（每组4位，用空格/逗号/斜杠分隔），任一组符合就算命中——如 <code>4xxx 1xxx 7xxx 8xxx 3xxx 5xxx</code> = 第一位是4/1/7/8/3/5都要。快捷按钮可叠加，再点一次取消该组。</div>
   </div>
@@ -4349,7 +4373,8 @@ function updateChipStyle(prefix,r){
     freq:{on:'#1e3a5f',onBorder:'#0f172a',off:'#f0f4fa',offColor:'#1e3a5f'},  // 频率档
     p4s:{on:'#2563eb',onBorder:'#1e40af',off:'#dbeafe',offColor:'#1e3a5f'},  // 4D指定点数
     mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'},   // 指定月份
-    grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'}    // 1-9-0 组合
+    grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'},    // 1-9-0 组合
+    rhn:{on:'#7c2d12',onBorder:'#431407',off:'#fed7aa',offColor:'#7c2d12'}     // 18罗汉
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -4359,7 +4384,7 @@ function updateChipStyle(prefix,r){
 }
 const FREQ_TIER_KEYS = ['热门','中性','冷门'];
 const GRP_KEYS = ['1','2','3','4','5','6','7','8','9','0']; // 1-9-0 组合（含0）
-const CHIP_GROUP_MAX={p4s:36,mth:12}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份）
+const CHIP_GROUP_MAX={p4s:36,mth:12,rhn:18}; // 非1-9的chip组最大值（p4s=4D指定点数, mth=指定月份, rhn=18罗汉）
 function getSelectedRoots(prefix){
   if(prefix==='perm'){
     const sel=[];
@@ -4655,6 +4680,7 @@ function fillFilterExample2(){
 }
 function clearAdvancedFilter(){
   ['flt-year-from','flt-year-to','flt-patterns','flt-contains-digit','flt-pos-pattern','flt-occ-n'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
+  if(typeof clearPosGrid==='function') clearPosGrid();
   { const el=document.getElementById('flt-occ-cmp'); if(el)el.value='gte'; }
   { const el=document.getElementById('flt-exclude-recent'); if(el)el.checked=false; }
   { const el=document.getElementById('flt-exclude-months'); if(el)el.value='12'; }
@@ -4679,6 +4705,20 @@ function setPosPattern(v){
   const i=toks.indexOf(v);
   if(i>=0)toks.splice(i,1);else toks.push(v);
   el.value=toks.join(' ');
+}
+// 可视化点选：每位允许的数字集合
+function togglePosDigit(pos,digit,el){
+  const on = el.dataset.on==='1';
+  el.dataset.on = on?'0':'1';
+  if(!on){ el.style.background='#2563eb'; el.style.color='#fff'; el.style.borderColor='#1e40af'; }
+  else { el.style.background='#e0edff'; el.style.color='#1e3a5f'; el.style.borderColor='transparent'; }
+}
+function clearPosRow(pos){ for(let d=0;d<=9;d++){ const el=document.getElementById('posd-'+pos+'-'+d); if(el&&el.dataset.on==='1') togglePosDigit(pos,d,el); } }
+function clearPosGrid(){ for(let p=0;p<4;p++) clearPosRow(p); }
+function getPosDigitSets(){
+  const sets=[];
+  for(let p=0;p<4;p++){ const s=new Set(); for(let d=0;d<=9;d++){ const el=document.getElementById('posd-'+p+'-'+d); if(el&&el.dataset.on==='1') s.add(String(d)); } sets.push(s); }
+  return sets;
 }
 function matchPosPattern(num,pat){
   pat=(pat||'').toLowerCase().replace(/[^0-9x]/g,'');
@@ -4807,6 +4847,7 @@ function runAdvancedFilter(){
   const pts4Picks=getSelectedRoots('p4s');     // 4D指定点数（勾选优先于范围）
   const monthPicks=getSelectedRoots('mth');    // 指定月份（跨年份）
   const grpPicks=getSelectedRoots('grp');      // 1-9-0 组合
+  const rhnPicks=getSelectedRoots('rhn');      // 18罗汉
   const pts4Range=getRangeFromDropdowns('flt-pts4-from','flt-pts4-to');
   const pts3fRange=getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to');
   const pts3bRange=getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to');
@@ -4820,6 +4861,8 @@ function runAdvancedFilter(){
   const containsTokens = containsDigitsRaw.toLowerCase().split(/[\s,，]+/).map(t=>t.trim()).filter(Boolean);
   // 指定位数条件：支持多组（空格/逗号/斜杠分隔），任一组匹配即通过
   const posPatterns=(document.getElementById('flt-pos-pattern')?.value||'').toLowerCase().split(/[^0-9x]+/).filter(t=>/^[0-9x]{4}$/.test(t));
+  const posSets=getPosDigitSets();                       // 可视化点选：每位允许数字
+  const posSetsActive=posSets.some(s=>s.size);
   const recs=DB[market]||[];
   // 冷热档：直接复用 fltGetCategory（与结果分类列完全一致）
   const _freqTierFn = freqTiers.length ? (num=>fltGetCategory(market,pz(num)).tier) : null;
@@ -4868,7 +4911,9 @@ function runAdvancedFilter(){
         if(!pass) return;
       }
       if(posPatterns.length&&!posPatterns.some(p=>matchPosPattern(num,p)))return;
+      if(posSetsActive){ const _s4=String(num).padStart(4,'0'); for(let _pi=0;_pi<4;_pi++){ if(posSets[_pi].size&&!posSets[_pi].has(_s4[_pi])) return; } }
       if(grpPicks.length&&!grpPicks.includes(flt1990Group(num)))return;
+      if(rhnPicks.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(h=>rhnPicks.includes(h.index)))return;
       if(_freqTierFn&&freqTiers.length&&!freqTiers.includes(_freqTierFn(num)))return;
       rows.push({rowIndex:ri,date:r.date,draw:r.draw,prize:j,num,pts4:a.pts4d,root4:a.root4d,front2Root,front3Root,back3Root,front3Pts,back3Pts,shape:numShapeLabel(num),permType:getPermType(num)});
       sumPts[a.pts4d]=(sumPts[a.pts4d]||0)+1;
@@ -7565,7 +7610,7 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成海报</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button> <select id="zo-bgm-sel" title="视频配乐"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button> <select id="zo-bgm-sel" title="视频配乐"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select> <select id="zo-vid-ratio" title="视频尺寸（public）"><option value="story" selected>📱 竖屏 9:16 (1080×1920)</option><option value="feed">🖼️ 方形 4:5 (1080×1350)</option></select></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
@@ -7618,13 +7663,29 @@ function doBacktest(){
     </div>
   </div>
   <div class="row" style="margin-top:10px">
-    <div class="ig"><button class="btn btn-red" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
+    <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
     <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
     <div class="ig"><label>视频配乐</label><select id="zo-bgm-sel-mem"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
+  </div>
+  <div class="row" style="margin-top:8px;padding-top:8px;border-top:1px dashed #4338ca">
+    <div class="ig"><label>🎯 会员命中回顾 · 对照期</label>
+      <select id="zo-memhit-period" onchange="var d=document.getElementById('zo-memhit-date');if(d)d.style.display=(this.value==='date')?'inline-block':'none';">
+        <option value="month" selected>本月全部</option>
+        <option value="latest">最新一期</option>
+        <option value="date">指定某期</option>
+      </select>
+      <input type="date" id="zo-memhit-date" style="display:none;margin-left:4px">
+    </div>
+    <div class="ig"><label>风格</label>
+      <select id="zo-memhit-style"><option value="A">📊 复盘数据卡风</option><option value="B">🎉 庆祝战报风(内部)</option></select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-png" onclick="zoMemHitPNG()">📊 命中回顾图</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-vid" onclick="zoMemHitVideo()">🎬 命中回顾视频</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-memhit-copy" onclick="zoMemHitCopy()">📋 复制命中说明</button></div>
     <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
       <button class="btn" onclick="zoMemGlossCopy('zh',this)">中文</button>
       <button class="btn" onclick="zoMemGlossCopy('en',this)">English</button>
@@ -7679,17 +7740,25 @@ function doBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoReviewMonth()">📊 生成复盘报告</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoReviewCopy()" id="zo-rv-copy" style="display:none">📋 复制复盘报告</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">🎉 命中战报图</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 命中战报视频</button></div>
-    <div class="ig" id="zo-hit-opts" style="display:none"><label>战报主角 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
-      <select id="zo-hit-hero"><option value="latest">🆕 主角=最新命中</option><option value="auto">🏆 主角=最高奖位</option></select>
+    <div class="ig" style="align-self:flex-end"><label>输出模式</label>
+      <select id="zo-public-output-mode" onchange="var n=document.getElementById('zo-legacy-note');if(n)n.style.display=(this.value==='legacy')?'inline':'none';if(typeof zoPublicSyncBgm==='function')zoPublicSyncBgm();if(typeof zoMemberBtnSync==='function')zoMemberBtnSync();">
+        <option value="public" selected>📊 Facebook公开复盘</option>
+        <option value="member">💎 会员数据报告</option>
+        <option value="legacy">🔒 内部原版预览</option>
+      </select>
+      <span id="zo-legacy-note" style="display:none;font-size:11px;color:#dc2626;font-weight:700;margin-left:6px">仅供内部预览，不建议发布到社交平台</span>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 公开复盘视频</button></div>
+    <div class="ig" id="zo-hit-opts" style="display:none"><label>复盘记录 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
+      <select id="zo-hit-hero"><option value="latest">🆕 记录=最新对应</option><option value="auto">🏆 记录=最高奖位</option></select>
       <select id="zo-hit-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select>
       <select id="zo-hit-bgm"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select>
       <button class="btn" onclick="zoMusicPick()" title="加入你自己的音乐文件（mp3/m4a/wav），加完三个视频的音乐菜单都能选" style="background:#0f766e;color:#fff">＋🎵 加音乐</button>
       <button class="btn" onclick="zoMusicDel()" title="删除当前选中的自定义音乐" style="background:#7f1d1d;color:#fff">🗑</button>
-      <button class="btn" onclick="zoHitCopy(zoHitLang(),this)">📋 复制话术</button>
+      <button class="btn" onclick="zoHitCopy(zoHitLang(),this)">📋 复制复盘说明</button>
     </div></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版命中回测</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-mem-backtest" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版历史回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff" onclick="zoScoreBacktest()">🔬 评分回测对比</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#d97706;color:#fff" onclick="zoDaMonthReport()">🎲 打数月份分析</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#6d28d9;color:#fff" onclick="zoRohanReport()">🔱 18罗汉月份分析</button></div>
@@ -7840,6 +7909,309 @@ function doBacktest(){
 <div id="pp-out"></div>
 </div>
 
+<!-- TAB: 缺席的它（万里挑一）— 逐位算已出现/缺席号码 -->
+<div id="tab-absent" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 100%);color:#fff;margin-bottom:8px">
+  <div style="font-size:16px;font-weight:700">🎯 缺席的它 · 万里挑一</div>
+  <div style="font-size:12px;color:#99f6e4;margin-top:2px">贴入若干 4D 号码，逐位（千/百/十/个）算出「已出现」与「缺席号码」。缺席=该位 0-9 里没出现过的数字。</div>
+</div>
+<div class="card">
+  <div class="row" style="align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+    <div class="ig"><label>数据来源</label>
+      <select id="abs-source" onchange="absToggleSource()">
+        <option value="manual">✍️ 手动输入</option>
+        <option value="auto">📚 从历史自动取</option>
+      </select>
+    </div>
+    <div class="ig" id="abs-mk-wrap" style="display:none"><label>市场</label>
+      <select id="abs-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig" id="abs-pd-wrap" style="display:none"><label>最近期数</label>
+      <select id="abs-periods"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option><option value="30">30</option><option value="50">50</option><option value="100">100</option></select>
+    </div>
+    <div class="ig" id="abs-pz-wrap" style="display:none"><label>奖项范围（特/安仅近期有）</label>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;padding-top:5px;font-size:13px">
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-0" checked>头</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-1" checked>二</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-2" checked>三</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-sp">特</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-cs">安</label>
+      </div>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
+      <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
+      <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
+      <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
+    </div>
+  </div>
+  <div class="ig" id="abs-manual-wrap" style="width:100%"><label>4D 号码（空格 / 逗号 / 换行分隔，可多个）</label>
+    <textarea id="abs-input" placeholder="例：0567 2354 5789" style="width:100%;min-height:70px;font-family:monospace;font-size:15px;letter-spacing:2px;border:1px solid #cbd5e1;border-radius:6px;padding:8px"></textarea>
+  </div>
+  <div class="warn" style="margin-top:8px">每个号码取满4位（不足前面补0）。<b>从历史自动取</b>＝拉该市场最近 N 期、所选奖项的开奖号码来算缺席。「缺席号码」= 该位 0-9 里没出现过的数字。</div>
+</div>
+<div id="abs-out"></div>
+</div>
+<script>
+function absToggleSource(){
+  var auto=(document.getElementById('abs-source')||{value:'manual'}).value==='auto';
+  ['abs-mk-wrap','abs-pd-wrap','abs-pz-wrap'].forEach(function(id){var e=document.getElementById(id);if(e)e.style.display=auto?'':'none';});
+  var m=document.getElementById('abs-manual-wrap'); if(m) m.style.display=auto?'none':'';
+}
+function absCollectHistory(){
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var n=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
+  var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  merged=merged.slice(0,n);
+  var nums=[];
+  merged.forEach(function(d){
+    if(pz.p0&&d.nums&&d.nums[0]) nums.push(d.nums[0]);
+    if(pz.p1&&d.nums&&d.nums[1]) nums.push(d.nums[1]);
+    if(pz.p2&&d.nums&&d.nums[2]) nums.push(d.nums[2]);
+    if(pz.sp&&Array.isArray(d.sp)) d.sp.forEach(function(x){nums.push(x);});
+    if(pz.cs&&Array.isArray(d.cs)) d.cs.forEach(function(x){nums.push(x);});
+  });
+  nums=nums.map(function(x){return String(x).padStart(4,'0').slice(-4);}).filter(function(x){return /^\d{4}$/.test(x);});
+  return {nums:nums, market:mk, periods:merged.length, first:merged.length?merged[merged.length-1].date:'', last:merged.length?merged[0].date:''};
+}
+function doAbsent(){
+  const out=document.getElementById('abs-out');
+  const source=(document.getElementById('abs-source')||{value:'manual'}).value;
+  let nums, srcNote='';
+  if(source==='auto'){
+    const c=absCollectHistory();
+    nums=c.nums;
+    if(!nums.length){ out.innerHTML='<div class="warn">该市场 / 所选奖项范围暂无数据（特/安只有近期有）。</div>'; return; }
+    srcNote='📚 来源：'+c.market+' 最近 <b>'+c.periods+'</b> 期（'+c.last+' ~ '+c.first+'）';
+  } else {
+    const raw=(document.getElementById('abs-input').value||'');
+    nums=(raw.match(/\d{1,4}/g)||[]).map(function(n){return n.padStart(4,'0').slice(-4);});
+    if(!nums.length){ out.innerHTML='<div class="warn">请先贴入至少一个数字。</div>'; return; }
+  }
+  const posName=['第一位（千）','第二位（百）','第三位（十）','第四位（个）'];
+  const seen=[new Set(),new Set(),new Set(),new Set()];
+  nums.forEach(function(n){ for(var p=0;p<4;p++) seen[p].add(n[p]); });
+  var absentAll=[[],[],[],[]];
+  var numsShow = nums.length>40 ? (nums.slice(0,40).join(' ')+' …') : nums.join(' ');
+  var html='<div class="card">';
+  if(srcNote) html+='<div style="font-size:12px;color:#0f766e;font-weight:700;margin-bottom:4px">'+srcNote+'</div>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">共 <b>'+nums.length+'</b> 个号码：<span style="font-family:monospace;letter-spacing:1px">'+numsShow+'</span></div>';
+  html+='<div class="ot"><table style="width:100%;font-size:14px;border-collapse:collapse">';
+  html+='<tr><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">位子</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">已出现</th><th style="text-align:left;padding:6px 8px;border-bottom:2px solid #e2e8f0">缺席号码</th></tr>';
+  for(var p=0;p<4;p++){
+    var appeared=[],absent=[];
+    for(var d=0;d<=9;d++){ (seen[p].has(String(d))?appeared:absent).push(d); }
+    absentAll[p]=absent.slice();
+    var chip=function(d,on){ return '<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;margin:2px;border-radius:5px;font-weight:700;font-size:14px;'+(on?'background:#e0edff;color:#1e3a5f':'background:#0f766e;color:#fff')+'">'+d+'</span>'; };
+    html+='<tr>';
+    html+='<td style="padding:8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:#1e3a5f;white-space:nowrap">'+posName[p]+'</td>';
+    html+='<td style="padding:6px 8px;border-bottom:1px solid #f1f5f9">'+(appeared.length?appeared.map(function(d){return chip(d,true);}).join(''):'<span style="color:#94a3b8">—</span>')+'</td>';
+    html+='<td style="padding:6px 8px;border-bottom:1px solid #f1f5f9"><b>'+(absent.length?absent.map(function(d){return chip(d,false);}).join(''):'<span style="color:#16a34a">无（0-9全出现）</span>')+'</b></td>';
+    html+='</tr>';
+  }
+  html+='</table></div>';
+  html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  html+='<button class="btn btn-green" onclick="zoAbsentSendToFilter()" style="padding:8px 16px">📤 把缺席数字送到「条件筛选 → 可视化点选」</button>';
+  html+='<span style="font-size:11px;color:#64748b">一键把每位的缺席数字填入条件筛选，直接筛出「每位都是缺席数字」的历史号码。</span>';
+  html+='</div>';
+  html+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">🟦 已出现　🟩 缺席。</div>';
+  html+='</div>';
+  window.__absentSets=absentAll;
+  out.innerHTML=html;
+}
+function zoAbsentSendToFilter(){
+  if(!window.__absentSets){ alert('请先点「分析」。'); return; }
+  if(typeof clearPosGrid==='function') clearPosGrid();
+  window.__absentSets.forEach(function(digits,pos){
+    digits.forEach(function(d){ var el=document.getElementById('posd-'+pos+'-'+d); if(el&&el.dataset.on!=='1'&&typeof togglePosDigit==='function') togglePosDigit(pos,d,el); });
+  });
+  try{ if(typeof switchTab==='function') switchTab('filter'); }catch(e){}
+  setTimeout(function(){ var g=document.getElementById('flt-posgrid'); if(g) g.scrollIntoView({block:'center'}); },50);
+  try{ if(typeof showToast==='function') showToast('✅ 已把每位缺席数字填入「条件筛选 → 可视化点选」，点「筛选」即可'); }catch(e){}
+}
+// 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
+function zoAbsentBacktest(){
+  var out=document.getElementById('abs-out');
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var recs=merged.slice(0, N+1);
+  if(recs.length<2){ out.innerHTML='<div class="warn">该市场历史不足，无法回测。</div>'; return; }
+  function absentOf(r){
+    var sn=[new Set(),new Set(),new Set(),new Set()];
+    [0,1,2].forEach(function(pi){ var n=r.nums&&r.nums[pi]; if(n){ n=String(n).padStart(4,'0'); for(var p=0;p<4;p++) sn[p].add(n[p]); } });
+    var sets=[], sizes=[]; for(var p=0;p<4;p++){ var a=new Set(); for(var d=0;d<=9;d++){ if(!sn[p].has(String(d))) a.add(String(d)); } sets.push(a); sizes.push(a.size); }
+    return {sets:sets, sizes:sizes};
+  }
+  var prizeName=['头奖','二奖','三奖'];
+  var stat=[0,1,2].map(function(){return {pairs:0, full:0, near:0, matchedSum:0, baseSum:0};});
+  var detail=[]; var fullHits={};
+  // 历史去重号码集（头二三），用于统计缺席组合里有多少组曾开过
+  var distinctHist=new Set();
+  var histFirstDate={};   // 号码 → 历史最早开出日期（判断全中号是不是"以前就开过"）
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&r.nums[i]){ var nn=String(r.nums[i]).padStart(4,'0'); distinctHist.add(nn); if(!histFirstDate[nn]||r.date<histFirstDate[nn]) histFirstDate[nn]=r.date; } } });
+  var comboSum=0, histSpaceSum=0, comboPairs=0;
+  var hitOld=0, hitNew=0;   // 头奖全中里：以前就开过的(老号) / 首次出现(新号)
+  for(var i=0;i<recs.length-1;i++){
+    var prev=recs[i+1], cur=recs[i];
+    var ab=absentOf(prev);
+    var baseFull=(ab.sizes[0]/10)*(ab.sizes[1]/10)*(ab.sizes[2]/10)*(ab.sizes[3]/10);
+    var comboN=ab.sizes[0]*ab.sizes[1]*ab.sizes[2]*ab.sizes[3];   // 缺席组合数
+    var inHist=0; distinctHist.forEach(function(num){ var ok=true; for(var p=0;p<4;p++){ if(!ab.sets[p].has(num[p])){ok=false;break;} } if(ok) inHist++; });
+    comboSum+=comboN; histSpaceSum+=inHist; comboPairs++;
+    var row={date:cur.date, prizes:[], comboN:comboN, inHist:inHist};
+    [0,1,2].forEach(function(pi){
+      var n=cur.nums&&cur.nums[pi]; if(!n){ row.prizes.push(null); return; }
+      n=String(n).padStart(4,'0');
+      var matched=0; for(var p=0;p<4;p++){ if(ab.sets[p].has(n[p])) matched++; }
+      var s=stat[pi]; s.pairs++; s.matchedSum+=matched; s.baseSum+=baseFull;
+      if(matched===4){ s.full++; if(!fullHits[n]) fullHits[n]={dates:[]}; fullHits[n].dates.push(cur.date+'·'+prizeName[pi]); if(pi===0){ if(histFirstDate[n] && histFirstDate[n]<cur.date) hitOld++; else hitNew++; } } else if(matched===3) s.near++;
+      row.prizes.push({num:n, matched:matched});
+    });
+    detail.push(row);
+  }
+  var html='<div class="card"><h3>🔬 缺席命中回测 — '+mk+'（'+detail.length+' 期滑动 · '+recs[recs.length-1].date+' ~ '+recs[0].date+'）</h3>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">规则：用<b>上一期头二三</b>算每位缺席数字 → 看<b>下一期</b>的头/二/三，数「四位中有几位落在上期缺席里」。<b>四位全中=命中</b>，3位=差一位。</div>';
+  html+='<div class="ot"><table style="width:100%;font-size:13px"><tr><th style="text-align:left;padding:4px 8px">奖项</th><th>回测期数</th><th>全中(4/4)</th><th>差一位(3/4)</th><th>平均命中位数</th><th>随机基准全中率</th></tr>';
+  [0,1,2].forEach(function(pi){
+    var s=stat[pi]; if(!s.pairs) return;
+    var fullPct=(s.full/s.pairs*100), basePct=(s.baseSum/s.pairs*100), avg=(s.matchedSum/s.pairs);
+    var col=fullPct>basePct+3?'#16a34a':(fullPct<basePct-3?'#dc2626':'#64748b');
+    html+='<tr><td style="text-align:left;font-weight:700;padding:4px 8px">'+prizeName[pi]+'</td><td style="text-align:center">'+s.pairs+'</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+col+'">'+s.full+' ('+fullPct.toFixed(1)+'%)</td>';
+    html+='<td style="text-align:center">'+s.near+'</td><td style="text-align:center">'+avg.toFixed(2)+' / 4</td>';
+    html+='<td style="text-align:center;color:#94a3b8">'+basePct.toFixed(1)+'%</td></tr>';
+  });
+  html+='</table></div>';
+  var h0=stat[0];
+  if(h0.pairs){
+    var f=h0.full/h0.pairs*100, b=h0.baseSum/h0.pairs*100;
+    var verdict=f>b+3?'略高于随机基准（样本有限，勿过度解读）':(f<b-3?'低于随机基准':'与随机基准基本一致 —— 说明「缺席法」≈ 随机，不具预测力');
+    html+='<div class="warn" style="margin-top:8px">📊 头奖全中率 <b>'+f.toFixed(1)+'%</b> vs 随机基准 <b>'+b.toFixed(1)+'%</b> → '+verdict+'。⚠️ 彩票随机，本回测仅供参考，不构成预测。</div>';
+  }
+  if(comboPairs){
+    var avgN=Math.round(comboSum/comboPairs), avgHist=Math.round(histSpaceSum/comboPairs);
+    var histPct=avgN?(avgHist/avgN*100).toFixed(1):'0';
+    var hr=stat[0].pairs?(stat[0].full/stat[0].pairs*100):0;
+    html+='<div class="card" style="background:#fefce8;border:2px solid #fde047;margin-top:10px"><h3>🧮 缺席组合规模 × 历史覆盖（性价比）</h3>';
+    html+='<div class="g3">';
+    html+='<div class="sc"><div class="val" style="color:#b45309">~'+avgN.toLocaleString()+'</div><div class="lbl">平均每期缺席组合数</div></div>';
+    html+='<div class="sc"><div class="val" style="color:#16a34a">~'+avgHist.toLocaleString()+'</div><div class="lbl">其中历史开过的组数（'+histPct+'%）</div></div>';
+    html+='<div class="sc"><div class="val" style="color:#dc2626">'+hr.toFixed(1)+'%</div><div class="lbl">头奖落在缺席空间（全中率）</div></div>';
+    html+='</div>';
+    html+='<div class="warn" style="margin-top:6px">读法：平均每期缺席数字能组成约 <b>'+avgN.toLocaleString()+'</b> 组号码——要「全买」这么多才保证覆盖当期的全中号；其中约 <b>'+avgHist.toLocaleString()+'</b> 组（'+histPct+'%）是历史上真开过的号码。而头奖真落在这一大堆里的概率只有 <b>'+hr.toFixed(1)+'%</b>（≈随机）。⚠️ 买 '+avgN.toLocaleString()+' 组 catch 1 组，性价比极低，仅数据参考。</div>';
+    var hf=stat[0].full;
+    html+='<div style="margin-top:6px;font-size:12px;color:#334155;background:#fff;border-radius:6px;padding:8px">🎯 <b>头奖全中 '+hf+' 次</b>里：<b style="color:#dc2626">'+hitOld+'</b> 次命中号是「以前就开过的老号」（只买「历史开过」那批子集也能catch）· <b style="color:#16a34a">'+hitNew+'</b> 次是「首次出现的新号」（只买历史子集会漏掉）。'+(hf?('<br>→ 若只买历史开过的子集，能 catch <b>'+(hitOld/hf*100).toFixed(0)+'%</b> 的头奖全中，且候选从 ~'+avgN.toLocaleString()+' 组缩到 ~'+avgHist.toLocaleString()+' 组。'):'')+'</div>';
+    html+='</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（数字后括号=命中位数，✅=四位全中，差1=3位）</div>';
+  html+='<div class="ot" style="max-height:360px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期日期</th><th>头奖</th><th>二奖</th><th>三奖</th><th>缺席组合数</th><th>历史开过</th></tr>';
+  detail.slice(0,30).forEach(function(r){
+    html+='<tr><td style="white-space:nowrap">'+r.date+'</td>';
+    r.prizes.forEach(function(p){
+      if(!p){ html+='<td>—</td>'; return; }
+      var c=p.matched===4?'#16a34a':p.matched===3?'#d97706':'#94a3b8';
+      var tag=p.matched===4?' ✅':p.matched===3?' 差1':'';
+      html+='<td style="text-align:center;font-family:monospace"><b style="color:'+c+'">'+p.num+'</b> ('+p.matched+')'+tag+'</td>';
+    });
+    html+='<td style="text-align:center;color:#b45309;font-weight:700">'+(r.comboN!=null?r.comboN.toLocaleString():'—')+'</td>';
+    html+='<td style="text-align:center;color:#16a34a">'+(r.inHist!=null?r.inHist:'—')+'</td>';
+    html+='</tr>';
+  });
+  html+='</table></div></div>';
+  // 🎯 全中号码 × 历史开出对比：这些"命中缺席"的号码，历史上一共开过几次
+  var fhNums=Object.keys(fullHits);
+  if(fhNums.length){
+    var allRecs=(typeof DB!=='undefined'&&DB[mk])||[];
+    var histOf=function(num){ var c=0,ds=[]; allRecs.forEach(function(r){ for(var i=0;i<3;i++){ if(r.nums&&String(r.nums[i]).padStart(4,'0')===num){ c++; ds.push(r.date); } } }); return {count:c,dates:ds}; };
+    var rows2=fhNums.map(function(num){ var h=histOf(num); return {num:num, hitDates:fullHits[num].dates, histCount:h.count, histDates:h.dates}; });
+    rows2.sort(function(a,b){ return b.histCount-a.histCount; });
+    html+='<div class="card" style="margin-top:10px"><h3>🎯 全中号码 × 历史开出对比（共 '+fhNums.length+' 个不同号码曾全中）</h3>';
+    html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">这些「命中缺席」的号码，在 '+mk+' 整个历史(头/二/三)里一共开过几次。<b style="color:#dc2626">≥3次</b>=常客号；<b style="color:#16a34a">1次</b>=只这次开过(新面孔)。</div>';
+    html+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>号码</th><th>命中(缺席)于</th><th>历史总开出</th><th>历史开出日期</th></tr>';
+    rows2.forEach(function(r){
+      var col=r.histCount>=3?'#dc2626':r.histCount===2?'#d97706':'#16a34a';
+      html+='<tr><td style="text-align:center;font-family:monospace;font-weight:800;font-size:14px">'+r.num+'</td>';
+      html+='<td style="font-size:11px;color:#7c3aed">'+r.hitDates.join('、')+'</td>';
+      html+='<td style="text-align:center;font-weight:800;color:'+col+'">'+r.histCount+' 次</td>';
+      html+='<td style="font-size:11px;color:#64748b">'+r.histDates.slice(0,10).join(' ')+(r.histDates.length>10?' …':'')+'</td></tr>';
+    });
+    html+='</table></div></div>';
+  }
+  out.innerHTML=html;
+}
+// 前2D数根回测：上期头二三前2D数根→数根组(147/258/369)+顺序组(123/456/789)预测组；看下期前2D数根是否落在里面
+function zo2DRootBacktest(){
+  var out=document.getElementById('abs-out');
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('abs-periods')||{value:'10'}).value,10)||10;
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var recs=merged.slice(0, N+1);
+  if(recs.length<2){ out.innerHTML='<div class="warn">该市场历史不足，无法回测。</div>'; return; }
+  function dr(n){ n=Math.abs(n); while(n>=10){ var s=0; String(n).split('').forEach(function(c){s+=+c;}); n=s; } return n; }
+  function f2root(num){ var s=String(num).padStart(4,'0'); return dr((+s[0])+(+s[1])); }
+  function g147(r){ return (r===1||r===4||r===7)?'147':(r===2||r===5||r===8)?'258':(r===3||r===6||r===9)?'369':'—'; }
+  function gSeq(r){ return (r>=1&&r<=3)?'123':(r>=4&&r<=6)?'456':(r>=7&&r<=9)?'789':'—'; }
+  var prizeName=['头奖','二奖','三奖'];
+  var stat=[0,1,2].map(function(){return {pairs:0, g1hit:0, g2hit:0, base1:0, base2:0};});
+  var detail=[];
+  for(var i=0;i<recs.length-1;i++){
+    var prev=recs[i+1], cur=recs[i];
+    var S1=new Set(), S2=new Set();
+    [0,1,2].forEach(function(pi){ var n=prev.nums&&prev.nums[pi]; if(n){ var r=f2root(n); var a=g147(r); if(a!=='—')S1.add(a); var b=gSeq(r); if(b!=='—')S2.add(b); } });
+    var base1=S1.size/3, base2=S2.size/3;
+    var row={date:cur.date, S1:Array.from(S1).join('·'), S2:Array.from(S2).join('·'), prizes:[]};
+    [0,1,2].forEach(function(pi){ var n=cur.nums&&cur.nums[pi]; if(!n){ row.prizes.push(null); return; }
+      var r=f2root(n); var a=g147(r), b=gSeq(r); var h1=S1.has(a), h2=S2.has(b);
+      var s=stat[pi]; s.pairs++; if(h1)s.g1hit++; if(h2)s.g2hit++; s.base1+=base1; s.base2+=base2;
+      row.prizes.push({num:String(n).padStart(4,'0'), r:r, h1:h1, h2:h2});
+    });
+    detail.push(row);
+  }
+  var html='<div class="card"><h3>🎲 前2D数根回测 — '+mk+'（'+detail.length+' 期滑动）</h3>';
+  html+='<div style="font-size:12px;color:#475569;margin-bottom:8px">规则：用<b>上一期头/二/三的前2D数根</b>各归入「数根组(147/258/369)」和「顺序组(123/456/789)」→ 得两套预测组。看<b>下一期</b>头/二/三的前2D数根是否落在预测组里。</div>';
+  html+='<div class="ot"><table style="width:100%;font-size:13px"><tr><th style="text-align:left;padding:4px 8px">奖项</th><th>期数</th><th>数根组命中率</th><th>随机基准</th><th>顺序组命中率</th><th>随机基准</th></tr>';
+  [0,1,2].forEach(function(pi){ var s=stat[pi]; if(!s.pairs)return;
+    var g1=(s.g1hit/s.pairs*100), b1=(s.base1/s.pairs*100), g2=(s.g2hit/s.pairs*100), b2=(s.base2/s.pairs*100);
+    var c1=g1>b1+3?'#16a34a':g1<b1-3?'#dc2626':'#64748b', c2=g2>b2+3?'#16a34a':g2<b2-3?'#dc2626':'#64748b';
+    html+='<tr><td style="text-align:left;font-weight:700;padding:4px 8px">'+prizeName[pi]+'</td><td style="text-align:center">'+s.pairs+'</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+c1+'">'+g1.toFixed(1)+'%</td><td style="text-align:center;color:#94a3b8">'+b1.toFixed(1)+'%</td>';
+    html+='<td style="text-align:center;font-weight:800;color:'+c2+'">'+g2.toFixed(1)+'%</td><td style="text-align:center;color:#94a3b8">'+b2.toFixed(1)+'%</td></tr>';
+  });
+  html+='</table></div>';
+  var h=stat[0];
+  if(h.pairs){ var g1=h.g1hit/h.pairs*100, b1=h.base1/h.pairs*100;
+    var v=g1>b1+3?'略高于随机基准（样本有限，勿过度解读）':(g1<b1-3?'低于随机基准':'与随机基准基本一致 → 前2D数根组法 ≈ 随机，不比缺席法更有优势');
+    html+='<div class="warn" style="margin-top:8px">📊 头奖「数根组」命中率 <b>'+g1.toFixed(1)+'%</b> vs 随机基准 <b>'+b1.toFixed(1)+'%</b> → '+v+'。<br>⚠️ 这里是「前2D数根落在组里」（较宽松，命中率天然高），跟缺席法「4位全中」不是同一粒度，别直接比数字大小——各自跟自己的随机基准比才对。彩票随机，仅参考。</div>';
+  }
+  html+='<div style="margin-top:8px;font-size:12px;font-weight:700;color:#1e3a5f">最近明细（上期预测组 → 本期各奖前2D数根，✓根组/✓序=命中对应系统）</div>';
+  html+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px"><tr><th>本期</th><th>上期数根组</th><th>上期顺序组</th><th>头奖</th><th>二奖</th><th>三奖</th></tr>';
+  detail.slice(0,30).forEach(function(r){
+    html+='<tr><td style="white-space:nowrap">'+r.date+'</td><td style="color:#7c3aed;font-weight:700">'+r.S1+'</td><td style="color:#0891b2;font-weight:700">'+r.S2+'</td>';
+    r.prizes.forEach(function(p){ if(!p){html+='<td>—</td>';return;}
+      html+='<td style="text-align:center;font-family:monospace">'+p.num+' <span style="color:#64748b">根'+p.r+'</span> '+(p.h1?'<span style="color:#16a34a">✓根组</span>':'')+(p.h2?'<span style="color:#0891b2">✓序</span>':'')+((!p.h1&&!p.h2)?'<span style="color:#cbd5e1">✗</span>':'')+'</td>';
+    });
+    html+='</tr>';
+  });
+  html+='</table></div></div>';
+  out.innerHTML=html;
+}
+</script>
+
 <!-- TAB: 号码排列 (1-9-0) -->
 <div id="tab-numsort" class="panel">
 <div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#0f766e 100%);color:#fff;margin-bottom:8px">
@@ -7933,9 +8305,18 @@ function doBacktest(){
     </div>
     <div class="ig" id="lh-view-wrap" style="display:none"><label>查看方式</label>
       <select id="lh-view">
+        <option value="aggregate">合并统计（含缺席罗汉）</option>
         <option value="compare">多期对比表</option>
-        <option value="aggregate">合并统计</option>
       </select>
+    </div>
+    <div class="ig" id="lh-prize-scope"><label>奖项范围（多期对比用 · 特/安仅近期有）</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:13px;padding-top:4px">
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-0" checked>头</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-1" checked>二</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-2" checked>三</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-sp" checked>特</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="lh-pz-cs" checked>安</label>
+      </div>
     </div>
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doLuohan()">🔍 分析</button>
@@ -7955,7 +8336,7 @@ function doBacktest(){
   <div class="warn" style="margin-top:10px">
     <b>十八罗汉规则</b>：4位号码的4个数字中任选3个（共4种组合），将选出的3位数字排序后，与18组罗汉号码比对。<br>
     同一罗汉对每个号码只计算一次命中。数据来源选「最新一期」会自动读取含特别奖/安慰奖的完整23个号码。<br>
-    <b>多期对比</b>仅含头二三奖（历史数据不含特别/安慰奖）。
+    <b>多期对比</b>可用上方「<b>奖项范围</b>」勾选 头/二/三/特/安（特、安仅最近有数据的期数才有）。选「<b>合并统计</b>」→ 顶部直接列出 <b>🕳️ 缺席罗汉</b>（本范围内 0 次出现的罗汉），方便找缺席。
   </div>
 </div>
 <div id="lh-out"></div>
@@ -10651,6 +11032,9 @@ function zoCopyText(){
   const ad = zoAdCfg();
   if(ad.t) txt += '\n\n💎 ' + ad.t;
   if(ad.c) txt += '\n📲 ' + ad.c;
+  // Phase2: 三路收尾（public 中性化+拦截 / member 拦硬词 / legacy 原样）
+  txt = zoPublicCopyGate(txt, zoLang());
+  if(txt === null) return;
   const btn = document.getElementById('zo-copy-btn');
   const done = () => { btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制月报文字'; }, 1500); };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -11111,10 +11495,14 @@ async function zoDownloadPNG(){
   if(L.mode==='season'){
     zoDownloadPNGClassic(); return;
   }
-  // 2x 超采样：FB 压缩后文字仍清晰
-  const cv=document.createElement('canvas'); cv.width=2160; cv.height=2700;
-  const ctx=cv.getContext('2d'); ctx.scale(2,2);
-  zoDrawChartK(ctx,L,S,null,posterImg);
+  // Phase2: public=中性化文字 + 精确 1080×1350 + 广告安检；member/legacy=原样 2x 超采样
+  const isPublic = zoOutputMode()==='public';
+  if(!zoPublicAdGateForImage()) return;
+  const drawS = isPublic ? zoPublicWrapStr(S, zoLang()) : S;
+  const SC = isPublic ? 1 : 2;   // public 精确 1080×1350；legacy/member 2x 高清
+  const cv=document.createElement('canvas'); cv.width=1080*SC; cv.height=1350*SC;
+  const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  zoDrawChartK(ctx,L,drawS,null,posterImg);
   cv.toBlob(function(b){
     zoSaveBlob(b,zoFileNameK(L,'png'));
     const btn=document.getElementById('zo-png-btn');
@@ -11292,11 +11680,35 @@ async function zoDownloadVideo(){
   const posterImg = await zoLoadPosterSprite();
   const L=ZO_LAST, S=ZO_STR[zoLang()];
   if(L.mode==='season'){ alert('视频导出仅支持月份模式'); return; }
-  // 1.5x 超采样：FB 再压缩后号码仍可读
-  const cv=document.createElement('canvas'); cv.width=1620; cv.height=zoEven(2025);
-  const ctx=cv.getContext('2d'); ctx.scale(1.5,1.5);
-  zoRecVideo(cv, function(t){ zoDrawChartK(ctx,L,S,t,posterImg); },
-    zoFileNameK(L,'png').replace(/\.png$/,''),
+  // Phase2: public=中性化文字 + 广告安检 + 禁 fire 配乐 + 尺寸(story 9:16 / feed 4:5)；member/legacy=原样 1.5x
+  const isPublic = zoOutputMode()==='public';
+  if(!zoPublicAdGateForImage()) return;
+  zoPublicSyncBgm();   // 确保 public 下 fire→mystery（两种尺寸都生效）
+  const drawS = isPublic ? zoPublicWrapStr(S, zoLang()) : S;
+  const ratio = (document.getElementById('zo-vid-ratio')||{value:'story'}).value;
+  let cv, ctx, drawFrame, tag='';
+  if(isPublic && ratio==='story'){
+    // 9:16 竖屏：1080×1920，把 1080×1350 图表垂直居中，上下深色留白（不拉伸变形）
+    cv=document.createElement('canvas'); cv.width=1080; cv.height=1920;
+    ctx=cv.getContext('2d');
+    const offY=Math.round((1920-1350)/2);   // 285
+    drawFrame=function(t){
+      const bg=ctx.createLinearGradient(0,0,0,1920);
+      bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
+      ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1920);
+      ctx.save(); ctx.translate(0,offY); zoDrawChartK(ctx,L,drawS,t,posterImg); ctx.restore();
+    };
+    tag='_story';
+  } else {
+    // feed 4:5：public 精确 1080×1350（SC=1）；member/legacy 1.5x 高清
+    const SC = isPublic ? 1 : 1.5;
+    cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1350*SC);
+    ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+    drawFrame=function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); };
+    if(isPublic) tag='_feed';
+  }
+  zoRecVideo(cv, drawFrame,
+    zoFileNameK(L,'png').replace(/\.png$/,'')+tag,
     document.getElementById('zo-vid-btn'), '🎬 下载视频', zoBgmFromSel('zo-bgm-sel'));
 }
 // Season 模式保留旧版绘图
@@ -11547,6 +11959,7 @@ function zoMemConfStars(c, refYear, demoted, alreadyHit){
 }
 // 生成多家公司的会员名单（主入口）
 function zoMemberGenAll(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员内容
   const MK = ['万能','跑马','多多','新加坡','豪龙'];
   const sel = MK.filter(m => { const el = document.getElementById('zo-mem-mk-'+m); return el && el.checked; });
   const out = document.getElementById('zo-member-result');
@@ -11763,6 +12176,7 @@ function zoMemGlossCopy(lang, btn){
 }
 // V67-④: 复制话术 = 全部已生成公司（多家一次发给会员）
 function zoMemberCopy(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不复制会员报告
   if(!ZO_MEM) return;
   const list = (ZO_MEM_ALL && ZO_MEM_ALL.length) ? ZO_MEM_ALL : [ZO_MEM];
   const all = list.map(function(M){ return zoMemberCopyOne(M); }).join('\n\n──────────\n\n');
@@ -11917,6 +12331,7 @@ function zoMemFileBase(M){
 }
 function zoMemLang(){ return (document.getElementById('zo-mem-lang') || {value:'zh'}).value; }
 async function zoMemberPNG(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员图
   if(!ZO_MEM) return;
   await zoLoadAnimalSprite();
   const M = ZO_MEM, lang = zoMemLang();
@@ -11933,6 +12348,7 @@ async function zoMemberPNG(){
 }
 // 会员版动画视频（带配乐，发付费群）
 async function zoMemberVideo(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员视频
   if(!ZO_MEM) return;
   await zoLoadAnimalSprite();
   const M = ZO_MEM, lang = zoMemLang();
@@ -11943,6 +12359,84 @@ async function zoMemberVideo(){
   zoRecVideo(cv, function(t){ zoDrawMemberK(ctx, M, t, lang); },
     zoMemFileBase(M) + '_' + lang,
     document.getElementById('zo-mem-vid'), '🎬 下载会员视频', zoBgmFromSel('zo-bgm-sel-mem'));
+}
+
+// ===== 会员命中回顾（拿会员推荐名单对照实际开奖，复用现成渲染器）=====
+// 命中判定：推荐号码的全排列组(seaPermKey)命中实际开奖号 → 调字命中天然适用
+function zoMemHitSpec(){
+  const t=(document.getElementById('zo-memhit-period')||{value:'month'}).value;
+  if(t==='date') return {type:'date', date:(document.getElementById('zo-memhit-date')||{}).value};
+  if(t==='latest') return {type:'latest'};
+  return {type:'month'};
+}
+function zoMemHitStyle(){ return (document.getElementById('zo-memhit-style')||{value:'A'}).value; }
+function zoMemHitDraws(market, spec){
+  const recs = DB[market]||[];
+  if(spec.type==='latest') return recs[0]?[recs[0]]:[];
+  if(spec.type==='date') return recs.filter(r=>r.date===spec.date);
+  const ym = (ZO_MEM? ZO_MEM.refYear+'-'+String(ZO_MEM.month).padStart(2,'0') : '');
+  return recs.filter(r=>r.date && r.date.startsWith(ym) && !r.date.endsWith('-00'));
+}
+function zoMemHitExtract(spec){
+  if(!ZO_MEM) return null;
+  const M = ZO_MEM;
+  const draws = zoMemHitDraws(M.market, spec);
+  const hitMap = {};   // permKey -> {date, drawn, prizeIdx}（保留最高奖位）
+  draws.forEach(r=>{ (r.nums||[]).forEach((n,pi)=>{ if(n==null||n==='')return; const k=seaPermKey(n);
+    if(!hitMap[k] || pi < hitMap[k].prizeIdx) hitMap[k]={date:r.date, drawn:pz(n), prizeIdx:pi}; }); });
+  // 收集会员推荐号（主打 + 各打数组），按号码去重
+  const cands=[], seen={};
+  const push=c=>{ if(!c||!c.num||seen[c.num])return; seen[c.num]=1; cands.push(c); };
+  push(M.star); (M.selDa||[]).forEach(da=>(M.groups[da]||[]).forEach(push));
+  const hits=[];
+  cands.forEach(c=>{ const h=hitMap[seaPermKey(c.num)]; if(h){
+    hits.push({date:h.date, prizeIdx:h.prizeIdx, num:h.drawn, zi:c.zi, recNum:c.num, tags:[], twisted:(h.drawn!==c.num), da:zoDaCount(c.num)}); }});
+  if(!hits.length) return {none:true, market:M.market};
+  hits.sort((a,b)=> a.prizeIdx-b.prizeIdx || (a.twisted?1:0)-(b.twisted?1:0));
+  return {market:M.market, year:M.refYear, month:M.month, hero:hits[0], others:hits.slice(1), total:hits.length};
+}
+function zoMemHitFileBase(HIT){ return 'memhit_'+HIT.year+'-'+String(HIT.month).padStart(2,'0')+'_'+((ZO_MKT_EN[HIT.market]||HIT.market).replace(/\s+/g,'')); }
+function zoMemHitGuard(){
+  if(zoMemberPublicBlocked()) return null;          // public 拦截（会员交付内容）
+  if(!ZO_MEM){ alert('请先「生成会员版名单」，再做命中回顾。'); return null; }
+  const HIT = zoMemHitExtract(zoMemHitSpec());
+  if(!HIT || HIT.none){ alert('所选对照期里，会员名单没有命中记录。换个对照期试试。'); return null; }
+  return HIT;
+}
+function zoMemHitPNG(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const style = zoMemHitStyle();
+  try{
+    const cv=document.createElement('canvas');
+    if(style==='B'){ cv.width=1080; cv.height=zoHitH(HIT); zoDrawHitLegacy(cv.getContext('2d'),HIT,null,'zh'); }
+    else { cv.width=1080; cv.height=1350; zoDrawPublicReview(cv.getContext('2d'),HIT,'zh'); }
+    cv.toBlob(function(b){ zoSaveBlob(b, zoMemHitFileBase(HIT)+'_'+style+'.png');
+      const btn=document.getElementById('zo-memhit-png'); if(btn){ btn.textContent='✅ 已下载'; setTimeout(()=>btn.textContent='📊 命中回顾图',1500);} });
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+function zoMemHitVideo(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const style = zoMemHitStyle();
+  try{
+    let cv, ctx, draw, dur;
+    if(style==='B'){ dur=8; cv=document.createElement('canvas'); cv.width=zoEven(1080); cv.height=zoEven(zoHitH(HIT)); ctx=cv.getContext('2d'); draw=function(t){ zoDrawHitLegacy(ctx,HIT,t,'zh',dur); }; }
+    else { dur=10; cv=document.createElement('canvas'); cv.width=1080; cv.height=1920; ctx=cv.getContext('2d'); draw=function(t){ zoDrawPublicStory(ctx,HIT,t,'zh',dur); }; }
+    zoRecVideo(cv, draw, zoMemHitFileBase(HIT)+'_'+style,
+      document.getElementById('zo-memhit-vid'), '🎬 命中回顾视频', zoBgmFromSel('zo-bgm-sel-mem'), dur*1000);
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+function zoMemHitCopy(){
+  const HIT = zoMemHitGuard(); if(!HIT) return;
+  const zn = ZO_STR.zh.zodiacNames;
+  const line = h => '🎯 推荐 '+h.recNum+' → 开出 '+h.num+' · '+['头奖','二奖','三奖'][h.prizeIdx]+' · '+zn[h.zi]+' '+h.da+'打 · '+(h.twisted?'调字命中':'原号命中')+'（'+h.date+'）\n';
+  let t = '📊 '+HIT.market+' '+HIT.year+'年'+HIT.month+'月 会员命中回顾\n\n';
+  t += line(HIT.hero); HIT.others.forEach(h=>{ t+=line(h); });
+  t += '\n🏆 本期对照共命中 '+HIT.total+' 项\n⚠️ 历史统计整理，不构成预测 · 会员专享，请勿外传';
+  const bad = zoPublicHardWord(t); if(bad){ alert('含高风险词：「'+bad+'」，请检查。'); return; }
+  const btn=document.getElementById('zo-memhit-copy');
+  const done=()=>{ if(btn){ const o=btn.textContent; btn.textContent='✅ 已复制'; setTimeout(()=>btn.textContent=o,1200);} };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>{zoCopyFallback(t);done();}); }
+  else { zoCopyFallback(t); done(); }
 }
 
 // ===== V63: 6打/4打 号码出现频率总表（全部45组6打 + 90组4打，不按月份过滤） =====
@@ -12022,6 +12516,7 @@ function zoFreqCopy(){
   txt += '\n【4打 最久未开 TOP8】\n';
   rows4.forEach((r,i) => { txt += (i+1) + '. ' + zoFreqLine(r) + '\n'; });
   txt += '\n⚠️ 纯历史统计，不构成预测，「超期」不代表「快要开」。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-freq-copy');
   const done = () => { if(btn){ btn.textContent = '✅ 已复制'; setTimeout(() => { btn.textContent = '📋 复制重点提示'; }, 1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){
@@ -12035,6 +12530,7 @@ const ZO_RV_TAG = {top1:'🥇最强位', top2:'🥈次强位', star:'🔥主打�
 const ZO_RV_PRIZE = ['头奖','二奖','三奖'];
 // ===== 会员版命中回测：各打数 Top N 历史命中率 =====
 function zoMemberBacktest(){
+  if(zoMemberPublicBlocked()) return;   // public 模式不生成会员历史回测报告
   const out = document.getElementById('zo-review-result');
   out.innerHTML = '<div class="warn">会员版回测运行中（近3年，5市场）…</div>';
   setTimeout(function(){
@@ -12533,10 +13029,73 @@ function zoRohanAddToPool(gid){
   try{ cpRender(); }catch(e){}
   try{ showToast('✅ 已加入 ' + added + ' 个罗汉结构到候选清单（' + R.market + '）'); }catch(e){ alert('已加入 ' + added + ' 个'); }
 }
+// Phase2: 罗汉 public 分页海报 — 固定 1080×1350，每页≤4组，少于4组垂直居中，超过自动分页
+function zoRohanPublicPNG(R){
+  if(!zoPublicAdGateForImage()) return;
+  const W=1080, H=1350, pad=56, iW=W-2*pad;
+  // 罗汉专属中性化（叠加在通用 zoPublicSafe 之上，仅 public）
+  const ROHAN_MAP=[['18罗汉月度锦囊','18罗汉月度数据报告'],['本月已中','本月历史出现'],['月底公开复盘','月末数据复核'],['热组','高集中组'],['候选','数据筛选结果'],['x 热','x 集中度']];
+  const P=s=>{ let r=zoPublicSafe(String(s==null?'':s),'zh'); ROHAN_MAP.forEach(function(m){ r=r.split(m[0]).join(m[1]); }); return r; };
+  const mkAscii=(ZO_MKT_EN[R.market]||R.market).replace(/\s+/g,'');
+  const groups=R.groups||[];
+  const pages=[]; for(let i=0;i<groups.length;i+=4) pages.push(groups.slice(i,i+4));
+  if(!pages.length) pages.push([]);
+  const total=pages.length;
+  pages.forEach(function(pageGroups, pi){
+    const cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    const ctx=cv.getContext('2d');
+    const bg=ctx.createLinearGradient(0,0,0,H);
+    bg.addColorStop(0,'#0d0620'); bg.addColorStop(.5,'#1e1040'); bg.addColorStop(1,'#0d0620');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    zoRR(ctx,6,6,W-12,H-12,20); ctx.strokeStyle='#a78bfa'; ctx.lineWidth=3; ctx.stroke();
+    // 页头：品牌 + 数据报告标题 + 月份·市场
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const tg=ctx.createLinearGradient(W/2-280,0,W/2+280,0);
+    tg.addColorStop(0,'#f59e0b'); tg.addColorStop(.5,'#fde047'); tg.addColorStop(1,'#f59e0b');
+    ctx.fillStyle=tg; ctx.font='900 46px '+ZO_FONT; ctx.fillText('WIN 4D WITH M3', W/2, 66);
+    ctx.fillStyle='#e9d5ff'; ctx.font='800 28px '+ZO_FONT; ctx.fillText(P('🔱 18罗汉月度锦囊'), W/2, 112);
+    ctx.fillStyle='#c4b5fd'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(R.month+'月 · '+R.market+' '+((ZO_MKT_EN[R.market]||'').toUpperCase()), W/2, 146);
+    // 内容区（少于4组垂直居中）
+    const top=190, bottom=H-150, gh=176, gap=20, n=pageGroups.length;
+    const blockH = n>0 ? n*gh+(n-1)*gap : 0;
+    let y = top + Math.max(0,(bottom-top-blockH)/2);
+    pageGroups.forEach(function(gr){
+      zoRR(ctx,pad,y,iW,gh,14);
+      const gg=ctx.createLinearGradient(0,y,0,y+gh);
+      gg.addColorStop(0,'rgba(76,29,149,.55)'); gg.addColorStop(1,'rgba(49,20,110,.35)');
+      ctx.fillStyle=gg; ctx.fill(); ctx.strokeStyle='#7c3aed'; ctx.lineWidth=2; ctx.stroke();
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillStyle='#e9d5ff'; ctx.font='900 26px '+ZO_FONT; ctx.fillText(P(gr.name), pad+22, y+40);
+      ctx.fillStyle='#fbbf24'; ctx.font='900 19px '+ZO_FONT; ctx.fillText(P(gr.bias.toFixed(1)+'x 热'), pad+200, y+40);
+      ctx.fillStyle='#a78bfa'; ctx.font='700 18px '+ZO_MONO; ctx.fillText((gr.patterns||[]).join(' '), pad+340, y+40);
+      ctx.textAlign='right'; ctx.fillStyle='#c4b5fd'; ctx.font='700 16px '+ZO_FONT;
+      ctx.fillText(P('本月已中 '+gr.gMonthHits+' 次 · 共振 '+gr.resoHot+'/5'), W-pad-18, y+40);
+      ctx.textAlign='left';
+      ctx.fillStyle='#fde047'; ctx.font='900 40px '+ZO_MONO;
+      ctx.fillText((gr.cands||[]).slice(0,5).map(function(c){return c.num;}).join('  '), pad+22, y+100);
+      ctx.fillStyle='#8b7bb8'; ctx.font='600 14px '+ZO_FONT;
+      ctx.fillText(P('调字组 · 生肖分/冷度排序 · 打数 '+(gr.cands||[]).slice(0,5).map(function(c){return c.da;}).join('/')), pad+22, y+142);
+      y += gh+gap;
+    });
+    // 页脚：数据来源 + 免责 + 页码 + 复盘标记（每页都有）
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle='#c4b5fd'; ctx.font='800 17px '+ZO_FONT;
+    ctx.fillText(P('📊 基于 '+R.draws+' 期历史 · '+R.curYear+'年'+R.month+'月锦囊 · 月底公开复盘'), W/2, H-108);
+    ctx.fillStyle='#94a3b8'; ctx.font='600 15px '+ZO_FONT;
+    ctx.fillText('⚠️ 彩票随机 · 历史统计整理 · 不构成预测', W/2, H-74);
+    if(total>1){ ctx.fillStyle='#a78bfa'; ctx.font='700 15px '+ZO_FONT; ctx.fillText('第 '+(pi+1)+' / '+total+' 页', W/2, H-46); }
+    ctx.fillStyle='#64748b'; ctx.font='600 12px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-24);
+    cv.toBlob(function(b){ if(b) zoSaveBlob(b, 'rohan_'+R.curYear+'-'+String(R.month).padStart(2,'0')+'_'+mkAscii+'_p'+(pi+1)+'.png'); });
+  });
+}
 // 罗汉月度锦囊海报（发FB/会员群）
 function zoRohanPNG(){
   const R = ZO_ROHAN_LAST;
   if(!R || !R.groups || !R.groups.length){ alert('请先跑一次「🔱 18罗汉月份分析」'); return; }
+  // Phase2: public 走固定 1080×1350 分页版；member/legacy 保留原动态高度 2x
+  if(zoOutputMode()==='public'){ return zoRohanPublicPNG(R); }
+  const isPublic = false;
+  const P = s => s;
   const SC = 2, W = 1080, pad = 36, iW = W-2*pad, gh = 112;
   const H = 30 + 104 + R.groups.length*(gh+12) + 78 + 26;
   const cv = document.createElement('canvas'); cv.width = W*SC; cv.height = H*SC;
@@ -12560,7 +13119,7 @@ function zoRohanPNG(){
     ctx.fillStyle=gg; ctx.fill(); ctx.strokeStyle='#7c3aed'; ctx.lineWidth=2; ctx.stroke();
     ctx.textAlign='left'; ctx.textBaseline='middle';
     ctx.fillStyle='#e9d5ff'; ctx.font='900 22px '+ZO_FONT;
-    ctx.fillText(gr.name, pad+18, y+26);
+    ctx.fillText(P(gr.name), pad+18, y+26);
     ctx.fillStyle='#fbbf24'; ctx.font='900 17px '+ZO_FONT;
     ctx.fillText(gr.bias.toFixed(1)+'x 热', pad+152, y+26);
     ctx.fillStyle='#a78bfa'; ctx.font='700 16px '+ZO_MONO;
@@ -12965,7 +13524,7 @@ function zoDrawNumAnim(ctx, numStr, cx, cy, targetH, cho){
     x += slotW[i] + gap;
   }
 }
-function zoDrawHitK(ctx, HIT, t, lang, dur){
+function zoDrawHitLegacy(ctx, HIT, t, lang, dur){
   const W = 1080, pad = 36, iW = W-2*pad, H = zoHitH(HIT);
   const anim = t!=null;
   const hero = HIT.hero;
@@ -13130,29 +13689,29 @@ function zoHitFileBase(HIT){
   const mkAscii = (ZO_MKT_EN[HIT.market]||HIT.market).replace(/\s+/g,'');
   return 'hit_' + HIT.year + '-' + String(HIT.month).padStart(2,'0') + '_' + mkAscii;
 }
-function zoHitPNG(){
+function zoHitLegacyPNG(){
   const HIT = zoExtractHits(); if(!HIT) return;
   const lang = zoHitLang(), SC = 2;
   const cv = document.createElement('canvas'); cv.width=1080*SC; cv.height=zoHitH(HIT)*SC;
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
-  zoDrawHitK(ctx, HIT, null, lang);
+  zoDrawHitLegacy(ctx, HIT, null, lang);
   cv.toBlob(function(b){
     zoSaveBlob(b, zoHitFileBase(HIT)+'_'+lang+'.png');
     const btn=document.getElementById('zo-hit-png');
-    if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='🎉 命中战报图';},1500); }
+    if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='📊 公开复盘图';},1500); }
   });
 }
-function zoHitVideo(){
+function zoHitLegacyVideo(){
   const HIT = zoExtractHits(); if(!HIT) return;
   const lang = zoHitLang(), SC = 1.5;
   const cv = document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(zoHitH(HIT)*SC);
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
   const HITDUR = 8;  // V65: 8秒揭晓（滚号→锁定→爆闪→盖章→定格）
-  zoRecVideo(cv, function(t){ zoDrawHitK(ctx, HIT, t, lang, HITDUR); },
+  zoRecVideo(cv, function(t){ zoDrawHitLegacy(ctx, HIT, t, lang, HITDUR); },
     zoHitFileBase(HIT)+'_'+lang,
-    document.getElementById('zo-hit-vid'), '🎬 命中战报视频', zoBgmFromSel('zo-hit-bgm'), HITDUR*1000);
+    document.getElementById('zo-hit-vid'), '🎬 公开复盘视频', zoBgmFromSel('zo-hit-bgm'), HITDUR*1000);
 }
-function zoHitCopy(lang, btn){
+function zoHitLegacyCopy(lang, btn){
   const HIT = zoExtractHits(); if(!HIT) return;
   const S = ZO_HIT_STR[lang]||ZO_HIT_STR.zh, zn = ZO_STR[lang].zodiacNames;
   let t = S.title+'\n'+S.sub(HIT.month, HIT.market)+'\n\n';
@@ -13169,6 +13728,494 @@ function zoHitCopy(lang, btn){
     navigator.clipboard.writeText(t).then(done).catch(()=>{ zoCopyFallback(t); done(); });
   } else { zoCopyFallback(t); done(); }
 }
+
+// =====================================================================
+// V66 公开输出层重构 — 数据复盘（Facebook / IG / TikTok / YouTube 安全版）
+// 旧「命中战报」已备份为 zoHitLegacy* / zoDrawHitLegacy，未删除、未改判定。
+// zoExtractHits() 与所有算法保持原样。此处只新增「公开输出层」。
+// =====================================================================
+
+// —— [一] 输出模式统一读取 ——
+function zoOutputMode(){
+  const el = document.getElementById('zo-public-output-mode');
+  return el ? el.value : 'public';
+}
+// public 模式禁用「🔥 热血上扬」配乐（选中则切回 mystery）；member/legacy 保留
+function zoPublicSyncBgm(){
+  const isPublic = zoOutputMode()==='public';
+  const ids = (typeof ZO_MUSIC_SELS!=='undefined') ? ZO_MUSIC_SELS : ['zo-hit-bgm','zo-bgm-sel','zo-bgm-sel-mem'];
+  ids.forEach(function(id){
+    const sel = document.getElementById(id);
+    if(!sel) return;
+    const fire = Array.from(sel.options).find(o=>o.value==='fire');
+    if(fire){ fire.disabled = isPublic; fire.hidden = isPublic; }
+    if(isPublic && sel.value==='fire') sel.value='mystery';
+  });
+}
+// —— [会员层] public 模式拦截：会员图片/视频/报告只在 member 模式生成 ——
+const ZO_MEMBER_BLOCK_MSG = '当前为 Facebook 公开复盘模式。\n会员图片、视频及详细报告仅可在「会员数据报告」模式生成。\n公开发布请使用生肖公开海报、生肖公开视频或18罗汉公开海报。';
+function zoMemberPublicBlocked(){
+  if(zoOutputMode()==='public'){ alert(ZO_MEMBER_BLOCK_MSG); return true; }
+  return false;
+}
+// public 模式把会员按钮显示为禁用态（仍可点，点了给提示）；member/legacy 恢复
+const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-vid','zo-mem-backtest','zo-memhit-png','zo-memhit-vid','zo-memhit-copy'];
+function zoMemberBtnSync(){
+  const dim = zoOutputMode()==='public';
+  ZO_MEMBER_BTN_IDS.forEach(function(id){
+    const b = document.getElementById(id);
+    if(!b) return;
+    b.style.opacity = dim ? '0.45' : '';
+    b.style.filter = dim ? 'grayscale(1)' : '';
+    b.title = dim ? '公开模式下不可生成会员内容，请切换到「会员数据报告」模式' : '';
+  });
+}
+
+// —— [三] 公开版三语文案（图片 / 视频 / 复制话术共用同一来源）——
+const ZO_PUBLIC_REVIEW_STR = {
+  zh: {
+    brand:'WIN 4D WITH M3', title:'月度公开复盘', label:'历史记录对应',
+    published:'月初公开记录', official:'官方开奖结果', prize:['头奖','二奖','三奖'],
+    tag:{ top1:'评分第1', top2:'评分第2', star:'数据焦点' },
+    exact:'原序对应', twisted:'排列对应',
+    total:n=>'本月记录对应 '+n+' 项',
+    arrow:(record,result)=>'公开记录 '+record+' → 官方结果 '+result,
+    footer1:'公开记录与开奖结果均可核对',
+    footer2:'彩票结果随机 · 历史数据整理 · 不保证未来结果'
+  },
+  en: {
+    brand:'WIN 4D WITH M3', title:'MONTHLY DATA REVIEW', label:'HISTORICAL MATCH',
+    published:'PUBLISHED RECORD', official:'OFFICIAL RESULT', prize:['1st Prize','2nd Prize','3rd Prize'],
+    tag:{ top1:'Ranked No. 1', top2:'Ranked No. 2', star:'Data Focus' },
+    exact:'Exact-order match', twisted:'Permutation match',
+    total:n=>n+' recorded matches this month',
+    arrow:(record,result)=>'Published record '+record+' → Official result '+result,
+    footer1:'Publication record and official result are verifiable',
+    footer2:'Lottery outcomes are random · Historical data only · No future guarantee'
+  },
+  ms: {
+    brand:'WIN 4D WITH M3', title:'SEMAKAN DATA BULANAN', label:'PADANAN REKOD SEJARAH',
+    published:'REKOD DITERBITKAN', official:'KEPUTUSAN RASMI', prize:['Hadiah 1','Hadiah 2','Hadiah 3'],
+    tag:{ top1:'Kedudukan No. 1', top2:'Kedudukan No. 2', star:'Fokus Data' },
+    exact:'Padanan turutan asal', twisted:'Padanan susunan',
+    total:n=>n+' padanan rekod bulan ini',
+    arrow:(record,result)=>'Rekod diterbitkan '+record+' → Keputusan rasmi '+result,
+    footer1:'Rekod penerbitan dan keputusan rasmi boleh disemak',
+    footer2:'Loteri bersifat rawak · Data sejarah sahaja · Bukan ramalan masa depan'
+  }
+};
+const ZO_PUBLIC_MONTHS_EN = (typeof ZO_MONTHS_EN!=='undefined') ? ZO_MONTHS_EN : ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// —— [四] 公开文案违禁词校验（只用于 public 图片/视频/话术；内部回测「命中率」不受影响）——
+// Phase1 原始清单 + Phase2 扩充（生肖/会员/罗汉公开输出）。词级定位见 zoPublicBadWord。
+const ZO_PUBLIC_BANNED = [
+  // 中文
+  /命中战报|命中！|本月累计命中|月初公开推荐|必中|包中|稳中|稳赢|押注价值|建议跟进|想搏|跟进|主打号|旺号|幸运数|命中率|胜率|成功率|适合主推|保证中奖/gi,
+  // 英文（单词用边界，避免误伤 Better/Betting 之外的正常词）
+  /WE\s+CALLED\s+IT|H\s*I\s*T\s*!|GUARANTEED|WINNING\s+NUMBER|PUBLICLY\s+TIPPED|LUCKY\s+NUMBERS?|HOT\s+NUMBERS?|HOT\s+PICKS?|WIN\s+RATE|\bBET\s+NOW\b|\bBET\b/gi,
+  // 马来文
+  /\bKAMI\s+KENA\b|\bPASTI\s+KENA\b|JAMINAN\s+MENANG|CADANGAN\s+TARUHAN|\bKENA\b|\bMENANG\b|\bBERTUAH\b|\bPASTI\b|\bTARUH\b|\bTARUHAN\b|\bJAMINAN\b/gi
+];
+// 返回第一个命中的违禁词（供导出前明确提示是哪个词）；无 → null
+function zoPublicBadWord(text){
+  const s = String(text||'');
+  for(const r of ZO_PUBLIC_BANNED){ r.lastIndex=0; const m = r.exec(s); if(m) return m[0].trim(); }
+  return null;
+}
+function zoValidatePublicText(text){ return zoPublicBadWord(text) === null; }
+// 广告语安检（含联系方式）：public 模式导出前调用；返回 {ok, word}
+function zoPublicCheckAdText(){
+  if(zoOutputMode()!=='public') return {ok:true};
+  const ad = (typeof zoAdCfg==='function') ? zoAdCfg() : {t:'',c:''};
+  const bad = zoPublicBadWord(ad.t) || zoPublicBadWord(ad.c);
+  return bad ? {ok:false, word:bad} : {ok:true};
+}
+
+// —— [Phase2] 三语公开安全替换映射（把营销词换成中性历史数据语言）——
+// 长词在前，避免「完整旺号名单」被「旺号」先替换掉。
+const ZO_PUBLIC_TEXT_MAP = {
+  zh: [['仅供订购会员','完整数据见会员报告'],['订购会员','会员报告'],['会员专享','会员报告'],['仅供会员','会员报告'],
+       ['本月主打号','本月数据焦点'],['十二生肖幸运数','十二生肖历史数据'],['完整旺号名单','完整历史数据名单'],
+       ['旺号名单','历史筛选名单'],['本月最强肖','本月生肖数据聚焦'],['押注价值','综合数据评分'],
+       ['适合主推','数据表现较集中'],['会员话术','会员报告说明'],['胜率走势','历史回测走势'],
+       ['月初推荐','月初公开记录'],['主打号','数据焦点'],['幸运数','历史数据组'],['旺号','历史数据'],
+       ['命中率','历史覆盖比例'],['胜率','历史覆盖比例'],['成功率','历史覆盖比例'],
+       ['最强','评分第1'],['次强','评分第2'],['选号','数据筛选']],
+  en: [['NUMBER OF THE MONTH','MONTHLY DATA FOCUS'],['MEMBERS ONLY HOT LIST','MEMBER DATA REPORT'],['MEMBERS ONLY','MEMBER DATA REPORT'],
+       ['LUCKY NUMBERS','HISTORICAL DATA GROUPS'],['LUCKY NUMBER','HISTORICAL DATA GROUP'],
+       ['HOT NUMBERS','FREQUENCY DATA GROUPS'],['HOT NUMBER','FREQUENCY DATA GROUP'],
+       ['HOT PICKS','FREQUENCY DATA GROUPS'],['HOT LIST','HISTORICAL DATA LIST'],
+       ['TOP PICK','RANKED NO. 1'],['2ND PICK','RANKED NO. 2'],['WIN RATE','HISTORICAL COVERAGE RATE'],
+       ['RECOMMENDATION','DATA SELECTION'],['PICKS','FILTERED DATA'],['PICK','FILTERED DATA']],
+  ms: [['NOMBOR BERTUAH','KUMPULAN DATA SEJARAH'],['SENARAI PANAS','SENARAI DATA AHLI'],
+       ['BERTUAH','STATISTIK'],['MENANG','KEPUTUSAN'],['JAMINAN','ANALISIS'],
+       ['PASTI','DATA'],['TARUHAN','DATA'],['TARUH','DATA'],['KENA','PADANAN']]
+};
+// 对公开文本套用替换（大小写不敏感匹配，尽量保留可读）
+function zoPublicSafe(str, lang){
+  let s = String(str==null?'':str);
+  const map = ZO_PUBLIC_TEXT_MAP[lang] || ZO_PUBLIC_TEXT_MAP.zh;
+  for(const [from,to] of map){
+    s = s.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi'), to);
+  }
+  return s;
+}
+// member 也不允许的「硬词」（保证类/必中类）——member 可用「历史覆盖比例」但不可用「必中/保证」
+const ZO_PUBLIC_HARD = /必中|包中|稳中|稳赢|稳赚|保证中奖|保证|包赢|GUARANTEED|\bPASTI\s+KENA\b|JAMINAN\s+MENANG/gi;
+function zoPublicHardWord(text){ ZO_PUBLIC_HARD.lastIndex=0; const m=ZO_PUBLIC_HARD.exec(String(text||'')); return m?m[0].trim():null; }
+// 三路复制收尾：public=中性化+全违禁拦截+广告安检；member=只拦硬词；legacy=原样。
+// 返回 {ok, text, word}
+function zoPublicizeCopy(txt, lang){
+  const mode = zoOutputMode();
+  if(mode==='legacy') return {ok:true, text:txt};
+  if(mode==='member'){
+    const bad = zoPublicHardWord(txt);
+    return bad ? {ok:false, word:bad} : {ok:true, text:txt};
+  }
+  // public
+  const adChk = zoPublicCheckAdText();
+  if(!adChk.ok) return {ok:false, word:adChk.word};
+  const safe = zoPublicSafe(txt, lang);
+  const bad = zoPublicBadWord(safe);
+  return bad ? {ok:false, word:bad} : {ok:true, text:safe};
+}
+// 复制前统一调用：处理三路 + 弹窗提示是哪个词。通过返回最终文本，被拦返回 null。
+function zoPublicCopyGate(txt, lang){
+  const r = zoPublicizeCopy(txt, lang);
+  if(!r.ok){
+    alert((zoOutputMode()==='member'?'会员版':'公开版')+'含高风险词：「'+r.word+'」，请先修改后再复制。');
+    return null;
+  }
+  return r.text;
+}
+// 把整份文案字典 S 中性化（字符串直接换、函数包裹让「返回值」过滤、数组逐项过滤）。
+// 供海报/视频绘制在 public 模式下使用——绘制逻辑无需改动，只换喂进去的文字来源。
+function zoPublicWrapStr(S, lang){
+  const out = {};
+  for(const k in S){
+    const v = S[k];
+    if(typeof v === 'string') out[k] = zoPublicSafe(v, lang);
+    else if(typeof v === 'function') out[k] = function(){ const r = v.apply(S, arguments); return (typeof r==='string') ? zoPublicSafe(r, lang) : r; };
+    else if(Array.isArray(v)) out[k] = v.map(x => (typeof x==='string') ? zoPublicSafe(x, lang) : x);
+    else out[k] = v;
+  }
+  return out;
+}
+// 海报/视频公开导出前的广告语安检（public 才拦；返回 true=可继续）
+function zoPublicAdGateForImage(){
+  if(zoOutputMode()!=='public') return true;
+  const ad = zoPublicCheckAdText();
+  if(!ad.ok){ alert('广告语含高风险词：「'+ad.word+'」，公开版不能导出，请先修改广告语。'); return false; }
+  return true;
+}
+
+// —— [六] 发布日期文案（未存真实 publishedDate 时，绝不编造每月1日 / 生成当天）——
+function zoPublishedDateText(item, lang){
+  if(item && item.publishedDate){ return item.publishedDate; }
+  if(lang==='en') return 'Published at month start';
+  if(lang==='ms') return 'Diterbitkan pada awal bulan';
+  return '月初公开记录';
+}
+
+// —— [九] 外部图片接口 + 预加载 + 纯 CSS/Canvas 兜底 ——
+const ZO_PUBLIC_ASSETS = {
+  posterBg:'assets/m3-public-review-bg.webp',       // 1080×1350 公开复盘海报背景
+  storyBg:'assets/m3-public-review-story-bg.webp',  // 1080×1920 公开复盘视频背景
+  watermark:'assets/m3-dragon-watermark.png',       // 透明金龙水印
+  grid:'assets/m3-data-grid.png',                   // 透明数据网格
+  verified:'assets/m3-verified-mark.png'            // 记录可核对徽章
+};
+const ZO_PUBLIC_IMG = {};
+function zoPublicLoadAssets(){
+  for(const k in ZO_PUBLIC_ASSETS){
+    const primary = ZO_PUBLIC_ASSETS[k];
+    const alts = [primary];
+    if(/\.webp$/i.test(primary)) alts.push(primary.replace(/\.webp$/i,'.png'));   // webp 缺失自动回退 png
+    else if(/\.png$/i.test(primary)) alts.push(primary.replace(/\.png$/i,'.webp'));
+    (function tryLoad(i){
+      if(i>=alts.length){ ZO_PUBLIC_IMG[k]=null; return; }   // 全失败=兜底，绝不阻断生成
+      const img = new Image();
+      img.onload = ()=>{
+        // 污染检测：file:// 下本地图会污染画布导致 toBlob 失败 → 会污染就弃用，退回CSS兜底保证能导出
+        try{ const t=document.createElement('canvas'); t.width=t.height=2; t.getContext('2d').drawImage(img,0,0,2,2); t.toDataURL(); ZO_PUBLIC_IMG[k]=img; }
+        catch(e){ ZO_PUBLIC_IMG[k]=null; }
+      };
+      img.onerror = ()=>{ tryLoad(i+1); };
+      try{ img.src = alts[i]; }catch(e){ tryLoad(i+1); }
+    })(0);
+  }
+}
+zoPublicLoadAssets();
+// 深色渐变兜底 + 细线数据网格
+function zoPublicGrid(ctx, W, H){
+  ctx.save();
+  ctx.strokeStyle='rgba(245,158,11,0.06)'; ctx.lineWidth=1;
+  const step=60;
+  for(let x=step;x<W;x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=step;y<H;y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  ctx.restore();
+}
+// 背景：有底图铺满，无图用深色渐变 + 网格（grid 图优先，否则 Canvas 画）
+function zoPublicBg(ctx, bgKey, W, H){
+  const bg = ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  const bgImg = ZO_PUBLIC_IMG[bgKey];
+  if(bgImg && bgImg.complete && bgImg.naturalWidth && typeof zoDrawBgCover==='function'){
+    // 完整背景图（自带龙纹/网格/光柱）→ 直接铺满 + 轻度压暗保证白字可读，不再叠加多余网格/水印
+    zoDrawBgCover(ctx, bgImg, W, H);
+    ctx.save(); ctx.globalAlpha=0.30; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore();
+    return;
+  }
+  const gridImg = ZO_PUBLIC_IMG.grid;
+  if(gridImg && gridImg.complete && gridImg.naturalWidth){
+    ctx.save(); ctx.globalAlpha=0.5;
+    for(let x=0;x<W;x+=gridImg.naturalWidth) for(let y=0;y<H;y+=gridImg.naturalHeight) ctx.drawImage(gridImg,x,y);
+    ctx.restore();
+  } else { zoPublicGrid(ctx, W, H); }
+  // 低透明度金龙水印
+  const wm = ZO_PUBLIC_IMG.watermark;
+  if(wm && wm.complete && wm.naturalWidth){
+    ctx.save(); ctx.globalAlpha=0.08;
+    const ws=Math.min(W*0.7, wm.naturalWidth), r=ws/wm.naturalWidth;
+    ctx.drawImage(wm, W/2-ws/2, H*0.30, ws, wm.naturalHeight*r); ctx.restore();
+  } else if(typeof zoDrawDragon==='function'){
+    zoDrawDragon(ctx, W/2, H*0.42, W*0.55, 0.07);
+  }
+}
+// Verified 小徽章（有图用图，无图画细线圆圈）
+function zoPublicVerified(ctx, x, y, lang){
+  const img = ZO_PUBLIC_IMG.verified;
+  if(img && img.complete && img.naturalWidth){ const s=26; ctx.drawImage(img, x-s/2, y-s/2, s, s); return; }
+  ctx.save(); ctx.strokeStyle='#f59e0b'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='#fde047'; ctx.lineWidth=2; ctx.beginPath();
+  ctx.moveTo(x-5,y); ctx.lineTo(x-1,y+4); ctx.lineTo(x+6,y-5); ctx.stroke(); ctx.restore();
+}
+function zoPublicNum(ctx, num, cx, cy, h){
+  if(!(typeof zoDrawNum==='function' && zoDrawNum(ctx, num, cx, cy, h))){
+    ctx.fillStyle='#fff'; ctx.font='900 '+Math.round(h*0.9)+'px '+ZO_MONO;
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(num, cx, cy);
+  }
+}
+// 资料卡：细线金框 + 顶部标签 + 大号码 + 小字副行
+function zoPublicCard(ctx, x, y, w, h, label, bigNum, subLine, accent){
+  zoRR(ctx, x, y, w, h, 14);
+  const g = ctx.createLinearGradient(0,y,0,y+h);
+  g.addColorStop(0,'rgba(17,24,52,0.85)'); g.addColorStop(1,'rgba(10,14,34,0.7)');
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle=accent||'#f59e0b'; ctx.lineWidth=2; ctx.stroke();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle=accent||'#f59e0b'; ctx.font='800 22px '+ZO_FONT;
+  ctx.fillText(label, x+w/2, y+34);
+  zoPublicNum(ctx, bigNum, x+w/2, y+h/2+8, 78);
+  if(subLine){ ctx.fillStyle='#cbd5e1'; ctx.font='600 18px '+ZO_FONT; ctx.fillText(subLine, x+w/2, y+h-28); }
+}
+
+// —— [五] 公开海报 1080×1350（数据报告风格；t=null 静态，t=秒 用于视频复用）——
+function zoDrawPublicReview(ctx, HIT, lang){
+  const W=1080, H=1350, pad=64, cardW=W-2*pad;
+  const S = ZO_PUBLIC_REVIEW_STR[lang||'zh'] || ZO_PUBLIC_REVIEW_STR.zh;
+  const zn = (typeof ZO_STR!=='undefined' && ZO_STR[lang]) ? ZO_STR[lang].zodiacNames : null;
+  const hero = HIT.hero;
+  zoPublicBg(ctx, 'posterBg', W, H);
+  zoRR(ctx,6,6,W-12,H-12,20); ctx.strokeStyle='rgba(245,158,11,0.55)'; ctx.lineWidth=3; ctx.stroke();
+  // 顶部品牌区
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  const tg=ctx.createLinearGradient(W/2-260,0,W/2+260,0);
+  tg.addColorStop(0,'#f59e0b'); tg.addColorStop(.5,'#fde047'); tg.addColorStop(1,'#f59e0b');
+  ctx.fillStyle=tg; ctx.font='900 46px '+ZO_FONT; ctx.fillText(S.brand, W/2, 78);
+  ctx.fillStyle='#e2e8f0'; ctx.font='800 26px '+ZO_FONT;
+  ctx.fillText(S.title+(lang==='zh'?'':' / ')+(lang==='zh'?'':''), W/2, 122);
+  ctx.fillStyle='#93c5fd'; ctx.font='600 20px '+ZO_FONT;
+  const monLabel = (lang==='zh') ? (HIT.month+'月') : ZO_PUBLIC_MONTHS_EN[HIT.month-1];
+  ctx.fillText(HIT.market+' · '+HIT.year+(lang==='zh'?'年':'')+' '+monLabel, W/2, 154);
+  // 上半：公开记录卡
+  const c1y=230, cardH=210;
+  zoPublicCard(ctx, pad, c1y, cardW, cardH, S.published, hero.recNum, zoPublishedDateText(hero, lang), '#38bdf8');
+  // 中间连接：历史记录对应
+  const midY=c1y+cardH;
+  ctx.strokeStyle='rgba(245,158,11,0.6)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(W/2, midY+6); ctx.lineTo(W/2, midY+74); ctx.stroke();
+  ctx.fillStyle='#fbbf24'; ctx.font='800 22px '+ZO_FONT; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('▼ '+S.label+' ▼', W/2, midY+40);
+  // 下半：官方开奖卡
+  const c2y=midY+80;
+  const prizeCol = hero.prizeIdx===0?'#f87171':hero.prizeIdx===1?'#fbbf24':'#c4b5fd';
+  const c2sub = hero.date + ' · ' + S.prize[hero.prizeIdx] + (zn?(' · '+zn[hero.zi]):'');
+  zoPublicCard(ctx, pad, c2y, cardW, cardH, S.official, hero.num, c2sub, prizeCol);
+  // 对应方式
+  let y = c2y+cardH+40;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#fde68a'; ctx.font='800 24px '+ZO_FONT;
+  ctx.fillText((lang==='en'?'MATCH TYPE':lang==='ms'?'JENIS PADANAN':'对应方式')+' · '+(hero.twisted?S.twisted:S.exact), W/2, y);
+  y += 28;
+  ctx.fillStyle='#94a3b8'; ctx.font='600 17px '+ZO_FONT;
+  ctx.fillText(S.arrow(hero.recNum, hero.num), W/2, y+16);
+  y += 46;
+  // 多条对应 → 简洁数据表（不用「其它命中」）
+  if(HIT.others.length){
+    const rows = HIT.others.slice(0, 4);
+    ctx.textAlign='left'; ctx.textBaseline='middle';
+    rows.forEach(function(o){
+      zoRR(ctx, pad, y, cardW, 46, 10);
+      ctx.fillStyle='rgba(30,27,75,0.55)'; ctx.fill();
+      ctx.strokeStyle='rgba(99,102,241,0.4)'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle='#fde047'; ctx.font='800 22px '+ZO_MONO; ctx.fillText(o.recNum+' → '+o.num, pad+18, y+24);
+      ctx.fillStyle=o.prizeIdx===0?'#f87171':o.prizeIdx===1?'#fbbf24':'#c4b5fd'; ctx.font='700 15px '+ZO_FONT;
+      ctx.fillText(S.prize[o.prizeIdx], pad+300, y+24);
+      ctx.fillStyle='#cbd5e1'; ctx.textAlign='right'; ctx.font='14px '+ZO_FONT;
+      ctx.fillText(o.date+' · '+(o.twisted?S.twisted:S.exact), pad+cardW-16, y+24);
+      ctx.textAlign='left';
+      y += 54;
+    });
+    ctx.textAlign='center'; ctx.fillStyle='#a5b4fc'; ctx.font='700 18px '+ZO_FONT;
+    ctx.fillText(S.total(HIT.total), W/2, y+6); y += 30;
+  }
+  // 底部：可核对 + 随机免责
+  zoPublicVerified(ctx, W/2-ctx.measureText(S.footer1).width/2-22, H-108, lang);
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#fbbf24'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(S.footer1, W/2, H-106);
+  ctx.fillStyle='#94a3b8'; ctx.font='600 16px '+ZO_FONT; ctx.fillText(S.footer2, W/2, H-68);
+  ctx.fillStyle='#64748b'; ctx.font='600 13px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-40);
+}
+// 公开话术 / 图片共用的可见文字集合（供违禁词校验）
+function zoPublicAllText(HIT, lang){
+  const S = ZO_PUBLIC_REVIEW_STR[lang||'zh'] || ZO_PUBLIC_REVIEW_STR.zh;
+  let parts = [S.brand,S.title,S.label,S.published,S.official,S.exact,S.twisted,S.footer1,S.footer2,
+    S.arrow(HIT.hero.recNum,HIT.hero.num), S.total(HIT.total)].concat(S.prize);
+  HIT.others.forEach(o=>parts.push(S.arrow(o.recNum,o.num)));
+  return parts.join(' | ');
+}
+function zoPublicGuard(HIT, lang){
+  if(zoOutputMode()==='public'){
+    const bad = zoPublicBadWord(zoPublicAllText(HIT, lang));
+    if(bad){ alert('公开版文案含高风险词：「'+bad+'」，请先检查。'); return false; }
+    const ad = zoPublicCheckAdText();
+    if(!ad.ok){ alert('广告语含高风险词：「'+ad.word+'」，公开版不能导出，请先修改广告语。'); return false; }
+  }
+  return true;
+}
+
+// 公开版文件名基（review_ 开头，与 legacy 的 hit_ 区分）
+function zoPublicFileBase(HIT){
+  const mkAscii = ((typeof ZO_MKT_EN!=='undefined' && ZO_MKT_EN[HIT.market]) || HIT.market).replace(/\s+/g,'');
+  return 'review_' + HIT.year + '-' + String(HIT.month).padStart(2,'0') + '_' + mkAscii;
+}
+// 公开海报导出（PNG 精确 1080×1350）
+function zoPublicReviewPNG(){
+  const HIT = zoExtractHits(); if(!HIT) return;
+  const lang = zoHitLang();
+  if(!zoPublicGuard(HIT, lang)) return;
+  try{
+    const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;   // 精确 1080×1350
+    const ctx=cv.getContext('2d');
+    zoDrawPublicReview(ctx, HIT, lang);
+    cv.toBlob(function(b){
+      zoSaveBlob(b, zoPublicFileBase(HIT)+'_'+lang+'.png');
+      const btn=document.getElementById('zo-hit-png');
+      if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='📊 公开复盘图';},1500); }
+    });
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+
+// —— [七] 公开视频 1080×1920（8–12s；淡入/滑入/时间线/免责停留≥2s；无烟花滚号爆闪）——
+function zoDrawPublicStory(ctx, HIT, t, lang, dur){
+  const W=1080, H=1920, pad=80, cardW=W-2*pad;
+  const S = ZO_PUBLIC_REVIEW_STR[lang||'zh'] || ZO_PUBLIC_REVIEW_STR.zh;
+  const zn = (typeof ZO_STR!=='undefined' && ZO_STR[lang]) ? ZO_STR[lang].zodiacNames : null;
+  const hero = HIT.hero;
+  const f = (t==null) ? 1 : Math.max(0, Math.min(1, t/dur));
+  const ease = (typeof zoEaseOut==='function') ? zoEaseOut : (u=>u);
+  const seg=(a,b)=> Math.max(0, Math.min(1,(f-a)/(b-a)));   // 阶段进度
+  zoPublicBg(ctx, 'storyBg', W, H);
+  zoRR(ctx,6,6,W-12,H-12,22); ctx.strokeStyle='rgba(245,158,11,0.5)'; ctx.lineWidth=3; ctx.stroke();
+  // 阶段1：品牌 + 月份淡入
+  const a1=ease(seg(0,0.12));
+  ctx.save(); ctx.globalAlpha=a1; ctx.textAlign='center'; ctx.textBaseline='middle';
+  const tg=ctx.createLinearGradient(W/2-260,0,W/2+260,0);
+  tg.addColorStop(0,'#f59e0b'); tg.addColorStop(.5,'#fde047'); tg.addColorStop(1,'#f59e0b');
+  ctx.fillStyle=tg; ctx.font='900 52px '+ZO_FONT; ctx.fillText(S.brand, W/2, 150);
+  ctx.fillStyle='#e2e8f0'; ctx.font='800 28px '+ZO_FONT; ctx.fillText(S.title, W/2, 200);
+  const monLabel = (lang==='zh') ? (HIT.month+'月') : ZO_PUBLIC_MONTHS_EN[HIT.month-1];
+  ctx.fillStyle='#93c5fd'; ctx.font='600 22px '+ZO_FONT; ctx.fillText(HIT.market+' · '+HIT.year+(lang==='zh'?'年':'')+' '+monLabel, W/2, 238);
+  ctx.restore();
+  // 阶段2：公开记录卡 从左滑入
+  const c1y=340, cardH=240;
+  const a2=ease(seg(0.12,0.30));
+  if(a2>0.01){ ctx.save(); ctx.globalAlpha=a2; ctx.translate((1-a2)*-120,0);
+    zoPublicCard(ctx, pad, c1y, cardW, cardH, S.published, hero.recNum, zoPublishedDateText(hero, lang), '#38bdf8'); ctx.restore(); }
+  // 阶段3：时间线向下延伸
+  const midY=c1y+cardH;
+  const a3=ease(seg(0.30,0.45));
+  if(a3>0.01){ ctx.save(); ctx.strokeStyle='rgba(245,158,11,0.7)'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.moveTo(W/2, midY+8); ctx.lineTo(W/2, midY+8+92*a3); ctx.stroke();
+    if(a3>0.6){ ctx.globalAlpha=(a3-0.6)/0.4; ctx.fillStyle='#fbbf24'; ctx.font='800 24px '+ZO_FONT; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('▼ '+S.label+' ▼', W/2, midY+56); }
+    ctx.restore(); }
+  // 阶段4：官方开奖卡 从右滑入
+  const c2y=midY+108;
+  const a4=ease(seg(0.45,0.65));
+  const prizeCol = hero.prizeIdx===0?'#f87171':hero.prizeIdx===1?'#fbbf24':'#c4b5fd';
+  if(a4>0.01){ ctx.save(); ctx.globalAlpha=a4; ctx.translate((1-a4)*120,0);
+    const c2sub = hero.date + ' · ' + S.prize[hero.prizeIdx] + (zn?(' · '+zn[hero.zi]):'');
+    zoPublicCard(ctx, pad, c2y, cardW, cardH, S.official, hero.num, c2sub, prizeCol); ctx.restore(); }
+  // 阶段5：对应方式 轻微高亮
+  const a5=ease(seg(0.65,0.80));
+  if(a5>0.01){ ctx.save(); ctx.globalAlpha=a5; ctx.textAlign='center'; ctx.textBaseline='middle';
+    let y=c2y+cardH+70;
+    ctx.fillStyle='#fde68a'; ctx.font='800 26px '+ZO_FONT;
+    ctx.fillText((lang==='en'?'MATCH TYPE':lang==='ms'?'JENIS PADANAN':'对应方式')+' · '+(hero.twisted?S.twisted:S.exact), W/2, y);
+    ctx.fillStyle='#94a3b8'; ctx.font='600 19px '+ZO_FONT; ctx.fillText(S.arrow(hero.recNum,hero.num), W/2, y+40);
+    if(HIT.others.length){ ctx.fillStyle='#a5b4fc'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(S.total(HIT.total), W/2, y+78); }
+    ctx.restore(); }
+  // 阶段6：底部免责声明淡入并停留（0.78 完全显示 → 停留至 1.0 ≈ 2.2s@10s）
+  const a6=ease(seg(0.68,0.78));
+  if(a6>0.01){ ctx.save(); ctx.globalAlpha=a6; ctx.textAlign='center'; ctx.textBaseline='middle';
+    zoPublicVerified(ctx, W/2-ctx.measureText(S.footer1).width/2-24, H-190, lang);
+    ctx.fillStyle='#fbbf24'; ctx.font='700 22px '+ZO_FONT; ctx.fillText(S.footer1, W/2, H-186);
+    ctx.fillStyle='#94a3b8'; ctx.font='600 18px '+ZO_FONT; ctx.fillText(S.footer2, W/2, H-140);
+    ctx.fillStyle='#64748b'; ctx.font='600 14px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-104);
+    ctx.restore(); }
+}
+function zoPublicReviewVideo(){
+  const HIT = zoExtractHits(); if(!HIT) return;
+  const lang = zoHitLang();
+  if(!zoPublicGuard(HIT, lang)) return;
+  try{
+    const SC=1, cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1920*SC);
+    const ctx=cv.getContext('2d'); if(SC!==1) ctx.scale(SC,SC);
+    const DUR=10;  // 10s：免责声明停留约2s
+    zoRecVideo(cv, function(t){ zoDrawPublicStory(ctx, HIT, t, lang, DUR); },
+      zoPublicFileBase(HIT)+'_'+lang,
+      document.getElementById('zo-hit-vid'), '🎬 公开复盘视频', zoBgmFromSel('zo-hit-bgm'), DUR*1000);
+  }catch(e){ alert('生成失败：'+e.message); }
+}
+
+// 公开复制说明（validated；图片/视频/话术同一文案来源）
+function zoPublicReviewCopy(lang, btn){
+  const HIT = zoExtractHits(); if(!HIT) return;
+  const S = ZO_PUBLIC_REVIEW_STR[lang] || ZO_PUBLIC_REVIEW_STR.zh;
+  const zn = (typeof ZO_STR!=='undefined' && ZO_STR[lang]) ? ZO_STR[lang].zodiacNames : null;
+  const monLabel = (lang==='zh') ? (HIT.month+'月') : ZO_PUBLIC_MONTHS_EN[HIT.month-1];
+  let t = S.brand+'\n'+S.title+' · '+HIT.market+' · '+HIT.year+' '+monLabel+'\n\n';
+  const line = h => S.arrow(h.recNum, h.num)+' · '+S.prize[h.prizeIdx]+(zn?(' · '+zn[h.zi]):'')+' · '+(h.twisted?S.twisted:S.exact)+' ('+zoPublishedDateText(h,lang)+' → '+h.date+')\n';
+  t += line(HIT.hero);
+  HIT.others.forEach(h => { t += line(h); });
+  t += '\n'+S.total(HIT.total)+'\n\n'+S.footer1+'\n'+S.footer2;
+  if(zoOutputMode()==='public' && !zoValidatePublicText(t)){ alert('公开版仍含高风险文案，请先检查。'); return; }
+  const done = () => { if(btn){ const o=btn.textContent; btn.textContent='✅'; setTimeout(()=>{btn.textContent=o;},1200); } };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done).catch(()=>{ zoCopyFallback(t); done(); });
+  } else { zoCopyFallback(t); done(); }
+}
+
+// —— [二] 分发入口：按 zoOutputMode() 路由（legacy→旧版；public/member→公开版）——
+function zoHitPNG(){ return zoOutputMode()==='legacy' ? zoHitLegacyPNG() : zoPublicReviewPNG(); }
+function zoHitVideo(){ return zoOutputMode()==='legacy' ? zoHitLegacyVideo() : zoPublicReviewVideo(); }
+function zoHitCopy(lang, btn){ return zoOutputMode()==='legacy' ? zoHitLegacyCopy(lang, btn) : zoPublicReviewCopy(lang, btn); }
+try{ zoPublicSyncBgm(); }catch(e){}   // 初始 public 默认即禁用 fire 配乐
+try{ zoMemberBtnSync(); }catch(e){}   // 初始 public 默认即置灰会员按钮
+
 // 打开生肖图分页时，月份默认当月；复盘默认上个月；恢复保存过的广告词
 (function(){
   const sel = document.getElementById('zo-month');
@@ -13248,6 +14295,7 @@ function zoTopZodiacsCopy(){
     z.top2.forEach(c => { txt += '   '+c.num+' · '+zoDaCount(c.num)+'打 · 月命中'+c.monthHits+'次 · 沉睡'+c.drawsSince+'期\n'; });
   });
   txt += '\n⚠️ 历史统计，不构成预测。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-top-copy');
   const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制'; },1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
@@ -13477,6 +14525,7 @@ function zoGaugeCopy(){
     txt += '\n';
   });
   txt += '\n⚠️ 历史统计，不构成预测。';
+  txt = zoPublicCopyGate(txt, 'zh'); if(txt === null) return;
   const btn = document.getElementById('zo-gauge-copy');
   const done = () => { if(btn){ btn.textContent='✅ 已复制'; setTimeout(()=>{ btn.textContent='📋 复制排名'; },1500); } };
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done).catch(()=>{ zoCopyFallback(txt); done(); }); }
@@ -18144,6 +19193,8 @@ var LUOHAN = [
   ['456','356','556'],['446','466'],['457','455'],
   ['789','689','889'],['799','779'],['780','788']
 ];
+// 暴露给条件筛选(功能1)用，保证两处罗汉编号完全一致
+window.LH_LUOHAN = LUOHAN;
 
 function lhSort3(s){ return Array.from(s).sort(function(a,b){return SRT_RANK[a]-SRT_RANK[b];}).join(''); }
 function lhGetTriples(code){
@@ -18160,6 +19211,7 @@ function lhMatch(raw){
   });
   return hits;
 }
+window.LH_MATCH = lhMatch;  // 供条件筛选(功能1)按同一 LUOHAN 编号匹配
 
 function lhGetTriplesArr(code){
   var arr = [];
@@ -18452,6 +19504,17 @@ function lhRenderAggregate(periods){
   html += '<div class="sc"><div class="val">'+totalHits+'</div><div class="lbl">总命中次数</div></div>';
   html += '</div></div>';
 
+  // 🕳️ 缺席罗汉清单（本范围 0 次）— 一眼看出哪些罗汉没出现
+  var absent = buckets.map(function(b,i){return b.length?null:(i+1);}).filter(function(x){return x;});
+  html += '<div class="card" style="background:'+(absent.length?'#eff6ff':'#f0fdf4')+';border:2px solid '+(absent.length?'#3b82f6':'#22c55e')+'">';
+  html += '<div style="font-size:13px;font-weight:800;color:'+(absent.length?'#1e40af':'#166534')+';margin-bottom:'+(absent.length?'6px':'0')+'">🕳️ 缺席罗汉（本范围 '+periods.length+' 期内 0 次出现）：'+(absent.length? '<b>'+absent.length+' 个</b>' : '无 — 18罗汉全部出现过 ✅')+'</div>';
+  if(absent.length){
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    absent.forEach(function(id){ html += '<span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#1e40af" title="'+LUOHAN[id-1].join(' / ')+'">罗汉'+id+' · '+LUOHAN[id-1].join('/')+'</span>'; });
+    html += '</div><div style="font-size:11px;color:#64748b;margin-top:6px">提示：缺席=在所选奖项范围+期数内一次都没出现。含特/安需该期有特安数据。</div>';
+  }
+  html += '</div>';
+
   // Timeline + 遗漏排行
   html += lhRenderTimeline(periods);
 
@@ -18511,6 +19574,18 @@ function lhRenderAggregate(periods){
   return html;
 }
 
+// 奖项范围：读勾选（头0/二1/三2/特sp/安cs），过滤 record
+function lhPrizeScope(){
+  var g = function(id){ var c=document.getElementById(id); return c? c.checked : true; };
+  return {p0:g('lh-pz-0'), p1:g('lh-pz-1'), p2:g('lh-pz-2'), sp:g('lh-pz-sp'), cs:g('lh-pz-cs')};
+}
+function lhInScope(r, s){
+  if(r.prize===0) return s.p0;
+  if(r.prize===1) return s.p1;
+  if(r.prize===2) return s.p2;
+  if(r.prize===-1){ if(r.label==='特别奖') return s.sp; if(r.label==='安慰奖') return s.cs; return true; }
+  return true;
+}
 window.doLuohan = function(){
   var out = document.getElementById('lh-out');
   var source = document.getElementById('lh-source').value;
@@ -18519,8 +19594,11 @@ window.doLuohan = function(){
     if(!data.periods.length){ out.innerHTML='<div class="warn">'+(data.warn||'暂无数据')+'</div>'; return; }
     var view = document.getElementById('lh-view').value;
     var warnHtml = data.warn ? '<div class="warn" style="margin-bottom:8px">'+data.warn+'</div>' : '';
-    if(view==='aggregate') out.innerHTML = warnHtml + lhRenderAggregate(data.periods);
-    else out.innerHTML = warnHtml + lhRenderCompare(data.periods);
+    // 按奖项范围过滤每期号码（特/安仅近期有数据）
+    var scope = lhPrizeScope();
+    var periods = data.periods.map(function(p){ return {date:p.date, full:p.full, records:(p.records||[]).filter(function(r){ return lhInScope(r,scope); })}; });
+    if(view==='aggregate') out.innerHTML = warnHtml + lhRenderAggregate(periods);
+    else out.innerHTML = warnHtml + lhRenderCompare(periods);
     return;
   }
   var info = source==='manual' ? collectManual('lh') : collectSingle('lh');
@@ -18533,8 +19611,9 @@ setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
+    if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
 },0);
 
 })();
