@@ -7768,6 +7768,13 @@ function doBacktest(){
         <option value="off">关闭</option>
       </select>
     </div>
+    <div class="ig" style="align-self:flex-end"><label>🎞️ 龙动画</label>
+      <select id="zo-dragon-anim" title="视频背景金龙的动态（中间留净空给号码/文字）">
+        <option value="static" selected>静态偏稳</option>
+        <option value="move">慢移动</option>
+        <option value="rotate">轻微旋感</option>
+      </select>
+    </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 公开复盘视频</button></div>
     <div class="ig" id="zo-hit-opts" style="display:none"><label>复盘记录 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -10440,26 +10447,42 @@ function zoDragonGold(){
   g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
   c._w=img.naturalWidth; ZO_DRAGON_GOLD=c; return c;
 }
+function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'static'; }
 // 在背景上绘制更明显的金龙。t=视频秒数(有=轻微动态) / null(静态图)
-function zoDrawDragonHero(ctx, W, H, t, levelOverride){
+// 构图：龙头置于上方偏侧，龙身沿上缘展开，画面中间/下方留净空给号码·标题·数据
+function zoDrawDragonHero(ctx, W, H, t, levelOverride, animOverride){
   const img=ZO_DRAGON_IMG; if(!img||!img.complete||!img.naturalWidth) return;
   const level=levelOverride||zoDragonLevel();
   if(level==='off') return;
+  const anim=animOverride||zoDragonAnim();
   // 三档：a=主体透明度 sz=占宽 glow=边光模糊 sheen=金光强度
-  const P = level==='low'  ? {a:0.17, sz:0.66, glow:22, sheen:0.15}
-          : level==='high' ? {a:0.42, sz:0.98, glow:42, sheen:0.34}
-          :                  {a:0.28, sz:0.80, glow:30, sheen:0.23};
+  const P = level==='low'  ? {a:0.17, sz:0.60, glow:22, sheen:0.15}
+          : level==='high' ? {a:0.42, sz:0.86, glow:42, sheen:0.34}
+          :                  {a:0.28, sz:0.72, glow:30, sheen:0.23};
   const portrait=H>=W;
   const dw=W*P.sz, dh=dw*img.naturalHeight/img.naturalWidth;
-  // 构图：龙头偏右上，龙身斜跨向下，突出龙头/上半身
-  const cx=W*(portrait?0.64:0.70), cy=H*(portrait?0.30:0.34);
-  const breathe = t!=null ? (0.82+0.18*(0.5+0.5*Math.sin(t*1.1))) : 1;   // 边光缓慢呼吸
-  const driftX  = t!=null ? Math.sin(t*0.5)*W*0.006 : 0;                  // 极轻漂移
-  const driftY  = t!=null ? Math.cos(t*0.4)*H*0.004 : 0;
+  // 上方偏侧锚点：龙头在右上，龙身沿上缘；中间/下方留空
+  const baseCx=W*(portrait?0.70:0.74);
+  const baseCy=(portrait? dh*0.42 + H*0.02 : dh*0.40);   // 贴上缘，龙大部分在画面上部
+  // —— 动画（都很克制，不整条持续旋转）——
+  let driftX=0, driftY=0, rot=0;
+  const breathe = t!=null ? (0.82+0.18*(0.5+0.5*Math.sin(t*1.1))) : 1;   // 边光缓慢呼吸(所有模式)
+  if(t!=null){
+    if(anim==='move'){                                    // 慢速左右+上下漂移
+      driftX=Math.sin(t*0.45)*W*0.035;
+      driftY=Math.cos(t*0.35)*H*0.012;
+    } else if(anim==='rotate'){                           // 轻微角度摆动(±2.2°)，非持续旋转
+      rot=Math.sin(t*0.5)*0.038;
+      driftX=Math.sin(t*0.4)*W*0.012;
+    } else {                                              // static：几乎不动，仅极微浮动
+      driftY=Math.sin(t*0.6)*H*0.004;
+    }
+  }
+  const cx=baseCx+driftX, cy=baseCy+driftY;
   const gold=zoDragonGold();
   ctx.save();
-  ctx.translate(cx+driftX, cy+driftY);
-  // 1) 柔和金色外发光（龙的轮廓/龙头/龙角边光）
+  ctx.translate(cx, cy); if(rot) ctx.rotate(rot);
+  // 1) 柔和金色外发光（轮廓/龙头/龙角边光）
   if(gold){
     ctx.save();
     ctx.globalCompositeOperation='lighter';
@@ -10468,32 +10491,43 @@ function zoDrawDragonHero(ctx, W, H, t, levelOverride){
     ctx.drawImage(gold, -dw/2, -dh/2, dw, dh);
     ctx.restore();
   }
-  // 2) 龙身主体（让人一眼看出是龙）
+  // 2) 龙身主体
   ctx.globalAlpha=P.a;
   ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
-  ctx.restore();
-  // 3) 金光缓慢扫过龙鳞（仅视频）
+  // 3) 金光缓慢扫过龙鳞（move/rotate 更明显；static 很淡）
   if(t!=null && gold){
     const sw=document.createElement('canvas'); sw.width=Math.max(2,Math.round(dw)); sw.height=Math.max(2,Math.round(dh));
     const sg=sw.getContext('2d');
     sg.drawImage(gold,0,0,sw.width,sw.height);
-    sg.globalCompositeOperation='source-in';                 // 亮带遮罩进龙形内
-    const phase=((t*0.14)%1.4)-0.2, bx=phase*sw.width;
+    sg.globalCompositeOperation='source-in';
+    const spd=anim==='static'?0.09:0.15, phase=((t*spd)%1.4)-0.2, bx=phase*sw.width;
     const lg=sg.createLinearGradient(bx-sw.width*0.28,0,bx+sw.width*0.28,sw.height);
     lg.addColorStop(0,'rgba(255,240,180,0)');
     lg.addColorStop(.5,'rgba(255,244,200,0.9)');
     lg.addColorStop(1,'rgba(255,240,180,0)');
     sg.fillStyle=lg; sg.fillRect(0,0,sw.width,sw.height);
     ctx.save();
-    ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=P.sheen*0.9;
-    ctx.drawImage(sw, cx+driftX-dw/2, cy+driftY-dh/2, dw, dh);
+    ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=P.sheen*(anim==='static'?0.5:0.9);
+    ctx.drawImage(sw, -dw/2, -dh/2, dw, dh);
     ctx.restore();
   }
-  // 4) 中央/下方内容区柔和暗角，保证标题/号码/数据可读
+  ctx.restore();
+  // 4) 轻微烟雾漂移（仅 move；很淡的金雾从上缘缓慢飘）
+  if(t!=null && anim==='move'){
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<2;i++){
+      const px=W*(0.5+0.28*Math.sin(t*0.2+i*2.1)), py=H*(0.14+0.05*i)+Math.sin(t*0.25+i)*H*0.01;
+      const rr=W*0.26, rg=ctx.createRadialGradient(px,py,0,px,py,rr);
+      rg.addColorStop(0,'rgba(245,197,66,0.05)'); rg.addColorStop(1,'rgba(245,197,66,0)');
+      ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(px,py,rr,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  // 5) 中间·下方内容区柔和暗角，保证标题/号码/数据净空可读
   ctx.save();
-  const rg=ctx.createRadialGradient(W/2,H*0.63,W*0.14,W/2,H*0.63,W*0.78);
-  rg.addColorStop(0,'rgba(5,6,16,0.42)'); rg.addColorStop(1,'rgba(5,6,16,0)');
-  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  const cg=ctx.createRadialGradient(W/2,H*0.6,W*0.10,W/2,H*0.6,W*0.82);
+  cg.addColorStop(0,'rgba(5,6,16,0.5)'); cg.addColorStop(1,'rgba(5,6,16,0)');
+  ctx.fillStyle=cg; ctx.fillRect(0,0,W,H);
   ctx.restore();
 }
 // 背景图 cover 填充整个画布（居中裁切）
