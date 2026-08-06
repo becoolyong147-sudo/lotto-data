@@ -7748,6 +7748,18 @@ function doBacktest(){
       </select>
       <span id="zo-legacy-note" style="display:none;font-size:11px;color:#dc2626;font-weight:700;margin-left:6px">仅供内部预览，不建议发布到社交平台</span>
     </div>
+    <div class="ig" style="align-self:flex-end"><label>🛡️ Meta 合规导出</label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px;font-weight:700;color:#166534;background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:7px 11px">
+        <input type="checkbox" id="zo-compliance-mode" checked>合规模式（默认开）
+      </label>
+    </div>
+    <div class="ig" style="align-self:flex-end"><label>导出尺寸</label>
+      <select id="zo-export-size">
+        <option value="45" selected>🖼️ 1080×1350 (4:5 Feed)</option>
+        <option value="11">⬛ 1080×1080 (1:1 方形)</option>
+        <option value="916">📱 1080×1920 (9:16 Story/Reels)</option>
+      </select>
+    </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 公开复盘视频</button></div>
     <div class="ig" id="zo-hit-opts" style="display:none"><label>复盘记录 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -11503,6 +11515,7 @@ async function zoDownloadPNG(){
   const cv=document.createElement('canvas'); cv.width=1080*SC; cv.height=1350*SC;
   const ctx=cv.getContext('2d'); ctx.scale(SC,SC);
   zoDrawChartK(ctx,L,drawS,null,posterImg);
+  if(isPublic) zoStampCompliance(ctx,1080,1350);
   cv.toBlob(function(b){
     zoSaveBlob(b,zoFileNameK(L,'png'));
     const btn=document.getElementById('zo-png-btn');
@@ -11696,7 +11709,7 @@ async function zoDownloadVideo(){
       const bg=ctx.createLinearGradient(0,0,0,1920);
       bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
       ctx.fillStyle=bg; ctx.fillRect(0,0,1080,1920);
-      ctx.save(); ctx.translate(0,offY); zoDrawChartK(ctx,L,drawS,t,posterImg); ctx.restore();
+      ctx.save(); ctx.translate(0,offY); zoDrawChartK(ctx,L,drawS,t,posterImg); ctx.restore(); zoStampCompliance(ctx,1080,1920);
     };
     tag='_story';
   } else {
@@ -11704,7 +11717,7 @@ async function zoDownloadVideo(){
     const SC = isPublic ? 1 : 1.5;
     cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1350*SC);
     ctx=cv.getContext('2d'); ctx.scale(SC,SC);
-    drawFrame=function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); };
+    drawFrame=function(t){ zoDrawChartK(ctx,L,drawS,t,posterImg); if(isPublic) zoStampCompliance(ctx,1080,1350); };
     if(isPublic) tag='_feed';
   }
   zoRecVideo(cv, drawFrame,
@@ -13085,6 +13098,7 @@ function zoRohanPublicPNG(R){
     ctx.fillText('⚠️ 彩票随机 · 历史统计整理 · 不构成预测', W/2, H-74);
     if(total>1){ ctx.fillStyle='#a78bfa'; ctx.font='700 15px '+ZO_FONT; ctx.fillText('第 '+(pi+1)+' / '+total+' 页', W/2, H-46); }
     ctx.fillStyle='#64748b'; ctx.font='600 12px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-24);
+    zoStampCompliance(ctx, W, H);
     cv.toBlob(function(b){ if(b) zoSaveBlob(b, 'rohan_'+R.curYear+'-'+String(R.month).padStart(2,'0')+'_'+mkAscii+'_p'+(pi+1)+'.png'); });
   });
 }
