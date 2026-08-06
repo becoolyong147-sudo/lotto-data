@@ -7768,11 +7768,12 @@ function doBacktest(){
         <option value="off">关闭</option>
       </select>
     </div>
-    <div class="ig" style="align-self:flex-end"><label>🎞️ 龙动画</label>
-      <select id="zo-dragon-anim" title="视频背景金龙的动态（中间留净空给号码/文字）">
-        <option value="static" selected>静态偏稳</option>
-        <option value="move">慢移动</option>
-        <option value="rotate">轻微旋感</option>
+    <div class="ig" style="align-self:flex-end"><label>🎞️ 飞龙动画</label>
+      <select id="zo-dragon-anim" title="一条龙在天空飞翔（中间留净空给号码/文字）">
+        <option value="flyRL" selected>右→左 飞过上方</option>
+        <option value="flyLR">左→右 飞过上方</option>
+        <option value="diag">斜向飞过</option>
+        <option value="circle">盘旋环绕</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
