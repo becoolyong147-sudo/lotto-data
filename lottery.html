@@ -10528,30 +10528,54 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
   ctx.beginPath(); ctx.moveTo(cb[0],cb[1]); ctx.quadraticCurveTo(cb[0]+dir*halfW(0.3)*0.3, cb[1]+halfW(0.3)*1.4, cb[0]+dir*halfW(0.3)*0.9, cb[1]+halfW(0.3)*1.8); ctx.stroke();
   for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(cb[0]+dir*halfW(0.3)*0.9, cb[1]+halfW(0.3)*1.8);
     ctx.quadraticCurveTo(cb[0]+dir*halfW(0.3)*(0.9+k*0.25), cb[1]+halfW(0.3)*2.2, cb[0]+dir*halfW(0.3)*(1.05+k*0.35), cb[1]+halfW(0.3)*2.35); ctx.stroke(); }
-  // 5) 龙头（线描：吻、开颚、眉、角、鬃、须、眼）
-  const head=pts[0], hh=halfW(0.02)*2.0, fwd=dir;
+  // 5) 龙头（线描：清晰吻部/开颚/眉眼/双角/鬃/须/龙珠）
+  const head=pts[0], hh=halfW(0.02)*2.1, fwd=dir;
   ctx.save(); ctx.translate(head[0],head[1]);
-  ctx.shadowColor='rgba(245,197,66,0.6)'; ctx.shadowBlur=V.glow*0.8;
-  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.25;
-  // 上吻
-  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.2,-hh*0.35); ctx.quadraticCurveTo(fwd*hh*1.1,-hh*0.55, fwd*hh*1.9,-hh*0.05); ctx.stroke();
+  ctx.shadowColor='rgba(245,197,66,0.55)'; ctx.shadowBlur=V.glow*0.85;
+  // 头颅顶轮廓：从颈后隆起 → 眉骨 → 吻梁 → 鼻尖（一条连续优美曲线）
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.35; ctx.lineJoin='round';
+  ctx.beginPath();
+  ctx.moveTo(-fwd*hh*0.55,-hh*0.15);
+  ctx.quadraticCurveTo(-fwd*hh*0.15,-hh*0.72, fwd*hh*0.5,-hh*0.5);   // 眉骨隆起
+  ctx.quadraticCurveTo(fwd*hh*1.25,-hh*0.34, fwd*hh*1.72,-hh*0.46);  // 吻梁
+  ctx.quadraticCurveTo(fwd*hh*2.02,-hh*0.5, fwd*hh*2.0,-hh*0.12);    // 鼻尖上翘
+  ctx.stroke();
+  // 上唇（鼻尖 → 口角）
+  ctx.beginPath(); ctx.moveTo(fwd*hh*2.0,-hh*0.12); ctx.quadraticCurveTo(fwd*hh*1.5,hh*0.06, fwd*hh*0.55,hh*0.05); ctx.stroke();
   // 下颚（张口）
-  ctx.beginPath(); ctx.moveTo(fwd*hh*0.3,hh*0.35); ctx.quadraticCurveTo(fwd*hh*1.2,hh*0.55, fwd*hh*1.75,hh*0.28); ctx.stroke();
-  // 口缝
-  ctx.beginPath(); ctx.moveTo(fwd*hh*0.35,hh*0.02); ctx.quadraticCurveTo(fwd*hh*1.1,hh*0.05,fwd*hh*1.8,hh*0.12); ctx.lineWidth=lw*0.7; ctx.stroke();
-  // 双角（后扫，带小叉）
-  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.1,-hh*0.4); ctx.quadraticCurveTo(-fwd*hh*1.2,-hh*1.15,-fwd*hh*1.7,-hh*0.75); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(-fwd*hh*1.35,-hh*0.95); ctx.quadraticCurveTo(-fwd*hh*1.75,-hh*1.05,-fwd*hh*2.0,-hh*0.8); ctx.stroke();
-  // 头鬃（飘带 3 条）
-  for(let k=0;k<3;k++){ const oy=-hh*0.1+k*hh*0.35; ctx.beginPath(); ctx.moveTo(-fwd*hh*0.1,oy);
-    ctx.quadraticCurveTo(-fwd*hh*1.0, oy+Math.sin(swim+k)*hh*0.2, -fwd*hh*1.9, oy+hh*0.1+Math.sin(swim*1.2+k)*hh*0.25); ctx.stroke(); }
-  // 龙须（向前飘）
-  ctx.strokeStyle=GOLD_HI; ctx.lineWidth=lw*0.9;
-  for(const sgn of [-1,1]){ ctx.beginPath(); ctx.moveTo(fwd*hh*1.7,sgn*hh*0.05); ctx.quadraticCurveTo(fwd*hh*2.7,sgn*hh*0.5+Math.sin(swim+sgn)*hh*0.35, fwd*hh*3.4, sgn*hh*0.15+Math.sin(swim*0.8)*hh*0.2); ctx.stroke(); }
-  // 眉 + 眼
-  ctx.strokeStyle=GOLD; ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(fwd*hh*0.25,-hh*0.45); ctx.quadraticCurveTo(fwd*hh*0.6,-hh*0.6,fwd*hh*0.85,-hh*0.35); ctx.stroke();
-  ctx.beginPath(); ctx.arc(fwd*hh*0.55,-hh*0.22,hh*0.12,0,Math.PI*2); ctx.fillStyle='rgba(20,14,6,'+V.a.toFixed(2)+')'; ctx.fill(); ctx.strokeStyle=GOLD; ctx.lineWidth=lw*0.8; ctx.stroke();
-  ctx.beginPath(); ctx.arc(fwd*hh*0.5,-hh*0.26,hh*0.04,0,Math.PI*2); ctx.fillStyle=GOLD_HI; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(fwd*hh*0.55,hh*0.05); ctx.quadraticCurveTo(fwd*hh*1.15,hh*0.62, fwd*hh*1.9,hh*0.42);
+  ctx.quadraticCurveTo(fwd*hh*1.45,hh*0.5, fwd*hh*1.2,hh*0.22); ctx.stroke();
+  // 颈后轮廓（下方连身）
+  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.55,-hh*0.15); ctx.quadraticCurveTo(-fwd*hh*0.7,hh*0.3,-fwd*hh*0.15,hh*0.5); ctx.stroke();
+  // 鼻孔 + 獠牙暗示
+  ctx.lineWidth=lw*0.8; ctx.beginPath(); ctx.arc(fwd*hh*1.78,-hh*0.24,hh*0.06,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(fwd*hh*1.55,hh*0.12); ctx.lineTo(fwd*hh*1.62,hh*0.34); ctx.stroke();
+  // 双角（干净后扫，不交叉；末端小分叉）
+  ctx.lineWidth=lw*1.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.05,-hh*0.55); ctx.quadraticCurveTo(-fwd*hh*0.9,-hh*1.25,-fwd*hh*1.9,-hh*1.05); ctx.stroke();
+  ctx.lineWidth=lw*1.0; ctx.beginPath(); ctx.moveTo(-fwd*hh*1.35,-hh*1.16); ctx.quadraticCurveTo(-fwd*hh*1.7,-hh*1.28,-fwd*hh*2.15,-hh*1.12); ctx.stroke();
+  ctx.lineWidth=lw*1.2; ctx.beginPath(); ctx.moveTo(fwd*hh*0.15,-hh*0.5); ctx.quadraticCurveTo(-fwd*hh*0.35,-hh*1.0,-fwd*hh*1.25,-hh*0.85); ctx.stroke();
+  // 头鬃（飘带 3 条，向后飘）
+  ctx.lineWidth=lw; ctx.strokeStyle=GOLD;
+  for(let k=0;k<3;k++){ const oy=hh*0.0+k*hh*0.34; ctx.beginPath(); ctx.moveTo(-fwd*hh*0.35,oy-hh*0.1);
+    ctx.quadraticCurveTo(-fwd*hh*1.2, oy+Math.sin(swim+k)*hh*0.22, -fwd*hh*2.1, oy+hh*0.15+Math.sin(swim*1.2+k)*hh*0.28); ctx.stroke(); }
+  // 龙须（鼻尖向前飘 2 条）
+  ctx.strokeStyle=GOLD_HI; ctx.lineWidth=lw*0.95;
+  for(const sgn of [-0.4,1]){ ctx.beginPath(); ctx.moveTo(fwd*hh*1.98,sgn*hh*0.12);
+    ctx.quadraticCurveTo(fwd*hh*2.9,sgn*hh*0.5+Math.sin(swim+sgn)*hh*0.4, fwd*hh*3.6, sgn*hh*0.2+Math.sin(swim*0.8)*hh*0.25); ctx.stroke(); }
+  // 下巴龙髯
+  ctx.beginPath(); ctx.moveTo(fwd*hh*1.0,hh*0.5); ctx.quadraticCurveTo(fwd*hh*0.9,hh*1.1, fwd*hh*0.5,hh*1.35); ctx.stroke();
+  // 眉 + 眼（点睛）
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.1;
+  ctx.beginPath(); ctx.moveTo(fwd*hh*0.35,-hh*0.5); ctx.quadraticCurveTo(fwd*hh*0.7,-hh*0.66,fwd*hh*0.98,-hh*0.42); ctx.stroke();
+  ctx.beginPath(); ctx.arc(fwd*hh*0.68,-hh*0.28,hh*0.14,0,Math.PI*2); ctx.fillStyle='rgba(18,12,5,'+V.a.toFixed(2)+')'; ctx.fill(); ctx.lineWidth=lw*0.9; ctx.strokeStyle=GOLD; ctx.stroke();
+  ctx.beginPath(); ctx.arc(fwd*hh*0.62,-hh*0.33,hh*0.045,0,Math.PI*2); ctx.fillStyle=GOLD_HI; ctx.fill();
+  // 龙珠（口前小光球，增强"飞龙戏珠"意象）
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  const pearl=ctx.createRadialGradient(fwd*hh*2.9,hh*0.05,0,fwd*hh*2.9,hh*0.05,hh*0.6);
+  pearl.addColorStop(0,'rgba(255,246,210,0.85)'); pearl.addColorStop(0.4,'rgba(245,205,110,0.5)'); pearl.addColorStop(1,'rgba(245,205,110,0)');
+  ctx.fillStyle=pearl; ctx.beginPath(); ctx.arc(fwd*hh*2.9,hh*0.05,hh*0.6,0,Math.PI*2); ctx.fill();
+  ctx.restore();
   ctx.restore();
   // 6) 尾鳍（火焰扇）
   const tail=pts[N], tn=norms[N];
