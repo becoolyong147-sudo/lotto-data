@@ -10448,7 +10448,137 @@ function zoDragonGold(){
   g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
   c._w=img.naturalWidth; ZO_DRAGON_GOLD=c; return c;
 }
-function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'static'; }
+function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'flyRL'; }
+// ===== 一条龙在天空飞翔（矢量金龙，身体延伸+起伏+飞行路径，黑金高级，中间留净空） =====
+// t=视频秒数(飞行) / null(静态海报=定格一帧漂亮飞行姿态)。level 控可见度，path 控飞行路线。
+function zoDrawFlyingDragon(ctx, W, H, t, level, path){
+  level = level || zoDragonLevel(); if(level==='off') return;
+  path  = path  || zoDragonAnim();
+  const V = level==='low'  ? {a:0.55, glow:14, w:0.85}
+          : level==='high' ? {a:0.98, glow:26, w:1.35}
+          :                  {a:0.78, glow:20, w:1.10};
+  const tt = (t==null) ? 5.6 : t;               // 静态海报定格在一帧好看的飞行姿态
+  const dur = 16;                                // 一次飞越秒数
+  const prog = ((tt % dur) + dur) % dur / dur;   // 0..1 循环
+  const band = H*0.155;                          // 飞行高度（画面上部）
+  const amp  = H*0.052;                          // 身体上下起伏
+  const span = W*1.28;                           // 龙身长度（延伸感）
+  const swim = tt*1.7;                           // 身体波动速度
+  const N = 74;                                  // 身体采样段
+  // 头部锚点与飞行方向
+  let hx, hy=band, dir=1, slope=0, circ=null;
+  if(path==='flyLR'){ hx=-W*0.28+prog*(W*1.56); dir=1; }
+  else if(path==='diag'){ hx=-W*0.22+prog*(W*1.5); dir=1; slope=0.28; hy=band-H*0.02; }
+  else if(path==='circle'){ circ=prog*Math.PI*2; hx=W*0.5+Math.sin(circ)*W*0.34; hy=band+H*0.02+Math.sin(circ*2)*H*0.05; dir=1; slope=Math.cos(circ)*0.12; }
+  else { hx=W*1.28-prog*(W*1.56); dir=-1; }      // flyRL 默认
+  // 身体中心线：u=0 头 → u=1 尾（尾在飞行方向后方）
+  function pt(u){
+    const along = u*span;
+    let x = hx - dir*along;
+    let y = hy + slope*along;
+    if(circ!=null){                              // 盘旋：龙身沿一段平缓弧线后延（不真的绕整圈，保持连贯）
+      y = hy + Math.sin(circ + u*1.1)*H*0.05 - Math.sin(circ)*H*0.05;
+    }
+    const taperY = Math.sin(Math.PI*Math.min(1,Math.max(0.02,u)));    // 两端起伏收敛
+    y += Math.sin(u*3.4*Math.PI + swim)*amp*taperY;
+    return [x,y];
+  }
+  // 半宽（延伸感的关键：肩部粗、向尾巴渐细、鼻尖略收）
+  function halfW(u){
+    const base = (Math.sin(Math.PI*Math.pow(u,0.62)))*W*0.055*V.w;    // 纺锤形
+    return Math.max(1.2, base*(1-0.35*u));
+  }
+  // ===== 线描金龙（镂空描线，优雅高级，非实心）=====
+  const lw = Math.max(1.0, W*0.0016)*V.w;
+  const GOLD='rgba(240,205,110,'+V.a.toFixed(2)+')';
+  const GOLD_HI='rgba(255,244,205,'+(V.a).toFixed(2)+')';
+  const FILL='rgba(214,168,74,'+(0.12*V.a).toFixed(3)+')';
+  let pts=[], norms=[];
+  for(let i=0;i<=N;i++){ pts.push(pt(i/N)); }
+  for(let i=0;i<=N;i++){
+    const q=pts[Math.min(N,i+1)], r=pts[Math.max(0,i-1)];
+    let tx=q[0]-r[0], ty=q[1]-r[1]; const L=Math.hypot(tx,ty)||1; tx/=L; ty/=L;
+    norms.push([-ty,tx]);
+  }
+  const E=(i,s)=>{ const p=pts[i], n=norms[i], h=halfW(i/N); return [p[0]+s*n[0]*h, p[1]+s*n[1]*h]; };
+  ctx.save();
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.shadowColor='rgba(245,197,66,0.55)'; ctx.shadowBlur=V.glow;
+  // 1) 龙身轮廓：描线 + 极淡内填（镂空感）
+  ctx.beginPath();
+  for(let i=0;i<=N;i++){ const e=E(i,1); i?ctx.lineTo(e[0],e[1]):ctx.moveTo(e[0],e[1]); }
+  for(let i=N;i>=0;i--){ const e=E(i,-1); ctx.lineTo(e[0],e[1]); }
+  ctx.closePath();
+  ctx.fillStyle=FILL; ctx.fill();
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.35; ctx.stroke();
+  ctx.shadowBlur=0;
+  // 2) 腹甲横纹（细弧，节奏感）
+  ctx.strokeStyle='rgba(255,240,190,'+(0.35*V.a).toFixed(2)+')'; ctx.lineWidth=lw*0.7;
+  for(let i=4;i<N-3;i+=2){ const a=E(i,-1), p=pts[i], h=halfW(i/N);
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.quadraticCurveTo(p[0]-norms[i][0]*h*0.15, p[1]-norms[i][1]*h*0.15, p[0]+norms[i][0]*h*0.15, p[1]+norms[i][1]*h*0.15); ctx.stroke(); }
+  // 3) 背脊鬃毛：沿背侧的火焰状飘带（向尾方向扫）
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw;
+  for(let i=2;i<N-2;i+=3){ const u=i/N; if(u>0.9) break; const b=E(i,1), h=halfW(u); const back=[-dir*Math.cos(0),0];
+    const len=h*(1.1+0.5*Math.sin(i));
+    const tipx=b[0]+norms[i][0]*len - dir*len*0.5, tipy=b[1]+norms[i][1]*len - Math.abs(len)*0.15;
+    ctx.beginPath(); ctx.moveTo(b[0],b[1]); ctx.quadraticCurveTo(b[0]+norms[i][0]*len*0.6 - dir*len*0.1, b[1]+norms[i][1]*len*0.6, tipx, tipy); ctx.stroke(); }
+  // 4) 一只前爪（增强"龙"识别）
+  const ci=Math.round(N*0.34), cb=E(ci,-1);
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.1;
+  ctx.beginPath(); ctx.moveTo(cb[0],cb[1]); ctx.quadraticCurveTo(cb[0]+dir*halfW(0.3)*0.3, cb[1]+halfW(0.3)*1.4, cb[0]+dir*halfW(0.3)*0.9, cb[1]+halfW(0.3)*1.8); ctx.stroke();
+  for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(cb[0]+dir*halfW(0.3)*0.9, cb[1]+halfW(0.3)*1.8);
+    ctx.quadraticCurveTo(cb[0]+dir*halfW(0.3)*(0.9+k*0.25), cb[1]+halfW(0.3)*2.2, cb[0]+dir*halfW(0.3)*(1.05+k*0.35), cb[1]+halfW(0.3)*2.35); ctx.stroke(); }
+  // 5) 龙头（线描：吻、开颚、眉、角、鬃、须、眼）
+  const head=pts[0], hh=halfW(0.02)*2.0, fwd=dir;
+  ctx.save(); ctx.translate(head[0],head[1]);
+  ctx.shadowColor='rgba(245,197,66,0.6)'; ctx.shadowBlur=V.glow*0.8;
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw*1.25;
+  // 上吻
+  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.2,-hh*0.35); ctx.quadraticCurveTo(fwd*hh*1.1,-hh*0.55, fwd*hh*1.9,-hh*0.05); ctx.stroke();
+  // 下颚（张口）
+  ctx.beginPath(); ctx.moveTo(fwd*hh*0.3,hh*0.35); ctx.quadraticCurveTo(fwd*hh*1.2,hh*0.55, fwd*hh*1.75,hh*0.28); ctx.stroke();
+  // 口缝
+  ctx.beginPath(); ctx.moveTo(fwd*hh*0.35,hh*0.02); ctx.quadraticCurveTo(fwd*hh*1.1,hh*0.05,fwd*hh*1.8,hh*0.12); ctx.lineWidth=lw*0.7; ctx.stroke();
+  // 双角（后扫，带小叉）
+  ctx.beginPath(); ctx.moveTo(-fwd*hh*0.1,-hh*0.4); ctx.quadraticCurveTo(-fwd*hh*1.2,-hh*1.15,-fwd*hh*1.7,-hh*0.75); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-fwd*hh*1.35,-hh*0.95); ctx.quadraticCurveTo(-fwd*hh*1.75,-hh*1.05,-fwd*hh*2.0,-hh*0.8); ctx.stroke();
+  // 头鬃（飘带 3 条）
+  for(let k=0;k<3;k++){ const oy=-hh*0.1+k*hh*0.35; ctx.beginPath(); ctx.moveTo(-fwd*hh*0.1,oy);
+    ctx.quadraticCurveTo(-fwd*hh*1.0, oy+Math.sin(swim+k)*hh*0.2, -fwd*hh*1.9, oy+hh*0.1+Math.sin(swim*1.2+k)*hh*0.25); ctx.stroke(); }
+  // 龙须（向前飘）
+  ctx.strokeStyle=GOLD_HI; ctx.lineWidth=lw*0.9;
+  for(const sgn of [-1,1]){ ctx.beginPath(); ctx.moveTo(fwd*hh*1.7,sgn*hh*0.05); ctx.quadraticCurveTo(fwd*hh*2.7,sgn*hh*0.5+Math.sin(swim+sgn)*hh*0.35, fwd*hh*3.4, sgn*hh*0.15+Math.sin(swim*0.8)*hh*0.2); ctx.stroke(); }
+  // 眉 + 眼
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw; ctx.beginPath(); ctx.moveTo(fwd*hh*0.25,-hh*0.45); ctx.quadraticCurveTo(fwd*hh*0.6,-hh*0.6,fwd*hh*0.85,-hh*0.35); ctx.stroke();
+  ctx.beginPath(); ctx.arc(fwd*hh*0.55,-hh*0.22,hh*0.12,0,Math.PI*2); ctx.fillStyle='rgba(20,14,6,'+V.a.toFixed(2)+')'; ctx.fill(); ctx.strokeStyle=GOLD; ctx.lineWidth=lw*0.8; ctx.stroke();
+  ctx.beginPath(); ctx.arc(fwd*hh*0.5,-hh*0.26,hh*0.04,0,Math.PI*2); ctx.fillStyle=GOLD_HI; ctx.fill();
+  ctx.restore();
+  // 6) 尾鳍（火焰扇）
+  const tail=pts[N], tn=norms[N];
+  ctx.strokeStyle=GOLD; ctx.lineWidth=lw;
+  for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(tail[0],tail[1]);
+    ctx.quadraticCurveTo(tail[0]+dir*W*0.02, tail[1]+k*halfW(0.98)*1.2, tail[0]+dir*W*0.05+k*W*0.006, tail[1]+k*halfW(0.98)*2.2); ctx.stroke(); }
+  ctx.restore();
+  // 金光尾迹（身后拖尾）
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=V.a*0.5;
+  const trailG=ctx.createRadialGradient(tail[0],tail[1],2,tail[0],tail[1],W*0.16);
+  trailG.addColorStop(0,'rgba(255,240,180,0.5)'); trailG.addColorStop(1,'rgba(255,240,180,0)');
+  ctx.fillStyle=trailG; ctx.beginPath(); ctx.arc(tail[0],tail[1],W*0.16,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // —— 轻微金雾/云气（飞行时缓慢漂）——
+  if(t!=null){
+    ctx.save(); ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<3;i++){ const cx=W*(0.2+0.3*i)+Math.sin(tt*0.18+i*2)*W*0.05, cy=band+H*0.03+Math.cos(tt*0.15+i)*H*0.015;
+      const rr=W*0.22, rg=ctx.createRadialGradient(cx,cy,0,cx,cy,rr);
+      rg.addColorStop(0,'rgba(245,197,66,0.045)'); rg.addColorStop(1,'rgba(245,197,66,0)');
+      ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
+  // —— 中间/下方净空暗角，保号码/标题/数据可读 ——
+  ctx.save(); const sg=ctx.createRadialGradient(W/2,H*0.6,W*0.1,W/2,H*0.6,W*0.82);
+  sg.addColorStop(0,'rgba(5,6,16,0.48)'); sg.addColorStop(1,'rgba(5,6,16,0)');
+  ctx.fillStyle=sg; ctx.fillRect(0,0,W,H); ctx.restore();
+}
 // 在背景上绘制更明显的金龙。t=视频秒数(有=轻微动态) / null(静态图)
 // 构图：龙头置于上方偏侧，龙身沿上缘展开，画面中间/下方留净空给号码·标题·数据
 function zoDrawDragonHero(ctx, W, H, t, levelOverride, animOverride){
@@ -14119,7 +14249,7 @@ function zoPublicBg(ctx, bgKey, W, H, t){
     // 完整背景图铺满；开启「龙更明显版」时把底图杂纹压得更暗，让可控金龙成为主视觉
     zoDrawBgCover(ctx, bgImg, W, H);
     ctx.save(); ctx.globalAlpha = dragonOn ? 0.52 : 0.30; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore();
-    if(typeof zoDrawDragonHero==='function') zoDrawDragonHero(ctx, W, H, t);
+    if(typeof zoDrawFlyingDragon==='function') zoDrawFlyingDragon(ctx, W, H, t);
     return;
   }
   const gridImg = ZO_PUBLIC_IMG.grid;
@@ -14128,8 +14258,8 @@ function zoPublicBg(ctx, bgKey, W, H, t){
     for(let x=0;x<W;x+=gridImg.naturalWidth) for(let y=0;y<H;y+=gridImg.naturalHeight) ctx.drawImage(gridImg,x,y);
     ctx.restore();
   } else { zoPublicGrid(ctx, W, H); }
-  // 可控金龙（替代旧的低透明度水印）
-  if(typeof zoDrawDragonHero==='function'){ zoDrawDragonHero(ctx, W, H, t); }
+  // 天空飞龙（替代旧的圆形龙徽章/水印）
+  if(typeof zoDrawFlyingDragon==='function'){ zoDrawFlyingDragon(ctx, W, H, t); }
   else if(typeof zoDrawDragon==='function'){ zoDrawDragon(ctx, W/2, H*0.42, W*0.55, 0.07); }
 }
 // Verified 小徽章（有图用图，无图画细线圆圈）
