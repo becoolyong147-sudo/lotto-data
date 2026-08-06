@@ -7760,6 +7760,14 @@ function doBacktest(){
         <option value="916">📱 1080×1920 (9:16 Story/Reels)</option>
       </select>
     </div>
+    <div class="ig" style="align-self:flex-end"><label>🐉 龙明显度</label>
+      <select id="zo-dragon-level" title="背景金龙的可见度（黑金风格，不抢主内容）">
+        <option value="low">低调高级</option>
+        <option value="mid" selected>中等明显</option>
+        <option value="high">强烈视觉</option>
+        <option value="off">关闭</option>
+      </select>
+    </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 公开复盘视频</button></div>
     <div class="ig" id="zo-hit-opts" style="display:none"><label>复盘记录 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -10416,6 +10424,77 @@ function zoDrawDragon(ctx, cx, cy, size, alpha){
   const h=size*img.naturalHeight/img.naturalWidth;
   ctx.save(); if(alpha!=null) ctx.globalAlpha=alpha;
   ctx.drawImage(img, cx-size/2, cy-h/2, size, h); ctx.restore();
+}
+// ===== 龙更明显版：可控背景金龙（金色边光 + 轻微流光/呼吸，黑金克制，不抢主内容） =====
+function zoDragonLevel(){ const el=document.getElementById('zo-dragon-level'); return el ? el.value : 'mid'; }
+let ZO_DRAGON_GOLD=null;   // 缓存：龙形内填金的剪影，用于边光与流光
+function zoDragonGold(){
+  const img=ZO_DRAGON_IMG; if(!img||!img.complete||!img.naturalWidth) return null;
+  if(ZO_DRAGON_GOLD && ZO_DRAGON_GOLD._w===img.naturalWidth) return ZO_DRAGON_GOLD;
+  const c=document.createElement('canvas'); c.width=img.naturalWidth; c.height=img.naturalHeight;
+  const g=c.getContext('2d');
+  g.drawImage(img,0,0);
+  g.globalCompositeOperation='source-atop';                 // 只在龙形内上金，保留龙的透明轮廓
+  const lg=g.createLinearGradient(0,0,0,c.height);
+  lg.addColorStop(0,'#fff3c4'); lg.addColorStop(.5,'#f5c542'); lg.addColorStop(1,'#8a5a12');
+  g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
+  c._w=img.naturalWidth; ZO_DRAGON_GOLD=c; return c;
+}
+// 在背景上绘制更明显的金龙。t=视频秒数(有=轻微动态) / null(静态图)
+function zoDrawDragonHero(ctx, W, H, t, levelOverride){
+  const img=ZO_DRAGON_IMG; if(!img||!img.complete||!img.naturalWidth) return;
+  const level=levelOverride||zoDragonLevel();
+  if(level==='off') return;
+  // 三档：a=主体透明度 sz=占宽 glow=边光模糊 sheen=金光强度
+  const P = level==='low'  ? {a:0.17, sz:0.66, glow:22, sheen:0.15}
+          : level==='high' ? {a:0.42, sz:0.98, glow:42, sheen:0.34}
+          :                  {a:0.28, sz:0.80, glow:30, sheen:0.23};
+  const portrait=H>=W;
+  const dw=W*P.sz, dh=dw*img.naturalHeight/img.naturalWidth;
+  // 构图：龙头偏右上，龙身斜跨向下，突出龙头/上半身
+  const cx=W*(portrait?0.64:0.70), cy=H*(portrait?0.30:0.34);
+  const breathe = t!=null ? (0.82+0.18*(0.5+0.5*Math.sin(t*1.1))) : 1;   // 边光缓慢呼吸
+  const driftX  = t!=null ? Math.sin(t*0.5)*W*0.006 : 0;                  // 极轻漂移
+  const driftY  = t!=null ? Math.cos(t*0.4)*H*0.004 : 0;
+  const gold=zoDragonGold();
+  ctx.save();
+  ctx.translate(cx+driftX, cy+driftY);
+  // 1) 柔和金色外发光（龙的轮廓/龙头/龙角边光）
+  if(gold){
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    ctx.globalAlpha=P.sheen*breathe;
+    ctx.shadowColor='rgba(245,197,66,0.9)'; ctx.shadowBlur=P.glow*breathe;
+    ctx.drawImage(gold, -dw/2, -dh/2, dw, dh);
+    ctx.restore();
+  }
+  // 2) 龙身主体（让人一眼看出是龙）
+  ctx.globalAlpha=P.a;
+  ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
+  ctx.restore();
+  // 3) 金光缓慢扫过龙鳞（仅视频）
+  if(t!=null && gold){
+    const sw=document.createElement('canvas'); sw.width=Math.max(2,Math.round(dw)); sw.height=Math.max(2,Math.round(dh));
+    const sg=sw.getContext('2d');
+    sg.drawImage(gold,0,0,sw.width,sw.height);
+    sg.globalCompositeOperation='source-in';                 // 亮带遮罩进龙形内
+    const phase=((t*0.14)%1.4)-0.2, bx=phase*sw.width;
+    const lg=sg.createLinearGradient(bx-sw.width*0.28,0,bx+sw.width*0.28,sw.height);
+    lg.addColorStop(0,'rgba(255,240,180,0)');
+    lg.addColorStop(.5,'rgba(255,244,200,0.9)');
+    lg.addColorStop(1,'rgba(255,240,180,0)');
+    sg.fillStyle=lg; sg.fillRect(0,0,sw.width,sw.height);
+    ctx.save();
+    ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=P.sheen*0.9;
+    ctx.drawImage(sw, cx+driftX-dw/2, cy+driftY-dh/2, dw, dh);
+    ctx.restore();
+  }
+  // 4) 中央/下方内容区柔和暗角，保证标题/号码/数据可读
+  ctx.save();
+  const rg=ctx.createRadialGradient(W/2,H*0.63,W*0.14,W/2,H*0.63,W*0.78);
+  rg.addColorStop(0,'rgba(5,6,16,0.42)'); rg.addColorStop(1,'rgba(5,6,16,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  ctx.restore();
 }
 // 背景图 cover 填充整个画布（居中裁切）
 function zoDrawBgCover(ctx, img, W, H){
@@ -13995,32 +14074,28 @@ function zoPublicGrid(ctx, W, H){
   ctx.restore();
 }
 // 背景：有底图铺满，无图用深色渐变 + 网格（grid 图优先，否则 Canvas 画）
-function zoPublicBg(ctx, bgKey, W, H){
+function zoPublicBg(ctx, bgKey, W, H, t){
   const bg = ctx.createLinearGradient(0,0,0,H);
   bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
   ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  const dragonOn = (typeof zoDragonLevel==='function') && zoDragonLevel()!=='off';
   const bgImg = ZO_PUBLIC_IMG[bgKey];
   if(bgImg && bgImg.complete && bgImg.naturalWidth && typeof zoDrawBgCover==='function'){
-    // 完整背景图（自带龙纹/网格/光柱）→ 直接铺满 + 轻度压暗保证白字可读，不再叠加多余网格/水印
+    // 完整背景图铺满；开启「龙更明显版」时把底图杂纹压得更暗，让可控金龙成为主视觉
     zoDrawBgCover(ctx, bgImg, W, H);
-    ctx.save(); ctx.globalAlpha=0.30; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore();
+    ctx.save(); ctx.globalAlpha = dragonOn ? 0.52 : 0.30; ctx.fillStyle=bg; ctx.fillRect(0,0,W,H); ctx.restore();
+    if(typeof zoDrawDragonHero==='function') zoDrawDragonHero(ctx, W, H, t);
     return;
   }
   const gridImg = ZO_PUBLIC_IMG.grid;
   if(gridImg && gridImg.complete && gridImg.naturalWidth){
-    ctx.save(); ctx.globalAlpha=0.5;
+    ctx.save(); ctx.globalAlpha = dragonOn ? 0.32 : 0.5;
     for(let x=0;x<W;x+=gridImg.naturalWidth) for(let y=0;y<H;y+=gridImg.naturalHeight) ctx.drawImage(gridImg,x,y);
     ctx.restore();
   } else { zoPublicGrid(ctx, W, H); }
-  // 低透明度金龙水印
-  const wm = ZO_PUBLIC_IMG.watermark;
-  if(wm && wm.complete && wm.naturalWidth){
-    ctx.save(); ctx.globalAlpha=0.08;
-    const ws=Math.min(W*0.7, wm.naturalWidth), r=ws/wm.naturalWidth;
-    ctx.drawImage(wm, W/2-ws/2, H*0.30, ws, wm.naturalHeight*r); ctx.restore();
-  } else if(typeof zoDrawDragon==='function'){
-    zoDrawDragon(ctx, W/2, H*0.42, W*0.55, 0.07);
-  }
+  // 可控金龙（替代旧的低透明度水印）
+  if(typeof zoDrawDragonHero==='function'){ zoDrawDragonHero(ctx, W, H, t); }
+  else if(typeof zoDrawDragon==='function'){ zoDrawDragon(ctx, W/2, H*0.42, W*0.55, 0.07); }
 }
 // Verified 小徽章（有图用图，无图画细线圆圈）
 function zoPublicVerified(ctx, x, y, lang){
@@ -14178,7 +14253,7 @@ function zoDrawPublicStory(ctx, HIT, t, lang, dur){
   const f = (t==null) ? 1 : Math.max(0, Math.min(1, t/dur));
   const ease = (typeof zoEaseOut==='function') ? zoEaseOut : (u=>u);
   const seg=(a,b)=> Math.max(0, Math.min(1,(f-a)/(b-a)));   // 阶段进度
-  zoPublicBg(ctx, 'storyBg', W, H);
+  zoPublicBg(ctx, 'storyBg', W, H, t);
   zoRR(ctx,6,6,W-12,H-12,22); ctx.strokeStyle='rgba(245,158,11,0.5)'; ctx.lineWidth=3; ctx.stroke();
   // 阶段1：品牌 + 月份淡入
   const a1=ease(seg(0,0.12));
