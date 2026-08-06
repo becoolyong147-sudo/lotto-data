@@ -13740,6 +13740,31 @@ function zoOutputMode(){
   const el = document.getElementById('zo-public-output-mode');
   return el ? el.value : 'public';
 }
+// —— Meta 合规导出模式 ——
+const ZO_MC_FOOTER = 'Historical statistics only. Lottery outcomes are random. No prediction or guarantee. 18+';
+function zoComplianceOn(){ const el=document.getElementById('zo-compliance-mode'); return el ? el.checked : true; }
+// 在任意导出画布底部盖英文合规声明（每张公开导出都加）
+function zoStampCompliance(ctx, W, H){
+  if(!ctx) return;
+  const F = (typeof ZO_FONT!=='undefined') ? ZO_FONT : 'sans-serif';
+  ctx.save();
+  ctx.fillStyle='rgba(6,6,12,0.80)'; ctx.fillRect(0,H-30,W,30);
+  ctx.strokeStyle='rgba(212,175,55,0.35)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,H-30); ctx.lineTo(W,H-30); ctx.stroke();
+  ctx.fillStyle='#cec8b7'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  let fs=13; ctx.font='600 '+fs+'px '+F;
+  while(ctx.measureText(ZO_MC_FOOTER).width > W-26 && fs>8){ fs--; ctx.font='600 '+fs+'px '+F; }
+  ctx.fillText(ZO_MC_FOOTER, W/2, H-15);
+  ctx.restore();
+}
+// 合规模式下禁止导出「庆祝/命中战报」旧版；返回 true=已拦
+function zoLegacyBlocked(){
+  if(zoOutputMode()==='legacy' && zoComplianceOn()){
+    alert('🛡️ Meta 合规导出模式已开启：\n庆祝/命中战报（旧版）含高风险元素，不可对外导出。\n请切到「Facebook公开复盘」或「会员数据报告」，或先关闭合规模式（仅供内部预览）。');
+    return true;
+  }
+  return false;
+}
 // public 模式禁用「🔥 热血上扬」配乐（选中则切回 mystery）；member/legacy 保留
 function zoPublicSyncBgm(){
   const isPublic = zoOutputMode()==='public';
@@ -14103,16 +14128,27 @@ function zoPublicFileBase(HIT){
   return 'review_' + HIT.year + '-' + String(HIT.month).padStart(2,'0') + '_' + mkAscii;
 }
 // 公开海报导出（PNG 精确 1080×1350）
+function zoExportSize(){ const el=document.getElementById('zo-export-size'); return el?el.value:'45'; }
 function zoPublicReviewPNG(){
   const HIT = zoExtractHits(); if(!HIT) return;
   const lang = zoHitLang();
   if(!zoPublicGuard(HIT, lang)) return;
   try{
-    const cv=document.createElement('canvas'); cv.width=1080; cv.height=1350;   // 精确 1080×1350
-    const ctx=cv.getContext('2d');
-    zoDrawPublicReview(ctx, HIT, lang);
+    const size = zoExportSize();
+    let cv=document.createElement('canvas'), ctx;
+    if(size==='916'){                    // 1080×1920 竖屏
+      cv.width=1080; cv.height=1920; ctx=cv.getContext('2d'); zoDrawPublicStory(ctx, HIT, null, lang, 1);
+    } else if(size==='11'){              // 1080×1080 方形（复盘卡等比居中，深底留边）
+      cv.width=1080; cv.height=1080; ctx=cv.getContext('2d');
+      const off=document.createElement('canvas'); off.width=1080; off.height=1350; zoDrawPublicReview(off.getContext('2d'), HIT, lang);
+      ctx.fillStyle='#070510'; ctx.fillRect(0,0,1080,1080);
+      const s=1080/1350, w=1080*s; ctx.drawImage(off,(1080-w)/2,0,w,1080);
+    } else {                             // 1080×1350 (4:5) 默认
+      cv.width=1080; cv.height=1350; ctx=cv.getContext('2d'); zoDrawPublicReview(ctx, HIT, lang);
+    }
+    zoStampCompliance(ctx, cv.width, cv.height);
     cv.toBlob(function(b){
-      zoSaveBlob(b, zoPublicFileBase(HIT)+'_'+lang+'.png');
+      zoSaveBlob(b, zoPublicFileBase(HIT)+'_'+size+'_'+lang+'.png');
       const btn=document.getElementById('zo-hit-png');
       if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='📊 公开复盘图';},1500); }
     });
@@ -14185,7 +14221,7 @@ function zoPublicReviewVideo(){
     const SC=1, cv=document.createElement('canvas'); cv.width=zoEven(1080*SC); cv.height=zoEven(1920*SC);
     const ctx=cv.getContext('2d'); if(SC!==1) ctx.scale(SC,SC);
     const DUR=10;  // 10s：免责声明停留约2s
-    zoRecVideo(cv, function(t){ zoDrawPublicStory(ctx, HIT, t, lang, DUR); },
+    zoRecVideo(cv, function(t){ zoDrawPublicStory(ctx, HIT, t, lang, DUR); zoStampCompliance(ctx, 1080, 1920); },
       zoPublicFileBase(HIT)+'_'+lang,
       document.getElementById('zo-hit-vid'), '🎬 公开复盘视频', zoBgmFromSel('zo-hit-bgm'), DUR*1000);
   }catch(e){ alert('生成失败：'+e.message); }
@@ -14210,7 +14246,7 @@ function zoPublicReviewCopy(lang, btn){
 }
 
 // —— [二] 分发入口：按 zoOutputMode() 路由（legacy→旧版；public/member→公开版）——
-function zoHitPNG(){ return zoOutputMode()==='legacy' ? zoHitLegacyPNG() : zoPublicReviewPNG(); }
+function zoHitPNG(){ if(zoOutputMode()==='legacy'){ if(zoLegacyBlocked()) return; return zoHitLegacyPNG(); } return zoPublicReviewPNG(); }
 function zoHitVideo(){ return zoOutputMode()==='legacy' ? zoHitLegacyVideo() : zoPublicReviewVideo(); }
 function zoHitCopy(lang, btn){ return zoOutputMode()==='legacy' ? zoHitLegacyCopy(lang, btn) : zoPublicReviewCopy(lang, btn); }
 try{ zoPublicSyncBgm(); }catch(e){}   // 初始 public 默认即禁用 fire 配乐
