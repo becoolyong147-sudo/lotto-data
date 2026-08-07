@@ -7769,10 +7769,10 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><label>🎞️ 飞龙动画</label>
-      <select id="zo-dragon-anim" title="视频里龙独立运动（号码/文字固定不动）">
-        <option value="fly" selected>飞翔（斜向飞过天空）</option>
-        <option value="spiral">盘旋（缓慢盘旋经过）</option>
-        <option value="static">静态（龙固定+微弱流光）</option>
+      <select id="zo-dragon-anim" title="龙身分段联动·天空巡逻（号码/文字固定不动）">
+        <option value="patrol" selected>巡逻（上空盘巡·龙身游动）</option>
+        <option value="graze">掠空（一侧进入·掠过·离开）</option>
+        <option value="static">静态（龙基本不动·微呼吸流光）</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
@@ -10453,7 +10453,15 @@ function zoDragonGlow(){
   const g=c.getContext('2d');
   g.shadowColor='rgba(245,197,66,0.6)'; g.shadowBlur=42; g.drawImage(D,pad,pad,w,h);  // 边光
   g.shadowBlur=0; g.drawImage(D,pad,pad,w,h);                                           // 清晰龙身覆上
-  ZO_DRAGON_GLOW={cv:c, w:w, h:h}; return ZO_DRAGON_GLOW;
+  ZO_DRAGON_GLOW={cv:c, w:w, h:h, pad:pad}; return ZO_DRAGON_GLOW;
+}
+let ZO_DRAGON_GLOW_R=null;   // 镜像(头朝右)缓存
+function zoDragonGlowR(){
+  if(ZO_DRAGON_GLOW_R) return ZO_DRAGON_GLOW_R;
+  const g0=zoDragonGlow(); if(!g0) return null;
+  const c=document.createElement('canvas'); c.width=g0.cv.width; c.height=g0.cv.height;
+  const g=c.getContext('2d'); g.translate(c.width,0); g.scale(-1,1); g.drawImage(g0.cv,0,0);
+  ZO_DRAGON_GLOW_R={cv:c, w:g0.w, h:g0.h, pad:g0.pad}; return ZO_DRAGON_GLOW_R;
 }
 // 金龙水印：在 (cx,cy) 居中，宽 size，透明度 alpha
 function zoDrawDragon(ctx, cx, cy, size, alpha){
@@ -10477,7 +10485,7 @@ function zoDragonGold(){
   g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
   c._w=img.naturalWidth; ZO_DRAGON_GOLD=c; return c;
 }
-function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'fly'; }
+function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'patrol'; }
 // ===== 一条龙在天空飞翔（矢量金龙，身体延伸+起伏+飞行路径，黑金高级，中间留净空） =====
 // t=视频秒数(飞行) / null(静态海报=定格一帧漂亮飞行姿态)。level 控可见度，path 控飞行路线。
 function zoDrawFlyingDragon(ctx, W, H, t, level, path){
@@ -10495,56 +10503,61 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
   const span = W*1.28;                           // 龙身长度（延伸感）
   let swim = ph*2.4;                             // 身体波动(每循环2.4波,周期性)
   const N = 74;                                  // 身体采样段
-  // 头部锚点与飞行方向（3 模式:静态/飞翔/盘旋）
-  let hx, hy=band, dir=1, slope=0, circ=null;
-  if(path==='static'){                           // 静态：龙固定 + 微弱流光
-    hx=W*0.52; hy=band+H*0.008; dir=1; slope=0; swim=ph*0.6;
-  } else if(path==='spiral'){                     // 盘旋：缓慢盘旋经过天空区（周期性,无缝）
-    circ=ph; hx=W*0.5+Math.sin(ph)*W*0.34; hy=band+H*0.015-Math.cos(ph)*H*0.055; dir=1; slope=Math.cos(ph)*0.10;
-  } else {                                        // 飞翔：斜向飞过（首尾都在画面外→无缝循环）
-    hx = -span*1.15 + prog*(W + span*2.3); hy = band - H*0.035 + prog*H*0.13; dir=1; slope=0.16;
-  }
-  // ===== 真龙 dragon.png 沿飞行路径飞（头朝飞行方向自动镜像）=====
+  // ===== dragon.png 加载失败：直接报错，禁止回退旧龙 =====
   if(!zoDragonReady()){
-    // 按用户指令：加载失败直接报错，禁止回退旧线描/SVG/徽章龙
     ctx.save(); ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(0,H*0.44,W,H*0.12);
     ctx.fillStyle='#ff7a7a'; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.font='700 '+Math.round(W*0.028)+'px '+((typeof ZO_FONT!=='undefined')?ZO_FONT:'sans-serif');
     ctx.fillText('⚠ dragon.png 未加载 — 请确认文件存在且可访问', W/2, H*0.5);
-    ctx.restore();
-    return;
+    ctx.restore(); return;
   }
   const D=ZO_LAYER_DRAGON;
   const sizef = level==='low'?0.80:level==='high'?1.08:0.92;
-  const aspF  = (H>=W*1.2)?1.0:(H>=W?0.9:0.78);               // 越接近方形/横版越缩,保中间净空
-  const targetW=W*1.12*sizef*aspF, s=targetW/D.naturalWidth, dh=D.naturalHeight*s;
-  const faceRight = (path!=='static');                         // 飞翔/盘旋朝右(飞行方向)；静态保持素材原朝向(左)
-  const bob = (t!=null)? Math.sin(ph*2)*H*0.010 : 0;          // 轻微上下起伏(周期性)
-  const bank= (t!=null)? Math.sin(ph)*0.04 : 0;               // 轻微角度摆动(周期性)
-  const tilt= path==='fly'? 0.06 : 0;                         // 飞翔时略带俯冲角
-  const cx=hx;
-  // 垂直钳制：龙身底部始终高于号码区(约0.47H)，保证中间号码/文字全程不被压
-  let cy=hy+bob; const maxCY=H*0.46 - dh*0.42; if(cy>maxCY) cy=maxCY;
-  // 金光尾迹（龙尾方向,在龙身后方）——先画,压在龙身下
-  const trailSide = faceRight? -1 : 1;
-  const tailx=cx + trailSide*targetW*0.42, taily=cy+dh*0.02;
-  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=(level==='low'?0.28:0.42);
-  const tg=ctx.createRadialGradient(tailx,taily,2,tailx,taily,W*0.18);
-  tg.addColorStop(0,'rgba(255,238,175,0.55)'); tg.addColorStop(1,'rgba(255,238,175,0)');
-  ctx.fillStyle=tg; ctx.beginPath(); ctx.ellipse(tailx,taily,W*0.18,W*0.09,0,0,Math.PI*2); ctx.fill(); ctx.restore();
-  // 龙身（用预烘焙边光缓存，快速绘制）
-  const glow=zoDragonGlow();
+  const aspF  = (H>=W*1.2)?1.0:(H>=W?0.9:0.78);
+  const targetW=W*1.12*sizef*aspF, s0=targetW/D.naturalWidth, dh=D.naturalHeight*s0;
+  // —— 3 模式路径 + 朝向 + 生动度 ——
+  let cx, cy, faceRight=true, bank=0, aliveAmp=1.0, headNod=1.0;
+  if(path==='static'){                              // 静态：基本不动 + 微呼吸
+    cx=W*0.52; cy=band+H*0.008; faceRight=false; bank=Math.sin(ph)*0.012; aliveAmp=0.30; headNod=0.4;
+  } else if(path==='graze'){                        // 掠空：左进→掠过→右离(略快)
+    const p=prog; cx=-targetW*0.62 + p*(W+targetW*1.24); cy=band - H*0.02 + Math.sin(p*Math.PI)*H*0.05;
+    faceRight=true; bank=0.05+Math.sin(ph*2)*0.02; aliveAmp=0.85; headNod=0.85;
+  } else {                                          // 巡逻(主)：上空缓慢盘巡+回转
+    cx=W*0.5 + Math.sin(ph)*W*0.30; cy=band + Math.sin(ph*2)*H*0.028;
+    faceRight=Math.cos(ph)>=0;                      // 到两端(速度≈0)翻身→读作回转巡视
+    bank=Math.cos(ph*2)*0.05; aliveAmp=1.0; headNod=1.0;
+  }
+  const maxCY=H*0.46 - dh*0.42; if(cy>maxCY) cy=maxCY; // 龙身底不越过号码区
+  const cache = faceRight ? zoDragonGlowR() : zoDragonGlow();
+  const cvW=cache.cv.width, cvH=cache.cv.height, ds=targetW/cache.w;
+  const destW=cvW*ds, destH=cvH*ds;
+  // 金光尾迹（龙尾方向）
+  const trailSide=faceRight?-1:1, tailx=cx+trailSide*targetW*0.44, taily=cy+dh*0.02;
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=(level==='low'?0.26:0.4);
+  const tgz=ctx.createRadialGradient(tailx,taily,2,tailx,taily,W*0.18);
+  tgz.addColorStop(0,'rgba(255,238,175,0.5)'); tgz.addColorStop(1,'rgba(255,238,175,0)');
+  ctx.fillStyle=tgz; ctx.beginPath(); ctx.ellipse(tailx,taily,W*0.18,W*0.09,0,0,Math.PI*2); ctx.fill(); ctx.restore();
+  // ===== 分段骨架式游动：龙切成竖条,沿行进波动(头→尾传播,尾有跟随延迟) =====
+  const NS=46, stripW=cvW/NS, bodyAmp=dh*0.11*aliveAmp, waves=1.7;
   ctx.save();
-  ctx.globalAlpha = level==='low'?0.82:1;
-  ctx.translate(cx,cy); if(bank||tilt) ctx.rotate(bank+tilt);
-  if(faceRight) ctx.scale(-1,1);                              // 素材头朝左→镜像成头朝右(飞行方向)
-  const ds=targetW/glow.w;                                    // 缓存里的龙身宽 → targetW
-  ctx.drawImage(glow.cv, -glow.cv.width*ds/2, -glow.cv.height*ds/2, glow.cv.width*ds, glow.cv.height*ds);
+  ctx.globalAlpha=level==='low'?0.82:1;
+  ctx.translate(cx,cy); if(bank) ctx.rotate(bank);
+  for(let i=0;i<NS;i++){
+    const sx=i*stripW, mid=sx+stripW/2;
+    const u = faceRight ? (1-(mid/cvW)) : (mid/cvW);   // 0=头 1=尾
+    const uc = Math.min(1,Math.max(0,u));
+    const env = Math.pow(uc,1.25);                     // 越到尾摆越大(跟随甩动)
+    let dy = bodyAmp*env*Math.sin(u*waves*Math.PI*2 - ph*2.0);          // 行进波
+    if(uc<0.28){ dy += dh*0.035*headNod*Math.sin(ph + 0.6)*((0.28-uc)/0.28); } // 龙头巡视点头
+    const sy = 1 + 0.03*aliveAmp*Math.sin(u*waves*Math.PI*2 - ph*2.0 + 1.0); // 竖向微呼吸
+    const dX=-destW/2 + sx*ds, dH2=destH*sy, dY=-dH2/2 + dy;
+    ctx.drawImage(cache.cv, sx,0, stripW+1, cvH, dX, dY, stripW*ds+1, dH2);
+  }
   ctx.restore();
-  // 中间/下方净空暗角,保号码/标题可读
-  ctx.save(); const sgd=ctx.createRadialGradient(W/2,H*0.62,W*0.1,W/2,H*0.62,W*0.82);
-  sgd.addColorStop(0,'rgba(5,6,16,0.5)'); sgd.addColorStop(1,'rgba(5,6,16,0)');
-  ctx.fillStyle=sgd; ctx.fillRect(0,0,W,H); ctx.restore();
+  // 净空暗角,保号码/标题可读
+  ctx.save(); const sgz=ctx.createRadialGradient(W/2,H*0.62,W*0.1,W/2,H*0.62,W*0.82);
+  sgz.addColorStop(0,'rgba(5,6,16,0.5)'); sgz.addColorStop(1,'rgba(5,6,16,0)');
+  ctx.fillStyle=sgz; ctx.fillRect(0,0,W,H); ctx.restore();
   return;                                                      // 用真龙,后面的线描代码不再执行
   // 身体中心线：u=0 头 → u=1 尾（尾在飞行方向后方）
   function pt(u){
