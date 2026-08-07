@@ -7769,11 +7769,10 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><label>🎞️ 飞龙动画</label>
-      <select id="zo-dragon-anim" title="一条龙在天空飞翔（中间留净空给号码/文字）">
-        <option value="flyRL" selected>右→左 飞过上方</option>
-        <option value="flyLR">左→右 飞过上方</option>
-        <option value="diag">斜向飞过</option>
-        <option value="circle">盘旋环绕</option>
+      <select id="zo-dragon-anim" title="视频里龙独立运动（号码/文字固定不动）">
+        <option value="fly" selected>飞翔（斜向飞过天空）</option>
+        <option value="spiral">盘旋（缓慢盘旋经过）</option>
+        <option value="static">静态（龙固定+微弱流光）</option>
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
@@ -10452,7 +10451,7 @@ function zoDragonGold(){
   g.fillStyle=lg; g.fillRect(0,0,c.width,c.height);
   c._w=img.naturalWidth; ZO_DRAGON_GOLD=c; return c;
 }
-function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'flyRL'; }
+function zoDragonAnim(){ const el=document.getElementById('zo-dragon-anim'); return el ? el.value : 'fly'; }
 // ===== 一条龙在天空飞翔（矢量金龙，身体延伸+起伏+飞行路径，黑金高级，中间留净空） =====
 // t=视频秒数(飞行) / null(静态海报=定格一帧漂亮飞行姿态)。level 控可见度，path 控飞行路线。
 function zoDrawFlyingDragon(ctx, W, H, t, level, path){
@@ -10461,28 +10460,32 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
   const V = level==='low'  ? {a:0.55, glow:14, w:0.85}
           : level==='high' ? {a:0.98, glow:26, w:1.35}
           :                  {a:0.78, glow:20, w:1.10};
-  const tt = (t==null) ? 5.6 : t;               // 静态海报定格在一帧好看的飞行姿态
-  const dur = 16;                                // 一次飞越秒数
+  const tt = (t==null) ? 2.7 : t;                // 静态海报=定格一帧
+  const dur = 10;                                // 与视频 DUR=10s 对齐 → 整段视频=一次循环,首尾无缝
   const prog = ((tt % dur) + dur) % dur / dur;   // 0..1 循环
+  const ph = prog*Math.PI*2;                     // 周期相位:所有动态都由它驱动 → 循环无跳帧
   const band = H*0.155;                          // 飞行高度（画面上部）
   const amp  = H*0.052;                          // 身体上下起伏
   const span = W*1.28;                           // 龙身长度（延伸感）
-  const swim = tt*1.7;                           // 身体波动速度
+  let swim = ph*2.4;                             // 身体波动(每循环2.4波,周期性)
   const N = 74;                                  // 身体采样段
-  // 头部锚点与飞行方向
+  // 头部锚点与飞行方向（3 模式:静态/飞翔/盘旋）
   let hx, hy=band, dir=1, slope=0, circ=null;
-  if(path==='flyLR'){ hx=-W*0.28+prog*(W*1.56); dir=1; }
-  else if(path==='diag'){ hx=-W*0.22+prog*(W*1.5); dir=1; slope=0.28; hy=band-H*0.02; }
-  else if(path==='circle'){ circ=prog*Math.PI*2; hx=W*0.5+Math.sin(circ)*W*0.34; hy=band+H*0.02+Math.sin(circ*2)*H*0.05; dir=1; slope=Math.cos(circ)*0.12; }
-  else { hx=W*1.28-prog*(W*1.56); dir=-1; }      // flyRL 默认
+  if(path==='static'){                           // 静态：龙固定 + 微弱流光
+    hx=W*0.52; hy=band+H*0.008; dir=1; slope=0; swim=ph*0.6;
+  } else if(path==='spiral'){                     // 盘旋：缓慢盘旋经过天空区（周期性,无缝）
+    circ=ph; hx=W*0.5+Math.sin(ph)*W*0.34; hy=band+H*0.015-Math.cos(ph)*H*0.055; dir=1; slope=Math.cos(ph)*0.10;
+  } else {                                        // 飞翔：斜向飞过（首尾都在画面外→无缝循环）
+    hx = -span*1.15 + prog*(W + span*2.3); hy = band - H*0.035 + prog*H*0.13; dir=1; slope=0.16;
+  }
   // ===== 若有透明飞龙 PNG：用真龙沿飞行路径飞（头随方向自动镜像）=====
   const FD=ZO_FLYDRAGON_IMG;
   if(FD && FD.complete && FD.naturalWidth){
     const sizef = level==='low'?0.92:level==='high'?1.35:1.12;
     const targetLen=W*1.15*sizef, s=targetLen/FD.naturalWidth, dh=FD.naturalHeight*s;
-    const bob = (t!=null)? Math.sin(tt*0.8)*H*0.012 : 0;          // 轻微上下浮
-    const bank= (t!=null)? Math.sin(tt*0.5)*0.05 : 0;             // 轻微俯仰
-    const diagRot = path==='diag'? -0.22*dir : 0;
+    const bob = (t!=null)? Math.sin(ph*2)*H*0.012 : 0;           // 轻微上下浮(周期性)
+    const bank= (t!=null)? Math.sin(ph)*0.05 : 0;                // 轻微俯仰(周期性)
+    const diagRot = path==='fly'? 0.10 : 0;
     const cx=hx, cy=hy+bob;
     ctx.save();
     ctx.globalAlpha = level==='low'?0.72:level==='high'?1:0.9;
@@ -10497,9 +10500,9 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
     const tg=ctx.createRadialGradient(tailx,taily,2,tailx,taily,W*0.16);
     tg.addColorStop(0,'rgba(255,240,180,0.5)'); tg.addColorStop(1,'rgba(255,240,180,0)');
     ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(tailx,taily,W*0.16,0,Math.PI*2); ctx.fill(); ctx.restore();
-    // 轻微金雾（飞行时）
+    // 云雾缓慢移动 + 淡金雾（周期性,无缝）
     if(t!=null){ ctx.save(); ctx.globalCompositeOperation='lighter';
-      for(let i=0;i<3;i++){ const mx=W*(0.2+0.3*i)+Math.sin(tt*0.18+i*2)*W*0.05, my=band+H*0.03+Math.cos(tt*0.15+i)*H*0.015;
+      for(let i=0;i<3;i++){ const mx=W*(0.2+0.3*i)+Math.sin(ph+i*2)*W*0.05, my=band+H*0.03+Math.cos(ph+i)*H*0.015;
         const rr=W*0.22, rg=ctx.createRadialGradient(mx,my,0,mx,my,rr);
         rg.addColorStop(0,'rgba(245,197,66,0.045)'); rg.addColorStop(1,'rgba(245,197,66,0)');
         ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(mx,my,rr,0,Math.PI*2); ctx.fill(); }
@@ -10628,10 +10631,10 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
   trailG.addColorStop(0,'rgba(255,240,180,0.5)'); trailG.addColorStop(1,'rgba(255,240,180,0)');
   ctx.fillStyle=trailG; ctx.beginPath(); ctx.arc(tail[0],tail[1],W*0.16,0,Math.PI*2); ctx.fill();
   ctx.restore();
-  // —— 轻微金雾/云气（飞行时缓慢漂）——
+  // —— 云雾缓慢移动 + 淡金雾（周期性,无缝）——
   if(t!=null){
     ctx.save(); ctx.globalCompositeOperation='lighter';
-    for(let i=0;i<3;i++){ const cx=W*(0.2+0.3*i)+Math.sin(tt*0.18+i*2)*W*0.05, cy=band+H*0.03+Math.cos(tt*0.15+i)*H*0.015;
+    for(let i=0;i<3;i++){ const cx=W*(0.2+0.3*i)+Math.sin(ph+i*2)*W*0.05, cy=band+H*0.03+Math.cos(ph+i)*H*0.015;
       const rr=W*0.22, rg=ctx.createRadialGradient(cx,cy,0,cx,cy,rr);
       rg.addColorStop(0,'rgba(245,197,66,0.045)'); rg.addColorStop(1,'rgba(245,197,66,0)');
       ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(cx,cy,rr,0,Math.PI*2); ctx.fill(); }
