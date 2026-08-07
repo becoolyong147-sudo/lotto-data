@@ -10443,6 +10443,18 @@ let ZO_LAYER_ERR={bg:false,dragon:false,fx:false};
   load('effects.png',    im=>{ZO_LAYER_FX=im;}, 'fx');
 })();
 function zoDragonReady(){ return !!(ZO_LAYER_DRAGON && ZO_LAYER_DRAGON.complete && ZO_LAYER_DRAGON.naturalWidth); }
+// 预烘焙"带柔和金色边光"的龙(一次)，供每帧快速 drawImage —— 避免每帧 shadowBlur 卡死视频录制
+let ZO_DRAGON_GLOW=null;
+function zoDragonGlow(){
+  if(ZO_DRAGON_GLOW || !zoDragonReady()) return ZO_DRAGON_GLOW;
+  const D=ZO_LAYER_DRAGON, pad=70;
+  const w=Math.min(1500, D.naturalWidth), s=w/D.naturalWidth, h=Math.round(D.naturalHeight*s);
+  const c=document.createElement('canvas'); c.width=Math.round(w)+pad*2; c.height=h+pad*2;
+  const g=c.getContext('2d');
+  g.shadowColor='rgba(245,197,66,0.6)'; g.shadowBlur=42; g.drawImage(D,pad,pad,w,h);  // 边光
+  g.shadowBlur=0; g.drawImage(D,pad,pad,w,h);                                           // 清晰龙身覆上
+  ZO_DRAGON_GLOW={cv:c, w:w, h:h}; return ZO_DRAGON_GLOW;
+}
 // 金龙水印：在 (cx,cy) 居中，宽 size，透明度 alpha
 function zoDrawDragon(ctx, cx, cy, size, alpha){
   const img=ZO_DRAGON_IMG; if(!img||!img.complete||!img.naturalWidth) return;
@@ -10520,13 +10532,14 @@ function zoDrawFlyingDragon(ctx, W, H, t, level, path){
   const tg=ctx.createRadialGradient(tailx,taily,2,tailx,taily,W*0.18);
   tg.addColorStop(0,'rgba(255,238,175,0.55)'); tg.addColorStop(1,'rgba(255,238,175,0)');
   ctx.fillStyle=tg; ctx.beginPath(); ctx.ellipse(tailx,taily,W*0.18,W*0.09,0,0,Math.PI*2); ctx.fill(); ctx.restore();
-  // 龙身
+  // 龙身（用预烘焙边光缓存，快速绘制）
+  const glow=zoDragonGlow();
   ctx.save();
   ctx.globalAlpha = level==='low'?0.82:1;
   ctx.translate(cx,cy); if(bank||tilt) ctx.rotate(bank+tilt);
-  ctx.shadowColor='rgba(245,197,66,0.4)'; ctx.shadowBlur=level==='high'?34:22;
   if(faceRight) ctx.scale(-1,1);                              // 素材头朝左→镜像成头朝右(飞行方向)
-  ctx.drawImage(D, -targetW/2, -dh/2, targetW, dh);
+  const ds=targetW/glow.w;                                    // 缓存里的龙身宽 → targetW
+  ctx.drawImage(glow.cv, -glow.cv.width*ds/2, -glow.cv.height*ds/2, glow.cv.width*ds, glow.cv.height*ds);
   ctx.restore();
   // 中间/下方净空暗角,保号码/标题可读
   ctx.save(); const sgd=ctx.createRadialGradient(W/2,H*0.62,W*0.1,W/2,H*0.62,W*0.82);
