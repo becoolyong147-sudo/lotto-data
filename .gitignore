@@ -2,3 +2,8 @@
 lottery_v61_backup.html
 
 auto_fetch.log
+
+# 2026-08-10 合并进来的本地资料，不纳入自动抓取仓库
+qa/
+4d_analyzer/
+docs/
