@@ -277,6 +277,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
     <div class="subtab" data-tab="digitgrid" onclick="switchSubtab(this)">🔳 数字格子</div>
     <div class="subtab" data-tab="posgrid" onclick="switchSubtab(this)">📅 位置·半月</div>
+    <div class="subtab" data-tab="grid3d" onclick="switchSubtab(this)">🎴 后3D九宫格</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -8482,6 +8483,61 @@ function zo2DRootBacktest(){
   </div>
 </div>
 <div id="pg-out"></div>
+</div>
+
+<!-- TAB: 后3D九宫格（大格=后3D单数根，小格=后3D第一位）-->
+<div id="tab-grid3d" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#1e3a8a 0%,#6d28d9 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🎴 后3D 九宫格</div>
+    <div style="font-size:12px;color:#ddd6fe;margin-top:2px">大格(1–9)=后3D数字和的单数根；每个大格里的小格(0–9)=后3D的第一位。头二三特安都打进去。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="gx-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>范围</label>
+      <select id="gx-source" onchange="var m=this.value==='multi';document.getElementById('gx-periods-wrap').style.display=m?'':'none';document.getElementById('gx-view-wrap').style.display=m?'':'none'">
+        <option value="latest">最新一期（含特/安）</option>
+        <option value="multi">多期</option>
+      </select>
+    </div>
+    <div class="ig" id="gx-periods-wrap" style="display:none"><label>期数</label>
+      <select id="gx-periods">
+        <option value="5">最近5期</option>
+        <option value="10" selected>最近10期</option>
+        <option value="20">最近20期</option>
+        <option value="50">最近50期</option>
+      </select>
+    </div>
+    <div class="ig" id="gx-view-wrap" style="display:none"><label>显示</label>
+      <select id="gx-view">
+        <option value="agg">累计热力（合成一张）</option>
+        <option value="each">逐期分开（一期一张）</option>
+      </select>
+    </div>
+    <div class="ig"><label>奖项（可多选）</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px;padding-top:4px">
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="gx-pz-0" checked>头</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="gx-pz-1" checked>二</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="gx-pz-2" checked>三</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="gx-pz-sp" checked>特</label>
+        <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="gx-pz-cs" checked>安</label>
+      </div>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doGrid3D()">🔍 分析</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>规则</b>：号码取<b>后3位</b>。① 三位数字相加 → 反复相加到单个数(单数根) = 落<b>哪个大格</b>（例 416→4+1+6=11→2）。② 后3位的<b>第一位</b> = 落大格里<b>哪个小格</b>（例 416→小格4；822→小格8）。<br>
+    <b>最新一期</b>：头①二②三③特安 直接标在格子里。<b>多期累计</b>：格子里显示落点次数（越热颜色越深）。特/安仅近期期数才有。
+  </div>
+</div>
+<div id="gx-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -20543,6 +20599,139 @@ window.doPosGrid = function(){
   out.innerHTML = html;
 };
 
+// ─── 🎴 后3D 九宫格（大格=后3位单数根，小格=后3位第一位）──
+var GX_PZ = {0:{t:'①',c:'#f59e0b',n:'头'},1:{t:'②',c:'#3b82f6',n:'二'},2:{t:'③',c:'#ec4899',n:'三'},sp:{t:'特',c:'#0d9488',n:'特'},cs:{t:'安',c:'#7c3aed',n:'安'}};
+function gxDroot(n){ if(n<=0) return 0; var r=n%9; return r===0?9:r; }
+function gxPzKey(rec){ return rec.prize===-1 ? (rec.label==='特别奖'?'sp':'cs') : rec.prize; }
+// 收集记录（按范围 & 奖项勾选）
+function gxGetData(){
+  var market=document.getElementById('gx-market').value;
+  var source=document.getElementById('gx-source').value;
+  var want={0:document.getElementById('gx-pz-0').checked,1:document.getElementById('gx-pz-1').checked,2:document.getElementById('gx-pz-2').checked,sp:document.getElementById('gx-pz-sp').checked,cs:document.getElementById('gx-pz-cs').checked};
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  function fromDraw(d, withSpCs){
+    var out=[];
+    ['头奖','二奖','三奖'].forEach(function(lbl,i){ if(d.nums[i]!=null&&d.nums[i]!=='') out.push({raw:String(d.nums[i]).padStart(4,'0'),prize:i,label:lbl,date:d.date}); });
+    if(withSpCs){
+      (d.sp||[]).forEach(function(nn){ out.push({raw:String(nn).padStart(4,'0'),prize:-1,label:'特别奖',date:d.date}); });
+      (d.cs||[]).forEach(function(nn){ out.push({raw:String(nn).padStart(4,'0'),prize:-1,label:'安慰奖',date:d.date}); });
+    }
+    return out;
+  }
+  var recs=[], dateLabel='', warn='';
+  if(source==='latest'){
+    var nd=(newData[market]||[])[0];
+    if(nd){ recs=fromDraw(nd,true); dateLabel=nd.date; warn=((nd.sp&&nd.sp.length)||(nd.cs&&nd.cs.length))?'':'该期暂无特/安数据，仅头二三奖。'; }
+    else { var db=(DB[market]||[])[0]; if(db){ recs=fromDraw(db,false); dateLabel=db.date; warn='仅头二三奖（历史数据不含特/安）。'; } }
+  } else {
+    var n=parseInt(document.getElementById('gx-periods').value)||10;
+    var seen={}, merged=[];
+    (newData[market]||[]).forEach(function(d){ if(!seen[d.date]){seen[d.date]=1; merged.push({d:d,full:true});} });
+    (DB[market]||[]).forEach(function(d){ if(!seen[d.date]){seen[d.date]=1; merged.push({d:d,full:false});} });
+    merged.sort(function(a,b){ return b.d.date.localeCompare(a.d.date); });
+    merged=merged.slice(0,n);
+    merged.forEach(function(m){ recs=recs.concat(fromDraw(m.d,m.full)); });
+    var fullCnt=merged.filter(function(m){return m.full;}).length;
+    dateLabel='最近'+merged.length+'期';
+    if(fullCnt<merged.length) warn='⚠️ '+(merged.length-fullCnt)+' 期仅头二三奖（无特/安）。';
+  }
+  // 过滤奖项 + 计算落点
+  recs=recs.filter(function(r){ return want[gxPzKey(r)]; });
+  recs.forEach(function(r){
+    var b3=r.raw.slice(1);              // 后3位
+    var sum=b3.split('').reduce(function(a,c){return a+(+c);},0);
+    r.big=gxDroot(sum);                 // 大格 1-9（000→0，跳过）
+    r.small=b3.charAt(0);               // 小格 = 后3位第一位
+  });
+  return {recs:recs.filter(function(r){return r.big>=1;}), dropped:recs.filter(function(r){return r.big<1;}).length, dateLabel:dateLabel, warn:warn, source:source};
+}
+// 单个大格的小九宫格（cells：1-9 3x3 + 0 居下）
+var GX_MINI = [['1','2','3'],['4','5','6'],['7','8','9'],['','0','']];
+function gxRenderMini(cellMap, source, maxCount){
+  // cellMap[small] = [recs]
+  var html='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px">';
+  GX_MINI.forEach(function(row){
+    row.forEach(function(s){
+      if(s===''){ html+='<div></div>'; return; }
+      var items=cellMap[s]||[];
+      if(source==='latest'){
+        var bigs=items.filter(function(r){return r.prize>=0;});      // 头二三
+        var smalls=items.filter(function(r){return r.prize<0;});     // 特安
+        var hasBig=bigs.length>0;
+        html+='<div style="min-height:24px;border:'+(hasBig?'2px solid #f59e0b':'1px solid #e5e7eb')+';border-radius:4px;display:flex;flex-wrap:wrap;gap:1px;align-items:center;justify-content:center;padding:1px;position:relative;background:'+(hasBig?'#fffbeb':'#fff')+(hasBig?';box-shadow:0 0 0 2px rgba(245,158,11,.3)':'')+'">';
+        html+='<span style="position:absolute;top:0;left:2px;font-size:8px;color:#cbd5e1">'+s+'</span>';
+        bigs.forEach(function(r){ var st=GX_PZ[gxPzKey(r)]; html+='<span title="'+r.label+' '+r.raw+'" style="background:'+st.c+';color:#fff;border-radius:3px;font-size:13px;font-weight:800;padding:1px 5px;line-height:16px;box-shadow:0 1px 3px rgba(0,0,0,.35)">'+st.t+'</span>'; });
+        smalls.forEach(function(r){ var st=GX_PZ[gxPzKey(r)]; html+='<span title="'+r.label+' '+r.raw+'" style="background:'+st.c+';color:#fff;border-radius:3px;font-size:8px;font-weight:600;padding:0 2px;line-height:12px;opacity:.6">'+st.t+'</span>'; });
+        html+='</div>';
+      } else {
+        var c=items.length;
+        var alpha=maxCount>0?(0.12+0.85*c/maxCount):0;
+        var bg=c?('rgba(109,40,217,'+alpha.toFixed(2)+')'):'#f8fafc';
+        html+='<div title="小格'+s+'：'+c+' 次" style="min-height:22px;border:1px solid #ede9fe;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:'+bg+';color:'+(c&&alpha>0.5?'#fff':'#64748b')+'"><span style="font-size:8px;color:#c4b5fd;margin-right:2px">'+s+'</span>'+(c||'')+'</div>';
+      }
+    });
+  });
+  html+='</div>';
+  return html;
+}
+var GX_BIG_ROWS=[[1,2,3],[4,5,6],[7,8,9]];
+// 渲染一张大九宫格（recs=该图所有号码；mode='latest'徽章 / 'multi'热力）
+function gxRenderBigGrid(recs, mode){
+  var grid={}; for(var b=1;b<=9;b++){ grid[b]={}; }
+  var bigCount={}; for(var b2=1;b2<=9;b2++) bigCount[b2]=0;
+  recs.forEach(function(r){ (grid[r.big][r.small]=grid[r.big][r.small]||[]).push(r); bigCount[r.big]++; });
+  var maxSmall=0; for(var b3=1;b3<=9;b3++){ for(var s=0;s<=9;s++){ var arr=grid[b3][String(s)]; if(arr&&arr.length>maxSmall) maxSmall=arr.length; } }
+  var html='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">';
+  GX_BIG_ROWS.forEach(function(brow){
+    brow.forEach(function(bc){
+      // 该大格里落了哪些大奖（仅徽章模式高亮）
+      var cellRecs=[]; Object.keys(grid[bc]||{}).forEach(function(k){ cellRecs=cellRecs.concat(grid[bc][k]); });
+      var prizes=cellRecs.filter(function(r){return r.prize>=0;}).map(function(r){return r.prize;});
+      var hasHead=prizes.indexOf(0)>=0, hasBig=prizes.length>0, emph=(mode==='latest')&&hasBig;
+      var cardStyle='padding:8px'+(emph?';border:2px solid '+(hasHead?'#d97706':'#fbbf24')+';box-shadow:0 0 0 3px '+(hasHead?'rgba(217,119,6,.18)':'rgba(251,191,36,.15)'):'');
+      var mark=emph?(hasHead?' 🏆':' <span style="color:#f59e0b">◆</span>'):'';
+      html+='<div class="card" style="'+cardStyle+'">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span style="background:'+(emph?(hasHead?'#d97706':'#4338ca'):'#4338ca')+';color:#fff;width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:800">'+bc+'</span><span style="font-size:10px;color:#94a3b8">'+bigCount[bc]+' 个'+mark+'</span></div>';
+      html+=gxRenderMini(grid[bc]||{}, mode, maxSmall);
+      html+='</div>';
+    });
+  });
+  html+='</div>';
+  return html;
+}
+window.doGrid3D=function(){
+  var out=document.getElementById('gx-out');
+  var data=gxGetData();
+  if(!data.recs.length){ out.innerHTML='<div class="warn">'+(data.warn||'该市场暂无数据')+'</div>'; return; }
+  var market=document.getElementById('gx-market').value;
+  var view=document.getElementById('gx-view').value;
+  var perDraw = (data.source==='latest') || (data.source==='multi' && view==='each');
+
+  var html='';
+  if(data.warn) html+='<div class="warn" style="margin-bottom:8px">'+data.warn+'</div>';
+  // 图例
+  html+='<div class="card" style="padding:8px 12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">';
+  html+='<b style="color:#4338ca">'+market+' · '+data.dateLabel+' · '+data.recs.length+' 个号码</b>';
+  html+='<div style="display:flex;gap:6px;font-size:11px">'+Object.keys(GX_PZ).map(function(k){var st=GX_PZ[k];return '<span style="background:'+st.c+';color:#fff;border-radius:3px;padding:1px 6px">'+st.t+st.n+'</span>';}).join('')+'</div>';
+  html+='</div>';
+
+  if(perDraw){
+    // 一个日期一张（徽章模式）；按日期新→旧
+    var byDate={}, order=[];
+    data.recs.forEach(function(r){ if(!byDate[r.date]){ byDate[r.date]=[]; order.push(r.date); } byDate[r.date].push(r); });
+    order.sort(function(a,b){ return b.localeCompare(a); });
+    order.forEach(function(dt){
+      html+='<div style="margin:10px 0 4px;font-size:13px;font-weight:800;color:#4338ca;border-left:4px solid #6d28d9;padding-left:8px">📅 '+dt+' <span style="font-weight:400;color:#94a3b8;font-size:11px">'+byDate[dt].length+' 个号码</span></div>';
+      html+=gxRenderBigGrid(byDate[dt], 'latest');
+    });
+  } else {
+    // 多期累计热力（合成一张）
+    html+=gxRenderBigGrid(data.recs, 'multi');
+  }
+  html+='<div style="font-size:10px;color:#94a3b8;margin-top:8px;padding:0 4px">大格数字=后3位单数根；小格数字(0-9)=后3位第一位；小格里角标是它自己的编号。'+(data.dropped?'（'+data.dropped+' 个后3位=000 无单数根，已略过）':'')+' ⚠️ 纯历史统计，不构成预测。</div>';
+  out.innerHTML=html;
+};
+
 // Register tabs
 setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
@@ -20550,10 +20739,11 @@ setTimeout(function(){
     if(!SCENE_MAP.analysis.includes('grpdig')) SCENE_MAP.analysis.push('grpdig');
     if(!SCENE_MAP.analysis.includes('digitgrid')) SCENE_MAP.analysis.push('digitgrid');
     if(!SCENE_MAP.analysis.includes('posgrid')) SCENE_MAP.analysis.push('posgrid');
+    if(!SCENE_MAP.analysis.includes('grid3d')) SCENE_MAP.analysis.push('grid3d');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
     if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['digitgrid']='analysis'; TAB_TO_SCENE['posgrid']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['digitgrid']='analysis'; TAB_TO_SCENE['posgrid']='analysis'; TAB_TO_SCENE['grid3d']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
   if(typeof pgFillMonths==='function'){ try{ pgFillMonths(); }catch(e){} }
 },0);
 
