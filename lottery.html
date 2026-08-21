@@ -274,6 +274,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="zodiac" onclick="switchSubtab(this)">🐲 生肖图</div>
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
+    <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -8367,6 +8368,40 @@ function zo2DRootBacktest(){
   </div>
 </div>
 <div id="lh-out"></div>
+</div>
+
+<!-- TAB: 组深挖（按 1→9→0 排序头位分10组）-->
+<div id="tab-grpdig" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#0f766e 0%,#0891b2 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🔟 组深挖分析</div>
+    <div style="font-size:12px;color:#cffafe;margin-top:2px">按 1→9→0 排序后的头位把号码分成 1~9、0 共10组。每组往下钻：最常出的号码 · 偏爱哪个奖 · 头奖跨期走势。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="gd-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>头奖走势看几期</label>
+      <select id="gd-periods">
+        <option value="10">最近10期</option>
+        <option value="20" selected>最近20期</option>
+        <option value="30">最近30期</option>
+        <option value="50">最近50期</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doGrpDig()">🔍 分析</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>分组规则</b>：每个4位号码按 <b>1→9→0</b> 排序（0 当作 10 排最后），取排序后<b>第一位</b>作为组别。例：4710→1470→<b>组1</b>；8907→7890→<b>组7</b>。<br>
+    <b>最常出的号码</b>与<b>偏爱哪个奖</b>用全部历史（头/二/三全有；特/安仅近期期数才有，会标注）。<b>头奖走势</b>只看最近所选期数。
+  </div>
+</div>
+<div id="gd-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -20018,14 +20053,156 @@ window.doLuohan = function(){
   out.innerHTML = lhRenderSingle(info.records, info.dateLabel, info.warn);
 };
 
+// ─── 🔟 组深挖（1→9→0 排序头位分组）────────────────────
+// 组别 = 号码按 1→9→0 排序后的第一位
+function gdGroup(raw){ return srtSort(String(raw).padStart(4,'0'))[0]; }
+
+// 收集某市场全部历史号码（头二三全 history + 近期特安），带组别
+function gdCollectAll(market){
+  var newData = (typeof getNewResults==='function') ? getNewResults() : {};
+  var newRecs = (newData[market]||[]).slice();
+  var dbRecs = (DB[market]||[]).slice();
+  var seen = {}, all = [], drawCount = 0, spcsDraws = 0;
+  function pushDraw(d, withSpCs){
+    ['头奖','二奖','三奖'].forEach(function(lbl,i){
+      if(d.nums[i]!=null && d.nums[i]!==''){
+        var raw = String(d.nums[i]).padStart(4,'0');
+        all.push({raw:raw, prize:i, label:lbl, date:d.date, group:gdGroup(raw)});
+      }
+    });
+    if(withSpCs){
+      var any = false;
+      (d.sp||[]).forEach(function(n){ var raw=String(n).padStart(4,'0'); all.push({raw:raw,prize:-1,label:'特别奖',date:d.date,group:gdGroup(raw)}); any=true; });
+      (d.cs||[]).forEach(function(n){ var raw=String(n).padStart(4,'0'); all.push({raw:raw,prize:-1,label:'安慰奖',date:d.date,group:gdGroup(raw)}); any=true; });
+      if(any) spcsDraws++;
+    }
+  }
+  newRecs.forEach(function(d){ if(seen[d.date])return; seen[d.date]=true; drawCount++; pushDraw(d,true); });
+  dbRecs.forEach(function(d){ if(seen[d.date])return; seen[d.date]=true; drawCount++; pushDraw(d,false); });
+  return {records:all, drawCount:drawCount, spcsDraws:spcsDraws};
+}
+
+// 最近 n 期的头奖（含组别），旧→新排序方便看走势
+function gdHeadTrail(market, n){
+  var newData = (typeof getNewResults==='function') ? getNewResults() : {};
+  var seen = {}, draws = [];
+  (newData[market]||[]).forEach(function(d){ if(seen[d.date])return; seen[d.date]=true; if(d.nums[0]!=null&&d.nums[0]!=='') draws.push({date:d.date, raw:String(d.nums[0]).padStart(4,'0')}); });
+  (DB[market]||[]).forEach(function(d){ if(seen[d.date])return; seen[d.date]=true; if(d.nums[0]!=null&&d.nums[0]!=='') draws.push({date:d.date, raw:String(d.nums[0]).padStart(4,'0')}); });
+  draws.sort(function(a,b){ return b.date.localeCompare(a.date); });
+  draws = draws.slice(0, n).reverse(); // 旧→新
+  draws.forEach(function(d){ d.group = gdGroup(d.raw); });
+  return draws;
+}
+
+var GD_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+var GD_PRIZE_LBL = {0:'头',1:'二',2:'三'};
+
+window.doGrpDig = function(){
+  var out = document.getElementById('gd-out');
+  var market = document.getElementById('gd-market').value;
+  var n = parseInt(document.getElementById('gd-periods').value)||20;
+  var data = gdCollectAll(market);
+  if(!data.records.length){ out.innerHTML = '<div class="warn">该市场暂无数据</div>'; return; }
+
+  // 分组
+  var groups = {};
+  GD_ORDER.forEach(function(k){ groups[k] = {recs:[], freq:{}, prize:{0:0,1:0,2:0,sp:0,cs:0}}; });
+  data.records.forEach(function(r){
+    var g = groups[r.group]; if(!g) return;
+    g.recs.push(r);
+    g.freq[r.raw] = (g.freq[r.raw]||0)+1;
+    if(r.prize===0) g.prize[0]++;
+    else if(r.prize===1) g.prize[1]++;
+    else if(r.prize===2) g.prize[2]++;
+    else if(r.label==='特别奖') g.prize.sp++;
+    else if(r.label==='安慰奖') g.prize.cs++;
+  });
+  var grandTotal = data.records.length;
+
+  var html = '';
+  // 概览
+  html += '<div class="card"><div class="g4">';
+  html += '<div class="sc"><div class="val">'+market+'</div><div class="lbl">市场</div></div>';
+  html += '<div class="sc"><div class="val">'+data.drawCount+'</div><div class="lbl">历史期数</div></div>';
+  html += '<div class="sc"><div class="val">'+grandTotal+'</div><div class="lbl">号码总数</div></div>';
+  html += '<div class="sc"><div class="val">'+data.spcsDraws+'</div><div class="lbl">含特/安期数</div></div>';
+  html += '</div></div>';
+
+  // 各组卡片
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
+  GD_ORDER.forEach(function(k){
+    var g = groups[k];
+    var col = GRP_COLORS[k];
+    var cnt = g.recs.length;
+    var pct = grandTotal ? Math.round(cnt/grandTotal*100) : 0;
+    var enough = g.prize[0]+g.prize[1]+g.prize[2] >= 30; // 头二三样本
+    html += '<div class="card" style="'+(cnt?'':'opacity:.45')+';border-top:3px solid '+col+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    html += '<div style="display:flex;align-items:center;gap:6px"><span style="background:'+col+';color:#fff;width:26px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:800">'+k+'</span><b style="font-size:13px">组 '+k+'</b></div>';
+    html += '<span style="font-size:11px;color:#888">'+cnt+' 次 · '+pct+'%</span></div>';
+    if(!cnt){ html += '<div style="text-align:center;padding:14px 0;color:#aaa;font-size:11px">暂无号码</div></div>'; return; }
+
+    // 1) 最常出的号码 top5
+    var top = Object.keys(g.freq).map(function(r){return {raw:r,c:g.freq[r]};}).sort(function(a,b){return b.c-a.c || srtCmp(srtSort(a.raw),srtSort(b.raw));}).slice(0,5);
+    html += '<div style="font-size:10px;font-weight:700;color:#0f766e;margin-bottom:3px">🔥 最常出的号码</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+    top.forEach(function(t,i){
+      html += '<span style="font-family:monospace;font-size:12px;background:'+(i===0?col:'#f0f4f8')+';color:'+(i===0?'#fff':'#334155')+';border-radius:5px;padding:2px 7px;font-weight:'+(i===0?800:600)+'">'+t.raw+'<span style="font-size:9px;opacity:.8"> ×'+t.c+'</span></span>';
+    });
+    html += '</div>';
+
+    // 2) 偏爱哪个奖
+    var pz = g.prize;
+    var pzMax = Math.max(pz[0],pz[1],pz[2],1);
+    html += '<div style="font-size:10px;font-weight:700;color:#0f766e;margin-bottom:3px">🏆 偏爱哪个奖 '+(enough?'':'<span style="color:#dc2626">⚠️样本&lt;30</span>')+'</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:2px;font-size:10px">';
+    [[0,'头奖','#f59e0b'],[1,'二奖','#3b82f6'],[2,'三奖','#ec4899']].forEach(function(p){
+      var v = pz[p[0]]; var w = Math.round(v/pzMax*100);
+      html += '<div style="display:flex;align-items:center;gap:4px"><span style="width:26px;color:#666">'+p[1]+'</span><div style="flex:1;background:#f0f0e8;border-radius:3px;height:9px"><div style="height:100%;width:'+w+'%;background:'+p[2]+';border-radius:3px"></div></div><span style="width:22px;text-align:right;color:#888">'+v+'</span></div>';
+    });
+    html += '</div>';
+    if(pz.sp||pz.cs){
+      html += '<div style="font-size:9px;color:#94a3b8;margin-top:3px">特别 '+pz.sp+' · 安慰 '+pz.cs+'（仅近 '+data.spcsDraws+' 期，基数大偏多属正常）</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // 3) 头奖跨期走势
+  var trail = gdHeadTrail(market, n);
+  if(trail.length){
+    var tally = {}; GD_ORDER.forEach(function(k){tally[k]=0;});
+    trail.forEach(function(d){ if(tally[d.group]!=null) tally[d.group]++; });
+    html += '<div class="card"><h3>📈 头奖跨期走势（最近 '+trail.length+' 期 · 旧→新）</h3>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin-bottom:8px">';
+    trail.forEach(function(d,i){
+      var col = GRP_COLORS[d.group];
+      if(i>0) html += '<span style="color:#cbd5e1;font-size:11px">→</span>';
+      html += '<span title="'+d.date+' '+d.raw+'" style="background:'+col+';color:#fff;border-radius:5px;padding:2px 6px;font-size:11px;font-weight:700">'+d.group+'</span>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:4px">';
+    GD_ORDER.forEach(function(k){
+      if(!tally[k]) return;
+      html += '<span style="font-size:11px;background:'+GRP_COLORS[k]+';color:#fff;border-radius:5px;padding:2px 7px">组'+k+' ×'+tally[k]+'</span>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:10px;color:#94a3b8;margin-top:8px">⚠️ 历史统计整理，供复盘/看热闹用，不构成预测（回测显示头奖落组接近随机）。</div>';
+    html += '</div>';
+  }
+
+  out.innerHTML = html;
+};
+
 // Register tabs
 setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
+    if(!SCENE_MAP.analysis.includes('grpdig')) SCENE_MAP.analysis.push('grpdig');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
     if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
 },0);
 
 })();
