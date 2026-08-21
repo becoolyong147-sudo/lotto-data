@@ -20137,6 +20137,31 @@ window.doLuohan = function(){
 // 组别 = 号码按 1→9→0 排序后的第一位
 function gdGroup(raw){ return srtSort(String(raw).padStart(4,'0'))[0]; }
 
+// ===== 共用统计：卡方随机检验 + 期望概率 =====
+// 卡方临界值（自由度 df → [p=0.05, p=0.01]）
+var CHI_CRIT = {1:[3.841,6.635],2:[5.991,9.210],3:[7.815,11.345],4:[9.488,13.277],5:[11.070,15.086],6:[12.592,16.812],7:[14.067,18.475],8:[15.507,20.090],9:[16.919,21.666],10:[18.307,23.209]};
+function chiVerdict(chi2, df){
+  var c = CHI_CRIT[df];
+  if(!c) return {txt:'—', col:'#94a3b8'};
+  if(chi2 < c[0]) return {txt:'接近随机 ✅', col:'#16a34a'};
+  if(chi2 < c[1]) return {txt:'略偏离随机（p<0.05）', col:'#d97706'};
+  return {txt:'明显偏离随机（p<0.01）⚠️', col:'#dc2626'};
+}
+function chiSquare(obs, exp){ var s=0; for(var i=0;i<obs.length;i++){ if(exp[i]>0) s+=Math.pow(obs[i]-exp[i],2)/exp[i]; } return s; }
+// 单个数字在4位号码里「至少出现一次」的随机概率
+var DIGIT_P = 1 - Math.pow(0.9,4); // ≈0.3439
+// 偏离度上色：实际/期望
+function ratioColor(r){ if(r>=1.5) return '#dc2626'; if(r<=0.5) return '#2563eb'; return '#64748b'; }
+// 组深挖各组理论概率（枚举 0000–9999 一次并缓存）
+var GD_EXP_PROB = null;
+function gdGroupProbs(){
+  if(GD_EXP_PROB) return GD_EXP_PROB;
+  var c = {};
+  for(var i=0;i<10000;i++){ var g=gdGroup(String(i).padStart(4,'0')); c[g]=(c[g]||0)+1; }
+  GD_EXP_PROB = {}; Object.keys(c).forEach(function(k){ GD_EXP_PROB[k]=c[k]/10000; });
+  return GD_EXP_PROB;
+}
+
 // 收集某市场全部历史号码（头二三全 history + 近期特安），带组别
 function gdCollectAll(market){
   var newData = (typeof getNewResults==='function') ? getNewResults() : {};
@@ -20198,6 +20223,7 @@ window.doGrpDig = function(){
     else if(r.label==='安慰奖') g.prize.cs++;
   });
   var grandTotal = data.records.length;
+  var probs = gdGroupProbs();
 
   var html = '';
   // 概览
@@ -20207,6 +20233,17 @@ window.doGrpDig = function(){
   html += '<div class="sc"><div class="val">'+grandTotal+'</div><div class="lbl">号码总数</div></div>';
   html += '<div class="sc"><div class="val">'+data.spcsDraws+'</div><div class="lbl">含特/安期数</div></div>';
   html += '</div></div>';
+
+  // 随机检验（卡方拟合优度：各组实际分布 vs 理论概率）
+  var chiObs=[], chiExp=[], keptDf=0;
+  GD_ORDER.forEach(function(k){ var e=probs[k]*grandTotal; if(e>=5){ chiObs.push(groups[k].recs.length); chiExp.push(e); keptDf++; } });
+  var chi2 = chiSquare(chiObs, chiExp);
+  var df = Math.max(1, keptDf-1);
+  var v = chiVerdict(chi2, df);
+  html += '<div class="card" style="border-left:4px solid '+v.col+'">';
+  html += '<div style="font-size:13px;font-weight:700;color:'+v.col+'">🎲 随机检验：'+v.txt+'</div>';
+  html += '<div style="font-size:11px;color:#64748b;margin-top:3px">卡方 χ²='+chi2.toFixed(1)+'（自由度 '+df+'，剔除期望<5的组）。检验「各组实际分布」与「理论概率」的差距——<b>接近随机=这些组的多寡只是正常波动，别当信号</b>。</div>';
+  html += '</div>';
 
   // 各组卡片
   html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">';
@@ -20218,8 +20255,12 @@ window.doGrpDig = function(){
     var enough = g.prize[0]+g.prize[1]+g.prize[2] >= 30; // 头二三样本
     html += '<div class="card" style="'+(cnt?'':'opacity:.45')+';border-top:3px solid '+col+'">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">';
+    var expPct = probs[k]*100;
+    var expCnt = probs[k]*grandTotal;
+    var ratio = expCnt>0 ? cnt/expCnt : 0;
     html += '<div style="display:flex;align-items:center;gap:6px"><span style="background:'+col+';color:#fff;width:26px;height:26px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-weight:800">'+k+'</span><b style="font-size:13px">组 '+k+'</b></div>';
-    html += '<span style="font-size:11px;color:#888">'+cnt+' 次 · '+pct+'%</span></div>';
+    html += '<span style="font-size:11px;color:#888">'+cnt+' 次</span></div>';
+    html += '<div style="font-size:10px;color:#94a3b8;margin-bottom:6px">实际 '+pct+'% / 期望 '+expPct.toFixed(0)+'% · 偏离 <b style="color:'+ratioColor(ratio)+'">'+ratio.toFixed(2)+'x</b></div>';
     if(!cnt){ html += '<div style="text-align:center;padding:14px 0;color:#aaa;font-size:11px">暂无号码</div></div>'; return; }
 
     // 1) 最常出的号码 top5
@@ -20328,6 +20369,10 @@ window.doDigitGrid = function(){
     for(var i=0;i<draws.length;i++){ if(draws[i].has[k]) break; gap++; }
     absent[k] = gap; // = draws.length 表示本范围内从未出现
   });
+  // 期望出现次数（每列，二项）+ 数字出现（含重复）用于卡方
+  var Epres = DIGIT_P * draws.length;
+  var occ = {}; DGD_ORDER.forEach(function(k){ occ[k]=0; });
+  draws.forEach(function(d){ String(d.raw).split('').forEach(function(c){ if(occ[c]!=null) occ[c]++; }); });
 
   var cellW = 'width:26px;min-width:26px;text-align:center';
   var html = '<div class="card">';
@@ -20360,6 +20405,14 @@ window.doDigitGrid = function(){
     html += '</td>';
   });
   html += '</tr>';
+  // 偏离行：实际/期望（期望≈'+Epres.toFixed(1)+'）
+  html += '<tr style="background:#f5f3ff;color:#64748b;font-size:11px">';
+  html += '<td style="padding:3px 6px;position:sticky;left:0;background:#f5f3ff">偏离(期望'+Epres.toFixed(1)+')</td>';
+  DGD_ORDER.forEach(function(k){
+    var r = Epres>0 ? colCount[k]/Epres : 0;
+    html += '<td data-dgc="'+k+'" style="'+cellW+';padding:3px 0;color:'+ratioColor(r)+';font-weight:'+((r>=1.5||r<=0.5)?700:400)+'">'+r.toFixed(1)+'x</td>';
+  });
+  html += '</tr>';
   // 缺席行
   html += '<tr style="background:#f8fafc;color:#64748b">';
   html += '<td style="padding:4px 6px;position:sticky;left:0;background:#f8fafc">已缺席(期)</td>';
@@ -20370,7 +20423,19 @@ window.doDigitGrid = function(){
   });
   html += '</tr>';
   html += '</table></div>';
-  html += '<div style="font-size:10px;color:#94a3b8;margin-top:8px">「已缺席」带 * = 本范围内从未出现（可能更早才出）。红色 = 缺席较久。⚠️ 纯历史统计，不构成预测。</div>';
+  // 随机检验：数字出现（含重复）10类等概率卡方，df=9
+  var Eocc = draws.length*4/10;
+  var chiO=[], chiE=[]; DGD_ORDER.forEach(function(k){ chiO.push(occ[k]); chiE.push(Eocc); });
+  var chi2 = chiSquare(chiO, chiE);
+  var v = chiVerdict(chi2, 9);
+  if(draws.length>=13){
+    html += '<div style="margin-top:8px;padding:8px;border-radius:6px;border-left:4px solid '+v.col+';background:#f8fafc">';
+    html += '<div style="font-size:12px;font-weight:700;color:'+v.col+'">🎲 随机检验：'+v.txt+'</div>';
+    html += '<div style="font-size:10px;color:#64748b;margin-top:2px">卡方 χ²='+chi2.toFixed(1)+'（自由度9，检验10个数字出现是否均匀）。接近随机=各数字冷热只是波动。</div></div>';
+  } else {
+    html += '<div style="margin-top:8px;font-size:10px;color:#dc2626">⚠️ 仅 '+draws.length+' 期，样本太小，卡方检验意义不大（建议≥13期再看随机检验）。</div>';
+  }
+  html += '<div style="font-size:10px;color:#94a3b8;margin-top:6px">「偏离」= 出现次数 ÷ 期望('+Epres.toFixed(1)+')，🔴≥1.5x / 🔵≤0.5x 才算明显。「已缺席」带 * = 本范围内从未出现。⚠️ 纯历史统计，不构成预测。</div>';
   html += '</div>';
   out.innerHTML = html;
 };
@@ -20427,15 +20492,18 @@ function pgRenderSection(title, range, draws){
     });
     html += '</tr>';
   });
-  // 出现次数行
+  // 出现期数行
   var maxC = Math.max.apply(null, DGD_ORDER.map(function(k){return colCount[k];}).concat([1]));
+  var Epres = DIGIT_P * draws.length;
   html += '<tr style="border-top:2px solid #fbcfe8;background:#fdf2f8;font-weight:700">';
   html += '<td style="padding:4px 6px;position:sticky;left:0;background:#fdf2f8">出现期数</td>';
   DGD_ORDER.forEach(function(k){
     var hot = colCount[k]===maxC && maxC>0;
     html += '<td style="'+cellW+';padding:4px 0;color:'+(hot?GRP_COLORS[k]:'#475569')+'">'+colCount[k]+(hot?'🔥':'')+'</td>';
   });
-  html += '</tr></table></div></div>';
+  html += '</tr></table></div>';
+  html += '<div style="font-size:10px;color:#94a3b8;margin-top:6px">期望每个数字出现 ≈ <b>'+Epres.toFixed(1)+'</b> 期。'+(draws.length<13?'⚠️ 半月仅 '+draws.length+' 期，样本小，上下半月的差异<b>多半是随机噪音</b>，别当规律。':'')+'</div>';
+  html += '</div>';
   return html;
 }
 window.doPosGrid = function(){
