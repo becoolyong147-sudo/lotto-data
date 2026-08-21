@@ -20013,6 +20013,22 @@ function lhRenderCompare(periods){
   return html;
 }
 
+// 把（缺席/任意）罗汉送去「条件筛选」并自动勾选对应 rhn chip
+window.lhSendRohanToFilter = function(idsCsv){
+  var ids = String(idsCsv).split(',').map(function(s){return parseInt(s,10);}).filter(function(n){return n>=1&&n<=18;});
+  if(!ids.length) return;
+  try{
+    var mk = document.getElementById('lh-market'), fm = document.getElementById('flt-market');
+    if(mk && fm){ fm.value = mk.value; }
+    if(typeof clearAllRoots==='function') clearAllRoots('rhn');
+    ids.forEach(function(id){ var cb=document.getElementById('flt-rhn-'+id); if(cb){ cb.checked=true; if(typeof updateChipStyle==='function') updateChipStyle('rhn',id); } });
+    if(typeof switchTab==='function') switchTab('filter');
+    setTimeout(function(){ var g=document.getElementById('flt-rhn-chips'); if(g) g.scrollIntoView({block:'center'}); },60);
+    var msg = ids.length===1 ? ('✅ 条件筛选已勾选 罗汉'+ids[0]+'，点「筛选」查它的历史号码') : ('✅ 已勾选 '+ids.length+' 个罗汉（任一即通过 OR），点「筛选」查看');
+    if(typeof showToast==='function') showToast(msg);
+  }catch(e){ if(typeof showToast==='function') showToast('跳转失败：'+e.message); }
+};
+
 function lhRenderAggregate(periods){
   var allRecs = [];
   periods.forEach(function(p){ p.records.forEach(function(r){ allRecs.push(Object.assign({},r,{date:p.date})); }); });
@@ -20037,18 +20053,20 @@ function lhRenderAggregate(periods){
   html += '<div style="font-size:13px;font-weight:800;color:'+(absent.length?'#1e40af':'#166534')+';margin-bottom:'+(absent.length?'6px':'0')+'">🕳️ 缺席罗汉（本范围 '+periods.length+' 期内 0 次出现）：'+(absent.length? '<b>'+absent.length+' 个</b>' : '无 — 18罗汉全部出现过 ✅')+'</div>';
   if(absent.length){
     html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-    absent.forEach(function(id){ html += '<span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#1e40af" title="'+LUOHAN[id-1].join(' / ')+'">罗汉'+id+' · '+LUOHAN[id-1].join('/')+'</span>'; });
-    html += '</div><div style="font-size:11px;color:#64748b;margin-top:6px">提示：缺席=在所选奖项范围+期数内一次都没出现。含特/安需该期有特安数据。</div>';
+    absent.forEach(function(id){ html += '<span onclick="lhSendRohanToFilter(\''+id+'\')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer" title="点击 → 条件筛选查 第'+id+'罗汉（'+LUOHAN[id-1].join(' / ')+'）的历史号码">罗汉'+id+' · '+LUOHAN[id-1].join('/')+' 🔎</span>'; });
+    html += '</div>';
+    html += '<div style="margin-top:8px"><button class="btn" style="background:#2563eb;color:#fff;padding:5px 12px;font-size:12px" onclick="lhSendRohanToFilter(\''+absent.join(',')+'\')">🔎 全部缺席罗汉 → 高级筛选</button></div>';
+    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">点单个罗汉牌子 = 只筛它；点上面按钮 = 把这 '+absent.length+' 个缺席罗汉一起送去（任一即通过）。缺席=所选奖项+期数内一次没出现。</div>';
   }
   html += '</div>';
 
   // Timeline + 遗漏排行
   html += lhRenderTimeline(periods);
 
-  html += '<div class="card"><h3>命中总览</h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
+  html += '<div class="card"><h3>命中总览 <span style="font-size:11px;font-weight:400;color:#94a3b8">（点任意罗汉 → 高级筛选查它的历史号码）</span></h3><div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px">';
   buckets.forEach(function(b,i){
-    html += '<div class="lh-abs '+(b.length?'lh-abs-hot':'lh-abs-cold')+'" style="padding:6px 4px">';
-    html += '<div style="font-size:12px;font-weight:700;'+(b.length?'color:#92400e':'color:#888')+'">罗汉'+(i+1)+'</div>';
+    html += '<div class="lh-abs '+(b.length?'lh-abs-hot':'lh-abs-cold')+'" style="padding:6px 4px;cursor:pointer" onclick="lhSendRohanToFilter(\''+(i+1)+'\')" title="点击 → 条件筛选查 第'+(i+1)+'罗汉的历史号码">';
+    html += '<div style="font-size:12px;font-weight:700;'+(b.length?'color:#92400e':'color:#888')+'">罗汉'+(i+1)+' 🔎</div>';
     html += '<div style="font-size:9px;color:#999">'+LUOHAN[i].join(' ')+'</div>';
     html += '<div style="font-size:11px;color:#666;margin-top:2px">'+b.length+' 次命中</div>';
     html += '</div>';
