@@ -275,6 +275,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
+    <div class="subtab" data-tab="digitgrid" onclick="switchSubtab(this)">🔳 数字格子</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -8402,6 +8403,48 @@ function zo2DRootBacktest(){
   </div>
 </div>
 <div id="gd-out"></div>
+</div>
+
+<!-- TAB: 数字格子（每期号码在 1→9→0 十列打勾）-->
+<div id="tab-digitgrid" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#4338ca 0%,#7c3aed 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">🔳 数字格子图</div>
+    <div style="font-size:12px;color:#ddd6fe;margin-top:2px">每期号码含哪个数字，就在 1→9→0 对应列打勾。一眼看数字的冷热与缺席。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="dgd-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>奖位</label>
+      <select id="dgd-prize">
+        <option value="0" selected>头奖</option>
+        <option value="1">二奖</option>
+        <option value="2">三奖</option>
+      </select>
+    </div>
+    <div class="ig"><label>看几期</label>
+      <select id="dgd-periods">
+        <option value="10">最近10期</option>
+        <option value="15">最近15期</option>
+        <option value="20" selected>最近20期</option>
+        <option value="30">最近30期</option>
+        <option value="50">最近50期</option>
+      </select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doDigitGrid()">🔍 分析</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>读法</b>：每行是一期开奖，最新在最上。号码里出现某数字（含重复也只算一格），就在该数字列打勾。<br>
+    底部 <b>出现次数</b> = 本范围内每列被打勾几次；<b>已缺席</b> = 从最新一期往回数，该数字连续几期没出现。
+  </div>
+</div>
+<div id="dgd-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -20194,15 +20237,99 @@ window.doGrpDig = function(){
   out.innerHTML = html;
 };
 
+// ─── 🔳 数字格子图（每期号码在 1→9→0 十列打勾）──────────
+var DGD_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+
+// 取某市场某奖位最近 n 期开奖（新→旧）
+function dgdDraws(market, prizeIdx, n){
+  var newData = (typeof getNewResults==='function') ? getNewResults() : {};
+  var seen = {}, draws = [];
+  function add(d){
+    if(seen[d.date]) return; seen[d.date]=true;
+    if(d.nums[prizeIdx]!=null && d.nums[prizeIdx]!=='') draws.push({date:d.date, raw:String(d.nums[prizeIdx]).padStart(4,'0')});
+  }
+  (newData[market]||[]).forEach(add);
+  (DB[market]||[]).forEach(add);
+  draws.sort(function(a,b){ return b.date.localeCompare(a.date); }); // 新→旧
+  return draws.slice(0, n);
+}
+
+window.doDigitGrid = function(){
+  var out = document.getElementById('dgd-out');
+  var market = document.getElementById('dgd-market').value;
+  var prizeIdx = parseInt(document.getElementById('dgd-prize').value)||0;
+  var n = parseInt(document.getElementById('dgd-periods').value)||20;
+  var prizeLbl = ['头奖','二奖','三奖'][prizeIdx];
+  var draws = dgdDraws(market, prizeIdx, n); // 新→旧
+  if(!draws.length){ out.innerHTML = '<div class="warn">该市场暂无数据</div>'; return; }
+
+  // 每期含哪些数字
+  draws.forEach(function(d){
+    var set = {}; String(d.raw).split('').forEach(function(c){ set[c]=true; });
+    d.has = set;
+  });
+  // 每列出现次数 + 当前缺席（从最新往回连续未出现的期数）
+  var colCount = {}, absent = {};
+  DGD_ORDER.forEach(function(k){
+    colCount[k] = draws.filter(function(d){ return d.has[k]; }).length;
+    // 缺席：从 draws[0]（最新）往下数，第一次出现前的连续期数
+    var gap = 0;
+    for(var i=0;i<draws.length;i++){ if(draws[i].has[k]) break; gap++; }
+    absent[k] = gap; // = draws.length 表示本范围内从未出现
+  });
+
+  var cellW = 'width:26px;min-width:26px;text-align:center';
+  var html = '<div class="card">';
+  html += '<div style="font-size:13px;font-weight:700;color:#4338ca;margin-bottom:8px">🔳 '+market+' · '+prizeLbl+' · 最近 '+draws.length+' 期</div>';
+  html += '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px">';
+  // 表头
+  html += '<tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:#fff">期 / 号码</th>';
+  DGD_ORDER.forEach(function(k){ html += '<th style="'+cellW+';padding:3px 0;color:'+GRP_COLORS[k]+';font-weight:800">'+k+'</th>'; });
+  html += '</tr>';
+  // 每期一行
+  draws.forEach(function(d){
+    html += '<tr style="border-top:1px solid #eef">';
+    html += '<td style="padding:3px 6px;white-space:nowrap;position:sticky;left:0;background:#fff"><span style="color:#94a3b8">'+d.date.slice(5)+'</span> <b style="font-family:monospace;letter-spacing:1px">'+d.raw+'</b></td>';
+    DGD_ORDER.forEach(function(k){
+      if(d.has[k]) html += '<td style="'+cellW+';padding:3px 0"><span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:4px;background:'+GRP_COLORS[k]+';color:#fff;font-weight:700;font-size:11px">'+k+'</span></td>';
+      else html += '<td style="'+cellW+';padding:3px 0;color:#e2e8f0">·</td>';
+    });
+    html += '</tr>';
+  });
+  // 合计行
+  var maxC = Math.max.apply(null, DGD_ORDER.map(function(k){return colCount[k];}).concat([1]));
+  html += '<tr style="border-top:2px solid #c7d2fe;background:#f5f3ff;font-weight:700">';
+  html += '<td style="padding:4px 6px;position:sticky;left:0;background:#f5f3ff">出现次数</td>';
+  DGD_ORDER.forEach(function(k){
+    var hot = colCount[k]===maxC && maxC>0;
+    html += '<td style="'+cellW+';padding:4px 0;color:'+(hot?GRP_COLORS[k]:'#475569')+'">'+colCount[k]+(hot?' 🔥':'')+'</td>';
+  });
+  html += '</tr>';
+  // 缺席行
+  html += '<tr style="background:#f8fafc;color:#64748b">';
+  html += '<td style="padding:4px 6px;position:sticky;left:0;background:#f8fafc">已缺席(期)</td>';
+  DGD_ORDER.forEach(function(k){
+    var g = absent[k];
+    var col = g>=Math.max(5,draws.length/2) ? '#dc2626' : '#94a3b8';
+    html += '<td style="'+cellW+';padding:4px 0;color:'+col+';font-weight:'+(col==='#dc2626'?700:400)+'">'+(g===draws.length?g+'*':g)+'</td>';
+  });
+  html += '</tr>';
+  html += '</table></div>';
+  html += '<div style="font-size:10px;color:#94a3b8;margin-top:8px">「已缺席」带 * = 本范围内从未出现（可能更早才出）。红色 = 缺席较久。⚠️ 纯历史统计，不构成预测。</div>';
+  html += '</div>';
+  out.innerHTML = html;
+};
+
 // Register tabs
 setTimeout(function(){
   if(window.SCENE_MAP && SCENE_MAP.analysis){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
     if(!SCENE_MAP.analysis.includes('grpdig')) SCENE_MAP.analysis.push('grpdig');
+    if(!SCENE_MAP.analysis.includes('digitgrid')) SCENE_MAP.analysis.push('digitgrid');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
     if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['digitgrid']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
 },0);
 
 })();
