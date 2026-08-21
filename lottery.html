@@ -276,6 +276,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
     <div class="subtab" data-tab="digitgrid" onclick="switchSubtab(this)">🔳 数字格子</div>
+    <div class="subtab" data-tab="posgrid" onclick="switchSubtab(this)">📅 位置·半月</div>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -8445,6 +8446,42 @@ function zo2DRootBacktest(){
   </div>
 </div>
 <div id="dgd-out"></div>
+</div>
+
+<!-- TAB: 位置·半月（格子里标数字在号码中的位置，按上/下半月分区）-->
+<div id="tab-posgrid" class="panel">
+<div class="card" style="background:linear-gradient(135deg,#be123c 0%,#db2777 100%);color:#fff;margin-bottom:8px">
+  <div>
+    <div style="font-size:16px;font-weight:700">📅 位置·半月格子图</div>
+    <div style="font-size:12px;color:#fce7f3;margin-top:2px">格子里标的是数字在号码中的位置（千百十个 = 1234）。按上半月(1–15)/下半月(16–月底)分区看。</div>
+  </div>
+</div>
+<div class="card">
+  <h3>参数设置</h3>
+  <div class="row">
+    <div class="ig"><label>市场</label>
+      <select id="pg-market" onchange="pgFillMonths()"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>奖位</label>
+      <select id="pg-prize">
+        <option value="0" selected>头奖</option>
+        <option value="1">二奖</option>
+        <option value="2">三奖</option>
+      </select>
+    </div>
+    <div class="ig"><label>年月</label>
+      <select id="pg-month"></select>
+    </div>
+    <div class="ig" style="align-self:flex-end">
+      <button class="btn btn-green" onclick="doPosGrid()">🔍 分析</button>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:10px">
+    <b>读法</b>：每行一期，格子里的数字＝该数字在号码里的<b>位置</b>（例 <b>9832</b>→9在第<b>1</b>位、8第<b>2</b>位、3第<b>3</b>位、2第<b>4</b>位）。重复数字会列出多个位置（例 4416 的 4→<b>1·2</b>）。<br>
+    分成 <b>上半月(1–15号)</b> 和 <b>下半月(16–月底)</b> 两块，各自底部给出该数字本半月出现几期。
+  </div>
+</div>
+<div id="pg-out"></div>
 </div>
 
 <!-- TAB: 导出 Excel (V24) -->
@@ -20239,6 +20276,19 @@ window.doGrpDig = function(){
 
 // ─── 🔳 数字格子图（每期号码在 1→9→0 十列打勾）──────────
 var DGD_ORDER = ['1','2','3','4','5','6','7','8','9','0'];
+var dgdCol = {}; // 当前高亮的列
+function dgdTint(hex){
+  var h = hex.replace('#',''); var n = parseInt(h,16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+',0.15)';
+}
+window.dgdToggleCol = function(k){
+  dgdCol[k] = !dgdCol[k];
+  var on = dgdCol[k];
+  document.querySelectorAll('#dgd-out [data-dgc="'+k+'"]').forEach(function(el){
+    el.style.background = on ? dgdTint(GRP_COLORS[k]) : (el.dataset.dgbg||'');
+    el.style.boxShadow = on ? ('inset 0 0 0 1px '+GRP_COLORS[k]) : '';
+  });
+};
 
 // 取某市场某奖位最近 n 期开奖（新→旧）
 function dgdDraws(market, prizeIdx, n){
@@ -20260,6 +20310,7 @@ window.doDigitGrid = function(){
   var prizeIdx = parseInt(document.getElementById('dgd-prize').value)||0;
   var n = parseInt(document.getElementById('dgd-periods').value)||20;
   var prizeLbl = ['头奖','二奖','三奖'][prizeIdx];
+  dgdCol = {}; // 重置高亮
   var draws = dgdDraws(market, prizeIdx, n); // 新→旧
   if(!draws.length){ out.innerHTML = '<div class="warn">该市场暂无数据</div>'; return; }
 
@@ -20284,15 +20335,15 @@ window.doDigitGrid = function(){
   html += '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px">';
   // 表头
   html += '<tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:#fff">期 / 号码</th>';
-  DGD_ORDER.forEach(function(k){ html += '<th style="'+cellW+';padding:3px 0;color:'+GRP_COLORS[k]+';font-weight:800">'+k+'</th>'; });
+  DGD_ORDER.forEach(function(k){ html += '<th data-dgc="'+k+'" onclick="dgdToggleCol(\''+k+'\')" title="点击高亮整列" style="'+cellW+';padding:3px 0;color:'+GRP_COLORS[k]+';font-weight:800;cursor:pointer;user-select:none">'+k+'</th>'; });
   html += '</tr>';
   // 每期一行
   draws.forEach(function(d){
     html += '<tr style="border-top:1px solid #eef">';
     html += '<td style="padding:3px 6px;white-space:nowrap;position:sticky;left:0;background:#fff"><span style="color:#94a3b8">'+d.date.slice(5)+'</span> <b style="font-family:monospace;letter-spacing:1px">'+d.raw+'</b></td>';
     DGD_ORDER.forEach(function(k){
-      if(d.has[k]) html += '<td style="'+cellW+';padding:3px 0"><span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:4px;background:'+GRP_COLORS[k]+';color:#fff;font-weight:700;font-size:11px">'+k+'</span></td>';
-      else html += '<td style="'+cellW+';padding:3px 0;color:#e2e8f0">·</td>';
+      if(d.has[k]) html += '<td data-dgc="'+k+'" style="'+cellW+';padding:3px 0"><span style="display:inline-block;width:20px;height:20px;line-height:20px;border-radius:4px;background:'+GRP_COLORS[k]+';color:#fff;font-weight:700;font-size:11px">'+k+'</span></td>';
+      else html += '<td data-dgc="'+k+'" style="'+cellW+';padding:3px 0;color:#e2e8f0">·</td>';
     });
     html += '</tr>';
   });
@@ -20302,7 +20353,11 @@ window.doDigitGrid = function(){
   html += '<td style="padding:4px 6px;position:sticky;left:0;background:#f5f3ff">出现次数</td>';
   DGD_ORDER.forEach(function(k){
     var hot = colCount[k]===maxC && maxC>0;
-    html += '<td style="'+cellW+';padding:4px 0;color:'+(hot?GRP_COLORS[k]:'#475569')+'">'+colCount[k]+(hot?' 🔥':'')+'</td>';
+    var barH = Math.round(colCount[k]/maxC*100);
+    html += '<td data-dgc="'+k+'" style="'+cellW+';padding:4px 2px;color:'+(hot?GRP_COLORS[k]:'#475569')+'">';
+    html += '<div>'+colCount[k]+(hot?'🔥':'')+'</div>';
+    html += '<div style="height:5px;background:#e9e5f7;border-radius:3px;margin-top:2px"><div style="height:100%;width:'+barH+'%;background:'+GRP_COLORS[k]+';border-radius:3px"></div></div>';
+    html += '</td>';
   });
   html += '</tr>';
   // 缺席行
@@ -20311,12 +20366,94 @@ window.doDigitGrid = function(){
   DGD_ORDER.forEach(function(k){
     var g = absent[k];
     var col = g>=Math.max(5,draws.length/2) ? '#dc2626' : '#94a3b8';
-    html += '<td style="'+cellW+';padding:4px 0;color:'+col+';font-weight:'+(col==='#dc2626'?700:400)+'">'+(g===draws.length?g+'*':g)+'</td>';
+    html += '<td data-dgc="'+k+'" style="'+cellW+';padding:4px 0;color:'+col+';font-weight:'+(col==='#dc2626'?700:400)+'">'+(g===draws.length?g+'*':g)+'</td>';
   });
   html += '</tr>';
   html += '</table></div>';
   html += '<div style="font-size:10px;color:#94a3b8;margin-top:8px">「已缺席」带 * = 本范围内从未出现（可能更早才出）。红色 = 缺席较久。⚠️ 纯历史统计，不构成预测。</div>';
   html += '</div>';
+  out.innerHTML = html;
+};
+
+// ─── 📅 位置·半月格子（格子标位置，按上/下半月分区）──────
+// 取某市场某奖位全部开奖（含日期），用于填月份 & 渲染
+function pgAllDraws(market, prizeIdx){
+  var newData = (typeof getNewResults==='function') ? getNewResults() : {};
+  var seen = {}, draws = [];
+  function add(d){
+    if(seen[d.date]) return; seen[d.date]=true;
+    if(d.nums[prizeIdx]!=null && d.nums[prizeIdx]!=='') draws.push({date:d.date, raw:String(d.nums[prizeIdx]).padStart(4,'0')});
+  }
+  (newData[market]||[]).forEach(add);
+  (DB[market]||[]).forEach(add);
+  return draws;
+}
+// 填充年月下拉（按当前市场，头奖判断有无数据即可）
+window.pgFillMonths = function(){
+  var sel = document.getElementById('pg-month'); if(!sel) return;
+  var market = document.getElementById('pg-market').value;
+  var draws = pgAllDraws(market, 0);
+  var months = {};
+  draws.forEach(function(d){ months[d.date.slice(0,7)] = true; });
+  var list = Object.keys(months).sort().reverse();
+  var prev = sel.value;
+  sel.innerHTML = list.map(function(m){ return '<option value="'+m+'">'+m.slice(0,4)+'年'+parseInt(m.slice(5,7),10)+'月</option>'; }).join('');
+  if(prev && months[prev]) sel.value = prev;
+};
+// 号码 -> {digit:[positions...]}（位置=千百十个=1234，重复列多个）
+function pgPositions(raw){
+  var m = {};
+  String(raw).padStart(4,'0').split('').forEach(function(c,i){ (m[c]=m[c]||[]).push(i+1); });
+  return m;
+}
+function pgRenderSection(title, range, draws){
+  var cellW = 'width:28px;min-width:28px;text-align:center';
+  var html = '<div class="card">';
+  html += '<div style="font-size:13px;font-weight:800;color:#be123c;margin-bottom:8px">'+title+' <span style="font-weight:400;color:#94a3b8;font-size:11px">('+range+' · '+draws.length+' 期)</span></div>';
+  if(!draws.length){ html += '<div style="text-align:center;padding:14px 0;color:#aaa;font-size:12px">本半月暂无开奖</div></div>'; return html; }
+  html += '<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px">';
+  html += '<tr><th style="text-align:left;padding:3px 6px;position:sticky;left:0;background:#fff">日期 / 号码</th>';
+  DGD_ORDER.forEach(function(k){ html += '<th style="'+cellW+';padding:3px 0;color:'+GRP_COLORS[k]+';font-weight:800">'+k+'</th>'; });
+  html += '</tr>';
+  var colCount = {}; DGD_ORDER.forEach(function(k){ colCount[k]=0; });
+  draws.forEach(function(d){
+    var pos = pgPositions(d.raw);
+    html += '<tr style="border-top:1px solid #fde">';
+    html += '<td style="padding:3px 6px;white-space:nowrap;position:sticky;left:0;background:#fff"><span style="color:#94a3b8">'+d.date.slice(8)+'号</span> <b style="font-family:monospace;letter-spacing:1px">'+d.raw+'</b></td>';
+    DGD_ORDER.forEach(function(k){
+      if(pos[k]){ colCount[k]++;
+        html += '<td style="'+cellW+';padding:3px 0"><span style="display:inline-block;min-width:22px;padding:0 2px;height:20px;line-height:20px;border-radius:4px;background:'+GRP_COLORS[k]+';color:#fff;font-weight:700;font-size:11px">'+pos[k].join('·')+'</span></td>';
+      } else html += '<td style="'+cellW+';padding:3px 0;color:#f1e0e6">·</td>';
+    });
+    html += '</tr>';
+  });
+  // 出现次数行
+  var maxC = Math.max.apply(null, DGD_ORDER.map(function(k){return colCount[k];}).concat([1]));
+  html += '<tr style="border-top:2px solid #fbcfe8;background:#fdf2f8;font-weight:700">';
+  html += '<td style="padding:4px 6px;position:sticky;left:0;background:#fdf2f8">出现期数</td>';
+  DGD_ORDER.forEach(function(k){
+    var hot = colCount[k]===maxC && maxC>0;
+    html += '<td style="'+cellW+';padding:4px 0;color:'+(hot?GRP_COLORS[k]:'#475569')+'">'+colCount[k]+(hot?'🔥':'')+'</td>';
+  });
+  html += '</tr></table></div></div>';
+  return html;
+}
+window.doPosGrid = function(){
+  var out = document.getElementById('pg-out');
+  var market = document.getElementById('pg-market').value;
+  var prizeIdx = parseInt(document.getElementById('pg-prize').value)||0;
+  var month = document.getElementById('pg-month').value;
+  if(!month){ out.innerHTML='<div class="warn">该市场暂无数据</div>'; return; }
+  var prizeLbl = ['头奖','二奖','三奖'][prizeIdx];
+  var draws = pgAllDraws(market, prizeIdx).filter(function(d){ return d.date.slice(0,7)===month; });
+  draws.sort(function(a,b){ return a.date.localeCompare(b.date); }); // 旧→新
+  var firstHalf = draws.filter(function(d){ return parseInt(d.date.slice(8,10),10) <= 15; });
+  var secondHalf = draws.filter(function(d){ return parseInt(d.date.slice(8,10),10) > 15; });
+  var mLbl = month.slice(0,4)+'年'+parseInt(month.slice(5,7),10)+'月';
+  var html = '<div class="card" style="padding:8px 12px"><b style="color:#be123c">'+market+' · '+prizeLbl+' · '+mLbl+'</b> <span style="color:#94a3b8;font-size:11px">共 '+draws.length+' 期</span></div>';
+  html += pgRenderSection('🌘 上半月', '1–15号', firstHalf);
+  html += pgRenderSection('🌒 下半月', '16–月底', secondHalf);
+  html += '<div style="font-size:10px;color:#94a3b8;padding:0 4px">格子数字＝该数字在号码里的位置(千百十个=1234)；重复数字列多个。⚠️ 纯历史统计，不构成预测。</div>';
   out.innerHTML = html;
 };
 
@@ -20326,10 +20463,12 @@ setTimeout(function(){
     if(!SCENE_MAP.analysis.includes('numsort')) SCENE_MAP.analysis.push('numsort');
     if(!SCENE_MAP.analysis.includes('grpdig')) SCENE_MAP.analysis.push('grpdig');
     if(!SCENE_MAP.analysis.includes('digitgrid')) SCENE_MAP.analysis.push('digitgrid');
+    if(!SCENE_MAP.analysis.includes('posgrid')) SCENE_MAP.analysis.push('posgrid');
     if(!SCENE_MAP.analysis.includes('luohan')) SCENE_MAP.analysis.push('luohan');
     if(!SCENE_MAP.analysis.includes('absent')) SCENE_MAP.analysis.push('absent');
   }
-  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['digitgrid']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
+  if(window.TAB_TO_SCENE){ TAB_TO_SCENE['numsort']='analysis'; TAB_TO_SCENE['grpdig']='analysis'; TAB_TO_SCENE['digitgrid']='analysis'; TAB_TO_SCENE['posgrid']='analysis'; TAB_TO_SCENE['luohan']='analysis'; TAB_TO_SCENE['absent']='analysis'; }
+  if(typeof pgFillMonths==='function'){ try{ pgFillMonths(); }catch(e){} }
 },0);
 
 })();
