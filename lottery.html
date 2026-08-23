@@ -7715,6 +7715,16 @@ function doBacktest(){
         <input type="checkbox" id="zo-mem-hide-hit">本月已开的不显示
       </label>
     </div>
+    <div class="ig"><label>🔱 缺席罗汉</label>
+      <div style="display:flex;align-items:center;gap:8px;padding-top:6px;flex-wrap:wrap">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700"><input type="checkbox" id="zo-mem-absent-on">启用</label>
+        <select id="zo-mem-absent-mode" style="font-size:12px;padding:3px 6px">
+          <option value="boost">加分排前</option>
+          <option value="only">只留缺席罗汉</option>
+        </select>
+        <label style="font-size:11px;color:#64748b">遗漏≥<select id="zo-mem-absent-gap" style="font-size:11px;padding:2px 4px"><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option></select>期</label>
+      </div>
+    </div>
   </div>
   <div class="row" style="margin-top:10px">
     <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
@@ -12571,6 +12581,37 @@ function zoMemSetExportMarket(){
   const M = ZO_MEM_ALL.find(function(x){ return x.market === ex.value; }) || ZO_MEM_ALL[0];
   ZO_MEM = M;
 }
+// 🔱 缺席罗汉集合（ZO编号）：双重条件 = 近期连续遗漏≥minGap期 且 本月生肖图历史命中≤中位数
+// 返回 {zoId: {gap, monthCnt}}
+function zoAbsentRohanSet(market, month, rohanStat, minGap){
+  // 1) 近期遗漏：合并新旧数据，按日期新→旧，逐期算每个罗汉从最新往回连续没命中的期数
+  const newData = (typeof getNewResults==='function') ? getNewResults() : {};
+  const seen = {}, draws = [];
+  (newData[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  (DB[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  draws.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const streak = {}, done = {};
+  ZO_ROHAN.forEach(g => { streak[g.id]=0; });
+  for(let i=0;i<draws.length;i++){
+    const active = {};
+    (draws[i].nums||[]).forEach(n => { if(n==null||n==='') return; zoRohanOf(n).forEach(g => { active[g.id]=1; }); });
+    ZO_ROHAN.forEach(g => { if(done[g.id]) return; if(active[g.id]) done[g.id]=1; else streak[g.id]++; });
+    if(Object.keys(done).length === ZO_ROHAN.length) break;
+  }
+  // 2) 本月冷：该月历史命中 ≤ 18组中位数
+  const monHits = ZO_ROHAN.map(g => (rohanStat.stat[g.id] ? rohanStat.stat[g.id][month-1] : 0));
+  const sortedH = monHits.slice().sort((a,b) => a-b);
+  const median = sortedH[Math.floor(sortedH.length/2)];
+  // 3) 双重满足
+  const set = {};
+  ZO_ROHAN.forEach(g => {
+    const gap = streak[g.id];
+    const mc = rohanStat.stat[g.id] ? rohanStat.stat[g.id][month-1] : 0;
+    if(gap >= minGap && mc <= median) set[g.id] = {gap:gap, monthCnt:mc};
+  });
+  return set;
+}
+
 function zoMemberGen(marketOverride, append){
   const market = marketOverride || document.getElementById('zo-market').value;
   const month = parseInt(document.getElementById('zo-month').value, 10);
@@ -12599,9 +12640,30 @@ function zoMemberGen(marketOverride, append){
   if(hideHit) poolUse = pool.filter(c => !monthHitMap[c.key]);
   if(!poolUse.length){ poolUse = pool; }   // 全被过滤则退回全量，免得空名单
   const sorted = poolUse.slice().sort((a,b) => zoScore(b) - zoScore(a));
-  const star = sorted[0];
   // 罗汉月份热度统计
   const rohanStat = zoRohanMonthStat(market);
+
+  // 🔱 缺席罗汉（双重条件：近期遗漏≥N期 且 本月生肖图冷）→ 加分排前 或 只留
+  const absOn = !!(document.getElementById('zo-mem-absent-on')||{}).checked;
+  const absMode = (document.getElementById('zo-mem-absent-mode')||{}).value || 'boost';
+  const absGap = parseInt((document.getElementById('zo-mem-absent-gap')||{}).value,10)||2;
+  let absSet = {}, absFallback = false;
+  if(absOn){
+    absSet = zoAbsentRohanSet(market, month, rohanStat, absGap);
+    sorted.forEach(c => {
+      let best = null;
+      (c.rohanIds||[]).forEach(id => { if(absSet[id] && (!best || absSet[id].gap > best.gap)) best = {id:id, gap:absSet[id].gap, monthCnt:absSet[id].monthCnt}; });
+      c.absent = best;
+    });
+    if(absMode === 'only'){
+      const filtered = sorted.filter(c => c.absent);
+      if(filtered.length){ sorted.length = 0; Array.prototype.push.apply(sorted, filtered); }
+      else absFallback = true;   // 无符合 → 退回全量并提示
+    } else {
+      sorted.sort((a,b) => ((b.absent?1:0)-(a.absent?1:0)) || (zoScore(b)-zoScore(a)));
+    }
+  }
+  const star = sorted[0];
 
   // 分组：24/12打用评分前N；6/4打用高门槛精选（不够则降级用普通排序补位，标注降级）
   const groups = {}, groupConf = {}; // groupConf: true=高门槛通过
@@ -12641,6 +12703,11 @@ function zoMemberGen(marketOverride, append){
   h += zoCompanyBannerHtml(market, '会员专享 MEMBERS ONLY', 'dark');
   h += '<div style="text-align:center;padding:0 0 4px">';
   h += '<div style="font-size:17px;font-weight:900;letter-spacing:2px;background:linear-gradient(90deg,#f59e0b,#fde047,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">' + month + '月会员旺号名单</div>';
+  if(absOn){
+    const _absCnt = Object.keys(absSet).length;
+    const _absIds = Object.keys(absSet).map(Number).sort((a,b)=>a-b);
+    h += '<div style="font-size:10px;color:#fca5a5;margin-top:2px">🔱 缺席罗汉' + (absMode==='only'?'（只留）':'（加分排前）') + ' · 遗漏≥' + absGap + '期 · 本月共 <b>' + _absCnt + '</b> 组缺席（罗汉 ' + (_absIds.join('/')||'无') + '）' + (absFallback?' · <span style="color:#fbbf24">⚠️无号码符合，已退回全量</span>':'') + '</div>';
+  }
   h += '</div>';
 
   // 主打号（全场最高分）
@@ -12700,6 +12767,10 @@ function zoMemberGen(marketOverride, append){
       // 行底：证据标注 + 罗汉归属
       const rh = c.rohanIds && c.rohanIds.length ? {groups:c.rohanIds, label:'罗汉' + c.rohanIds.join('+')} : {groups:[], label:''};
       h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;line-height:1.5">' + zoEvidenceTags(c, month, refYear, rh) + '</div>';
+      if(c.absent){
+        const _ag = ZO_ROHAN.find(g => g.id === c.absent.id);
+        h += '<div style="font-size:10px;color:#fca5a5;margin-top:3px;font-weight:700;background:rgba(220,38,38,.12);border-radius:4px;padding:2px 6px;display:inline-block">🔱 缺席罗汉' + c.absent.id + '（' + (_ag?_ag.patterns.join('/'):'') + '）· 近期遗漏 <b>' + c.absent.gap + '</b> 期 · 生肖图' + month + '月历史仅 ' + c.absent.monthCnt + ' 次（为什么推：短期＋本月都冷）</div>';
+      }
       if(c.rohanScore > 0){
         const stars = c.rohanScore >= 1.5 ? '🔥🔥🔥' : c.rohanScore >= 0.8 ? '🔥🔥' : '🔥';
         h += '<div style="font-size:9.5px;color:#fbbf24;margin-top:2px">' + stars + ' 罗汉共振 ' + (c.rohanScore).toFixed(2) + ' · 属第' + c.rohanIds.join('/') + '罗汉</div>';
