@@ -20085,6 +20085,11 @@ window.lhSendRohanToFilter = function(idsCsv){
   }catch(e){ if(typeof showToast==='function') showToast('跳转失败：'+e.message); }
 };
 
+// LUOHAN(罗汉tab编号) → ZO_ROHAN(生肖图编号) 对照（按图案内容一一对应）
+// 注：罗汉tab第4(258/158/358) ↔ 生肖图第2(258/358/058)，仅 158/058 一处小差异
+var LH2ZO = {1:1,2:4,3:7,4:2,5:5,6:8,7:3,8:6,9:9,10:10,11:13,12:16,13:11,14:14,15:17,16:12,17:15,18:18};
+window.LH2ZO = LH2ZO;
+
 function lhRenderAggregate(periods){
   var allRecs = [];
   periods.forEach(function(p){ p.records.forEach(function(r){ allRecs.push(Object.assign({},r,{date:p.date})); }); });
@@ -20116,6 +20121,16 @@ function lhRenderAggregate(periods){
   }
   var streakKeys = Object.keys(missByStreak).map(Number).sort(function(a,b){return b-a;}); // 大→小
   var hasMiss = allMissIds.length>0;
+  // 🔗 生肖图交叉引用：该罗汉在生肖图(ZO_ROHAN)对应编号 + 参考月历史命中热度
+  var lhMkt = (document.getElementById('lh-market')||{}).value || '万能';
+  var refMon = periods.length ? (typeof seaMonth==='function'? seaMonth(periods[0].date) : (parseInt(periods[0].date.slice(5,7),10))) : (new Date().getMonth()+1);
+  var zoStat = null; try{ if(typeof zoRohanMonthStat==='function') zoStat = zoRohanMonthStat(lhMkt); }catch(e){}
+  function zoRef(lid){
+    var zid = LH2ZO[lid];
+    var cnt = (zoStat && refMon && zoStat.stat[zid]) ? zoStat.stat[zid][refMon-1] : null;
+    var tot = (zoStat && refMon) ? (zoStat.monTotal[refMon-1]||0) : null;
+    return {zid:zid, cnt:cnt, tot:tot};
+  }
   html += '<div class="card" style="background:'+(hasMiss?'#eff6ff':'#f0fdf4')+';border:2px solid '+(hasMiss?'#3b82f6':'#22c55e')+'">';
   html += '<div style="font-size:13px;font-weight:800;color:'+(hasMiss?'#1e40af':'#166534')+';margin-bottom:'+(hasMiss?'8px':'0')+'">🕳️ 罗汉遗漏（连续没开期数 · 本范围 '+periods.length+' 期）：'+(hasMiss? '<b>'+allMissIds.length+' 个罗汉正在遗漏</b>' : '无 — 18罗汉最新一期全部开过 ✅')+'</div>';
   if(hasMiss){
@@ -20125,13 +20140,18 @@ function lhRenderAggregate(periods){
       html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#fff;border-radius:6px">';
       html += '<span style="min-width:96px;font-size:12px;font-weight:800;color:'+(st>=3?'#dc2626':st===2?'#d97706':'#2563eb')+'">连续 '+st+' 期没开'+(full?' <span style="font-size:9px;color:#94a3b8">(整段)</span>':'')+'</span>';
       html += '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">';
-      ids.forEach(function(id){ html += '<span onclick="lhSendRohanToFilter(\''+id+'\')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer" title="点击 → 条件筛选查 第'+id+'罗汉（'+LUOHAN[id-1].join(' / ')+'）">罗汉'+id+' · '+LUOHAN[id-1].join('/')+' 🔎</span>'; });
+      ids.forEach(function(id){
+        var z = zoRef(id);
+        var zTxt = (z.cnt!=null) ? ' <span style="color:#7c3aed;font-weight:600">↔生肖罗'+z.zid+'·'+refMon+'月'+z.cnt+'次</span>' : ' <span style="color:#a78bfa">↔生肖罗'+z.zid+'</span>';
+        var zTitle = (z.cnt!=null) ? ('生肖图对应第'+z.zid+'罗汉；参考月('+refMon+'月)历史命中 '+z.cnt+' 次'+(z.tot?'（该月共开'+z.tot+'次）':'')) : ('生肖图对应第'+z.zid+'罗汉');
+        html += '<span onclick="lhSendRohanToFilter(\''+id+'\')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer" title="点击 → 条件筛选查 第'+id+'罗汉（'+LUOHAN[id-1].join(' / ')+'）｜'+zTitle+'">罗汉'+id+' · '+LUOHAN[id-1].join('/')+' 🔎'+zTxt+'</span>';
+      });
       html += '</div>';
       html += '<button class="btn" style="background:#2563eb;color:#fff;padding:3px 10px;font-size:11px" onclick="lhSendRohanToFilter(\''+ids.join(',')+'\')">这组→筛选</button>';
       html += '</div>';
     });
     html += '<div style="margin-top:6px"><button class="btn" style="background:#1e40af;color:#fff;padding:5px 12px;font-size:12px" onclick="lhSendRohanToFilter(\''+allMissIds.join(',')+'\')">🔎 全部遗漏罗汉 → 高级筛选</button></div>';
-    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">数字＝从最新一期往回，连续几期没命中该罗汉（含只缺1期的）。点牌子=只筛它；「这组→筛选」=同遗漏期数一起送；标「整段」=本范围内一次都没开。</div>';
+    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">数字＝从最新一期往回，连续几期没命中该罗汉（含只缺1期的）。点牌子=只筛它；「这组→筛选」=同遗漏期数一起送；标「整段」=本范围内一次都没开。<br>🔗 <b style="color:#7c3aed">↔生肖罗X·N次</b> = 该罗汉在<b>生肖图</b>的对应编号，及在参考月（'+refMon+'月，取最新一期所在月）历史命中次数——把「短期遗漏」和「生肖图季节热度」对照着看。</div>';
   }
   html += '</div>';
 
