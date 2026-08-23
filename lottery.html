@@ -8032,6 +8032,7 @@ function doBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
+      <button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8126,6 +8127,57 @@ function zoAbsentSendToFilter(){
   try{ if(typeof switchTab==='function') switchTab('filter'); }catch(e){}
   setTimeout(function(){ var g=document.getElementById('flt-posgrid'); if(g) g.scrollIntoView({block:'center'}); },50);
   try{ if(typeof showToast==='function') showToast('✅ 已把每位缺席数字填入「条件筛选 → 可视化点选」，点「筛选」即可'); }catch(e){}
+}
+// 缺席前2D → 历史开出次数：千位缺席×百位缺席 组成前2D，数它们历史开过几次
+function zoAbsentFront2D(){
+  if(!window.__absentSets){ alert('请先点「分析」。'); return; }
+  var a1=window.__absentSets[0]||[], a2=window.__absentSets[1]||[];  // 千 / 百 位缺席数字
+  var out=document.getElementById('abs-out'); if(!out) return;
+  // 移除上一次结果卡
+  var old=document.getElementById('abs-f2d-card'); if(old) old.remove();
+  if(!a1.length || !a2.length){
+    out.insertAdjacentHTML('beforeend','<div id="abs-f2d-card" class="card" style="margin-top:8px"><div class="warn">千位或百位没有缺席数字（0-9全出现过），无法组前2D。可减少期数或换奖项范围再试。</div></div>');
+    return;
+  }
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  // 统计该市场全历史每个前2D的开出次数（头二三 + 有的特/安）
+  var cnt={}, last={}, total=0;
+  function tally(raw,date){ var s=String(raw).padStart(4,'0').slice(-4); if(!/^\d{4}$/.test(s))return; var f2=s.slice(0,2); cnt[f2]=(cnt[f2]||0)+1; total++; if(!last[f2]||date>last[f2]) last[f2]=date; }
+  var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={};
+  (newData[mk]||[]).forEach(function(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; (d.nums||[]).forEach(function(n){ if(n!=null&&n!=='')tally(n,d.date); }); (d.sp||[]).forEach(function(n){tally(n,d.date);}); (d.cs||[]).forEach(function(n){tally(n,d.date);}); });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; (d.nums||[]).forEach(function(n){ if(n!=null&&n!=='')tally(n,d.date); }); });
+  // 组合：千位缺席 × 百位缺席
+  var rows=[];
+  a1.forEach(function(d1){ a2.forEach(function(d2){ var f2=''+d1+d2; rows.push({f2:f2, c:cnt[f2]||0, last:last[f2]||''}); }); });
+  rows.sort(function(x,y){ return y.c-x.c || x.f2.localeCompare(y.f2); });
+  var comboN=rows.length, everOut=rows.filter(function(r){return r.c>0;}).length;
+  var exp = total? total/100 : 0;   // 每个前2D随机期望次数（100种前2D均分）
+  var maxC = rows.reduce(function(m,r){return Math.max(m,r.c);},0)||1;
+  var h='<div id="abs-f2d-card" class="card" style="margin-top:8px;border:2px solid #0f766e">';
+  h+='<h3 style="color:#0f766e">🔗 缺席前2D → 历史开出次数</h3>';
+  h+='<div class="warn">把<b>千位缺席</b>('+a1.join('/')+') × <b>百位缺席</b>('+a2.join('/')+') 组成 <b>'+comboN+'</b> 个前2D，数它们在 <b>'+mk+'</b> 全历史（共 '+total+' 个号码）里当前2D开出过几次。每个前2D随机期望≈<b>'+exp.toFixed(1)+'</b>次。</div>';
+  h+='<div style="font-size:12px;color:#475569;margin:6px 0">这 '+comboN+' 个缺席前2D里，历史上真开出过的有 <b>'+everOut+'</b> 个。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">前2D</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">历史开出</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">相对期望</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">最近一次</th></tr>';
+  rows.forEach(function(r){
+    var ratio = exp>0? (r.c/exp) : 0;
+    var rc = ratio>=1.5?'#dc2626':ratio<=0.5?'#2563eb':'#64748b';
+    var barW = Math.round(r.c/maxC*100);
+    h+='<tr>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-family:monospace;font-weight:800;font-size:15px;color:#0f766e">'+r.f2+'xx</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9"><div style="display:flex;align-items:center;gap:6px"><b>'+r.c+'</b>次<div style="flex:1;max-width:90px;background:#f0f0e8;border-radius:3px;height:8px"><div style="height:100%;width:'+barW+'%;background:#0f766e;border-radius:3px"></div></div></div></td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:'+rc+';font-weight:'+((ratio>=1.5||ratio<=0.5)?700:400)+'">'+(r.c?ratio.toFixed(1)+'x':'—')+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#94a3b8">'+(r.last||'从未')+'</td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">「相对期望」= 开出次数÷随机期望('+exp.toFixed(1)+')，🔴≥1.5x偏多 / 🔵≤0.5x偏少。⚠️ 缺席=近期没出；历史开得多≠下期会开（回测显示接近随机）。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-f2d-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
 function zoAbsentBacktest(){
