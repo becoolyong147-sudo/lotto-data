@@ -7729,7 +7729,8 @@ function doBacktest(){
   <div class="row" style="margin-top:10px">
     <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
-    <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG()" id="zo-mem-png" style="display:none">📸 下载会员图</button></div>
+    <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG('simple')" id="zo-mem-png-simple" style="display:none">📸 会员图·简洁（号码+星）</button></div>
+    <div class="ig"><button class="btn" onclick="zoMemberPNG('full')" id="zo-mem-png" style="display:none;background:#475569;color:#fff">📸 详细图·自己看（带证据）</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
     <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
@@ -12783,7 +12784,7 @@ function zoMemberGen(marketOverride, append){
   h += '<div style="text-align:center;font-size:9.5px;color:#6366f1;padding:8px 10px 12px;border-top:1px solid rgba(67,56,202,.35);margin-top:8px">⚠️ 历史统计整理，不构成预测 · 月底公开复盘 · 会员专享内容请勿外传</div>';
   h += '</div>';
   if(append) out.innerHTML += h; else out.innerHTML = h;
-  ['zo-mem-copy','zo-mem-png','zo-mem-vid'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
+  ['zo-mem-copy','zo-mem-png','zo-mem-png-simple','zo-mem-vid'].forEach(id => { const b = document.getElementById(id); if(b) b.style.display = ''; });
 }
 // ===== 名词解释（中/英/马三语，复制后直接发会员群）=====
 const ZO_MEM_GLOSS = {
@@ -12882,9 +12883,10 @@ function zoMemH(M){
   return H;
 }
 // ── 会员图 K星盘暗夜风统一绘制：t=null 静态；t=秒数 → 动画帧；lang: zh/en/ms ──
-function zoDrawMemberK(ctx, M, t, lang){
+function zoDrawMemberK(ctx, M, t, lang, variant){
   const W = 1080, pad = 36, H = zoMemH(M);
   const anim = t!=null;
+  const simple = variant === 'simple';   // 会员简洁版：只留 号码/生肖/星星（打分）
   const MS = ZO_MEM_STR[lang||'zh'], zn = ZO_STR[lang||'zh'].zodiacNames;
   // 深空背景
   const bg = ctx.createLinearGradient(0,0,W,H);
@@ -12926,7 +12928,7 @@ function zoDrawMemberK(ctx, M, t, lang){
   ctx.fillStyle = '#fde047'; ctx.font = '900 42px ' + ZO_MONO;
   ctx.fillText(M.star.num + '   ' + zn[M.star.zi], W/2+32, starAnimalY);
   const sHeat = zoMemHeatBadge(M.star, lang);
-  const starTagT = zoMemStarsTxt(M.star) + ' · ' + sHeat.t + ' · ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num), lang);
+  const starTagT = simple ? zoMemStarsTxt(M.star) : (zoMemStarsTxt(M.star) + ' · ' + sHeat.t + ' · ' + zoMemTags(M.star, M.month, zoDaCount(M.star.num), lang));
   ctx.fillStyle = '#fde68a';
   zoFitFont(ctx,starTagT,W-2*pad-40,17,11,function(s){return '700 '+s+'px '+ZO_FONT;});
   ctx.fillText(starTagT, W/2, y+83);
@@ -12967,15 +12969,23 @@ function zoDrawMemberK(ctx, M, t, lang){
       zoDrawAnimal(ctx, c.zi, pad+192, y+28, 44);
       ctx.fillStyle = '#fbbf24'; ctx.font = '800 19px ' + ZO_FONT;
       ctx.fillText(zn[c.zi], pad+222, y+29);
-      ctx.fillStyle = '#fde047'; ctx.font = '15px ' + ZO_FONT;
-      ctx.fillText(zoMemStarsTxt(c), pad+296, y+29);
-      const hb = zoMemHeatBadge(c, lang);
-      ctx.fillStyle = hb.col; ctx.font = '700 14px ' + ZO_FONT;
-      ctx.fillText(hb.t, pad+400, y+29);
-      ctx.fillStyle = '#cbd5e1'; ctx.textAlign = 'right';
-      const tagT = zoMemTags(c, M.month, da, lang);
-      zoFitFont(ctx,tagT,W-2*pad-560,16,10,function(s){return s+'px '+ZO_FONT;});
-      ctx.fillText(tagT, W-pad-16, y+29);
+      if(simple){
+        // 会员简洁版：右侧放大号星星（=打分），不放冷热/证据tag
+        ctx.fillStyle = '#fde047'; ctx.font = '900 27px ' + ZO_FONT;
+        ctx.textAlign = 'right'; ctx.fillText(zoMemStarsTxt(c), W-pad-18, y+29);
+        ctx.textAlign = 'left';
+      } else {
+        ctx.fillStyle = '#fde047'; ctx.font = '15px ' + ZO_FONT;
+        ctx.fillText(zoMemStarsTxt(c), pad+296, y+29);
+        const hb = zoMemHeatBadge(c, lang);
+        ctx.fillStyle = hb.col; ctx.font = '700 14px ' + ZO_FONT;
+        ctx.fillText(hb.t, pad+400, y+29);
+        ctx.fillStyle = '#cbd5e1'; ctx.textAlign = 'right';
+        let tagT = zoMemTags(c, M.month, da, lang);
+        if(c.absent) tagT = '🔱缺' + c.absent.gap + '期 · ' + tagT;   // 自己看：带缺席罗汉理由
+        zoFitFont(ctx,tagT,W-2*pad-560,16,10,function(s){return s+'px '+ZO_FONT;});
+        ctx.fillText(tagT, W-pad-16, y+29);
+      }
       y += 62;
     });
     y += 14;
@@ -12991,20 +13001,21 @@ function zoMemFileBase(M){
   return 'member_' + M.refYear + '-' + String(M.month).padStart(2,'0') + '_' + mkAscii;
 }
 function zoMemLang(){ return (document.getElementById('zo-mem-lang') || {value:'zh'}).value; }
-async function zoMemberPNG(){
+async function zoMemberPNG(variant){
   if(zoMemberPublicBlocked()) return;   // public 模式不生成会员图
   if(!ZO_MEM) return;
   await zoLoadAnimalSprite();
   const M = ZO_MEM, lang = zoMemLang();
+  const simple = variant === 'simple';
   // 2x 超采样：FB 压缩后文字仍清晰
   const SC = 2;
   const cv = document.createElement('canvas'); cv.width = 1080*SC; cv.height = zoMemH(M)*SC;
   const ctx = cv.getContext('2d'); ctx.scale(SC,SC);
-  zoDrawMemberK(ctx, M, null, lang);
+  zoDrawMemberK(ctx, M, null, lang, simple ? 'simple' : 'full');
   cv.toBlob(function(b){
-    zoSaveBlob(b, zoMemFileBase(M) + '_' + lang + '.png');
-    const btn = document.getElementById('zo-mem-png');
-    if(btn){ btn.textContent = '✅ 已下载'; setTimeout(function(){ btn.textContent = '📸 下载会员图'; }, 1500); }
+    zoSaveBlob(b, zoMemFileBase(M) + '_' + lang + (simple?'_member':'_detail') + '.png');
+    const btn = document.getElementById(simple ? 'zo-mem-png-simple' : 'zo-mem-png');
+    if(btn){ const o = btn.textContent; btn.textContent = '✅ 已下载'; setTimeout(function(){ btn.textContent = o; }, 1500); }
   });
 }
 // 会员版动画视频（带配乐，发付费群）
@@ -14446,7 +14457,7 @@ function zoMemberPublicBlocked(){
   return false;
 }
 // public 模式把会员按钮显示为禁用态（仍可点，点了给提示）；member/legacy 恢复
-const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-vid','zo-mem-backtest','zo-memhit-png','zo-memhit-vid','zo-memhit-copy'];
+const ZO_MEMBER_BTN_IDS = ['zo-mem-genall','zo-mem-copy','zo-mem-png','zo-mem-png-simple','zo-mem-vid','zo-mem-backtest','zo-memhit-png','zo-memhit-vid','zo-memhit-copy'];
 function zoMemberBtnSync(){
   const dim = zoOutputMode()==='public';
   ZO_MEMBER_BTN_IDS.forEach(function(id){
