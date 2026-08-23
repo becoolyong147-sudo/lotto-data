@@ -8034,6 +8034,7 @@ function doBacktest(){
       <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
       <button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
       <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
+      <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8242,6 +8243,75 @@ function zoAbsentPeriodReport(){
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-pr-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 🏢 9市场缺席2D命中显著性对照：每市场跑逐期命中账，比实际vs随机期望，用二项z判显著
+function zoAbsent9Markets(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var old=document.getElementById('abs-9m-card'); if(old) old.remove();
+  var n=parseInt(document.getElementById('abs-periods').value,10)||10;
+  var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
+  var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var markets=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  function drawNums(d){ var arr=[]; if(pz.p0&&d.nums&&d.nums[0]!=null&&d.nums[0]!=='')arr.push(d.nums[0]); if(pz.p1&&d.nums&&d.nums[1]!=null&&d.nums[1]!=='')arr.push(d.nums[1]); if(pz.p2&&d.nums&&d.nums[2]!=null&&d.nums[2]!=='')arr.push(d.nums[2]); if(pz.sp&&Array.isArray(d.sp))d.sp.forEach(function(x){arr.push(x);}); if(pz.cs&&Array.isArray(d.cs))d.cs.forEach(function(x){arr.push(x);}); return arr.map(function(x){return String(x).padStart(4,'0').slice(-4);}).filter(function(s){return /^\d{4}$/.test(s);}); }
+  var rows=[];
+  markets.forEach(function(mk){
+    var seen={}, merged=[];
+    (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+    merged=merged.slice(0, n+1);
+    var hitCount=0, expSum=0, varSum=0, pairs=0;
+    for(var i=0;i<merged.length-1;i++){
+      var oNums=drawNums(merged[i+1]), nNums=drawNums(merged[i]);
+      if(!oNums.length||!nNums.length) continue;
+      var s0={},s1={}; oNums.forEach(function(s){ s0[s[0]]=1; s1[s[1]]=1; });
+      var a0=0,a1=0; for(var d=0;d<=9;d++){ if(!s0[d])a0++; if(!s1[d])a1++; }
+      var comboN=a0*a1;
+      var comboSet={}; for(var x=0;x<=9;x++){ if(!s0[x]) for(var y=0;y<=9;y++){ if(!s1[y]) comboSet[''+x+y]=1; } }
+      var hit=nNums.some(function(s){ return comboSet[s.slice(0,2)]; });
+      var M=nNums.length;
+      var p=comboN>0?(1-Math.pow(1-comboN/100,M)):0;
+      hitCount+=hit?1:0; expSum+=p; varSum+=p*(1-p); pairs++;
+    }
+    if(!pairs){ rows.push({mk:mk, none:true}); return; }
+    var z=varSum>0?((hitCount-expSum)/Math.sqrt(varSum)):0;
+    var verdict, vc, act;
+    if(z>2.58){verdict='显著偏高';vc='#16a34a';act='倾向正用';}
+    else if(z>1.96){verdict='偏高(p<.05)';vc='#22c55e';act='略倾向正用';}
+    else if(z<-2.58){verdict='显著偏低';vc='#dc2626';act='可考虑反向';}
+    else if(z<-1.96){verdict='偏低(p<.05)';vc='#f59e0b';act='略可反向';}
+    else {verdict='随机';vc='#94a3b8';act='正反都没用';}
+    rows.push({mk:mk, pairs:pairs, hitCount:hitCount, hitRate:hitCount/pairs, expRate:expSum/pairs, z:z, verdict:verdict, vc:vc, act:act});
+  });
+  rows.sort(function(a,b){ if(a.none)return 1; if(b.none)return -1; return Math.abs(b.z)-Math.abs(a.z); });
+  var pzTxt=[pz.p0?'头':'',pz.p1?'二':'',pz.p2?'三':'',pz.sp?'特':'',pz.cs?'安':''].filter(Boolean).join('');
+  var h='<div id="abs-9m-card" class="card" style="margin-top:8px;border:2px solid #9333ea">';
+  h+='<h3 style="color:#9333ea">🏢 9市场 缺席2D 命中显著性对照（'+pzTxt+' · 每市场近'+n+'期）</h3>';
+  h+='<div class="warn">每个市场跑一遍逐期命中账，比「实际命中率」vs「随机期望」，用二项 z 值判断是不是<b>真的偏离随机</b>。<b>只有显著偏离才值得正用/反向</b>；落在随机范围＝正反都没用。<b>样本越大越准，建议期数选 50 或 100。</b></div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">市场</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">实际命中</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">随机期望</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">z值</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">判断</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">用法</th></tr>';
+  rows.forEach(function(r){
+    if(r.none){ h+='<tr><td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700">'+r.mk+'</td><td colspan="5" style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#94a3b8">数据不足</td></tr>'; return; }
+    h+='<tr>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:800;color:#1e3a5f">'+r.mk+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9">'+r.hitCount+'/'+r.pairs+' · <b>'+(r.hitRate*100).toFixed(0)+'%</b></td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">'+(r.expRate*100).toFixed(0)+'%</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:'+r.vc+'">'+(r.z>0?'+':'')+r.z.toFixed(2)+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:'+r.vc+'">'+r.verdict+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:'+r.vc+'">'+r.act+'</td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">z值：|z|&gt;1.96≈p&lt;0.05，|z|&gt;2.58≈p&lt;0.01。<b>正号=实际比随机高，负号=比随机低。</b>「可反向」只在<b>显著偏低</b>时才有依据。⚠️ 多市场同时比较会放大偶然显著（多重比较），别只凭一次结果下重注；换期数/奖项若结论就翻脸，多半仍是随机。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-9m-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
 function zoAbsentBacktest(){
