@@ -5103,6 +5103,37 @@ function runAdvancedFilter(){
   document.getElementById('flt-b2d-result').innerHTML = '';
 }
 
+// 候选4D是否符合当前筛选的「号码本身」条件（日期/奖项/冷热等"何时开"的条件不参与）
+// 返回 {pass, reason}；reason 为第一个不符合的条件名
+function fltNumberIntrinsicCheck(num){
+  var s=String(num).padStart(4,'0');
+  var a=ana(num);
+  var c;
+  c=getSelectedRoots('f2r'); if(c.length&&!c.includes(a.root2d[0])) return {pass:false,reason:'前2D数根不符'};
+  c=getSelectedRoots('m2r'); if(c.length&&!c.includes(a.root2d[1])) return {pass:false,reason:'中2D数根不符'};
+  c=getSelectedRoots('b2r'); if(c.length&&!c.includes(a.root2d[2])) return {pass:false,reason:'后2D数根不符'};
+  c=getSelectedRoots('r4d'); if(c.length&&!c.includes(a.root4d)) return {pass:false,reason:'4D数根不符'};
+  c=getSelectedRoots('perm'); if(c.length&&!c.includes(getPermType(num))) return {pass:false,reason:'打数不符'};
+  c=getSelectedRoots('f3r'); if(c.length&&!c.includes(a.root3d[0])) return {pass:false,reason:'前3D数根不符'};
+  c=getSelectedRoots('b3r'); if(c.length&&!c.includes(a.root3d[1])) return {pass:false,reason:'后3D数根不符'};
+  var p4=getSelectedRoots('p4s');
+  if(p4.length){ if(!p4.includes(a.pts4d)) return {pass:false,reason:'4D点数不符'}; }
+  else if(!inRange(a.pts4d,getRangeFromDropdowns('flt-pts4-from','flt-pts4-to'))) return {pass:false,reason:'4D点数不符'};
+  if(!inRange(a.pts3d[0],getRangeFromDropdowns('flt-pts3f-from','flt-pts3f-to'))) return {pass:false,reason:'前3D点数不符'};
+  if(!inRange(a.pts3d[1],getRangeFromDropdowns('flt-pts3b-from','flt-pts3b-to'))) return {pass:false,reason:'后3D点数不符'};
+  var patternsRaw=(document.getElementById('flt-patterns').value||'');
+  var patterns=patternsRaw.split(/[\/\n,，]+/).map(function(x){return normalizePatternToken(x);}).filter(Boolean);
+  if(patterns.length&&!patterns.some(function(p){return matchPattern(num,p);})) return {pass:false,reason:'形态不符'};
+  var toks=((document.getElementById('flt-contains-digit').value||'')).toLowerCase().split(/[\s,，]+/).map(function(t){return t.trim();}).filter(Boolean);
+  if(toks.length){ var ok=toks.some(function(t){ if(/^\d$/.test(t))return s.includes(t); if(/^\d{2}$/.test(t))return s.includes(t); if(/^[\dx]{4}$/.test(t))return matchPosPattern(num,t); return false; }); if(!ok) return {pass:false,reason:'含数字不符'}; }
+  var posP=((document.getElementById('flt-pos-pattern')||{}).value||'').toLowerCase().split(/[^0-9x]+/).filter(function(t){return /^[0-9x]{4}$/.test(t);});
+  if(posP.length&&!posP.some(function(p){return matchPosPattern(num,p);})) return {pass:false,reason:'指定位数不符'};
+  var posSets=getPosDigitSets(); if(posSets.some(function(x){return x.size;})){ for(var pi=0;pi<4;pi++){ if(posSets[pi].size&&!posSets[pi].has(s[pi])) return {pass:false,reason:'点选位数不符'}; } }
+  c=getSelectedRoots('grp'); if(c.length&&!c.includes(flt1990Group(num))) return {pass:false,reason:'1-9-0组不符'};
+  c=getSelectedRoots('rhn'); if(c.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(function(h){return c.includes(h.index);})) return {pass:false,reason:'罗汉不符'};
+  return {pass:true,reason:''};
+}
+
 // ===== 前2D已定 → 推荐后2D → 组合4D =====
 function fltRecommendBack2D(){
   const rows = window._fltLastRows;
@@ -5160,10 +5191,12 @@ function fltRecommendBack2D(){
     const col = i < 3 ? '#dc2626' : i < 7 ? '#f59e0b' : '#64748b';
     const bg  = i < 3 ? '#fef2f2' : i < 7 ? '#fffbeb' : '#f8fafc';
     const b2Root = v24DigitalRoot1to9(parseInt(b2[0],10)+parseInt(b2[1],10));
-    h += '<div style="background:'+bg+';border:2px solid '+col+';border-radius:8px;padding:6px 10px;min-width:72px;text-align:center">';
-    h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+col+'">xx'+b2+'</div>';
-    h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次</div>';
-    h += '<div style="font-size:11px;font-weight:700;color:'+col+'">'+pct+'%</div>';
+    const b2rSel = getSelectedRoots('b2r');
+    const b2Fail = b2rSel.length && !b2rSel.includes(b2Root);
+    h += '<div style="background:'+(b2Fail?'#f1f5f9':bg)+';border:2px solid '+(b2Fail?'#cbd5e1':col)+';border-radius:8px;padding:6px 10px;min-width:72px;text-align:center;opacity:'+(b2Fail?'.55':'1')+'" title="'+(b2Fail?'后2D数根不符当前筛选':'')+'">';
+    h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+(b2Fail?'#94a3b8':col)+'">xx'+b2+'</div>';
+    h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次'+(b2rSel.length?(b2Fail?' <span style="color:#94a3b8">✗根</span>':' <span style="color:#16a34a">✓根</span>'):'')+'</div>';
+    h += '<div style="font-size:11px;font-weight:700;color:'+(b2Fail?'#94a3b8':col)+'">'+pct+'%</div>';
     h += '</div>';
   });
   h += '</div></div>';
@@ -5196,10 +5229,15 @@ function fltRecommendBack2D(){
       const num4d = f2 + b2;
       const pct = rowTotal > 0 ? (cnt/rowTotal*100).toFixed(0) : 0;
       const isHot = cnt > 0 && pct >= 15;
-      h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;background:'+(isHot?'#fef3c7':'#fff')+'">';
+      const chk = cnt > 0 ? fltNumberIntrinsicCheck(num4d) : null;
+      const bgCell = cnt<=0 ? '#fff' : (chk.pass ? (isHot?'#fef3c7':'#fff') : '#f8fafc');
+      h += '<td style="padding:5px 8px;border:1px solid #e2e8f0;text-align:center;background:'+bgCell+'"'+(chk&&!chk.pass?' title="'+chk.reason+'"':'')+'>';
       if(cnt > 0){
-        h += '<span style="font-family:monospace;font-weight:900;color:#b91c1c;font-size:13px">'+num4d+'</span>';
+        var numCol = chk.pass ? '#b91c1c' : '#cbd5e1';
+        h += '<span style="font-family:monospace;font-weight:900;color:'+numCol+';font-size:13px">'+num4d+'</span>';
+        h += ' '+(chk.pass?'<span style="color:#16a34a;font-size:11px">✅</span>':'<span style="color:#cbd5e1;font-size:11px">✗</span>');
         h += '<br><span style="font-size:9px;color:#64748b">'+cnt+'次 ('+pct+'%)</span>';
+        if(!chk.pass) h += '<br><span style="font-size:8px;color:#94a3b8">'+chk.reason+'</span>';
       } else {
         h += '<span style="color:#e2e8f0">—</span>';
       }
@@ -5210,23 +5248,35 @@ function fltRecommendBack2D(){
   });
   h += '</table></div>';
 
-  // 快速复制候选号码
-  const candidates = [];
+  // 快速复制候选号码（按是否符合当前筛选拆两组）
+  const candPass = [], candFail = [];
   front2ListSorted.forEach(f2 => {
     top5B2.forEach(b2 => {
-      if(pairCount[f2+'|'+b2]) candidates.push(f2+b2);
+      if(pairCount[f2+'|'+b2]){ const n4=f2+b2; (fltNumberIntrinsicCheck(n4).pass?candPass:candFail).push(n4); }
     });
   });
+  const candidates = candPass.concat(candFail);
   if(candidates.length){
-    h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
-    h += '<span style="font-size:11px;font-weight:700;color:#475569">4D候选（共'+candidates.length+'个）：</span>';
-    h += '<span style="font-family:monospace;font-size:12px;color:#b91c1c">'+candidates.join(' ')+'</span>';
-    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（空格）\',1500)})">📋 复制（空格）</button>';
-    h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candidates.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（换行）\',1500)})">📋 复制（换行）</button>';
-    h += '</div>';
+    if(candPass.length){
+      h += '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+      h += '<span style="font-size:11px;font-weight:700;color:#16a34a">✅ 符合当前筛选（'+candPass.length+'个）：</span>';
+      h += '<span style="font-family:monospace;font-size:12px;color:#16a34a">'+candPass.join(' ')+'</span>';
+      h += '<button class="btn btn-green" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candPass.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制符合（空格）\',1500)})">📋 复制符合（空格）</button>';
+      h += '<button class="btn btn-green" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candPass.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制符合（换行）\',1500)})">📋 复制符合（换行）</button>';
+      h += '</div>';
+    } else {
+      h += '<div style="margin-top:10px;font-size:11px;color:#dc2626">⚠️ 历史配对候选里没有一个符合你当前的号码筛选条件（可放宽条件，或看下方灰色不符项）。</div>';
+    }
+    if(candFail.length){
+      h += '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+      h += '<span style="font-size:11px;font-weight:700;color:#94a3b8">✗ 不符筛选（'+candFail.length+'个，仅历史配对）：</span>';
+      h += '<span style="font-family:monospace;font-size:12px;color:#94a3b8">'+candFail.join(' ')+'</span>';
+      h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candFail.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制不符（空格）\',1500)})">📋 复制不符（空格）</button>';
+      h += '</div>';
+    }
   }
 
-  h += '<div style="margin-top:8px;font-size:10px;color:#94a3b8">⚠️ 纯历史频率统计，不构成预测。建议结合冷热状态、近期走势综合判断。</div>';
+  h += '<div style="margin-top:8px;font-size:10px;color:#94a3b8">✅/✗ = 该4D是否符合你<b>当前筛选</b>里「号码本身」的条件（数根/点数/形态/罗汉/组/打数/含数字/位数）。<b>日期/奖项/冷热</b>属于"何时开"，不参与候选校验。⚠️ 纯历史频率统计，不构成预测。</div>';
   h += '</div>';
   out.innerHTML = h;
   out.scrollIntoView({behavior:'smooth', block:'start'});
