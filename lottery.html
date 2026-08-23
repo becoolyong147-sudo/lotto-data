@@ -8033,6 +8033,7 @@ function doBacktest(){
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
       <button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
+      <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8178,6 +8179,69 @@ function zoAbsentFront2D(){
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-f2d-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 缺席2D逐期命中账：每期用「该期自己」号码算缺席前2D → 下一期开号的前2D是否落在里面
+function zoAbsentPeriodReport(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var old=document.getElementById('abs-pr-card'); if(old) old.remove();
+  var src=(document.getElementById('abs-source')||{value:'manual'}).value;
+  if(src!=='auto'){ out.insertAdjacentHTML('beforeend','<div id="abs-pr-card" class="card" style="margin-top:8px"><div class="warn">逐期命中账需要历史期数：请把「数据来源」切到 <b>📚 从历史自动取</b>，选市场/期数后再点本按钮。</div></div>'); return; }
+  var mk=document.getElementById('abs-market').value;
+  var n=parseInt(document.getElementById('abs-periods').value,10)||10;
+  var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
+  var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
+  var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});   // 新→旧
+  merged=merged.slice(0, n+1);   // 多取1期，好让最老那期也有"下一期"
+  function drawNums(d){ var arr=[]; if(pz.p0&&d.nums&&d.nums[0]!=null&&d.nums[0]!=='')arr.push(d.nums[0]); if(pz.p1&&d.nums&&d.nums[1]!=null&&d.nums[1]!=='')arr.push(d.nums[1]); if(pz.p2&&d.nums&&d.nums[2]!=null&&d.nums[2]!=='')arr.push(d.nums[2]); if(pz.sp&&Array.isArray(d.sp))d.sp.forEach(function(x){arr.push(x);}); if(pz.cs&&Array.isArray(d.cs))d.cs.forEach(function(x){arr.push(x);}); return arr.map(function(x){return String(x).padStart(4,'0').slice(-4);}).filter(function(s){return /^\d{4}$/.test(s);}); }
+  if(merged.length<2){ out.insertAdjacentHTML('beforeend','<div id="abs-pr-card" class="card" style="margin-top:8px"><div class="warn">该市场/奖项范围历史不足2期，无法做逐期命中账。</div></div>'); return; }
+  // 逐期：older=该期(算缺席)，newer=下一期(看命中)。merged 新→旧，故 older=merged[i+1], newer=merged[i]
+  var reports=[], hitCount=0, expSum=0, pairs=0;
+  for(var i=0;i<merged.length-1;i++){
+    var newer=merged[i], older=merged[i+1];
+    var oNums=drawNums(older), nNums=drawNums(newer);
+    if(!oNums.length || !nNums.length) continue;
+    // 该期缺席：千/百位 0-9 里没出现的
+    var seen0={}, seen1={}; oNums.forEach(function(s){ seen0[s[0]]=1; seen1[s[1]]=1; });
+    var abs0=[], abs1=[]; for(var d=0;d<=9;d++){ if(!seen0[d])abs0.push(d); if(!seen1[d])abs1.push(d); }
+    var comboSet={}; abs0.forEach(function(a){ abs1.forEach(function(b){ comboSet[''+a+b]=1; }); });
+    var comboN=Object.keys(comboSet).length;
+    // 下一期开号的前2D，哪些落在缺席组合里
+    var matched=[]; nNums.forEach(function(s){ var f2=s.slice(0,2); if(comboSet[f2]) matched.push({f2:f2, num:s}); });
+    var hit=matched.length>0;
+    if(hit) hitCount++;
+    var M=nNums.length;
+    var expProb = comboN>0 ? (1-Math.pow(1-comboN/100, M)) : 0;   // 随机下"至少一个前2D落在组合"的概率
+    expSum+=expProb; pairs++;
+    reports.push({older:older.date, newer:newer.date, abs0:abs0, abs1:abs1, comboN:comboN, matched:matched, hit:hit, M:M, expProb:expProb, nNums:nNums});
+  }
+  if(!pairs){ out.insertAdjacentHTML('beforeend','<div id="abs-pr-card" class="card" style="margin-top:8px"><div class="warn">没有可配对的期数。</div></div>'); return; }
+  var hitRate=hitCount/pairs, expRate=expSum/pairs;
+  var pzTxt=[pz.p0?'头':'',pz.p1?'二':'',pz.p2?'三':'',pz.sp?'特':'',pz.cs?'安':''].filter(Boolean).join('');
+  var h='<div id="abs-pr-card" class="card" style="margin-top:8px;border:2px solid #b45309">';
+  h+='<h3 style="color:#b45309">📅 缺席2D 逐期命中账 · '+mk+'（'+pzTxt+'）</h3>';
+  h+='<div class="warn">每期用<b>该期自己</b>的号码算「千位缺席×百位缺席」= 缺席前2D组合，再看<b>下一期</b>开出的号码前2D有没有落在里面。</div>';
+  // 累计
+  h+='<div class="g2" style="margin:8px 0"><div class="sc"><div class="val">'+hitCount+'/'+pairs+'</div><div class="lbl">期命中（'+(hitRate*100).toFixed(0)+'%）</div></div>';
+  h+='<div class="sc"><div class="val">'+(expRate*100).toFixed(0)+'%</div><div class="lbl">随机期望命中率</div></div></div>';
+  h+='<div style="font-size:11px;color:'+(hitRate>expRate+0.03?'#16a34a':hitRate<expRate-0.03?'#dc2626':'#64748b')+';margin-bottom:8px">实际 '+(hitRate*100).toFixed(0)+'% vs 随机 '+(expRate*100).toFixed(0)+'% → '+(Math.abs(hitRate-expRate)<0.03?'基本等于随机':(hitRate>expRate?'略高于随机':'略低于随机'))+'（缺席只用单期算，组合很大，命中天生就高——看差距而非绝对值）</div>';
+  // 逐期（新→旧）
+  reports.forEach(function(r){
+    h+='<div style="border:1px solid '+(r.hit?'#16a34a':'#e2e8f0')+';border-left:4px solid '+(r.hit?'#16a34a':'#cbd5e1')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;background:'+(r.hit?'#f0fdf4':'#fff')+'">';
+    h+='<div style="font-size:12px;font-weight:800;color:#1e3a5f">📅 '+r.older+' <span style="font-weight:400;color:#94a3b8">该期算缺席</span> '+(r.hit?'<span style="color:#16a34a">✅ 命中</span>':'<span style="color:#dc2626">❌ 未中</span>')+'</div>';
+    h+='<div style="font-size:11px;color:#475569;margin-top:3px">千位缺席 <b>'+(r.abs0.join('/')||'无')+'</b> × 百位缺席 <b>'+(r.abs1.join('/')||'无')+'</b> → 缺席前2D <b>'+r.comboN+'</b> 个</div>';
+    h+='<div style="font-size:11px;color:#475569;margin-top:2px">下期 <b>'+r.newer+'</b> 开出 '+r.M+' 号 · ';
+    if(r.hit){ h+='命中前2D：'+r.matched.map(function(m){return '<span style="background:#16a34a;color:#fff;border-radius:4px;padding:1px 6px;font-family:monospace;font-weight:700">'+m.f2+'('+m.num+')</span>';}).join(' '); }
+    else { h+='<span style="color:#94a3b8">无前2D落在缺席组合</span>'; }
+    h+=' <span style="color:#cbd5e1">· 随机期望'+(r.expProb*100).toFixed(0)+'%</span></div>';
+    h+='</div>';
+  });
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 缺席=只用该期号码算，组合天生很大，命中率高是必然——重点看「实际 vs 随机期望」的差距。历史统计，不构成预测。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-pr-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
 function zoAbsentBacktest(){
