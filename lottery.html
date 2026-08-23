@@ -20103,16 +20103,35 @@ function lhRenderAggregate(periods){
   html += '<div class="sc"><div class="val">'+totalHits+'</div><div class="lbl">总命中次数</div></div>';
   html += '</div></div>';
 
-  // 🕳️ 缺席罗汉清单（本范围 0 次）— 一眼看出哪些罗汉没出现
-  var absent = buckets.map(function(b,i){return b.length?null:(i+1);}).filter(function(x){return x;});
-  html += '<div class="card" style="background:'+(absent.length?'#eff6ff':'#f0fdf4')+';border:2px solid '+(absent.length?'#3b82f6':'#22c55e')+'">';
-  html += '<div style="font-size:13px;font-weight:800;color:'+(absent.length?'#1e40af':'#166534')+';margin-bottom:'+(absent.length?'6px':'0')+'">🕳️ 缺席罗汉（本范围 '+periods.length+' 期内 0 次出现）：'+(absent.length? '<b>'+absent.length+' 个</b>' : '无 — 18罗汉全部出现过 ✅')+'</div>';
-  if(absent.length){
-    html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
-    absent.forEach(function(id){ html += '<span onclick="lhSendRohanToFilter(\''+id+'\')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer" title="点击 → 条件筛选查 第'+id+'罗汉（'+LUOHAN[id-1].join(' / ')+'）的历史号码">罗汉'+id+' · '+LUOHAN[id-1].join('/')+' 🔎</span>'; });
-    html += '</div>';
-    html += '<div style="margin-top:8px"><button class="btn" style="background:#2563eb;color:#fff;padding:5px 12px;font-size:12px" onclick="lhSendRohanToFilter(\''+absent.join(',')+'\')">🔎 全部缺席罗汉 → 高级筛选</button></div>';
-    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">点单个罗汉牌子 = 只筛它；点上面按钮 = 把这 '+absent.length+' 个缺席罗汉一起送去（任一即通过）。缺席=所选奖项+期数内一次没出现。</div>';
+  // 🕳️ 罗汉遗漏（连续没开期数）— 从最新一期往回，每个罗汉连续几期没命中
+  // sk.type[i]==='cold' 表示最新一期没开，sk.streak[i]=连续没开期数；'hot'=刚开过（遗漏0）
+  var missByStreak = {}; // streak值 → [id...]
+  var allMissIds = [];
+  for(var mi=0; mi<18; mi++){
+    if(sk.type[mi]==='cold'){
+      var st = sk.streak[mi];
+      (missByStreak[st] = missByStreak[st] || []).push(mi+1);
+      allMissIds.push(mi+1);
+    }
+  }
+  var streakKeys = Object.keys(missByStreak).map(Number).sort(function(a,b){return b-a;}); // 大→小
+  var hasMiss = allMissIds.length>0;
+  html += '<div class="card" style="background:'+(hasMiss?'#eff6ff':'#f0fdf4')+';border:2px solid '+(hasMiss?'#3b82f6':'#22c55e')+'">';
+  html += '<div style="font-size:13px;font-weight:800;color:'+(hasMiss?'#1e40af':'#166534')+';margin-bottom:'+(hasMiss?'8px':'0')+'">🕳️ 罗汉遗漏（连续没开期数 · 本范围 '+periods.length+' 期）：'+(hasMiss? '<b>'+allMissIds.length+' 个罗汉正在遗漏</b>' : '无 — 18罗汉最新一期全部开过 ✅')+'</div>';
+  if(hasMiss){
+    streakKeys.forEach(function(st){
+      var ids = missByStreak[st];
+      var full = st>=periods.length; // 整段范围都没开
+      html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;padding:6px;background:#fff;border-radius:6px">';
+      html += '<span style="min-width:96px;font-size:12px;font-weight:800;color:'+(st>=3?'#dc2626':st===2?'#d97706':'#2563eb')+'">连续 '+st+' 期没开'+(full?' <span style="font-size:9px;color:#94a3b8">(整段)</span>':'')+'</span>';
+      html += '<div style="display:flex;gap:5px;flex-wrap:wrap;flex:1">';
+      ids.forEach(function(id){ html += '<span onclick="lhSendRohanToFilter(\''+id+'\')" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:700;color:#1e40af;cursor:pointer" title="点击 → 条件筛选查 第'+id+'罗汉（'+LUOHAN[id-1].join(' / ')+'）">罗汉'+id+' · '+LUOHAN[id-1].join('/')+' 🔎</span>'; });
+      html += '</div>';
+      html += '<button class="btn" style="background:#2563eb;color:#fff;padding:3px 10px;font-size:11px" onclick="lhSendRohanToFilter(\''+ids.join(',')+'\')">这组→筛选</button>';
+      html += '</div>';
+    });
+    html += '<div style="margin-top:6px"><button class="btn" style="background:#1e40af;color:#fff;padding:5px 12px;font-size:12px" onclick="lhSendRohanToFilter(\''+allMissIds.join(',')+'\')">🔎 全部遗漏罗汉 → 高级筛选</button></div>';
+    html += '<div style="font-size:11px;color:#64748b;margin-top:6px">数字＝从最新一期往回，连续几期没命中该罗汉（含只缺1期的）。点牌子=只筛它；「这组→筛选」=同遗漏期数一起送；标「整段」=本范围内一次都没开。</div>';
   }
   html += '</div>';
 
