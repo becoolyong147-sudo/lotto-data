@@ -8401,8 +8401,10 @@ function zoAbsentZoneBacktest(){
   var occ={};
   all.forEach(function(d,i){ d.sn.forEach(function(s){ var b3=s.slice(1); (occ[b3]=occ[b3]||[]).push(i); }); });
   function upper(arr,k){ var lo=0,hi=arr.length; while(lo<hi){ var m=(lo+hi)>>1; if(arr[m]<=k) lo=m+1; else hi=m; } return lo; } // 个数 ≤k
+  function permSet4(s){ var out={}; var a=s.split(''); (function go(pre,rest){ if(!rest.length){out[pre]=1;return;} for(var i=0;i<rest.length;i++){ go(pre+rest[i], rest.slice(0,i)+rest.slice(i+1)); } })('',a); return Object.keys(out); }
   var startK=all.length-1-N, endK=all.length-2;
   var hitCount=0, expSum=0, varSum=0, pairs=0, candSum=0, hitEx=[];
+  var bHit=0, bExpSum=0, bVarSum=0, bHitEx=[];
   for(var k=startK; k<=endK; k++){
     var absNums=all[k].sn;
     var s0={},s1={}; absNums.forEach(function(s){ s0[s[0]]=1; s1[s[1]]=1; });
@@ -8425,29 +8427,40 @@ function zoAbsentZoneBacktest(){
     // 候选完整4D
     var cand={}; a0.forEach(function(d1){ chosen.forEach(function(b3){ cand[d1+b3]=1; }); });
     var C=Object.keys(cand).length; if(!C){ continue; }
+    // 调字(box)覆盖：候选4D的所有排列并集
+    var cover={}; Object.keys(cand).forEach(function(nm){ permSet4(nm).forEach(function(p){ cover[p]=1; }); });
+    var coverN=Object.keys(cover).length;
     var next=all[k+1].sn; var M=next.length;
     var hit=next.some(function(s){ return cand[s]; });
-    hitCount+=hit?1:0; var p=1-Math.pow(1-C/10000,M); expSum+=p; varSum+=p*(1-p); pairs++; candSum+=C;
+    var bhit=next.some(function(s){ return cover[s]; });
+    hitCount+=hit?1:0; var p=1-Math.pow(1-C/10000,M); expSum+=p; varSum+=p*(1-p);
+    bHit+=bhit?1:0; var bp=1-Math.pow(1-coverN/10000,M); bExpSum+=bp; bVarSum+=bp*(1-bp);
+    pairs++; candSum+=C;
     if(hit && hitEx.length<8){ var hn=next.filter(function(s){return cand[s];}); hitEx.push({date:all[k+1].date, nums:hn}); }
+    if(bhit && bHitEx.length<8){ var bn=next.filter(function(s){return cover[s];}); bHitEx.push({date:all[k+1].date, nums:bn}); }
   }
   if(!pairs){ out.insertAdjacentHTML('beforeend','<div id="abs-zbt-card" class="card" style="margin-top:8px"><div class="warn">没有可回测的期数（缺席/后3D数据不足）。</div></div>'); return; }
-  var hitRate=hitCount/pairs, expRate=expSum/pairs, avgC=candSum/pairs;
-  var z=varSum>0?((hitCount-expSum)/Math.sqrt(varSum)):0;
-  var verdict,vc;
-  if(z>2.58){verdict='显著高于随机 ✅';vc='#16a34a';}
-  else if(z>1.96){verdict='略高于随机(p<.05)';vc='#22c55e';}
-  else if(z<-1.96){verdict='低于随机';vc='#dc2626';}
-  else {verdict='≈随机（行不通）';vc='#94a3b8';}
+  var avgC=candSum/pairs;
   var pzTxt=[pz.p0?'头':'',pz.p1?'二':'',pz.p2?'三':'',pz.sp?'特':'',pz.cs?'安':''].filter(Boolean).join('');
+  function verdictOf(z){ if(z>2.58)return{t:'显著高于随机 ✅',c:'#16a34a'}; if(z>1.96)return{t:'略高于随机(p<.05)',c:'#22c55e'}; if(z<-1.96)return{t:'低于随机',c:'#dc2626'}; return{t:'≈随机（没超出运气）',c:'#94a3b8'}; }
+  function block(title, desc, hitC, exp, vr, exArr){
+    var hr=hitC/pairs, er=exp/pairs, z=vr>0?((hitC-exp)/Math.sqrt(vr)):0, v=verdictOf(z);
+    var s='<div style="border:1px solid #f1d1d9;border-radius:8px;padding:8px 10px;margin-top:8px">';
+    s+='<div style="font-size:13px;font-weight:800;color:#be123c">'+title+'</div>';
+    s+='<div style="font-size:11px;color:#94a3b8;margin:2px 0 6px">'+desc+'</div>';
+    s+='<div class="g2"><div class="sc"><div class="val">'+hitC+'/'+pairs+'</div><div class="lbl">期命中（'+(hr*100).toFixed(1)+'%）</div></div>';
+    s+='<div class="sc"><div class="val">'+(er*100).toFixed(1)+'%</div><div class="lbl">随机期望</div></div></div>';
+    s+='<div style="font-size:13px;font-weight:800;color:'+v.c+';margin-top:4px">判断：'+v.t+'（z='+(z>0?'+':'')+z.toFixed(2)+'）</div>';
+    if(exArr&&exArr.length) s+='<div style="font-size:11px;color:#16a34a;margin-top:4px">命中例：'+exArr.slice(0,5).map(function(e){return e.date+'开'+e.nums.join('/');}).join(' · ')+'</div>';
+    s+='</div>'; return s;
+  }
   var h='<div id="abs-zbt-card" class="card" style="margin-top:8px;border:2px solid #be123c">';
   h+='<h3 style="color:#be123c">🔬 回测：缺席2D×分区地图→完整4D · '+mk+'（'+pzTxt+'）</h3>';
-  h+='<div class="warn">严格 point-in-time：每期用「该期缺席前2D」× 分区地图「到当期为止」到期的后3D，拼完整4D，看<b>下一期</b>是否<b>原号命中</b>。近 '+pairs+' 期，平均每期 '+avgC.toFixed(0)+' 个候选。</div>';
-  h+='<div class="g2" style="margin:8px 0"><div class="sc"><div class="val">'+hitCount+'/'+pairs+'</div><div class="lbl">期命中（'+(hitRate*100).toFixed(1)+'%）</div></div>';
-  h+='<div class="sc"><div class="val">'+(expRate*100).toFixed(1)+'%</div><div class="lbl">随机期望命中率</div></div></div>';
-  h+='<div style="font-size:14px;font-weight:800;color:'+vc+';margin-bottom:4px">判断：'+verdict+'（z='+(z>0?'+':'')+z.toFixed(2)+'）</div>';
-  h+='<div style="font-size:11px;color:#64748b">实际 '+(hitRate*100).toFixed(1)+'% vs 随机 '+(expRate*100).toFixed(1)+'%。|z|&gt;1.96≈p&lt;0.05。完整4D原号命中本来就极难，实际≈随机就说明<b>这套拼法没有超出运气</b>。</div>';
-  if(hitEx.length){ h+='<div style="font-size:11px;color:#16a34a;margin-top:6px">命中例：'+hitEx.map(function(e){return e.date+'开'+e.nums.join('/');}).join(' · ')+'</div>'; }
-  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 只算原号命中（不含调字）。历史统计，不构成预测。想放宽可改「命中=前2D+后3D结构对上」，跟我说。</div>';
+  h+='<div class="warn">严格 point-in-time（后3D到期只用当期之前数据）。近 '+pairs+' 期，平均每期 '+avgC.toFixed(0)+' 个候选4D。两种命中口径一起看：</div>';
+  h+=block('① 原号命中（最狠）','四位连顺序都一样才算，1万分之1，随机也极低', hitCount, expSum, varSum, hitEx);
+  h+=block('② 调字命中（box · 实际买法）','任意排列对上就算（你通常买box），覆盖面大、命中率天生高', bHit, bExpSum, bVarSum, bHitEx);
+  h+='<div style="font-size:11px;color:#64748b;margin-top:8px">看的是<b>实际 vs 随机</b>的差距、以及 z 值——<b>不是绝对命中率</b>。调字命中率高是因为覆盖面大（随机期望也同步变高），只有 z&gt;1.96 才算真本事。|z|&gt;1.96≈p&lt;0.05。</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 历史统计，不构成预测。</div>';
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-zbt-card').scrollIntoView({behavior:'smooth', block:'nearest'});
