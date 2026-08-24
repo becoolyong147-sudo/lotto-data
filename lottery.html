@@ -8114,8 +8114,18 @@ function doAbsent(){
     html+='</tr>';
   }
   html+='</table></div>';
+  // 每位都缺席的组合总数（纯排列，未筛历史）
+  var comboTotal = absentAll.reduce(function(a,arr){return a*(arr.length||0);},1);
+  var dims = absentAll.map(function(arr){return arr.length;}).join(' × ');
+  html+='<div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:7px">';
+  html+='<span style="font-size:13px;font-weight:800;color:#92400e">🔢 每位都缺席的组合总数 = '+dims+' = <b style="font-size:16px">'+comboTotal.toLocaleString()+'</b> 个</span>';
+  html+='<span style="font-size:11px;color:#b45309;margin-left:8px">（未经历史筛选的纯排列。'+(comboTotal>1500?'很多——建议用下面的方式收窄':comboTotal>0?'':'某位无缺席，组合为0')+'）</span>';
+  html+='</div>';
   html+='<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   html+='<button class="btn btn-green" onclick="zoAbsentSendToFilter()" style="padding:8px 16px">📤 把缺席数字送到「条件筛选 → 可视化点选」</button>';
+  if(comboTotal>0 && comboTotal<=10000){
+    html+='<button class="btn" style="background:#b45309;color:#fff;padding:8px 16px" onclick="zoAbsentEnumAll()">🧮 全部排列（不筛历史 · '+comboTotal.toLocaleString()+'个）</button>';
+  }
   html+='<span style="font-size:11px;color:#64748b">一键把每位的缺席数字填入条件筛选，直接筛出「每位都是缺席数字」的历史号码。</span>';
   html+='</div>';
   html+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">🟦 已出现　🟩 缺席。</div>';
@@ -8183,6 +8193,31 @@ function zoAbsentFront2D(){
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-f2d-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 🧮 全部排列（不筛历史）：每位都取缺席数字，枚举全部组合，展示+复制
+function zoAbsentEnumAll(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var old=document.getElementById('abs-enum-card'); if(old) old.remove();
+  if(!window.__absentSets){ out.insertAdjacentHTML('beforeend','<div id="abs-enum-card" class="card" style="margin-top:8px"><div class="warn">请先点「🎯 分析」。</div></div>'); return; }
+  var A=window.__absentSets;
+  var total=A.reduce(function(a,arr){return a*(arr.length||0);},1);
+  if(total<=0){ out.insertAdjacentHTML('beforeend','<div id="abs-enum-card" class="card" style="margin-top:8px"><div class="warn">有某一位没有缺席数字，无法排列（组合=0）。减少期数试试。</div></div>'); return; }
+  if(total>10000){ out.insertAdjacentHTML('beforeend','<div id="abs-enum-card" class="card" style="margin-top:8px"><div class="warn">组合高达 '+total.toLocaleString()+' 个，太多不枚举（减少期数/多勾奖项让缺席变少）。</div></div>'); return; }
+  var nums=[];
+  A[0].forEach(function(d0){ A[1].forEach(function(d1){ A[2].forEach(function(d2){ A[3].forEach(function(d3){ nums.push(''+d0+d1+d2+d3); }); }); }); });
+  var show = nums.length>300 ? nums.slice(0,300) : nums;
+  var h='<div id="abs-enum-card" class="card" style="margin-top:8px;border:2px solid #b45309">';
+  h+='<h3 style="color:#b45309">🧮 每位都缺席 · 全部排列（不筛历史）</h3>';
+  h+='<div class="warn">千缺('+A[0].join('/')+') × 百缺('+A[1].join('/')+') × 十缺('+A[2].join('/')+') × 个缺('+A[3].join('/')+') = <b>'+total.toLocaleString()+'</b> 个号码。这是<b>纯排列全集</b>，没经过任何历史/冷热筛选。</div>';
+  h+='<div style="font-family:monospace;font-size:12px;letter-spacing:1px;line-height:1.9;max-height:220px;overflow:auto;background:#fafaf5;border-radius:6px;padding:8px;color:#334155">'+show.join(' ')+(nums.length>show.length?' … <span style="color:#94a3b8">(仅显示前300，复制含全部)</span>':'')+'</div>';
+  h+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">';
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制全部（空格）\',1500)})">📋 复制全部（空格）</button>';
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制全部（换行）\',1500)})">📋 复制全部（换行）</button>';
+  h+='</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ '+total.toLocaleString()+'个是全集，实战请再用「送去条件筛选」「历史开出」「分区地图」收窄。历史统计，不构成预测。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-enum-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 缺席2D逐期命中账：每期用「该期自己」号码算缺席前2D → 下一期开号的前2D是否落在里面
 function zoAbsentPeriodReport(){
