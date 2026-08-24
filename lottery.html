@@ -5272,6 +5272,7 @@ function fltRecommendBack2D(){
       h += '<span style="font-size:11px;font-weight:700;color:#94a3b8">✗ 不符筛选（'+candFail.length+'个，仅历史配对）：</span>';
       h += '<span style="font-family:monospace;font-size:12px;color:#94a3b8">'+candFail.join(' ')+'</span>';
       h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candFail.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制不符（空格）\',1500)})">📋 复制不符（空格）</button>';
+      h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+candFail.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制不符（换行）\',1500)})">📋 复制不符（换行）</button>';
       h += '</div>';
     }
   }
@@ -8036,6 +8037,7 @@ function doBacktest(){
       <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
       <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
       <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
+      <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8369,12 +8371,86 @@ function zoAbsentZoneFusion(){
   h+='</table></div>';
   h+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
   h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制候选（空格）\',1500)})">📋 复制候选（空格）</button>';
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制候选（换行）\',1500)})">📋 复制候选（换行）</button>';
   h+='<span style="font-size:11px;color:#64748b">到期倍≥1=后3D已超过平均回归期（冷到期）；cv越低越规律。</span>';
   h+='</div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 前2D缺席、后3D到期都只是<b>历史统计</b>，拼在一起也<b>不构成预测</b>（回测显示接近随机）。当收窄候选/复盘素材用。</div>';
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-zf-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 🔬 回测「缺席2D×分区地图→完整4D」：point-in-time，后3D到期只用当期之前数据，无偷看未来
+function zoAbsentZoneBacktest(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var old=document.getElementById('abs-zbt-card'); if(old) old.remove();
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt(document.getElementById('abs-periods').value,10)||10;
+  var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
+  var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
+  var K=3;
+  // 全历史按时间 旧→新
+  var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});   // 旧→新
+  function dn(d){ var arr=[]; if(pz.p0&&d.nums&&d.nums[0]!=null&&d.nums[0]!=='')arr.push(d.nums[0]); if(pz.p1&&d.nums&&d.nums[1]!=null&&d.nums[1]!=='')arr.push(d.nums[1]); if(pz.p2&&d.nums&&d.nums[2]!=null&&d.nums[2]!=='')arr.push(d.nums[2]); if(pz.sp&&Array.isArray(d.sp))d.sp.forEach(function(x){arr.push(x);}); if(pz.cs&&Array.isArray(d.cs))d.cs.forEach(function(x){arr.push(x);}); return arr.map(function(x){return String(x).padStart(4,'0').slice(-4);}).filter(function(s){return /^\d{4}$/.test(s);}); }
+  merged.forEach(function(d){ d.sn=dn(d); });
+  var all=merged.filter(function(d){return d.sn.length;});
+  if(all.length<N+2){ out.insertAdjacentHTML('beforeend','<div id="abs-zbt-card" class="card" style="margin-top:8px"><div class="warn">该市场/奖项范围历史不足以回测（需≥'+(N+2)+'期）。</div></div>'); return; }
+  // 后3D 出现位置（时间索引，旧→新）
+  var occ={};
+  all.forEach(function(d,i){ d.sn.forEach(function(s){ var b3=s.slice(1); (occ[b3]=occ[b3]||[]).push(i); }); });
+  function upper(arr,k){ var lo=0,hi=arr.length; while(lo<hi){ var m=(lo+hi)>>1; if(arr[m]<=k) lo=m+1; else hi=m; } return lo; } // 个数 ≤k
+  var startK=all.length-1-N, endK=all.length-2;
+  var hitCount=0, expSum=0, varSum=0, pairs=0, candSum=0, hitEx=[];
+  for(var k=startK; k<=endK; k++){
+    var absNums=all[k].sn;
+    var s0={},s1={}; absNums.forEach(function(s){ s0[s[0]]=1; s1[s[1]]=1; });
+    var a0=[],a1=[]; for(var d=0;d<=9;d++){ if(!s0[d])a0.push(''+d); if(!s1[d])a1.push(''+d); }
+    if(!a0.length||!a1.length){ continue; }
+    // 每个百缺 → 后3D 点对点到期 top-K
+    var chosen=[];
+    a1.forEach(function(d2){
+      var lst=[];
+      for(var t=0;t<=9;t++) for(var u=0;u<=9;u++){
+        var b3=''+d2+t+u; var arr=occ[b3]; if(!arr) continue;
+        var cntK=upper(arr,k); if(cntK<2) continue;   // 当期前(含)至少2次
+        var last=arr[cntK-1]; var ago=k-last;         // 已过期数
+        var avg=(last-arr[0])/(cntK-1); if(!(avg>0)) continue;
+        lst.push({b3:b3, over:ago/avg});
+      }
+      lst.sort(function(x,y){return y.over-x.over;});
+      lst.slice(0,K).forEach(function(L){ chosen.push(L.b3); });
+    });
+    // 候选完整4D
+    var cand={}; a0.forEach(function(d1){ chosen.forEach(function(b3){ cand[d1+b3]=1; }); });
+    var C=Object.keys(cand).length; if(!C){ continue; }
+    var next=all[k+1].sn; var M=next.length;
+    var hit=next.some(function(s){ return cand[s]; });
+    hitCount+=hit?1:0; var p=1-Math.pow(1-C/10000,M); expSum+=p; varSum+=p*(1-p); pairs++; candSum+=C;
+    if(hit && hitEx.length<8){ var hn=next.filter(function(s){return cand[s];}); hitEx.push({date:all[k+1].date, nums:hn}); }
+  }
+  if(!pairs){ out.insertAdjacentHTML('beforeend','<div id="abs-zbt-card" class="card" style="margin-top:8px"><div class="warn">没有可回测的期数（缺席/后3D数据不足）。</div></div>'); return; }
+  var hitRate=hitCount/pairs, expRate=expSum/pairs, avgC=candSum/pairs;
+  var z=varSum>0?((hitCount-expSum)/Math.sqrt(varSum)):0;
+  var verdict,vc;
+  if(z>2.58){verdict='显著高于随机 ✅';vc='#16a34a';}
+  else if(z>1.96){verdict='略高于随机(p<.05)';vc='#22c55e';}
+  else if(z<-1.96){verdict='低于随机';vc='#dc2626';}
+  else {verdict='≈随机（行不通）';vc='#94a3b8';}
+  var pzTxt=[pz.p0?'头':'',pz.p1?'二':'',pz.p2?'三':'',pz.sp?'特':'',pz.cs?'安':''].filter(Boolean).join('');
+  var h='<div id="abs-zbt-card" class="card" style="margin-top:8px;border:2px solid #be123c">';
+  h+='<h3 style="color:#be123c">🔬 回测：缺席2D×分区地图→完整4D · '+mk+'（'+pzTxt+'）</h3>';
+  h+='<div class="warn">严格 point-in-time：每期用「该期缺席前2D」× 分区地图「到当期为止」到期的后3D，拼完整4D，看<b>下一期</b>是否<b>原号命中</b>。近 '+pairs+' 期，平均每期 '+avgC.toFixed(0)+' 个候选。</div>';
+  h+='<div class="g2" style="margin:8px 0"><div class="sc"><div class="val">'+hitCount+'/'+pairs+'</div><div class="lbl">期命中（'+(hitRate*100).toFixed(1)+'%）</div></div>';
+  h+='<div class="sc"><div class="val">'+(expRate*100).toFixed(1)+'%</div><div class="lbl">随机期望命中率</div></div></div>';
+  h+='<div style="font-size:14px;font-weight:800;color:'+vc+';margin-bottom:4px">判断：'+verdict+'（z='+(z>0?'+':'')+z.toFixed(2)+'）</div>';
+  h+='<div style="font-size:11px;color:#64748b">实际 '+(hitRate*100).toFixed(1)+'% vs 随机 '+(expRate*100).toFixed(1)+'%。|z|&gt;1.96≈p&lt;0.05。完整4D原号命中本来就极难，实际≈随机就说明<b>这套拼法没有超出运气</b>。</div>';
+  if(hitEx.length){ h+='<div style="font-size:11px;color:#16a34a;margin-top:6px">命中例：'+hitEx.map(function(e){return e.date+'开'+e.nums.join('/');}).join(' · ')+'</div>'; }
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 只算原号命中（不含调字）。历史统计，不构成预测。想放宽可改「命中=前2D+后3D结构对上」，跟我说。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-zbt-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
 function zoAbsentBacktest(){
