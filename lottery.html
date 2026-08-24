@@ -8035,6 +8035,7 @@ function doBacktest(){
       <button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
       <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
       <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
+      <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8312,6 +8313,68 @@ function zoAbsent9Markets(){
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-9m-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 🗺️ 缺席2D × 分区地图 → 完整4D：缺席前2D(千百) 拼 分区地图挑的后3D(到期+规律)
+function zoAbsentZoneFusion(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var old=document.getElementById('abs-zf-card'); if(old) old.remove();
+  if(!window.__absentSets){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">请先点「🎯 分析」算出缺席数字，再点本按钮。</div></div>'); return; }
+  var a0=window.__absentSets[0]||[], a1=window.__absentSets[1]||[];   // 千 / 百 缺席
+  if(!a0.length || !a1.length){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">千位或百位没有缺席数字，无法拼前2D。减少期数或换奖项范围再试。</div></div>'); return; }
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  if(typeof b3dBuildZoneMap!=='function'){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">分区地图模块未就绪。</div></div>'); return; }
+  var zmap=b3dBuildZoneMap(mk);   // 后3D → {count,agoPeriods,avgGap,cv,lastDate,...}（该市场头二三全历史）
+  var K=3;                        // 每个百位取到期+规律最好的前K个后3D
+  var cands=[];
+  a1.forEach(function(d2){
+    var list=[];
+    for(var t=0;t<=9;t++){ for(var u=0;u<=9;u++){
+      var b3=''+d2+t+u; var it=zmap[b3];
+      if(it && it.count>=2 && it.agoPeriods!=null && it.avgGap>0){ list.push({b3:b3, it:it, over: it.agoPeriods/it.avgGap}); }
+    }}
+    list.sort(function(x,y){ return y.over-x.over || ((x.it.cv==null?9:x.it.cv)-(y.it.cv==null?9:y.it.cv)); });
+    list.slice(0,K).forEach(function(L){
+      a0.forEach(function(d1){
+        cands.push({num:''+d1+L.b3, f2:''+d1+d2, b3:L.b3, ago:L.it.agoPeriods, avg:L.it.avgGap, over:L.over, cv:L.it.cv, last:L.it.lastDate});
+      });
+    });
+  });
+  if(!cands.length){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">这些缺席前2D对应的后3D历史太少（&lt;2次），拼不出候选。可换市场/放宽奖项。</div></div>'); return; }
+  cands.sort(function(x,y){ return y.over-x.over || ((x.cv==null?9:x.cv)-(y.cv==null?9:y.cv)); });
+  var show=cands.slice(0,40);
+  var nums=show.map(function(c){return c.num;});
+  var h='<div id="abs-zf-card" class="card" style="margin-top:8px;border:2px solid #1e40af">';
+  h+='<h3 style="color:#1e40af">🗺️ 缺席2D × 分区地图 → 完整4D · '+mk+'</h3>';
+  h+='<div class="warn">前2D 来自<b>缺席</b>（千缺 '+a0.join('/')+' × 百缺 '+a1.join('/')+'），后3D 来自<b>分区地图</b>挑「<b>到期回归</b>（已过÷平均越大越到期）+ <b>规律高</b>（cv低）」。前段冷 + 后段到期，拼成完整 4D。共 '+cands.length+' 个候选，显示到期最狠的前 '+show.length+' 个。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">完整4D</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">前2D(缺席)</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">后3D</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">已过/平均</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">到期倍</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">规律cv</th>'+
+     '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">最近</th></tr>';
+  show.forEach(function(c){
+    var oc = c.over>=1.5?'#dc2626':c.over>=1?'#f59e0b':'#64748b';
+    h+='<tr>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-family:monospace;font-weight:900;font-size:16px;color:#1e40af">'+c.num+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-family:monospace;color:#0f766e;font-weight:700">'+c.f2+'xx</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-family:monospace;color:#7c3aed;font-weight:700">x'+c.b3+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">'+c.ago+'/'+Math.round(c.avg)+'期</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;font-weight:700;color:'+oc+'">'+c.over.toFixed(1)+'x</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#64748b">'+(c.cv==null?'—':c.cv.toFixed(2))+'</td>';
+    h+='<td style="padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#94a3b8">'+(c.last||'—')+'</td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制候选（空格）\',1500)})">📋 复制候选（空格）</button>';
+  h+='<span style="font-size:11px;color:#64748b">到期倍≥1=后3D已超过平均回归期（冷到期）；cv越低越规律。</span>';
+  h+='</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 前2D缺席、后3D到期都只是<b>历史统计</b>，拼在一起也<b>不构成预测</b>（回测显示接近随机）。当收窄候选/复盘素材用。</div>';
+  h+='</div>';
+  out.insertAdjacentHTML('beforeend', h);
+  document.getElementById('abs-zf-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 // 逐期滑动回测：用上一期头二三算缺席 → 看下一期头/二/三各中几位（四位全中=命中）
 function zoAbsentBacktest(){
