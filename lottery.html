@@ -8401,7 +8401,7 @@ function zoAbsentZoneBacktest(){
   var occ={};
   all.forEach(function(d,i){ d.sn.forEach(function(s){ var b3=s.slice(1); (occ[b3]=occ[b3]||[]).push(i); }); });
   function upper(arr,k){ var lo=0,hi=arr.length; while(lo<hi){ var m=(lo+hi)>>1; if(arr[m]<=k) lo=m+1; else hi=m; } return lo; } // 个数 ≤k
-  function permSet4(s){ var out={}; var a=s.split(''); (function go(pre,rest){ if(!rest.length){out[pre]=1;return;} for(var i=0;i<rest.length;i++){ go(pre+rest[i], rest.slice(0,i)+rest.slice(i+1)); } })('',a); return Object.keys(out); }
+  function permSet4(s){ var out={}; (function go(pre,rest){ if(rest.length===0){out[pre]=1;return;} for(var i=0;i<rest.length;i++){ go(pre+rest.charAt(i), rest.slice(0,i)+rest.slice(i+1)); } })('', String(s)); return Object.keys(out); }
   var startK=all.length-1-N, endK=all.length-2;
   var hitCount=0, expSum=0, varSum=0, pairs=0, candSum=0, hitEx=[];
   var bHit=0, bExpSum=0, bVarSum=0, bHitEx=[];
