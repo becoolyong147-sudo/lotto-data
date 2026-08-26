@@ -8362,22 +8362,8 @@ async function zoSpMatchExport(){
   // ===== 各市场明细 =====
   mkts.forEach(function(mk){
     var m=data[mk]; var ws=wb.addWorksheet(mk);
-    ws.getCell('A1').value=mk+' · 逐期明细'; ws.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FF1E3A5F'}};
-    var lr=3;
-    if(m.latest){ var L=m.latest;
-      ws.getCell('A'+lr).value='🎯 本期主打（源期 '+L.s+'，下期该盯）'; ws.getCell('A'+lr).font={name:'Arial',bold:true,size:13,color:{argb:'FFB45309'}};
-      ws.mergeCells('A'+lr,'C'+lr); lr++;
-      var LT=[['前2D','缺席2D='+L.f2.a2+'  目标1D='+L.f2.t1,'目标2D: '+L.f2.tg],
-              ['中2D','缺席2D='+L.m2.a2+'  目标1D='+L.m2.t1,'目标2D: '+L.m2.tg],
-              ['前1D(千位)','缺席1D='+L.f1.a1+'  最多='+L.f1.most,'目标1D: '+L.f1.set],
-              ['后1D(个位)','缺席1D='+L.b1.a1+'  最多='+L.b1.most,'目标1D: '+L.b1.set]];
-      LT.forEach(function(t){ var rw=ws.getRow(lr); var key=t[0].indexOf('前1')>=0?'前1D':t[0].indexOf('后1')>=0?'后1D':t[0];
-        rw.getCell(1).value=t[0]; rw.getCell(1).font={name:'Arial',bold:true,size:11}; rw.getCell(1).fill=A(FILLS[key]);
-        rw.getCell(2).value=t[1]; rw.getCell(2).font={name:'Arial',size:10};
-        rw.getCell(3).value=t[2]; rw.getCell(3).font={name:'Arial',size:10}; rw.getCell(3).alignment={wrapText:true}; lr++; });
-      lr++;
-    }
-    var h1r=lr, r1=ws.getRow(h1r); r1.getCell(1).value='源期'; r1.getCell(2).value='下期';
+    ws.getCell('A1').value=mk+' · 逐期明细　（本期主打见「② 本期主打」页）'; ws.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FF1E3A5F'}};
+    var h1r=3, r1=ws.getRow(h1r); r1.getCell(1).value='源期'; r1.getCell(2).value='下期';
     r1.getCell(1).fill=HFILL; r1.getCell(1).font=HFONT; r1.getCell(2).fill=HFILL; r1.getCell(2).font=HFONT;
     var col=3;
     blocks.forEach(function(b){ ws.mergeCells(h1r,col,h1r,col+4); var c=r1.getCell(col); c.value=b[1]; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center'}; col+=5; });
