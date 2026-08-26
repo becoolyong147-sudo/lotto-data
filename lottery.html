@@ -8400,22 +8400,20 @@ async function zoSpMatchExport(){
   var mp=wb.addWorksheet('② 本期主打');
   mp.getCell('A1').value='🎯 本期主打 · 下一期该盯什么（各市场最新一期特别奖算出）'; mp.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
   mp.getCell('A2').value='下面是「目标号」：下一期头二三若落在里面就算中。⚠️ 历史统计，不构成预测。'; mp.getCell('A2').font={name:'Arial',size:10,color:{argb:'FF94A3B8'}};
-  var mh=mp.getRow(4); ['市场','源期','前2D 目标','中2D 目标','前1D(千位)','后1D(个位)'].forEach(function(h,i){ var c=mh.getCell(i+1); c.value=h; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center'}; });
+  var mHead=['市场','源期'].concat(blocks.map(function(b){ return b[1]+(b[0].charAt(0)==='f'&&b[0].length===2&&b[0][1]==='1'?'(千位)':b[0]==='b1'?'(个位)':' 目标'); }));
+  var mh=mp.getRow(4); mHead.forEach(function(h,i){ var c=mh.getCell(i+1); c.value=h; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center'}; });
   var mr=5;
   mkts.forEach(function(mk){
     var L=data[mk].latest; var row=mp.getRow(mr);
     row.getCell(1).value=mk; row.getCell(1).font={name:'Arial',bold:true,size:11};
     if(L){
       row.getCell(2).value=L.s;
-      row.getCell(3).value=L.f2.tg; row.getCell(3).fill=A(FILLS['前2D']);
-      row.getCell(4).value=L.m2.tg; row.getCell(4).fill=A(FILLS['中2D']);
-      row.getCell(5).value=L.f1.set; row.getCell(5).fill=A(FILLS['前1D']);
-      row.getCell(6).value=L.b1.set; row.getCell(6).fill=A(FILLS['后1D']);
+      blocks.forEach(function(b,bi){ var v=(b[0]==='f1'||b[0]==='b1')?L[b[0]].set:L[b[0]].tg; var c=row.getCell(3+bi); c.value=v; c.fill=A(FILLS[b[1]]); c.alignment={wrapText:true,vertical:'top'}; c.font={name:'Arial',size:10}; });
     } else { row.getCell(2).value='(无待开期)'; }
-    for(var cc=3;cc<=6;cc++){ row.getCell(cc).alignment={wrapText:true,vertical:'top'}; row.getCell(cc).font={name:'Arial',size:10}; }
     mp.getRow(mr).height=34; mr++;
   });
-  mp.getColumn(1).width=8; mp.getColumn(2).width=12; mp.getColumn(3).width=34; mp.getColumn(4).width=40; mp.getColumn(5).width=16; mp.getColumn(6).width=16;
+  mp.getColumn(1).width=8; mp.getColumn(2).width=12;
+  var mw=[34,40,34,15,15]; blocks.forEach(function(b,bi){ mp.getColumn(3+bi).width=mw[bi]||16; });
   mp.views=[{state:'frozen',ySplit:4,xSplit:1}];
 
   // ===== 页3：汇总（含结论列）=====
