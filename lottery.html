@@ -8228,7 +8228,7 @@ function zoNextMainShow(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var data=zoSpMatchCompute();
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
-  var COL={'前2D':'#f59e0b','中2D':'#3b82f6','前1D':'#16a34a','后1D':'#db2777'};
+  var COL={'前2D':'#f59e0b','中2D':'#3b82f6','后2D':'#6366f1','前1D':'#16a34a','后1D':'#db2777'};
   var h='<div class="card" style="border:2px solid #b45309">';
   h+='<h3 style="color:#b45309">🎯 下一期主打 · 9市场「缺什么 / 目标什么」</h3>';
   h+='<div class="warn">用各市场<b>最新一期特别奖</b>算出下一期该盯的：缺席 + 目标。点每张卡的「展开数根拆解」看详细计算。⚠️ 历史统计，不构成预测。</div>';
@@ -8244,6 +8244,7 @@ function zoNextMainShow(){
     }
     h+=line('前2D','缺数根',L.f2.a2,null,'目标2D',L.f2.tg);
     h+=line('中2D','缺数根',L.m2.a2,null,'目标2D',L.m2.tg);
+    h+=line('后2D','缺数根',L.b2.a2,null,'目标2D',L.b2.tg);
     h+=line('前1D','缺(千位)',L.f1.a1,L.f1.most,'目标',L.f1.set);
     h+=line('后1D','缺(个位)',L.b1.a1,L.b1.most,'目标',L.b1.set);
     // 前2D 迷你格子
@@ -8284,6 +8285,7 @@ function zoNextMainShow(){
     }
     h+=brk('前2D',0,1);
     h+=brk('中2D',1,2);
+    h+=brk('后2D',2,3);
     // 前1D/后1D 首位统计
     function brk1(nm,pos){ var f={}; L.grp.forEach(function(n){ f[n[pos]]=(f[n[pos]]||0)+1; }); var av=[]; for(var d=0;d<=9;d++) if(!f[''+d]) av.push(d); var mo=null,mc=-1; Object.keys(f).forEach(function(k){ if(f[k]>mc){mc=f[k];mo=k;} }); return '<b>'+nm+'(第'+(pos+1)+'位)：</b>各号该位='+L.grp.map(function(n){return n[pos];}).join('')+' → 缺席='+av.join(',')+' · 最多='+mo+'<br>'; }
     h+=brk1('前1D',0);
@@ -8323,29 +8325,31 @@ function zoSpMatchCompute(){
     (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
     ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
     merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
-    var rows=[], latest=null, stat={f2:[0,0,0,0],m2:[0,0,0,0],f1:[0,0,0,0],b1:[0,0,0,0]};
+    var rows=[], latest=null, stat={f2:[0,0,0,0],m2:[0,0,0,0],b2:[0,0,0,0],f1:[0,0,0,0],b1:[0,0,0,0]};
     for(var i=0;i<merged.length;i++){
       var d=merged[i]; if(!(d.sp&&d.sp.length)) continue;
       var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3) continue;
       var next=(i+1<merged.length)?merged[i+1]:null;
       var nn=next?[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad):null;
-      var f2=an2(g,0,1),m2=an2(g,1,2),f1=an1(g,0),b1=an1(g,3);
+      var f2=an2(g,0,1),m2=an2(g,1,2),b2=an2(g,2,3),f1=an1(g,0),b1=an1(g,3);
       function h2(a,wa,wb,key){ var ts={}; a.tg.forEach(function(t){ts[t]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ var w=x.slice(wa,wb+1); if(ts[w]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.tg.length/100,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
       function h1(a,pos,key){ var st={}; a.set.forEach(function(x){st[x]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ if(st[x[pos]]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.set.length/10,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
       if(next){
         rows.push({s:d.date,n:next.date,
           f2:[f2.a2,f2.t1,f2.tg.length].concat(h2(f2,0,1,'f2')),
           m2:[m2.a2,m2.t1,m2.tg.length].concat(h2(m2,1,2,'m2')),
+          b2:[b2.a2,b2.t1,b2.tg.length].concat(h2(b2,2,3,'b2')),
           f1:[f1.a1,f1.most,f1.set.length].concat(h1(f1,0,'f1')),
           b1:[b1.a1,b1.most,b1.set.length].concat(h1(b1,3,'b1'))});
       } else {
         latest={s:d.date, grp:g.slice(), f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
+          b2:{a2:b2.a2,t1:b2.t1,tg:b2.tg.join(' ')},
           f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
       }
     }
-    var f2hist={};
-    merged.forEach(function(d){ [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); f2hist[s.slice(0,2)]=(f2hist[s.slice(0,2)]||0)+1; } }); });
-    res[mk]={rows:rows, latest:latest, stat:stat, f2hist:f2hist};
+    var f2hist={}, b2hist={};
+    merged.forEach(function(d){ [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); f2hist[s.slice(0,2)]=(f2hist[s.slice(0,2)]||0)+1; b2hist[s.slice(2,4)]=(b2hist[s.slice(2,4)]||0)+1; } }); });
+    res[mk]={rows:rows, latest:latest, stat:stat, f2hist:f2hist, b2hist:b2hist};
   });
   return res;
 }
@@ -8358,8 +8362,8 @@ async function zoSpMatchExport(){
   var A=function(rgb){return {type:'pattern',pattern:'solid',fgColor:{argb:rgb}};};
   var HFILL=A('FF1E3A5F'), HFONT={name:'Arial',bold:true,color:{argb:'FFFFFFFF'},size:10};
   var GREEN=A('FFDCFCE7'), RED=A('FFFEE2E2');
-  var blocks=[['f2','前2D'],['m2','中2D'],['f1','前1D'],['b1','后1D']];
-  var FILLS={'前2D':'FFFEF3C7','中2D':'FFDBEAFE','前1D':'FFDCFCE7','后1D':'FFFCE7F3'};
+  var blocks=[['f2','前2D'],['m2','中2D'],['b2','后2D'],['f1','前1D'],['b1','后1D']];
+  var FILLS={'前2D':'FFFEF3C7','中2D':'FFDBEAFE','后2D':'FFE0E7FF','前1D':'FFDCFCE7','后1D':'FFFCE7F3'};
   function verdict(s){ var h=s[0],t=s[1],e=s[2],v=s[3]; if(!t) return {t:'—',fill:null,z:0}; var z=v>0?(h-e)/Math.sqrt(v):0; if(z>1.96) return {t:'✅ 显著偏高 · 值得盯',fill:GREEN,z:z}; if(z<-1.96) return {t:'🔻 明显偏低',fill:RED,z:z}; return {t:'— 接近随机',fill:null,z:z}; }
 
   // ===== 页1：读法说明 =====
@@ -8433,43 +8437,48 @@ async function zoSpMatchExport(){
     });
     ri++;
   });
-  sm.getColumn(1).width=8; for(var j=2;j<=13;j++) sm.getColumn(j).width=(j%3===1?15:11);
+  sm.getColumn(1).width=8; for(var j=2;j<=16;j++) sm.getColumn(j).width=(j%3===1?15:11);
   sm.views=[{state:'frozen',ySplit:4,xSplit:1}];
 
-  // ===== 页4：前2D 主打格子（各市场最新一期）=====
+  // ===== 页4：2D 主打格子（前2D + 后2D · 各市场最新一期）=====
   var BD={top:{style:'thin',color:{argb:'FFCBD5E1'}},left:{style:'thin',color:{argb:'FFCBD5E1'}},bottom:{style:'thin',color:{argb:'FFCBD5E1'}},right:{style:'thin',color:{argb:'FFCBD5E1'}}};
-  var gd=wb.addWorksheet('④ 前2D格子');
-  gd.getCell('A1').value='④ 前2D 主打格子 · 下一期该盯的前两位（各市场最新一期）'; gd.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
-  gd.getCell('A2').value='行=十位(前2D第1位) 列=个位(第2位)。🟧深黄+数字=目标且历史开过X次；🟨浅黄○=目标但历史从没开过(纯规则链接)；空白=非目标。⚠️历史统计不构成预测。'; gd.getCell('A2').font={name:'Arial',size:10,color:{argb:'FF94A3B8'}};
-  var gr=4;
-  mkts.forEach(function(mk){
-    var L=data[mk].latest, f2h=data[mk].f2hist||{};
-    var tset={}; if(L&&L.f2&&L.f2.tg) L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
-    gd.getCell('A'+gr).value='● '+mk+(L?'（源期 '+L.s+' · 目标'+Object.keys(tset).length+'个）':'（无待开期）'); gd.getCell('A'+gr).font={name:'Arial',bold:true,size:12,color:{argb:'FF1E3A5F'}}; gr++;
-    var rowCnt=[0,0,0,0,0,0,0,0,0,0], colCnt=[0,0,0,0,0,0,0,0,0,0];
-    Object.keys(tset).forEach(function(k){ rowCnt[+k[0]]++; colCnt[+k[1]]++; });
-    var TFILL=A('FF0F766E');
-    var hrow=gd.getRow(gr); var cc=hrow.getCell(1); cc.value='十\\个'; cc.fill=HFILL; cc.font=HFONT; cc.alignment={horizontal:'center'}; cc.border=BD;
-    for(var c=0;c<=9;c++){ var hc=hrow.getCell(c+2); hc.value=c; hc.fill=HFILL; hc.font=HFONT; hc.alignment={horizontal:'center'}; hc.border=BD; }
-    var rhc=hrow.getCell(12); rhc.value='行计'; rhc.fill=TFILL; rhc.font=HFONT; rhc.alignment={horizontal:'center'}; rhc.border=BD;
-    gr++;
-    for(var d1=0;d1<=9;d1++){
-      var rw=gd.getRow(gr); var lc=rw.getCell(1); lc.value=d1; lc.fill=HFILL; lc.font=HFONT; lc.alignment={horizontal:'center'}; lc.border=BD;
-      for(var d2=0;d2<=9;d2++){
-        var key=''+d1+d2; var cell=rw.getCell(d2+2); cell.alignment={horizontal:'center'}; cell.border=BD; cell.font={name:'Arial',size:10};
-        if(tset[key]){ var hh=f2h[key]||0;
-          if(hh>0){ cell.value=hh; cell.fill=A('FFF59E0B'); cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; }
-          else { cell.value='○'; cell.fill=A('FFFEF3C7'); cell.font={name:'Arial',size:11,bold:true,color:{argb:'FFB45309'}}; }
-        }
-      }
-      var rc=rw.getCell(12); rc.value=rowCnt[d1]||''; rc.fill=A(rowCnt[d1]?'FFCCFBF1':'FFF8FAFC'); rc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; rc.alignment={horizontal:'center'}; rc.border=BD;
+  var gd=wb.addWorksheet('④ 2D格子');
+  gd.getCell('A1').value='④ 2D 主打格子 · 下一期该盯的两位（前2D + 后2D · 各市场最新一期）'; gd.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
+  gd.getCell('A2').value='行=十位 列=个位。🟧深黄+数字=目标且历史开过X次；🟨浅黄○=目标但历史从没开过；空白=非目标。右「行计」下「列计」。⚠️历史统计不构成预测。'; gd.getCell('A2').font={name:'Arial',size:10,color:{argb:'FF94A3B8'}};
+  var gr=4, TFILL=A('FF0F766E');
+  function gdDraw(wkey, hkey, label){
+    var tr=gd.getCell('A'+gr); tr.value='━━━ '+label+' 格子 ━━━'; tr.font={name:'Arial',bold:true,size:13,color:{argb:'FFB45309'}}; gr+=1;
+    mkts.forEach(function(mk){
+      var L=data[mk].latest, hist=data[mk][hkey]||{};
+      var tg=(L&&L[wkey]&&L[wkey].tg)?L[wkey].tg:'';
+      var tset={}; tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
+      gd.getCell('A'+gr).value='● '+mk+(L?'（源期 '+L.s+' · 目标'+Object.keys(tset).length+'个）':'（无待开期）'); gd.getCell('A'+gr).font={name:'Arial',bold:true,size:12,color:{argb:'FF1E3A5F'}}; gr++;
+      var rowCnt=[0,0,0,0,0,0,0,0,0,0], colCnt=[0,0,0,0,0,0,0,0,0,0];
+      Object.keys(tset).forEach(function(k){ rowCnt[+k[0]]++; colCnt[+k[1]]++; });
+      var hrow=gd.getRow(gr); var cc=hrow.getCell(1); cc.value='十\\个'; cc.fill=HFILL; cc.font=HFONT; cc.alignment={horizontal:'center'}; cc.border=BD;
+      for(var c=0;c<=9;c++){ var hc=hrow.getCell(c+2); hc.value=c; hc.fill=HFILL; hc.font=HFONT; hc.alignment={horizontal:'center'}; hc.border=BD; }
+      var rhc=hrow.getCell(12); rhc.value='行计'; rhc.fill=TFILL; rhc.font=HFONT; rhc.alignment={horizontal:'center'}; rhc.border=BD;
       gr++;
-    }
-    var crow=gd.getRow(gr); var clc=crow.getCell(1); clc.value='列计'; clc.fill=TFILL; clc.font=HFONT; clc.alignment={horizontal:'center'}; clc.border=BD;
-    for(var d2c=0;d2c<=9;d2c++){ var ccc=crow.getCell(d2c+2); ccc.value=colCnt[d2c]||''; ccc.fill=A(colCnt[d2c]?'FFCCFBF1':'FFF8FAFC'); ccc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; ccc.alignment={horizontal:'center'}; ccc.border=BD; }
-    var tot=crow.getCell(12); tot.value=Object.keys(tset).length; tot.fill=TFILL; tot.font=HFONT; tot.alignment={horizontal:'center'}; tot.border=BD;
-    gr+=2;
-  });
+      for(var d1=0;d1<=9;d1++){
+        var rw=gd.getRow(gr); var lc=rw.getCell(1); lc.value=d1; lc.fill=HFILL; lc.font=HFONT; lc.alignment={horizontal:'center'}; lc.border=BD;
+        for(var d2=0;d2<=9;d2++){
+          var key=''+d1+d2; var cell=rw.getCell(d2+2); cell.alignment={horizontal:'center'}; cell.border=BD; cell.font={name:'Arial',size:10};
+          if(tset[key]){ var hh=hist[key]||0;
+            if(hh>0){ cell.value=hh; cell.fill=A('FFF59E0B'); cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; }
+            else { cell.value='○'; cell.fill=A('FFFEF3C7'); cell.font={name:'Arial',size:11,bold:true,color:{argb:'FFB45309'}}; }
+          }
+        }
+        var rc=rw.getCell(12); rc.value=rowCnt[d1]||''; rc.fill=A(rowCnt[d1]?'FFCCFBF1':'FFF8FAFC'); rc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; rc.alignment={horizontal:'center'}; rc.border=BD;
+        gr++;
+      }
+      var crow=gd.getRow(gr); var clc=crow.getCell(1); clc.value='列计'; clc.fill=TFILL; clc.font=HFONT; clc.alignment={horizontal:'center'}; clc.border=BD;
+      for(var d2c=0;d2c<=9;d2c++){ var ccc=crow.getCell(d2c+2); ccc.value=colCnt[d2c]||''; ccc.fill=A(colCnt[d2c]?'FFCCFBF1':'FFF8FAFC'); ccc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; ccc.alignment={horizontal:'center'}; ccc.border=BD; }
+      var tot=crow.getCell(12); tot.value=Object.keys(tset).length; tot.fill=TFILL; tot.font=HFONT; tot.alignment={horizontal:'center'}; tot.border=BD;
+      gr+=2;
+    });
+  }
+  gdDraw('f2','f2hist','前2D');
+  gdDraw('b2','b2hist','后2D');
   gd.getColumn(1).width=7; for(var j=2;j<=11;j++) gd.getColumn(j).width=5; gd.getColumn(12).width=6;
 
   // ===== 各市场明细 =====
@@ -8483,7 +8492,7 @@ async function zoSpMatchExport(){
     var h2r=h1r+1, r2=ws.getRow(h2r);
     var sub2=['缺席2D','目标1D','目标数','命中','命中号'], sub1=['缺席1D','最多','目标数','命中','命中号'];
     col=3;
-    blocks.forEach(function(b){ var subs=(b[0]==='f2'||b[0]==='m2')?sub2:sub1; subs.forEach(function(s){ var c=r2.getCell(col); c.value=s; c.font={name:'Arial',bold:true,size:9}; c.fill=A('FFF1F5F9'); c.alignment={horizontal:'center'}; col++; }); });
+    blocks.forEach(function(b){ var subs=(b[0]==='f2'||b[0]==='m2'||b[0]==='b2')?sub2:sub1; subs.forEach(function(s){ var c=r2.getCell(col); c.value=s; c.font={name:'Arial',bold:true,size:9}; c.fill=A('FFF1F5F9'); c.alignment={horizontal:'center'}; col++; }); });
     var ri2=h2r+1;
     m.rows.slice().reverse().forEach(function(rw){
       var R=ws.getRow(ri2); R.getCell(1).value=rw.s; R.getCell(2).value=rw.n; col=3;
@@ -8494,7 +8503,7 @@ async function zoSpMatchExport(){
       });
       ri2++;
     });
-    ws.getColumn(1).width=11; ws.getColumn(2).width=11; for(var j=3;j<=22;j++) ws.getColumn(j).width=8.5;
+    ws.getColumn(1).width=11; ws.getColumn(2).width=11; for(var j=3;j<=27;j++) ws.getColumn(j).width=8.5;
     ws.views=[{state:'frozen',ySplit:h2r,xSplit:2}];
   });
 
