@@ -8038,6 +8038,7 @@ function doBacktest(){
       <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
       <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
       <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
+      <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打(9市场)</button>
       <button class="btn" style="background:#166534;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpMatchExport()">📤 特安缺席匹配→Excel(9市场)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
@@ -8220,6 +8221,75 @@ function zoAbsentEnumAll(){
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-enum-card').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+// 🎯 下一期主打：屏上直显 9 市场「下一期 缺席+目标」，可展开数根拆解
+function zoNMdr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
+function zoNextMainShow(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var data=zoSpMatchCompute();
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var COL={'前2D':'#f59e0b','中2D':'#3b82f6','前1D':'#16a34a','后1D':'#db2777'};
+  var h='<div class="card" style="border:2px solid #b45309">';
+  h+='<h3 style="color:#b45309">🎯 下一期主打 · 9市场「缺什么 / 目标什么」</h3>';
+  h+='<div class="warn">用各市场<b>最新一期特别奖</b>算出下一期该盯的：缺席 + 目标。点每张卡的「展开数根拆解」看详细计算。⚠️ 历史统计，不构成预测。</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px;margin-top:8px">';
+  mkts.forEach(function(mk){
+    var L=data[mk].latest, f2h=data[mk].f2hist||{};
+    h+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#fff">';
+    h+='<div style="font-size:15px;font-weight:800;color:#1e3a5f;margin-bottom:6px">● '+mk+(L?' <span style="font-size:11px;font-weight:400;color:#94a3b8">源期 '+L.s+'</span>':'')+'</div>';
+    if(!L){ h+='<div style="color:#94a3b8;font-size:12px">无待开期</div></div>'; return; }
+    function line(nm,a1lbl,a1,ml,tgtlbl,tgt){
+      return '<div style="margin-bottom:5px;font-size:12px"><span style="display:inline-block;background:'+COL[nm]+';color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">'+nm+'</span>'+
+             a1lbl+' <b>'+a1+'</b>'+(ml!=null?' · 最多 <b>'+ml+'</b>':'')+' → '+tgtlbl+' <b style="color:'+COL[nm]+'">'+tgt+'</b></div>';
+    }
+    h+=line('前2D','缺数根',L.f2.a2,null,'目标2D',L.f2.tg);
+    h+=line('中2D','缺数根',L.m2.a2,null,'目标2D',L.m2.tg);
+    h+=line('前1D','缺(千位)',L.f1.a1,L.f1.most,'目标',L.f1.set);
+    h+=line('后1D','缺(个位)',L.b1.a1,L.b1.most,'目标',L.b1.set);
+    // 前2D 迷你格子
+    var tset={}; L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
+    h+='<div style="font-size:10px;color:#94a3b8;margin:6px 0 3px">前2D格子（行十位·列个位 / 🟧=目标且历史开过·数字=次数 / 🟨○=目标但没开过）</div>';
+    h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:9px">';
+    h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">·</th>';
+    for(var c=0;c<=9;c++) h+='<th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">'+c+'</th>';
+    h+='</tr>';
+    for(var d1=0;d1<=9;d1++){
+      h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff">'+d1+'</th>';
+      for(var d2=0;d2<=9;d2++){ var key=''+d1+d2;
+        if(tset[key]){ var hh=f2h[key]||0;
+          if(hh>0) h+='<td style="border:1px solid #e2e8f0;background:#f59e0b;color:#fff;font-weight:700;text-align:center">'+hh+'</td>';
+          else h+='<td style="border:1px solid #e2e8f0;background:#fef3c7;color:#b45309;font-weight:700;text-align:center">○</td>';
+        } else h+='<td style="border:1px solid #f1f5f9"></td>';
+      }
+      h+='</tr>';
+    }
+    h+='</table></div>';
+    // 展开数根拆解
+    var did='nmdet-'+mk;
+    h+='<div style="margin-top:6px"><span onclick="zoNextMainToggle(\''+did+'\')" style="cursor:pointer;color:#2563eb;font-size:11px;font-weight:700">▾ 展开数根拆解</span></div>';
+    h+='<div id="'+did+'" style="display:none;margin-top:4px;font-size:10px;color:#475569;line-height:1.7;background:#f8fafc;border-radius:6px;padding:6px">';
+    h+='<b>来源特别奖('+L.grp.length+'个)：</b>'+L.grp.join(' ')+'<br>';
+    ['前2D',0,1,'中2D',1,2].length;
+    function brk(nm,wa,wb){
+      var s='<b>'+nm+'数根：</b>'; var roots={}; var firsts={};
+      L.grp.forEach(function(n){ var rt=zoNMdr((+n[wa])+(+n[wb])); roots[rt]=1; firsts[n[wa]]=(firsts[n[wa]]||0)+1; s+=n.slice(wa,wb+1)+'→'+rt+' '; });
+      var av=[]; for(var r=1;r<=9;r++) if(!roots[r]) av.push(r);
+      s+='｜出现{'+Object.keys(roots).sort().join(',')+'} → 缺席='+av.join(',');
+      return s+'<br>';
+    }
+    h+=brk('前2D',0,1);
+    h+=brk('中2D',1,2);
+    // 前1D/后1D 首位统计
+    function brk1(nm,pos){ var f={}; L.grp.forEach(function(n){ f[n[pos]]=(f[n[pos]]||0)+1; }); var av=[]; for(var d=0;d<=9;d++) if(!f[''+d]) av.push(d); var mo=null,mc=-1; Object.keys(f).forEach(function(k){ if(f[k]>mc){mc=f[k];mo=k;} }); return '<b>'+nm+'(第'+(pos+1)+'位)：</b>各号该位='+L.grp.map(function(n){return n[pos];}).join('')+' → 缺席='+av.join(',')+' · 最多='+mo+'<br>'; }
+    h+=brk1('前1D',0);
+    h+=brk1('后1D',3);
+    h+='</div>';
+    h+='</div>';
+  });
+  h+='</div></div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 // 📤 特安缺席匹配 → Excel(9市场)：前2D/中2D/前1D/后1D + 逐期命中 + 最新主打
 function zoSpMatchCompute(){
   function dr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
@@ -8264,7 +8334,7 @@ function zoSpMatchCompute(){
           f1:[f1.a1,f1.most,f1.set.length].concat(h1(f1,0,'f1')),
           b1:[b1.a1,b1.most,b1.set.length].concat(h1(b1,3,'b1'))});
       } else {
-        latest={s:d.date, f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
+        latest={s:d.date, grp:g.slice(), f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
           f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
       }
     }
