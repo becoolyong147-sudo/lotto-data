@@ -8038,6 +8038,7 @@ function doBacktest(){
       <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
       <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
       <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
+      <button class="btn" style="background:#166534;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpMatchExport()">📤 特安缺席匹配→Excel(9市场)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
       <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
@@ -8218,6 +8219,190 @@ function zoAbsentEnumAll(){
   h+='</div>';
   out.insertAdjacentHTML('beforeend', h);
   document.getElementById('abs-enum-card').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+// 📤 特安缺席匹配 → Excel(9市场)：前2D/中2D/前1D/后1D + 逐期命中 + 最新主打
+function zoSpMatchCompute(){
+  function dr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+  function pad(n){ return String(n).padStart(4,'0'); }
+  function an2(g,wa,wb){
+    var roots={},first={};
+    g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
+    var a2=[]; for(var r=1;r<=9;r++) if(!roots[r]) a2.push(r);
+    var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d]) a1.push(''+d);
+    var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} });
+    var t1=a1.concat(most!=null?[most]:[]);
+    var ts={}; t1.forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1; } });
+    return {a2:a2.join(','),t1:t1.join(','),tg:Object.keys(ts).sort()};
+  }
+  function an1(g,pos){
+    var first={}; g.forEach(function(n){ first[n[pos]]=(first[n[pos]]||0)+1; });
+    var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d]) a1.push(''+d);
+    var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} });
+    return {a1:a1.join(','),most:most,set:a1.concat(most!=null?[most]:[])};
+  }
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var res={};
+  mkts.forEach(function(mk){
+    var seen={}, merged=[];
+    (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    var rows=[], latest=null, stat={f2:[0,0,0,0],m2:[0,0,0,0],f1:[0,0,0,0],b1:[0,0,0,0]};
+    for(var i=0;i<merged.length;i++){
+      var d=merged[i]; if(!(d.sp&&d.sp.length)) continue;
+      var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3) continue;
+      var next=(i+1<merged.length)?merged[i+1]:null;
+      var nn=next?[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad):null;
+      var f2=an2(g,0,1),m2=an2(g,1,2),f1=an1(g,0),b1=an1(g,3);
+      function h2(a,wa,wb,key){ var ts={}; a.tg.forEach(function(t){ts[t]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ var w=x.slice(wa,wb+1); if(ts[w]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.tg.length/100,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
+      function h1(a,pos,key){ var st={}; a.set.forEach(function(x){st[x]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ if(st[x[pos]]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.set.length/10,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
+      if(next){
+        rows.push({s:d.date,n:next.date,
+          f2:[f2.a2,f2.t1,f2.tg.length].concat(h2(f2,0,1,'f2')),
+          m2:[m2.a2,m2.t1,m2.tg.length].concat(h2(m2,1,2,'m2')),
+          f1:[f1.a1,f1.most,f1.set.length].concat(h1(f1,0,'f1')),
+          b1:[b1.a1,b1.most,b1.set.length].concat(h1(b1,3,'b1'))});
+      } else {
+        latest={s:d.date, f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
+          f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
+      }
+    }
+    res[mk]={rows:rows, latest:latest, stat:stat};
+  });
+  return res;
+}
+async function zoSpMatchExport(){
+  var out=document.getElementById('abs-out');
+  if(typeof ExcelJS==='undefined'||typeof saveAs==='undefined'){ if(out) out.insertAdjacentHTML('beforeend','<div class="warn" style="margin-top:8px">❌ ExcelJS/FileSaver 库未加载（需联网）。</div>'); return; }
+  var data=zoSpMatchCompute();
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var wb=new ExcelJS.Workbook(); wb.creator='缺席匹配';
+  var A=function(rgb){return {type:'pattern',pattern:'solid',fgColor:{argb:rgb}};};
+  var HFILL=A('FF1E3A5F'), HFONT={name:'Arial',bold:true,color:{argb:'FFFFFFFF'},size:10};
+  var GREEN=A('FFDCFCE7'), RED=A('FFFEE2E2');
+  var blocks=[['f2','前2D'],['m2','中2D'],['f1','前1D'],['b1','后1D']];
+  var FILLS={'前2D':'FFFEF3C7','中2D':'FFDBEAFE','前1D':'FFDCFCE7','后1D':'FFFCE7F3'};
+  function verdict(s){ var h=s[0],t=s[1],e=s[2],v=s[3]; if(!t) return {t:'—',fill:null,z:0}; var z=v>0?(h-e)/Math.sqrt(v):0; if(z>1.96) return {t:'✅ 显著偏高 · 值得盯',fill:GREEN,z:z}; if(z<-1.96) return {t:'🔻 明显偏低',fill:RED,z:z}; return {t:'— 接近随机',fill:null,z:z}; }
+
+  // ===== 页1：读法说明 =====
+  var g=wb.addWorksheet('① 读法说明');
+  g.getColumn(1).width=110;
+  var GL=[
+    ['特/安缺席匹配 · 读法说明', 16, 'FF1E3A5F', true],
+    ['', 10, '', false],
+    ['【一句话】用每期「特别奖」的号码，找出没出现的规律，组出「目标号」，再看下一期头二三有没有中。', 11, 'FF334155', true],
+    ['', 10, '', false],
+    ['【怎么算】以你给过的特别奖为例：1137 3414 2446 7323 3931 4289 3766 6816 5628 3176', 11, 'FF334155', true],
+    ['第①步 前2D数根：每个号取前两位相加、反复加到个位。11→1+1=2；34→7；24→6；73→10→1；39→3 …出现了 1~7。', 10, 'FF475569', false],
+    ['        → 1~9里「没出现」的数根 = 缺席2D = 8, 9', 10, 'FF166534', true],
+    ['第②步 目标1D：看每个号的「第一位」。首位是 1,3,2,7,3,4,3,6,5,3 → 没出现的 = 0,8,9；出现最多的 = 3。', 10, 'FF475569', false],
+    ['        → 目标1D = 缺席首位 + 最多 = 0, 8, 9, 3', 10, 'FF166534', true],
+    ['第③步 目标2D：第一位取「目标1D」，且两位相加数根 = 缺席2D 的所有两位数。', 10, 'FF475569', false],
+    ['        例：98(9+8=17→8)✓、80✓、08✓、35(3+5=8)✓、99✓、90✓、81✓、09✓、36✓ … 这些就是「目标2D」。', 10, 'FF166534', true],
+    ['第④步 看命中：下一期的 头/二/三 任一个号，它的前两位若落在「目标2D」里 = 命中(✅)，否则 ❌。', 10, 'FF475569', false],
+    ['', 10, '', false],
+    ['【中2D / 前1D / 后1D】同样道理：中2D=中间两位；前1D=千位单个数字；后1D=个位单个数字。', 10, 'FF475569', false],
+    ['        1D 的目标 = 该位「没出现的数字」+「出现最多的数字」；命中 = 下期该位数字落在目标里。', 10, 'FF475569', false],
+    ['', 10, '', false],
+    ['【最重要：怎么判断准不准】', 12, 'FFB45309', true],
+    ['命中率 高 ≠ 有用。要跟「随机期望」比 —— 随机期望 = 纯靠运气也能中的比例（目标越多、期望越高，尤其1D）。', 10, 'FF475569', false],
+    ['看「汇总」页的「结论」列：✅显著偏高=真比随机好、值得盯；— 接近随机=只是运气、别当真；🔻明显偏低=反而更差。', 10, 'FF475569', false],
+    ['样本还很少（每市场十几期），结论会变；攒多几期再看，反复稳定「显著」的才可信。', 10, 'FF94A3B8', false],
+    ['', 10, '', false],
+    ['【页签导航】① 读法说明 → ② 本期主打（下期该盯什么，一页看全）→ ③ 汇总（各市场准不准）→ 各市场（逐期明细）。', 10, 'FF334155', true],
+    ['⚠️ 全部为历史统计整理，不构成预测。理性娱乐。', 10, 'FFDC2626', true]
+  ];
+  GL.forEach(function(row,idx){ var c=g.getCell('A'+(idx+1)); c.value=row[0]; c.font={name:'Arial',size:row[1],bold:row[3],color:{argb:row[2]||'FF000000'}}; c.alignment={wrapText:true,vertical:'top'}; });
+
+  // ===== 页2：本期主打（所有市场最新一期，一页看全）=====
+  var mp=wb.addWorksheet('② 本期主打');
+  mp.getCell('A1').value='🎯 本期主打 · 下一期该盯什么（各市场最新一期特别奖算出）'; mp.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
+  mp.getCell('A2').value='下面是「目标号」：下一期头二三若落在里面就算中。⚠️ 历史统计，不构成预测。'; mp.getCell('A2').font={name:'Arial',size:10,color:{argb:'FF94A3B8'}};
+  var mh=mp.getRow(4); ['市场','源期','前2D 目标','中2D 目标','前1D(千位)','后1D(个位)'].forEach(function(h,i){ var c=mh.getCell(i+1); c.value=h; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center'}; });
+  var mr=5;
+  mkts.forEach(function(mk){
+    var L=data[mk].latest; var row=mp.getRow(mr);
+    row.getCell(1).value=mk; row.getCell(1).font={name:'Arial',bold:true,size:11};
+    if(L){
+      row.getCell(2).value=L.s;
+      row.getCell(3).value=L.f2.tg; row.getCell(3).fill=A(FILLS['前2D']);
+      row.getCell(4).value=L.m2.tg; row.getCell(4).fill=A(FILLS['中2D']);
+      row.getCell(5).value=L.f1.set; row.getCell(5).fill=A(FILLS['前1D']);
+      row.getCell(6).value=L.b1.set; row.getCell(6).fill=A(FILLS['后1D']);
+    } else { row.getCell(2).value='(无待开期)'; }
+    for(var cc=3;cc<=6;cc++){ row.getCell(cc).alignment={wrapText:true,vertical:'top'}; row.getCell(cc).font={name:'Arial',size:10}; }
+    mp.getRow(mr).height=34; mr++;
+  });
+  mp.getColumn(1).width=8; mp.getColumn(2).width=12; mp.getColumn(3).width=34; mp.getColumn(4).width=40; mp.getColumn(5).width=16; mp.getColumn(6).width=16;
+  mp.views=[{state:'frozen',ySplit:4,xSplit:1}];
+
+  // ===== 页3：汇总（含结论列）=====
+  var sm=wb.addWorksheet('③ 汇总');
+  sm.getCell('A1').value='③ 汇总 · 各市场四个匹配 准不准'; sm.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FF1E3A5F'}};
+  sm.getCell('A2').value='命中率 vs 随机期望 → 看「结论」列。✅显著偏高=值得盯；—接近随机=只是运气；🔻偏低=更差。'; sm.getCell('A2').font={name:'Arial',size:10,color:{argb:'FFB45309'}};
+  var head=['市场']; blocks.forEach(function(b){ head.push(b[1]+' 命中率',b[1]+' 随机期望',b[1]+' 结论'); });
+  var hr=sm.getRow(4); head.forEach(function(h,i){ var c=hr.getCell(i+1); c.value=h; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center',wrapText:true}; });
+  var ri=5;
+  mkts.forEach(function(mk){
+    var st=data[mk].stat; var row=sm.getRow(ri); row.getCell(1).value=mk; row.getCell(1).font={name:'Arial',bold:true,size:10};
+    var col=2;
+    blocks.forEach(function(b){
+      var s=st[b[0]]; var t=s[1]; var rate=t?s[0]/t:0, exp=t?s[2]/t:0; var vd=verdict(s);
+      var cr=row.getCell(col); cr.value=rate; cr.numFmt='0.0%'; cr.alignment={horizontal:'center'};
+      var ce=row.getCell(col+1); ce.value=exp; ce.numFmt='0.0%'; ce.alignment={horizontal:'center'};
+      var cv=row.getCell(col+2); cv.value=vd.t; cv.alignment={horizontal:'center'}; cv.font={name:'Arial',size:9,bold:true}; if(vd.fill) cv.fill=vd.fill;
+      col+=3;
+    });
+    ri++;
+  });
+  sm.getColumn(1).width=8; for(var j=2;j<=13;j++) sm.getColumn(j).width=(j%3===1?15:11);
+  sm.views=[{state:'frozen',ySplit:4,xSplit:1}];
+
+  // ===== 各市场明细 =====
+  mkts.forEach(function(mk){
+    var m=data[mk]; var ws=wb.addWorksheet(mk);
+    ws.getCell('A1').value=mk+' · 逐期明细'; ws.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FF1E3A5F'}};
+    var lr=3;
+    if(m.latest){ var L=m.latest;
+      ws.getCell('A'+lr).value='🎯 本期主打（源期 '+L.s+'，下期该盯）'; ws.getCell('A'+lr).font={name:'Arial',bold:true,size:13,color:{argb:'FFB45309'}};
+      ws.mergeCells('A'+lr,'C'+lr); lr++;
+      var LT=[['前2D','缺席2D='+L.f2.a2+'  目标1D='+L.f2.t1,'目标2D: '+L.f2.tg],
+              ['中2D','缺席2D='+L.m2.a2+'  目标1D='+L.m2.t1,'目标2D: '+L.m2.tg],
+              ['前1D(千位)','缺席1D='+L.f1.a1+'  最多='+L.f1.most,'目标1D: '+L.f1.set],
+              ['后1D(个位)','缺席1D='+L.b1.a1+'  最多='+L.b1.most,'目标1D: '+L.b1.set]];
+      LT.forEach(function(t){ var rw=ws.getRow(lr); var key=t[0].indexOf('前1')>=0?'前1D':t[0].indexOf('后1')>=0?'后1D':t[0];
+        rw.getCell(1).value=t[0]; rw.getCell(1).font={name:'Arial',bold:true,size:11}; rw.getCell(1).fill=A(FILLS[key]);
+        rw.getCell(2).value=t[1]; rw.getCell(2).font={name:'Arial',size:10};
+        rw.getCell(3).value=t[2]; rw.getCell(3).font={name:'Arial',size:10}; rw.getCell(3).alignment={wrapText:true}; lr++; });
+      lr++;
+    }
+    var h1r=lr, r1=ws.getRow(h1r); r1.getCell(1).value='源期'; r1.getCell(2).value='下期';
+    r1.getCell(1).fill=HFILL; r1.getCell(1).font=HFONT; r1.getCell(2).fill=HFILL; r1.getCell(2).font=HFONT;
+    var col=3;
+    blocks.forEach(function(b){ ws.mergeCells(h1r,col,h1r,col+4); var c=r1.getCell(col); c.value=b[1]; c.fill=HFILL; c.font=HFONT; c.alignment={horizontal:'center'}; col+=5; });
+    var h2r=h1r+1, r2=ws.getRow(h2r);
+    var sub2=['缺席2D','目标1D','目标数','命中','命中号'], sub1=['缺席1D','最多','目标数','命中','命中号'];
+    col=3;
+    blocks.forEach(function(b){ var subs=(b[0]==='f2'||b[0]==='m2')?sub2:sub1; subs.forEach(function(s){ var c=r2.getCell(col); c.value=s; c.font={name:'Arial',bold:true,size:9}; c.fill=A('FFF1F5F9'); c.alignment={horizontal:'center'}; col++; }); });
+    var ri2=h2r+1;
+    m.rows.slice().reverse().forEach(function(rw){
+      var R=ws.getRow(ri2); R.getCell(1).value=rw.s; R.getCell(2).value=rw.n; col=3;
+      blocks.forEach(function(b){ var rec=rw[b[0]]; var hit=rec[3];
+        var vals=[rec[0],rec[1],rec[2],(hit?'✅'+rec[4]:'❌'),rec[5]];
+        vals.forEach(function(v,k){ var c=R.getCell(col+k); c.value=v; c.alignment={horizontal:'center'}; c.font={name:'Arial',size:10}; if(k===0) c.fill=A(FILLS[b[1]]); if(k===3&&hit) c.fill=GREEN; });
+        col+=5;
+      });
+      ri2++;
+    });
+    ws.getColumn(1).width=11; ws.getColumn(2).width=11; for(var j=3;j<=22;j++) ws.getColumn(j).width=8.5;
+    ws.views=[{state:'frozen',ySplit:h2r,xSplit:2}];
+  });
+
+  var today=new Date().toISOString().slice(0,10);
+  var buf=await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), '特安缺席匹配_'+today+'.xlsx');
+  if(out) out.insertAdjacentHTML('beforeend','<div class="card" style="margin-top:8px;border:2px solid #166534"><div style="color:#166534;font-weight:700">✅ 已导出 特安缺席匹配_'+today+'.xlsx（读法说明 + 本期主打 + 汇总(含结论) + 9市场逐期）</div></div>');
 }
 // 缺席2D逐期命中账：每期用「该期自己」号码算缺席前2D → 下一期开号的前2D是否落在里面
 function zoAbsentPeriodReport(){
