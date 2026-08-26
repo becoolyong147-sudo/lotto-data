@@ -8268,7 +8268,9 @@ function zoSpMatchCompute(){
           f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
       }
     }
-    res[mk]={rows:rows, latest:latest, stat:stat};
+    var f2hist={};
+    merged.forEach(function(d){ [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); f2hist[s.slice(0,2)]=(f2hist[s.slice(0,2)]||0)+1; } }); });
+    res[mk]={rows:rows, latest:latest, stat:stat, f2hist:f2hist};
   });
   return res;
 }
@@ -8358,6 +8360,34 @@ async function zoSpMatchExport(){
   });
   sm.getColumn(1).width=8; for(var j=2;j<=13;j++) sm.getColumn(j).width=(j%3===1?15:11);
   sm.views=[{state:'frozen',ySplit:4,xSplit:1}];
+
+  // ===== 页4：前2D 主打格子（各市场最新一期）=====
+  var BD={top:{style:'thin',color:{argb:'FFCBD5E1'}},left:{style:'thin',color:{argb:'FFCBD5E1'}},bottom:{style:'thin',color:{argb:'FFCBD5E1'}},right:{style:'thin',color:{argb:'FFCBD5E1'}}};
+  var gd=wb.addWorksheet('④ 前2D格子');
+  gd.getCell('A1').value='④ 前2D 主打格子 · 下一期该盯的前两位（各市场最新一期）'; gd.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
+  gd.getCell('A2').value='行=十位(前2D第1位) 列=个位(第2位)。🟧深黄+数字=目标且历史开过X次；🟨浅黄○=目标但历史从没开过(纯规则链接)；空白=非目标。⚠️历史统计不构成预测。'; gd.getCell('A2').font={name:'Arial',size:10,color:{argb:'FF94A3B8'}};
+  var gr=4;
+  mkts.forEach(function(mk){
+    var L=data[mk].latest, f2h=data[mk].f2hist||{};
+    var tset={}; if(L&&L.f2&&L.f2.tg) L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
+    gd.getCell('A'+gr).value='● '+mk+(L?'（源期 '+L.s+' · 目标'+Object.keys(tset).length+'个）':'（无待开期）'); gd.getCell('A'+gr).font={name:'Arial',bold:true,size:12,color:{argb:'FF1E3A5F'}}; gr++;
+    var hrow=gd.getRow(gr); var cc=hrow.getCell(1); cc.value='十\\个'; cc.fill=HFILL; cc.font=HFONT; cc.alignment={horizontal:'center'}; cc.border=BD;
+    for(var c=0;c<=9;c++){ var hc=hrow.getCell(c+2); hc.value=c; hc.fill=HFILL; hc.font=HFONT; hc.alignment={horizontal:'center'}; hc.border=BD; }
+    gr++;
+    for(var d1=0;d1<=9;d1++){
+      var rw=gd.getRow(gr); var lc=rw.getCell(1); lc.value=d1; lc.fill=HFILL; lc.font=HFONT; lc.alignment={horizontal:'center'}; lc.border=BD;
+      for(var d2=0;d2<=9;d2++){
+        var key=''+d1+d2; var cell=rw.getCell(d2+2); cell.alignment={horizontal:'center'}; cell.border=BD; cell.font={name:'Arial',size:10};
+        if(tset[key]){ var hh=f2h[key]||0;
+          if(hh>0){ cell.value=hh; cell.fill=A('FFF59E0B'); cell.font={name:'Arial',size:10,bold:true,color:{argb:'FFFFFFFF'}}; }
+          else { cell.value='○'; cell.fill=A('FFFEF3C7'); cell.font={name:'Arial',size:11,bold:true,color:{argb:'FFB45309'}}; }
+        }
+      }
+      gr++;
+    }
+    gr++;
+  });
+  gd.getColumn(1).width=7; for(var j=2;j<=11;j++) gd.getColumn(j).width=5;
 
   // ===== 各市场明细 =====
   mkts.forEach(function(mk){
