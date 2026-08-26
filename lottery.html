@@ -8249,10 +8249,12 @@ function zoNextMainShow(){
     // 前2D 迷你格子
     var tset={}; L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
     h+='<div style="font-size:10px;color:#94a3b8;margin:6px 0 3px">前2D格子（行十位·列个位 / 🟧=目标且历史开过·数字=次数 / 🟨○=目标但没开过）</div>';
+    var rowCnt=[0,0,0,0,0,0,0,0,0,0], colCnt=[0,0,0,0,0,0,0,0,0,0];
+    Object.keys(tset).forEach(function(k){ rowCnt[+k[0]]++; colCnt[+k[1]]++; });
     h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:9px">';
     h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">·</th>';
     for(var c=0;c<=9;c++) h+='<th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">'+c+'</th>';
-    h+='</tr>';
+    h+='<th style="border:1px solid #e2e8f0;background:#0f766e;color:#fff;width:20px">行计</th></tr>';
     for(var d1=0;d1<=9;d1++){
       h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff">'+d1+'</th>';
       for(var d2=0;d2<=9;d2++){ var key=''+d1+d2;
@@ -8261,8 +8263,11 @@ function zoNextMainShow(){
           else h+='<td style="border:1px solid #e2e8f0;background:#fef3c7;color:#b45309;font-weight:700;text-align:center">○</td>';
         } else h+='<td style="border:1px solid #f1f5f9"></td>';
       }
-      h+='</tr>';
+      h+='<td style="border:1px solid #e2e8f0;background:'+(rowCnt[d1]?'#ccfbf1':'#f8fafc')+';color:#0f766e;font-weight:700;text-align:center">'+(rowCnt[d1]||'')+'</td></tr>';
     }
+    h+='<tr><th style="border:1px solid #e2e8f0;background:#0f766e;color:#fff">列计</th>';
+    for(var d2b=0;d2b<=9;d2b++) h+='<td style="border:1px solid #e2e8f0;background:'+(colCnt[d2b]?'#ccfbf1':'#f8fafc')+';color:#0f766e;font-weight:700;text-align:center">'+(colCnt[d2b]||'')+'</td>';
+    h+='<td style="border:1px solid #e2e8f0;background:#0f766e;color:#fff;font-weight:700;text-align:center">'+Object.keys(tset).length+'</td></tr>';
     h+='</table></div>';
     // 展开数根拆解
     var did='nmdet-'+mk;
@@ -8441,8 +8446,12 @@ async function zoSpMatchExport(){
     var L=data[mk].latest, f2h=data[mk].f2hist||{};
     var tset={}; if(L&&L.f2&&L.f2.tg) L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
     gd.getCell('A'+gr).value='● '+mk+(L?'（源期 '+L.s+' · 目标'+Object.keys(tset).length+'个）':'（无待开期）'); gd.getCell('A'+gr).font={name:'Arial',bold:true,size:12,color:{argb:'FF1E3A5F'}}; gr++;
+    var rowCnt=[0,0,0,0,0,0,0,0,0,0], colCnt=[0,0,0,0,0,0,0,0,0,0];
+    Object.keys(tset).forEach(function(k){ rowCnt[+k[0]]++; colCnt[+k[1]]++; });
+    var TFILL=A('FF0F766E');
     var hrow=gd.getRow(gr); var cc=hrow.getCell(1); cc.value='十\\个'; cc.fill=HFILL; cc.font=HFONT; cc.alignment={horizontal:'center'}; cc.border=BD;
     for(var c=0;c<=9;c++){ var hc=hrow.getCell(c+2); hc.value=c; hc.fill=HFILL; hc.font=HFONT; hc.alignment={horizontal:'center'}; hc.border=BD; }
+    var rhc=hrow.getCell(12); rhc.value='行计'; rhc.fill=TFILL; rhc.font=HFONT; rhc.alignment={horizontal:'center'}; rhc.border=BD;
     gr++;
     for(var d1=0;d1<=9;d1++){
       var rw=gd.getRow(gr); var lc=rw.getCell(1); lc.value=d1; lc.fill=HFILL; lc.font=HFONT; lc.alignment={horizontal:'center'}; lc.border=BD;
@@ -8453,11 +8462,15 @@ async function zoSpMatchExport(){
           else { cell.value='○'; cell.fill=A('FFFEF3C7'); cell.font={name:'Arial',size:11,bold:true,color:{argb:'FFB45309'}}; }
         }
       }
+      var rc=rw.getCell(12); rc.value=rowCnt[d1]||''; rc.fill=A(rowCnt[d1]?'FFCCFBF1':'FFF8FAFC'); rc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; rc.alignment={horizontal:'center'}; rc.border=BD;
       gr++;
     }
-    gr++;
+    var crow=gd.getRow(gr); var clc=crow.getCell(1); clc.value='列计'; clc.fill=TFILL; clc.font=HFONT; clc.alignment={horizontal:'center'}; clc.border=BD;
+    for(var d2c=0;d2c<=9;d2c++){ var ccc=crow.getCell(d2c+2); ccc.value=colCnt[d2c]||''; ccc.fill=A(colCnt[d2c]?'FFCCFBF1':'FFF8FAFC'); ccc.font={name:'Arial',size:10,bold:true,color:{argb:'FF0F766E'}}; ccc.alignment={horizontal:'center'}; ccc.border=BD; }
+    var tot=crow.getCell(12); tot.value=Object.keys(tset).length; tot.fill=TFILL; tot.font=HFONT; tot.alignment={horizontal:'center'}; tot.border=BD;
+    gr+=2;
   });
-  gd.getColumn(1).width=7; for(var j=2;j<=11;j++) gd.getColumn(j).width=5;
+  gd.getColumn(1).width=7; for(var j=2;j<=11;j++) gd.getColumn(j).width=5; gd.getColumn(12).width=6;
 
   // ===== 各市场明细 =====
   mkts.forEach(function(mk){
