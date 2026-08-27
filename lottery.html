@@ -8031,20 +8031,26 @@ function doBacktest(){
         <label style="display:flex;align-items:center;gap:3px;cursor:pointer"><input type="checkbox" id="abs-pz-cs">安</label>
       </div>
     </div>
-    <div class="ig" style="align-self:flex-end">
-      <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 20px;font-size:14px">🎯 分析</button>
-      <button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
-      <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
-      <button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
-      <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
-      <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
-      <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打(9市场)</button>
-      <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史记录(选市场)</button>
-      <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码(前3D/后3D/4D)</button>
-      <button class="btn" style="background:#166534;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpMatchExport()">📤 特安缺席匹配→Excel(9市场)</button>
-      <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
-      <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
-      <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
+    <div class="ig" style="align-self:flex-end;width:100%">
+      <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:3px">主功能</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
+        <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
+        <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
+        <button class="btn" style="background:#0891b2;color:#fff;padding:9px 14px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码</button>
+        <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
+        <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
+        <button class="btn" style="background:#e2e8f0;color:#475569;padding:9px 12px;font-size:13px" onclick="var e=document.getElementById('abs-adv');e.style.display=(e.style.display==='none'||!e.style.display)?'flex':'none';this.textContent=(e.style.display==='none'?'▾ 进阶分析':'▴ 收起进阶')">▾ 进阶分析</button>
+      </div>
+      <div id="abs-adv" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0">
+        <button class="btn" style="background:#0f766e;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
+        <button class="btn" style="background:#b45309;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
+        <button class="btn" style="background:#9333ea;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
+        <button class="btn" style="background:#1e40af;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→4D</button>
+        <button class="btn" style="background:#be123c;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneBacktest()">🔬 回测融合</button>
+        <button class="btn" style="background:#7c3aed;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
+        <button class="btn" style="background:#0891b2;color:#fff;padding:7px 12px;font-size:12px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
+      </div>
     </div>
   </div>
   <div class="ig" id="abs-manual-wrap" style="width:100%"><label>4D 号码（空格 / 逗号 / 换行分隔，可多个）</label>
@@ -8262,6 +8268,18 @@ function zoSpHistoryShow(){
     h+=row('后2D',r.b2.a2,r.b2.tg.join(' '),hit2(r.b2.tg,2,3,r.nn));
     h+=row('前1D',r.f1.a1+'(最多'+r.f1.most+')',r.f1.set.join(' '),hit1(r.f1.set,0,r.nn));
     h+=row('后1D',r.b1.a1+'(最多'+r.b1.most+')',r.b1.set.join(' '),hit1(r.b1.set,3,r.nn));
+    // 🔗 链接命中：前3D/后3D/完整4D 对照下一期实际
+    var lk=zoLinkCompute(r.f2.tg, r.m2.tg, r.b2.tg);
+    function hitSet(setArr, wa, wb){ if(!r.nn)return '-'; var st={}; setArr.forEach(function(x){st[x]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=r.nn[pi]; if(x&&!res){ var w=(wb==null)?x:x.slice(wa,wb+1); if(st[w]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
+    h+='<div style="font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed #e2e8f0">'+
+       '<span style="display:inline-block;background:#0891b2;color:#fff;border-radius:4px;padding:0 6px;font-weight:700;margin-right:4px">🔗链接</span>'+
+       '前3D('+lk.f3.length+') <b>'+hitSet(lk.f3,0,2)+'</b> · '+
+       '后3D('+lk.b3.length+') <b>'+hitSet(lk.b3,1,3)+'</b> · '+
+       '完整4D('+lk.d4.length+') <b>'+hitSet(lk.d4,0,null)+'</b></div>';
+    if(lk.uF2.length||lk.uM2.length||lk.uB2.length){
+      var un=[]; if(lk.uF2.length)un.push('前2D['+lk.uF2.join(',')+']'); if(lk.uM2.length)un.push('中2D['+lk.uM2.join(',')+']'); if(lk.uB2.length)un.push('后2D['+lk.uB2.join(',')+']');
+      h+='<div style="font-size:10px;color:#dc2626;margin-top:2px">⚠️ 没链接上：'+un.join(' · ')+'</div>';
+    }
     h+='</div>';
   });
   h+='</div>';
@@ -8292,29 +8310,24 @@ function zoNextMainShow(){
     h+=line('后2D','缺数根',L.b2.a2,null,'目标2D',L.b2.tg);
     h+=line('前1D','缺(千位)',L.f1.a1,L.f1.most,'目标',L.f1.set);
     h+=line('后1D','缺(个位)',L.b1.a1,L.b1.most,'目标',L.b1.set);
-    // 前2D 迷你格子
-    var tset={}; L.f2.tg.split(' ').forEach(function(t){ if(t) tset[t]=1; });
-    h+='<div style="font-size:10px;color:#94a3b8;margin:6px 0 3px">前2D格子（行十位·列个位 / 🟧=目标且历史开过·数字=次数 / 🟨○=目标但没开过）</div>';
-    var rowCnt=[0,0,0,0,0,0,0,0,0,0], colCnt=[0,0,0,0,0,0,0,0,0,0];
-    Object.keys(tset).forEach(function(k){ rowCnt[+k[0]]++; colCnt[+k[1]]++; });
-    h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:9px">';
-    h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">·</th>';
-    for(var c=0;c<=9;c++) h+='<th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff;width:16px">'+c+'</th>';
-    h+='<th style="border:1px solid #e2e8f0;background:#0f766e;color:#fff;width:20px">行计</th></tr>';
-    for(var d1=0;d1<=9;d1++){
-      h+='<tr><th style="border:1px solid #e2e8f0;background:#1e3a5f;color:#fff">'+d1+'</th>';
-      for(var d2=0;d2<=9;d2++){ var key=''+d1+d2;
-        if(tset[key]){ var hh=f2h[key]||0;
-          if(hh>0) h+='<td style="border:1px solid #e2e8f0;background:#f59e0b;color:#fff;font-weight:700;text-align:center">'+hh+'</td>';
-          else h+='<td style="border:1px solid #e2e8f0;background:#fef3c7;color:#b45309;font-weight:700;text-align:center">○</td>';
-        } else h+='<td style="border:1px solid #f1f5f9"></td>';
-      }
-      h+='<td style="border:1px solid #e2e8f0;background:'+(rowCnt[d1]?'#ccfbf1':'#f8fafc')+';color:#0f766e;font-weight:700;text-align:center">'+(rowCnt[d1]||'')+'</td></tr>';
-    }
-    h+='<tr><th style="border:1px solid #e2e8f0;background:#0f766e;color:#fff">列计</th>';
-    for(var d2b=0;d2b<=9;d2b++) h+='<td style="border:1px solid #e2e8f0;background:'+(colCnt[d2b]?'#ccfbf1':'#f8fafc')+';color:#0f766e;font-weight:700;text-align:center">'+(colCnt[d2b]||'')+'</td>';
-    h+='<td style="border:1px solid #e2e8f0;background:#0f766e;color:#fff;font-weight:700;text-align:center">'+Object.keys(tset).length+'</td></tr>';
-    h+='</table></div>';
+    // 🔗 链接（前3D/后3D/4D + 没链接上的2D）
+    var lk=zoLinkCompute(L.f2.tg.split(' ').filter(Boolean), L.m2.tg.split(' ').filter(Boolean), L.b2.tg.split(' ').filter(Boolean));
+    var H4=zoNum4Hist(mk);
+    var d4r=lk.d4.map(function(n){return {n:n,c:H4.cnt[n]||0};}).sort(function(a,b){return b.c-a.c||a.n.localeCompare(b.n);});
+    var d4open=d4r.filter(function(x){return x.c>0;});
+    h+='<div style="margin-top:6px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:6px;padding:6px 8px">';
+    h+='<div style="font-size:11px;font-weight:700;color:#0891b2">🔗 链接：前3D <b>'+lk.f3.length+'</b> · 后3D <b>'+lk.b3.length+'</b> · 完整4D <b>'+lk.d4.length+'</b>（历史开过 '+d4open.length+'）</div>';
+    var un=[]; if(lk.uF2.length) un.push('前2D['+lk.uF2.join(',')+']'); if(lk.uM2.length) un.push('中2D['+lk.uM2.join(',')+']'); if(lk.uB2.length) un.push('后2D['+lk.uB2.join(',')+']');
+    h+='<div style="font-size:10px;color:'+(un.length?'#dc2626':'#16a34a')+';margin-top:2px">'+(un.length?'⚠️ 没链接上：'+un.join(' · '):'✅ 全部2D都能接上')+'</div>';
+    var lid='nmlink-'+mk;
+    h+='<div style="margin-top:3px"><span onclick="zoNextMainToggle(\''+lid+'\')" style="cursor:pointer;color:#0891b2;font-size:11px;font-weight:700">▾ 展开链接号码</span></div>';
+    h+='<div id="'+lid+'" style="display:none;margin-top:3px;font-size:10px;line-height:1.8">';
+    h+='<div><b style="color:#f59e0b">前3D('+lk.f3.length+')：</b><span style="font-family:monospace">'+(lk.f3.join(' ')||'无')+'</span></div>';
+    h+='<div><b style="color:#6366f1">后3D('+lk.b3.length+')：</b><span style="font-family:monospace">'+(lk.b3.join(' ')||'无')+'</span></div>';
+    h+='<div><b style="color:#0891b2">完整4D('+lk.d4.length+')：</b>';
+    d4r.forEach(function(x){ if(x.c>0) h+='<span title="开过'+x.c+'次" style="font-family:monospace;background:#0891b2;color:#fff;border-radius:4px;padding:0 4px;margin:1px;font-weight:700">'+x.n+'·'+x.c+'</span>'; else h+='<span style="font-family:monospace;background:#f1f5f9;color:#94a3b8;border-radius:4px;padding:0 4px;margin:1px">'+x.n+'○</span>'; });
+    h+='</div></div>';
+    h+='</div>';
     // 展开数根拆解
     var did='nmdet-'+mk;
     h+='<div style="margin-top:6px"><span onclick="zoNextMainToggle(\''+did+'\')" style="cursor:pointer;color:#2563eb;font-size:11px;font-weight:700">▾ 展开数根拆解</span></div>';
@@ -8341,6 +8354,25 @@ function zoNextMainShow(){
   h+='</div></div>';
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 共用：某市场每个完整4D 历史开出次数 + 最近日期
+function zoNum4Hist(mk){
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={}, cnt={}, last={};
+  function add(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)){ cnt[s]=(cnt[s]||0)+1; if(!last[s]||d.date>last[s]) last[s]=d.date; } } }); }
+  (newData[mk]||[]).forEach(add); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(add);
+  return {cnt:cnt,last:last};
+}
+// 共用：从 前/中/后2D 目标数组算 链接结果 + 哪些2D没接上
+function zoLinkCompute(f2,m2,b2){
+  var f3={},b3={},d4={};
+  f2.forEach(function(a){ m2.forEach(function(b){ if(a[1]===b[0]) f3[a+b[1]]=1; }); });
+  m2.forEach(function(a){ b2.forEach(function(b){ if(a[1]===b[0]) b3[a+b[1]]=1; }); });
+  f2.forEach(function(a){ m2.forEach(function(b){ if(a[1]!==b[0])return; b2.forEach(function(c){ if(b[1]===c[0]) d4[a+b[1]+c[1]]=1; }); }); });
+  var uF2=f2.filter(function(a){ return !m2.some(function(b){return a[1]===b[0];}); });
+  var uB2=b2.filter(function(c){ return !m2.some(function(b){return b[1]===c[0];}); });
+  var uM2=m2.filter(function(b){ var l=f2.some(function(a){return a[1]===b[0];}), rgt=b2.some(function(c){return b[1]===c[0];}); return !(l&&rgt); });
+  return {f3:Object.keys(f3).sort(), b3:Object.keys(b3).sort(), d4:Object.keys(d4).sort(), uF2:uF2, uM2:uM2, uB2:uB2};
 }
 // 🔗 链接号码：把 前2D+中2D→前3D、中2D+后2D→后3D、三段全接→4D（共用中间位）
 function zoLinkShow(){
