@@ -8039,6 +8039,7 @@ function doBacktest(){
       <button class="btn" style="background:#1e40af;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→完整4D</button>
       <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
       <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打(9市场)</button>
+      <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史记录(选市场)</button>
       <button class="btn" style="background:#166534;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpMatchExport()">📤 特安缺席匹配→Excel(9市场)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
@@ -8223,6 +8224,49 @@ function zoAbsentEnumAll(){
 }
 // 🎯 下一期主打：屏上直显 9 市场「下一期 缺席+目标」，可展开数根拆解
 function zoNMdr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+// 📜 查回历史记录（单市场）：逐期列出主打 + 是否命中（含完整目标号）
+function zoSpHistoryShow(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var dr=zoNMdr, pad=function(n){return String(n).padStart(4,'0');};
+  function an2(g,wa,wb){ var rt={},fs={}; g.forEach(function(n){ rt[dr((+n[wa])+(+n[wb]))]=1; fs[n[wa]]=(fs[n[wa]]||0)+1; }); var a2=[],a1=[]; for(var r=1;r<=9;r++) if(!rt[r])a2.push(r); for(var d=0;d<=9;d++) if(!fs[''+d])a1.push(''+d); var mo=null,mc=-1; Object.keys(fs).forEach(function(k){if(fs[k]>mc){mc=fs[k];mo=k;}}); var t1=a1.concat(mo!=null?[mo]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){if(a2.indexOf(dr((+d1)+d2))>=0)ts[''+d1+d2]=1;}}); return {a2:a2.join(','),tg:Object.keys(ts).sort()}; }
+  function an1(g,pos){ var fs={}; g.forEach(function(n){ fs[n[pos]]=(fs[n[pos]]||0)+1; }); var a1=[]; for(var d=0;d<=9;d++) if(!fs[''+d])a1.push(''+d); var mo=null,mc=-1; Object.keys(fs).forEach(function(k){if(fs[k]>mc){mc=fs[k];mo=k;}}); return {a1:a1.join(','),most:mo,set:a1.concat(mo!=null?[mo]:[])}; }
+  var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
+  (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+  merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var recs=[];
+  for(var i=0;i<merged.length;i++){
+    var d=merged[i]; if(!(d.sp&&d.sp.length)) continue;
+    var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3) continue;
+    var next=(i+1<merged.length)?merged[i+1]:null;
+    var nn=next?[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad):null;
+    recs.push({src:d.date, nextDate:next?next.date:'(待开)', nn:nn,
+      f2:an2(g,0,1), m2:an2(g,1,2), b2:an2(g,2,3), f1:an1(g,0), b1:an1(g,3)});
+  }
+  if(!recs.length){ out.innerHTML='<div class="warn">'+mk+' 没有含特别奖的期数,无法查回。</div>'; return; }
+  var COL={'前2D':'#f59e0b','中2D':'#3b82f6','后2D':'#6366f1','前1D':'#16a34a','后1D':'#db2777'};
+  function hit2(tg,wa,wb,nn){ if(!nn)return null; var ts={}; tg.forEach(function(t){ts[t]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x&&!res){ var w=x.slice(wa,wb+1); if(ts[w]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
+  function hit1(set,pos,nn){ if(!nn)return null; var st={}; set.forEach(function(x){st[x]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x&&!res){ if(st[x[pos]]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
+  var h='<div class="card" style="border:2px solid #7c3aed">';
+  h+='<h3 style="color:#7c3aed">📜 '+mk+' · 主打历史记录（'+recs.length+' 期 · 新→旧）</h3>';
+  h+='<div class="warn">每期：用该期特别奖算的目标 → 下一期头二三是否命中。✅=中(标奖项+号)，❌=没中。⚠️ 历史统计，不构成预测。</div>';
+  recs.slice().reverse().forEach(function(r){
+    var open=r.nn?('下期 '+r.nextDate+' 开 '+r.nn.join('/')):('下期'+r.nextDate);
+    h+='<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-top:6px">';
+    h+='<div style="font-size:12px;font-weight:800;color:#1e3a5f">📅 源期 '+r.src+' <span style="font-weight:400;color:#94a3b8">→ '+open+'</span></div>';
+    function row(nm,a,tg,hh){ return '<div style="font-size:11px;margin-top:3px"><span style="display:inline-block;background:'+COL[nm]+';color:#fff;border-radius:4px;padding:0 6px;font-weight:700;margin-right:4px">'+nm+'</span>缺 <b>'+a+'</b> · 目标 '+tg+' · <b>'+(hh||'-')+'</b></div>'; }
+    h+=row('前2D',r.f2.a2,r.f2.tg.join(' '),hit2(r.f2.tg,0,1,r.nn));
+    h+=row('中2D',r.m2.a2,r.m2.tg.join(' '),hit2(r.m2.tg,1,2,r.nn));
+    h+=row('后2D',r.b2.a2,r.b2.tg.join(' '),hit2(r.b2.tg,2,3,r.nn));
+    h+=row('前1D',r.f1.a1+'(最多'+r.f1.most+')',r.f1.set.join(' '),hit1(r.f1.set,0,r.nn));
+    h+=row('后1D',r.b1.a1+'(最多'+r.b1.most+')',r.b1.set.join(' '),hit1(r.b1.set,3,r.nn));
+    h+='</div>';
+  });
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
 function zoNextMainShow(){
   var out=document.getElementById('abs-out'); if(!out) return;
