@@ -8887,6 +8887,7 @@ function zoAbsentZoneReview(){
   h+='<div class="warn">每期point-in-time推荐的4D → 下期实际开号。<b>正字</b>=原号对上；<b>box</b>=调字对上。累计：正字命中 <b>'+exN+'</b> 期 · box命中 <b>'+boxN+'</b> 期（box含正字）。⚠️历史统计不构成预测。</div>';
   h+='<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:7px;padding:8px 10px;margin-bottom:6px;font-size:13px">';
   h+='💰 <b>全部买 box 一共 '+totBox+' 打</b>（'+recs.length+'期合计,同组数字排列只算1打）· 平均每期 '+Math.round(totBox/recs.length)+' 打<br>';
+  h+='<span style="font-size:12px;color:#dc2626;font-weight:700">💵 若 1块/打：总下注 '+totBox+' 元（平均每期 '+Math.round(totBox/recs.length)+' 元）· box中 '+boxN+'/'+recs.length+' 期</span><br>';
   h+='<span style="font-size:11px;color:#0f766e">打数类型：24打 '+tType[24]+' · 12打 '+tType[12]+' · 6打 '+tType[6]+' · 4打 '+tType[4]+(tType[1]?' · 1打 '+tType[1]:'')+'（24打=4位全不同,依此类推）</span></div>';
   recs.forEach(function(r,idx){
     var hit = r.exact.length?('<span style="color:#16a34a;font-weight:700">✅正字 '+r.exact.join('/')+'</span>') : (r.box.length?('<span style="color:#0891b2;font-weight:700">✅box '+r.box.join('/')+'</span>') : '<span style="color:#dc2626">❌未中</span>');
