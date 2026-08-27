@@ -8040,6 +8040,7 @@ function doBacktest(){
       <button class="btn" style="background:#be123c;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentZoneBacktest()">🔬 回测融合(命中机率)</button>
       <button class="btn" style="background:#b45309;color:#fff;padding:9px 16px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打(9市场)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史记录(选市场)</button>
+      <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码(前3D/后3D/4D)</button>
       <button class="btn" style="background:#166534;color:#fff;padding:9px 16px;font-size:14px" onclick="zoSpMatchExport()">📤 特安缺席匹配→Excel(9市场)</button>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px;font-size:14px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
       <button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px;font-size:14px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
@@ -8335,6 +8336,44 @@ function zoNextMainShow(){
     h+=brk1('前1D',0);
     h+=brk1('后1D',3);
     h+='</div>';
+    h+='</div>';
+  });
+  h+='</div></div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🔗 链接号码：把 前2D+中2D→前3D、中2D+后2D→后3D、三段全接→4D（共用中间位）
+function zoLinkShow(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var data=zoSpMatchCompute();
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  function arr(s){ return (s||'').split(' ').filter(Boolean); }
+  var h='<div class="card" style="border:2px solid #0891b2">';
+  h+='<h3 style="color:#0891b2">🔗 链接号码 · 目标2D 接成 前3D / 后3D / 完整4D（各市场最新一期）</h3>';
+  h+='<div class="warn">规则：两段2D<b>共用中间那一位</b>就能接。例 前2D <b>25</b> + 中2D <b>58</b>（都含5）→ 前3D <b>258</b>；再接后2D→完整4D。⚠️ 历史统计，不构成预测。</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:10px;margin-top:8px">';
+  mkts.forEach(function(mk){
+    var L=data[mk].latest;
+    h+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#fff">';
+    h+='<div style="font-size:15px;font-weight:800;color:#1e3a5f;margin-bottom:5px">● '+mk+(L?' <span style="font-size:11px;font-weight:400;color:#94a3b8">源期 '+L.s+'</span>':'')+'</div>';
+    if(!L){ h+='<div style="color:#94a3b8;font-size:12px">无待开期</div></div>'; return; }
+    var f2=arr(L.f2.tg), m2=arr(L.m2.tg), b2=arr(L.b2.tg);
+    // 前3D = 前2D + 中2D（前2D第2位 == 中2D第1位）
+    var f3={}, b3={}, d4={};
+    f2.forEach(function(a){ m2.forEach(function(b){ if(a[1]===b[0]) f3[a+b[1]]=1; }); });
+    m2.forEach(function(a){ b2.forEach(function(b){ if(a[1]===b[0]) b3[a+b[1]]=1; }); });
+    f2.forEach(function(a){ m2.forEach(function(b){ if(a[1]!==b[0])return; b2.forEach(function(c){ if(b[1]===c[0]) d4[a+b[1]+c[1]]=1; }); }); });
+    var f3a=Object.keys(f3).sort(), b3a=Object.keys(b3).sort(), d4a=Object.keys(d4).sort();
+    function sec(title,color,list,cap){
+      var show=cap&&list.length>cap?list.slice(0,cap):list;
+      var s='<div style="margin-top:6px"><div style="font-size:11px;font-weight:700;color:'+color+'">'+title+'（'+list.length+'个）</div>';
+      s+='<div style="font-family:monospace;font-size:12px;color:#334155;line-height:1.8;word-break:break-all">'+(list.length?show.join(' ')+(list.length>show.length?' …':''):'<span style="color:#cbd5e1">无可接</span>')+'</div>';
+      if(list.length){ s+='<button class="btn" style="padding:2px 8px;font-size:10px;margin-top:2px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+list.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制\',1200)})">📋复制</button>'; }
+      return s+'</div>';
+    }
+    h+=sec('🔵 前3D（前2D+中2D）','#f59e0b',f3a,60);
+    h+=sec('🟣 后3D（中2D+后2D）','#6366f1',b3a,60);
+    h+=sec('🎯 完整4D（三段全接）','#0891b2',d4a,80);
     h+='</div>';
   });
   h+='</div></div>';
