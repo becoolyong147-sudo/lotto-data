@@ -7750,6 +7750,7 @@ function doBacktest(){
       <select id="zo-memhit-style"><option value="A">📊 复盘数据卡风</option><option value="B">🎉 庆祝战报风(内部)</option></select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-png" onclick="zoMemHitPNG()">📊 命中回顾图</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff" id="zo-monthscore" onclick="zoMonthScorePNG()">🏆 月尾成绩单</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-vid" onclick="zoMemHitVideo()">🎬 命中回顾视频</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-memhit-copy" onclick="zoMemHitCopy()">📋 复制命中说明</button></div>
     <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
@@ -15646,6 +15647,89 @@ function zoDrawPublicReview(ctx, HIT, lang){
   ctx.fillStyle='#fbbf24'; ctx.font='700 20px '+ZO_FONT; ctx.fillText(S.footer1, W/2, H-106);
   ctx.fillStyle='#94a3b8'; ctx.font='600 16px '+ZO_FONT; ctx.fillText(S.footer2, W/2, H-68);
   ctx.fillStyle='#64748b'; ctx.font='600 13px '+ZO_FONT; ctx.fillText('Historical Data Review · 历史数据复盘', W/2, H-40);
+}
+// 🏆 月尾成绩单：整月推荐 vs 实际开奖，命中金榜(含调字)，暗夜金榜风
+function zoDrawMonthScore(ctx, D, W, H){
+  var pad=56;
+  // 纯暗夜底（无龙）
+  var bg=ctx.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#070510'); bg.addColorStop(.5,'#0d1030'); bg.addColorStop(1,'#05060f');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  // 微星点
+  ctx.save();
+  [[.06,.05,'#fde047',3],[.5,.03,'#a5b4fc',2],[.93,.06,'#fde047',3],[.04,.4,'#c7d2fe',2],[.97,.35,'#fde047',2],[.05,.7,'#a5b4fc',2],[.95,.65,'#c7d2fe',2],[.08,.95,'#fde047',2],[.9,.93,'#a5b4fc',2]].forEach(function(s){ ctx.fillStyle=s[2]; ctx.globalAlpha=.5; ctx.beginPath(); ctx.arc(s[0]*W,s[1]*H,s[3],0,Math.PI*2); ctx.fill(); });
+  ctx.restore();
+  zoRR(ctx,6,6,W-12,H-12,20); ctx.strokeStyle='rgba(245,158,11,0.55)'; ctx.lineWidth=3; ctx.stroke();
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  var tg=ctx.createLinearGradient(W/2-260,0,W/2+260,0); tg.addColorStop(0,'#f59e0b');tg.addColorStop(.5,'#fde047');tg.addColorStop(1,'#f59e0b');
+  ctx.fillStyle=tg; ctx.font='900 44px '+ZO_FONT; ctx.fillText('WIN 4D WITH M3', W/2, 66);
+  ctx.fillStyle='#fde047'; ctx.font='900 32px '+ZO_FONT; ctx.fillText('🏆 '+D.month+'月 命中成绩单 · '+D.market, W/2, 114);
+  ctx.fillStyle='#93c5fd'; ctx.font='600 18px '+ZO_FONT; ctx.fillText('真实数据 · 可验证 · 月尾复盘   '+D.year+'年', W/2, 146);
+  // 三个大数字
+  var sy=176, sh=94, sw=(W-2*pad-24)/3;
+  var rate = D.recCount? Math.round(D.total/D.recCount*100):0;
+  function stat(x, lbl, val, col){
+    zoRR(ctx,x,sy,sw,sh,12); ctx.fillStyle='rgba(30,27,75,0.6)'; ctx.fill(); ctx.strokeStyle=col+'66'; ctx.lineWidth=2; ctx.stroke();
+    ctx.textAlign='center'; ctx.fillStyle=col; ctx.font='900 40px '+ZO_MONO; ctx.fillText(String(val), x+sw/2, sy+40);
+    ctx.fillStyle='#cbd5e1'; ctx.font='700 17px '+ZO_FONT; ctx.fillText(lbl, x+sw/2, sy+72);
+  }
+  stat(pad, '推荐号', D.recCount, '#a5b4fc');
+  stat(pad+sw+12, '命中号', D.total, '#fde047');
+  stat(pad+2*(sw+12), '中奖率', rate+'%', '#f87171');
+  // 金榜标题
+  var y=sy+sh+34;
+  ctx.textAlign='left'; ctx.fillStyle='#fbbf24'; ctx.font='900 24px '+ZO_FONT;
+  ctx.fillText('🥇 命中金榜（头奖优先 · 含调字）', pad, y); y+=32;
+  var PC=['#f87171','#fbbf24','#c4b5fd'], PN=['① 头奖','② 二奖','③ 三奖'];
+  if(!D.hits.length){
+    zoRR(ctx,pad,y,W-2*pad,70,12); ctx.fillStyle='rgba(30,27,75,0.5)'; ctx.fill();
+    ctx.textAlign='center'; ctx.fillStyle='#94a3b8'; ctx.font='700 20px '+ZO_FONT; ctx.fillText('本月暂无命中记录', W/2, y+37); y+=90;
+  } else {
+    D.hits.forEach(function(o){
+      var col=PC[o.prizeIdx]||'#c4b5fd';
+      zoRR(ctx,pad,y,W-2*pad,82,12); ctx.fillStyle='rgba(30,27,75,0.55)'; ctx.fill(); ctx.strokeStyle=col+'55'; ctx.lineWidth=1.5; ctx.stroke();
+      try{ if(typeof zoDrawAnimal==='function') zoDrawAnimal(ctx, o.zi, pad+40, y+41, 52, (typeof ZO_SPRITE_IMG!=='undefined'?ZO_SPRITE_IMG:null)); }catch(e){}
+      ctx.textAlign='left'; ctx.textBaseline='middle';
+      ctx.fillStyle='#e2e8f0'; ctx.font='700 14px '+ZO_FONT; ctx.fillText('预投', pad+82, y+22);
+      ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_MONO; ctx.fillText(o.recNum, pad+120, y+24);
+      ctx.fillStyle='#94a3b8'; ctx.font='900 24px '+ZO_FONT; ctx.fillText('→', pad+238, y+24);
+      ctx.fillStyle='#e2e8f0'; ctx.font='700 14px '+ZO_FONT; ctx.fillText('官方', pad+278, y+22);
+      ctx.fillStyle='#fca5a5'; ctx.font='900 30px '+ZO_MONO; ctx.fillText(o.num, pad+316, y+24);
+      // prize badge
+      zoRR(ctx, pad+120, y+46, 92, 24, 6); ctx.fillStyle=col; ctx.fill();
+      ctx.fillStyle='#1a1030'; ctx.font='800 15px '+ZO_FONT; ctx.textAlign='center'; ctx.fillText(PN[o.prizeIdx]||'奖', pad+120+46, y+58);
+      ctx.textAlign='right'; ctx.fillStyle='#cbd5e1'; ctx.font='600 16px '+ZO_FONT;
+      ctx.fillText((o.date||'').slice(5)+' · '+(o.twisted?'调字命中':'原号命中'), W-pad-16, y+41);
+      ctx.textAlign='left';
+      y+=90;
+    });
+  }
+  // 底部
+  y+=6;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillStyle='#fbbf24'; ctx.font='700 19px '+ZO_FONT; ctx.fillText('✔ 号码公开可核对 · 月尾统一复盘', W/2, y+18);
+  ctx.fillStyle='#94a3b8'; ctx.font='600 15px '+ZO_FONT; ctx.fillText('⚠️ 历史统计整理，不构成预测 · 理性娱乐', W/2, y+46);
+  ctx.fillStyle='#64748b'; ctx.font='600 13px '+ZO_FONT; ctx.fillText('会员专享内容，请勿外传 🙏', W/2, y+72);
+}
+async function zoMonthScorePNG(){
+  var market=(document.getElementById('zo-market')||{}).value||'万能';
+  if(typeof zoMemberGen==='function'){ try{ zoMemberGen(market, false); }catch(e){} }
+  if(typeof ZO_MEM==='undefined' || !ZO_MEM){ alert('请先切到「会员数据报告」模式并生成名单（公开模式下不生成推荐号）。'); return; }
+  var HIT = (typeof zoMemHitExtract==='function') ? zoMemHitExtract({type:'month'}) : null;
+  var recNums={}; if(ZO_MEM.star&&ZO_MEM.star.num) recNums[ZO_MEM.star.num]=1;
+  (ZO_MEM.selDa||[]).forEach(function(da){ (ZO_MEM.groups[da]||[]).forEach(function(c){ if(c&&c.num) recNums[c.num]=1; }); });
+  var recCount=Object.keys(recNums).length;
+  var hits = (HIT && !HIT.none) ? [HIT.hero].concat(HIT.others||[]) : [];
+  hits.sort(function(a,b){ return a.prizeIdx-b.prizeIdx || (a.twisted?1:0)-(b.twisted?1:0); });
+  if(typeof zoLoadAnimalSprite==='function'){ try{ await zoLoadAnimalSprite(); }catch(e){} }
+  var D={market:market, year:ZO_MEM.refYear, month:ZO_MEM.month, recCount:recCount, total:(HIT&&!HIT.none)?HIT.total:0, hits:hits};
+  var SC=2, W=1080, H=176+94+66+Math.max(hits.length,1)*90+120;
+  var cv=document.createElement('canvas'); cv.width=W*SC; cv.height=H*SC; var ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  zoDrawMonthScore(ctx, D, W, H);
+  cv.toBlob(function(b){
+    var mkA=((typeof ZO_MKT_EN!=='undefined'&&ZO_MKT_EN[market])||market).replace(/\s+/g,'');
+    if(typeof saveAs==='function') saveAs(b, 'scorecard_'+D.year+'-'+String(D.month).padStart(2,'0')+'_'+mkA+'.png');
+    var btn=document.getElementById('zo-monthscore'); if(btn){ btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent='🏆 月尾成绩单';},1500); }
+  });
 }
 // 公开话术 / 图片共用的可见文字集合（供违禁词校验）
 function zoPublicAllText(HIT, lang){
