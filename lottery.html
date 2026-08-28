@@ -9205,6 +9205,7 @@ function zo2DRootBacktest(){
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doNumSort()">🔍 排列</button>
       <button class="btn" style="background:#0d9488;color:#fff" onclick="nsNextStep()">🔧 缺席组合(下一步)</button>
+      <button class="btn" style="background:#be123c;color:#fff" onclick="nsAbsentReview()">📊 缺席回查(9市场)</button>
     </div>
   </div>
   <div id="ns-manual-area" style="display:none;margin-top:10px">
@@ -20761,6 +20762,68 @@ window.doNumSort = function(){
   out.innerHTML = nsRenderSingle(info.records, info.dateLabel, info.warn);
 };
 
+// 📊 缺席回查：逐期用头二三算缺席组合 → 看下一期有没有出现（9市场汇总）
+window.nsAbsentReview = function(){
+  var out=document.getElementById('ns-out');
+  function droot(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+  function rankSort(a){ return a.slice().sort(function(x,y){return SRT_RANK[x]-SRT_RANK[y];}); }
+  function compute(nums){
+    var groups={}; nums.forEach(function(s){ (groups[s[0]]=groups[s[0]]||[]).push(s); });
+    var af2={}, mf={}, sp={}, arByG={};
+    Object.keys(groups).forEach(function(K){
+      var g=groups[K], secs={}; g.forEach(function(s){secs[s[1]]=1;});
+      var ranks=Object.keys(secs).map(function(d){return SRT_RANK[d];}), localAf2={};
+      if(ranks.length){ var mn=Math.min.apply(null,ranks),mx=Math.max.apply(null,ranks); for(var rk=mn+1;rk<mx;rk++){ var dig=SRT_ORDER[rk]; if(!secs[dig]){ af2[K+dig]=1; localAf2[K+dig]=1; } } }
+      var midR={}; g.forEach(function(s){ midR[droot((+s[1])+(+s[2]))]=1; });
+      var ar=[]; for(var R=1;R<=9;R++) if(!midR[R]) ar.push(R); arByG[K]=ar;
+      var freq={}; g.forEach(function(s){ s.split('').forEach(function(d){ if(d!==K)freq[d]=(freq[d]||0)+1; }); });
+      var allD=['1','2','3','4','5','6','7','8','9','0'].filter(function(d){return d!==K;});
+      var posc=allD.map(function(d){return freq[d]||0;}).filter(function(c){return c>0;});
+      var minC=posc.length?Math.min.apply(null,posc):0;
+      var keys=allD.filter(function(d){return minC&&freq[d]===minC;});
+      ar.forEach(function(R){ keys.forEach(function(d){ for(var p=0;p<=9;p++){ if(droot((+d)+p)===R){ var s3=rankSort([K,d,''+p]).join(''); if(localAf2[s3.slice(0,2)]) mf[s3]=1; else sp[s3]=1; } } }); });
+    });
+    return {af2:af2, mf:mf, sp:sp, arByG:arByG};
+  }
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'], N=50;
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var rows=[];
+  mkts.forEach(function(mk){
+    var seen={}, merged=[];
+    (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
+    merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+    var seq=merged.map(function(r){ var arr=[]; [0,1,2].forEach(function(pi){ var n=r.nums&&r.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)) arr.push(srtSort(s)); } }); return arr; }).filter(function(a){return a.length;});
+    if(seq.length<2){ rows.push({mk:mk,none:true}); return; }
+    var start=Math.max(0,seq.length-1-N), tot=0,hF2=0,hMF=0,hSP=0,hAR=0;
+    for(var k=start;k<seq.length-1;k++){
+      var C=compute(seq[k]), next=seq[k+1]; tot++;
+      if(next.some(function(s){return C.af2[s.slice(0,2)];})) hF2++;
+      if(next.some(function(s){return C.mf[s.slice(0,3)];})) hMF++;
+      if(next.some(function(s){return C.sp[s.slice(0,3)];})) hSP++;
+      if(next.some(function(s){ var ar=C.arByG[s[0]]||[]; return ar.indexOf(droot((+s[1])+(+s[2])))>=0; })) hAR++;
+    }
+    rows.push({mk:mk,tot:tot,f2:hF2,mf:hMF,sp:hSP,ar:hAR});
+  });
+  var cats=[['f2','缺席前2D'],['mf','主填3D'],['sp','特别组合3D'],['ar','中2D数根缺席']];
+  var h='<div class="card" style="border:2px solid #be123c">';
+  h+='<h3 style="color:#be123c">📊 缺席回查 · 9市场（近'+N+'期 · 逐期算缺席→看下一期是否出现）</h3>';
+  h+='<div class="warn">逐期用头二三算出缺席组合,再看<b>下一期头二三</b>有没有出现:缺席前2D(排序前2位) / 主填·特别组合(排序前3位) / 中2D数根缺席。命中率高多是因为覆盖面大(尤其前2D和数根),看看就好。⚠️ 历史统计,不构成预测。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr><th style="text-align:left;padding:5px 8px;background:#1e3a5f;color:#fff">市场</th>';
+  cats.forEach(function(c){ h+='<th style="padding:5px 8px;background:#1e3a5f;color:#fff">'+c[1]+'</th>'; });
+  h+='</tr>';
+  rows.forEach(function(r){
+    if(r.none){ h+='<tr><td style="padding:5px 8px;font-weight:700">'+r.mk+'</td><td colspan="4" style="padding:5px 8px;color:#94a3b8">数据不足</td></tr>'; return; }
+    h+='<tr><td style="padding:5px 8px;font-weight:800;color:#1e3a5f;border-bottom:1px solid #f1f5f9">'+r.mk+'</td>';
+    cats.forEach(function(c){ var v=r[c[0]], pct=Math.round(v/r.tot*100); h+='<td style="padding:5px 8px;text-align:center;border-bottom:1px solid #f1f5f9">'+v+'/'+r.tot+'<br><span style="font-size:11px;color:'+(pct>=70?'#16a34a':pct>=40?'#64748b':'#dc2626')+';font-weight:700">'+pct+'%</span></td>'; });
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">📌 "出现"=下一期头二三里,排序后有号码对上该缺席项。前2D/数根覆盖广→命中率天生高;主填/特别组合是具体3D→较难出现。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+};
 // 🔧 缺席组合 · 下一步：每组(排除组头) → 缺席前2D/缺席数根/最多最少1D → 关键1D配数根成2D → 主填+特别组合
 window.nsNextStep = function(){
   var out = document.getElementById('ns-out');
