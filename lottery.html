@@ -9204,6 +9204,7 @@ function zo2DRootBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end">
       <button class="btn btn-green" onclick="doNumSort()">🔍 排列</button>
+      <button class="btn" style="background:#0d9488;color:#fff" onclick="nsNextStep()">🔧 缺席组合(下一步)</button>
     </div>
   </div>
   <div id="ns-manual-area" style="display:none;margin-top:10px">
@@ -20758,6 +20759,62 @@ window.doNumSort = function(){
   var info = source==='manual' ? collectManual('ns') : collectSingle('ns');
   if(!info.records.length){ out.innerHTML='<div class="warn">'+(info.warn||'请输入至少一个4位号码')+'</div>'; return; }
   out.innerHTML = nsRenderSingle(info.records, info.dateLabel, info.warn);
+};
+
+// 🔧 缺席组合 · 下一步：每组(排除组头) → 缺席前2D/缺席数根/最多最少1D → 关键1D配数根成2D → 主填+特别组合
+window.nsNextStep = function(){
+  var out = document.getElementById('ns-out');
+  var source = document.getElementById('ns-source').value;
+  var raws=[];
+  if(source==='multi'){ var data=collectMulti('ns'); (data.periods||[]).forEach(function(p){ (p.records||[]).forEach(function(r){ raws.push(r.raw); }); }); }
+  else { var info=source==='manual'?collectManual('ns'):collectSingle('ns'); (info.records||[]).forEach(function(r){ raws.push(r.raw); }); }
+  raws=raws.map(function(x){return String(x).padStart(4,'0');}).filter(function(s){return /^\d{4}$/.test(s);});
+  if(!raws.length){ out.innerHTML='<div class="warn">请先选好来源(或手动输入号码),再点「缺席组合」。</div>'; return; }
+  function droot(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+  function rankSort(digs){ return digs.slice().sort(function(a,b){return SRT_RANK[a]-SRT_RANK[b];}); }
+  var groups={};
+  raws.forEach(function(raw){ var s=srtSort(raw); (groups[s[0]]=groups[s[0]]||[]).push(s); });
+  var gkeys=Object.keys(groups).sort(function(a,b){return SRT_RANK[a]-SRT_RANK[b];});
+  var h='<div class="card" style="border:2px solid #0d9488">';
+  h+='<h3 style="color:#0d9488">🔧 缺席组合 · 下一步计算（按组）</h3>';
+  h+='<div class="warn">每组<b>排除组头数字</b>后：① 缺席前2D(中间空档) ② 中2D数根缺席 ③ 1D最多/最少 → 用<b>关键1D(最少)</b>配缺席数根成2D → <b>主填</b>缺席前2D(升序合法) + <b>特别组合</b>(排序去重)。⚠️ 历史统计，不构成预测。</div>';
+  gkeys.forEach(function(K){
+    var nums=groups[K];
+    var secs={}; nums.forEach(function(s){ secs[s[1]]=1; });
+    var ranks=Object.keys(secs).map(function(d){return SRT_RANK[d];});
+    var minR=Math.min.apply(null,ranks), maxR=Math.max.apply(null,ranks);
+    var absFront2=[]; for(var rk=minR+1; rk<maxR; rk++){ var dig=SRT_ORDER[rk]; if(!secs[dig]) absFront2.push(K+dig); }
+    var midR={}; nums.forEach(function(s){ midR[droot((+s[1])+(+s[2]))]=1; });
+    var absRoots=[]; for(var R=1;R<=9;R++) if(!midR[R]) absRoots.push(R);
+    var freq={}; nums.forEach(function(s){ s.split('').forEach(function(d){ if(d!==K) freq[d]=(freq[d]||0)+1; }); });
+    var allD=['1','2','3','4','5','6','7','8','9','0'].filter(function(d){return d!==K;});
+    var absent1=allD.filter(function(d){return !freq[d];});
+    var pos=allD.map(function(d){return freq[d]||0;}).filter(function(c){return c>0;});
+    var maxC=pos.length?Math.max.apply(null,pos):0, minC=pos.length?Math.min.apply(null,pos):0;
+    var most=allD.filter(function(d){return maxC&&freq[d]===maxC;});
+    var least=allD.filter(function(d){return minC&&freq[d]===minC;});
+    var keys=least;
+    var byRoot={}; absRoots.forEach(function(R){ byRoot[R]=[]; keys.forEach(function(d){ for(var p=0;p<=9;p++){ if(droot((+d)+p)===R) byRoot[R].push(''+d+p); } }); });
+    var absF2set={}; absFront2.forEach(function(f){absF2set[f]=1;});
+    var mainFill={}, special={};
+    absRoots.forEach(function(R){ byRoot[R].forEach(function(dp){ var s3=rankSort([K,dp[0],dp[1]]).join(''); if(absF2set[s3.slice(0,2)]) mainFill[s3]=1; else special[s3]=1; }); });
+    var mainArr=Object.keys(mainFill);
+    var specArr=Object.keys(special);
+    var dup=specArr.filter(function(x){return mainFill[x];});
+    var specClean=specArr.filter(function(x){return !mainFill[x];});
+    h+='<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-top:8px">';
+    h+='<div style="font-size:14px;font-weight:800;color:#1e3a5f">组 '+K+' <span style="font-size:11px;font-weight:400;color:#94a3b8">('+nums.length+'个号 · 已排除数字'+K+')</span></div>';
+    h+='<div style="font-size:11px;color:#475569;margin-top:3px">① 缺席前2D(空档)：<b>'+(absFront2.length?absFront2.map(function(f){return f+'xx';}).join(' '):'无')+'</b></div>';
+    h+='<div style="font-size:11px;color:#475569">② 中2D数根缺席：<b>'+(absRoots.join(',')||'无')+'</b></div>';
+    h+='<div style="font-size:11px;color:#475569">③ 1D 最多 <b>'+(most.join(',')||'-')+'</b> · 最少 <b>'+(least.join(',')||'-')+'</b> · 缺席 <b>'+(absent1.join(',')||'无')+'</b> → 关键1D <b style="color:#0d9488">'+(keys.join(',')||'无')+'</b></div>';
+    h+='<div style="font-size:11px;color:#475569;margin-top:3px">数根2D：'+((absRoots.length&&keys.length)? absRoots.map(function(R){return '根'+R+'['+(byRoot[R].join(' ')||'-')+']';}).join(' · ') : '无(缺席数根或关键1D为空)')+'</div>';
+    h+='<div style="margin-top:4px;font-size:12px"><b style="color:#0d9488">✅ 主填缺席前2D：</b><span style="font-family:monospace;font-weight:700">'+(mainArr.length?mainArr.map(function(x){return x+'x';}).join(' '):'无')+'</span></div>';
+    h+='<div style="font-size:12px"><b style="color:#b45309">⭐ 特别组合：</b><span style="font-family:monospace;font-weight:700">'+(specClean.length?specClean.map(function(x){return x+'x';}).join(' '):'无')+'</span>'+(dup.length?' <span style="font-size:10px;color:#94a3b8">(重复略: '+dup.map(function(x){return x+'x';}).join(' ')+')</span>':'')+'</div>';
+    h+='</div>';
+  });
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 };
 
 // ─── 十八罗汉 ──────────────────────────────────────────
