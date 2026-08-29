@@ -15675,54 +15675,58 @@ function zoDrawMonthScore(ctx, D, W, H){
   stat(pad, '推荐号', D.recCount, '#a5b4fc');
   stat(pad+sw+12, '命中号', D.total, '#fde047');
   stat(pad+2*(sw+12), '中奖率', rate+'%', '#f87171');
-  // 金榜标题
-  var y=sy+sh+34;
-  ctx.textAlign='left'; ctx.fillStyle='#fbbf24'; ctx.font='900 24px '+ZO_FONT;
-  ctx.fillText('🥇 命中金榜（头奖优先 · 含调字）', pad, y); y+=32;
-  var PC=['#f87171','#fbbf24','#c4b5fd'], PN=['① 头奖','② 二奖','③ 三奖'];
-  if(!D.hits.length){
-    zoRR(ctx,pad,y,W-2*pad,70,12); ctx.fillStyle='rgba(30,27,75,0.5)'; ctx.fill();
-    ctx.textAlign='center'; ctx.fillStyle='#94a3b8'; ctx.font='700 20px '+ZO_FONT; ctx.fillText('本月暂无命中记录', W/2, y+37); y+=90;
-  } else {
-    D.hits.forEach(function(o){
-      var col=PC[o.prizeIdx]||'#c4b5fd';
-      zoRR(ctx,pad,y,W-2*pad,82,12); ctx.fillStyle='rgba(30,27,75,0.55)'; ctx.fill(); ctx.strokeStyle=col+'55'; ctx.lineWidth=1.5; ctx.stroke();
-      try{ if(typeof zoDrawAnimal==='function') zoDrawAnimal(ctx, o.zi, pad+40, y+41, 52, (typeof ZO_SPRITE_IMG!=='undefined'?ZO_SPRITE_IMG:null)); }catch(e){}
-      ctx.textAlign='left'; ctx.textBaseline='middle';
-      ctx.fillStyle='#e2e8f0'; ctx.font='700 14px '+ZO_FONT; ctx.fillText('预投', pad+82, y+22);
-      ctx.fillStyle='#fde047'; ctx.font='900 30px '+ZO_MONO; ctx.fillText(o.recNum, pad+120, y+24);
-      ctx.fillStyle='#94a3b8'; ctx.font='900 24px '+ZO_FONT; ctx.fillText('→', pad+238, y+24);
-      ctx.fillStyle='#e2e8f0'; ctx.font='700 14px '+ZO_FONT; ctx.fillText('官方', pad+278, y+22);
-      ctx.fillStyle='#fca5a5'; ctx.font='900 30px '+ZO_MONO; ctx.fillText(o.num, pad+316, y+24);
-      // prize badge
-      zoRR(ctx, pad+120, y+46, 92, 24, 6); ctx.fillStyle=col; ctx.fill();
-      ctx.fillStyle='#1a1030'; ctx.font='800 15px '+ZO_FONT; ctx.textAlign='center'; ctx.fillText(PN[o.prizeIdx]||'奖', pad+120+46, y+58);
-      ctx.textAlign='right'; ctx.fillStyle='#cbd5e1'; ctx.font='600 16px '+ZO_FONT;
-      ctx.fillText((o.date||'').slice(5)+' · '+(o.twisted?'调字命中':'原号命中'), W-pad-16, y+41);
-      ctx.textAlign='left';
-      y+=90;
-    });
+  // 🐲 生肖命中图（12格 · 命中格★金光）
+  var zn=(typeof ZO_STR!=='undefined'&&ZO_STR.zh)?ZO_STR.zh.zodiacNames:['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪'];
+  var recByZi={}; for(var z=0;z<12;z++) recByZi[z]=[];
+  (D.reclist||[]).forEach(function(c){ if(c.zi!=null&&recByZi[c.zi]) recByZi[c.zi].push(c.num); });
+  var hitByNum={}; (D.hits||[]).forEach(function(o){ hitByNum[o.recNum]={num:o.num,pi:o.prizeIdx,tw:o.twisted}; });
+  var PC=['#f87171','#fbbf24','#c4b5fd'];
+  var y=sy+sh+30;
+  ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillStyle='#fbbf24'; ctx.font='900 23px '+ZO_FONT;
+  ctx.fillText('🐲 生肖命中图（金框★=命中 · 含调字）', pad, y); y+=24;
+  var cols=4, gap=12, cw=(W-2*pad-(cols-1)*gap)/cols, ch=134;
+  for(var zi=0; zi<12; zi++){
+    var cx=pad+(zi%cols)*(cw+gap), cy=y+Math.floor(zi/cols)*(ch+gap);
+    var recs=recByZi[zi]||[]; var isHit=recs.some(function(n){return hitByNum[n];});
+    zoRR(ctx,cx,cy,cw,ch,12); ctx.fillStyle=isHit?'rgba(120,53,15,0.5)':'rgba(30,27,75,0.5)'; ctx.fill();
+    ctx.strokeStyle=isHit?'#fde047':'rgba(99,102,241,0.4)'; ctx.lineWidth=isHit?3:1.5; ctx.stroke();
+    try{ if(typeof zoDrawAnimal==='function') zoDrawAnimal(ctx, zi, cx+cw/2, cy+38, 52, (typeof ZO_SPRITE_IMG!=='undefined'?ZO_SPRITE_IMG:null)); }catch(e){}
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=isHit?'#fde047':'#a5b4fc'; ctx.font='800 16px '+ZO_FONT; ctx.fillText(zn[zi]+(isHit?' ★':''), cx+cw/2, cy+74);
+    var ny=cy+96;
+    if(recs.length){
+      recs.slice(0,3).forEach(function(n){ var hh=hitByNum[n];
+        if(hh){ ctx.fillStyle=PC[hh.pi]||'#fde047'; ctx.font='800 15px '+ZO_MONO; ctx.fillText(n+'→'+hh.num, cx+cw/2, ny); }
+        else { ctx.fillStyle='#94a3b8'; ctx.font='700 15px '+ZO_MONO; ctx.fillText(n, cx+cw/2, ny); }
+        ny+=17;
+      });
+      if(recs.length>3){ ctx.fillStyle='#64748b'; ctx.font='11px '+ZO_FONT; ctx.fillText('+'+(recs.length-3)+'个', cx+cw/2, ny); }
+    } else { ctx.fillStyle='#475569'; ctx.font='13px '+ZO_FONT; ctx.fillText('—', cx+cw/2, ny); }
   }
-  // 底部
-  y+=6;
+  y += 3*ch+2*gap + 22;
+  // 命中明细一行 + 底部
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillStyle='#fbbf24'; ctx.font='700 19px '+ZO_FONT; ctx.fillText('✔ 号码公开可核对 · 月尾统一复盘', W/2, y+18);
-  ctx.fillStyle='#94a3b8'; ctx.font='600 15px '+ZO_FONT; ctx.fillText('⚠️ 历史统计整理，不构成预测 · 理性娱乐', W/2, y+46);
-  ctx.fillStyle='#64748b'; ctx.font='600 13px '+ZO_FONT; ctx.fillText('会员专享内容，请勿外传 🙏', W/2, y+72);
+  if(D.hits.length){ ctx.fillStyle='#fde68a'; ctx.font='700 16px '+ZO_FONT; ctx.fillText('命中：'+D.hits.map(function(o){return o.recNum+'→'+o.num+'('+['头','二','三'][o.prizeIdx]+(o.twisted?'调':'原')+')';}).join('   '), W/2, y); }
+  else { ctx.fillStyle='#94a3b8'; ctx.font='700 16px '+ZO_FONT; ctx.fillText('本月暂无命中', W/2, y); }
+  y+=32;
+  ctx.fillStyle='#fbbf24'; ctx.font='700 18px '+ZO_FONT; ctx.fillText('✔ 号码公开可核对 · 月尾统一复盘', W/2, y+12);
+  ctx.fillStyle='#94a3b8'; ctx.font='600 15px '+ZO_FONT; ctx.fillText('⚠️ 历史统计整理，不构成预测 · 理性娱乐', W/2, y+38);
+  ctx.fillStyle='#64748b'; ctx.font='600 13px '+ZO_FONT; ctx.fillText('会员专享内容，请勿外传 🙏', W/2, y+62);
 }
 async function zoMonthScorePNG(){
   var market=(document.getElementById('zo-market')||{}).value||'万能';
   if(typeof zoMemberGen==='function'){ try{ zoMemberGen(market, false); }catch(e){} }
   if(typeof ZO_MEM==='undefined' || !ZO_MEM){ alert('请先切到「会员数据报告」模式并生成名单（公开模式下不生成推荐号）。'); return; }
   var HIT = (typeof zoMemHitExtract==='function') ? zoMemHitExtract({type:'month'}) : null;
-  var recNums={}; if(ZO_MEM.star&&ZO_MEM.star.num) recNums[ZO_MEM.star.num]=1;
-  (ZO_MEM.selDa||[]).forEach(function(da){ (ZO_MEM.groups[da]||[]).forEach(function(c){ if(c&&c.num) recNums[c.num]=1; }); });
-  var recCount=Object.keys(recNums).length;
+  var reclist=[], seenN={};
+  if(ZO_MEM.star&&ZO_MEM.star.num&&!seenN[ZO_MEM.star.num]){ seenN[ZO_MEM.star.num]=1; reclist.push({num:ZO_MEM.star.num,zi:ZO_MEM.star.zi}); }
+  (ZO_MEM.selDa||[]).forEach(function(da){ (ZO_MEM.groups[da]||[]).forEach(function(c){ if(c&&c.num&&!seenN[c.num]){ seenN[c.num]=1; reclist.push({num:c.num,zi:c.zi}); } }); });
+  var recCount=reclist.length;
   var hits = (HIT && !HIT.none) ? [HIT.hero].concat(HIT.others||[]) : [];
   hits.sort(function(a,b){ return a.prizeIdx-b.prizeIdx || (a.twisted?1:0)-(b.twisted?1:0); });
   if(typeof zoLoadAnimalSprite==='function'){ try{ await zoLoadAnimalSprite(); }catch(e){} }
-  var D={market:market, year:ZO_MEM.refYear, month:ZO_MEM.month, recCount:recCount, total:(HIT&&!HIT.none)?HIT.total:0, hits:hits};
-  var SC=2, W=1080, H=176+94+66+Math.max(hits.length,1)*90+120;
+  var D={market:market, year:ZO_MEM.refYear, month:ZO_MEM.month, recCount:recCount, total:(HIT&&!HIT.none)?HIT.total:0, hits:hits, reclist:reclist};
+  var SC=2, W=1080, H=900;
   var cv=document.createElement('canvas'); cv.width=W*SC; cv.height=H*SC; var ctx=cv.getContext('2d'); ctx.scale(SC,SC);
   zoDrawMonthScore(ctx, D, W, H);
   cv.toBlob(function(b){
