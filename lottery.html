@@ -12138,7 +12138,7 @@ function zoRohanStatCached(market, cutoff){
 
 // 候选池构建（生肖图 / 主打号 / 会员版 / 复盘共用）：该月开出过的分身组 + 集中度/冷度/共识 + 罗汉置信分
 function zoBuildPool(market, month, main, cutoff){
-  const MK = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  const MK = zoNewEra() ? ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'] : ['万能','跑马','多多','新加坡','豪龙'];
   const allStats = {};
   MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk, cutoff); });
   // 各市场罗汉月统计（用于跨市场罗汉共识）
