@@ -8263,13 +8263,20 @@ function zoSpHistoryShow(){
   }
   if(!recs.length){ out.innerHTML='<div class="warn">'+mk+' 没有含特别奖的期数,无法查回。</div>'; return; }
   var COL={'前2D':'#f59e0b','中2D':'#3b82f6','后2D':'#6366f1','前1D':'#16a34a','后1D':'#db2777'};
+  var H4=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{},last:{}};
+  function openLine(r){
+    if(!r.nn) return '下期'+r.nextDate;
+    var parts=r.nn.map(function(x){ var c=(H4.cnt[x]||0); var before=c-1;
+      return x+(before>0?'<span style="color:#16a34a;font-size:10px">·历史'+before+'次</span>':'<span style="color:#94a3b8;font-size:10px">·首次</span>'); });
+    return '下期 '+r.nextDate+' 开 '+parts.join(' / ');
+  }
   function hit2(tg,wa,wb,nn){ if(!nn)return null; var ts={}; tg.forEach(function(t){ts[t]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x&&!res){ var w=x.slice(wa,wb+1); if(ts[w]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
   function hit1(set,pos,nn){ if(!nn)return null; var st={}; set.forEach(function(x){st[x]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x&&!res){ if(st[x[pos]]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
   var h='<div class="card" style="border:2px solid #7c3aed">';
   h+='<h3 style="color:#7c3aed">📜 '+mk+' · 主打历史记录（'+recs.length+' 期 · 新→旧）</h3>';
   h+='<div class="warn">每期：用该期特别奖算的目标 → 下一期头二三是否命中。✅=中(标奖项+号)，❌=没中。⚠️ 历史统计，不构成预测。</div>';
   recs.slice().reverse().forEach(function(r){
-    var open=r.nn?('下期 '+r.nextDate+' 开 '+r.nn.join('/')):('下期'+r.nextDate);
+    var open=openLine(r);
     h+='<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-top:6px">';
     h+='<div style="font-size:12px;font-weight:800;color:#1e3a5f">📅 源期 '+r.src+' <span style="font-weight:400;color:#94a3b8">→ '+open+'</span></div>';
     function row(nm,a,tg,hh){ return '<div style="font-size:11px;margin-top:3px"><span style="display:inline-block;background:'+COL[nm]+';color:#fff;border-radius:4px;padding:0 6px;font-weight:700;margin-right:4px">'+nm+'</span>缺 <b>'+a+'</b> · 目标 '+tg+' · <b>'+(hh||'-')+'</b></div>'; }
