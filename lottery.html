@@ -12101,9 +12101,12 @@ function zoZodiacOfNum(num){ return zoZodiacOfYear(parseInt(num, 10)); }
 // cutoff（可选，'YYYY-MM-DD'）：只统计该日期之前的开奖，用于「公开复盘」还原当时的推荐
 function zoMarketStats(market, cutoff){
   const recs = cutoff ? (DB[market]||[]).filter(r => r.date < cutoff) : (DB[market] || []);
+  // 实时模式(无cutoff)排除「当年当月」这半截未走完的月份 → 生肖图/主打号开月即固定，不马后炮
+  const _now=new Date(), _curYM = _now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
   const stat = {}; // key -> {total, mh:[12], firstIdx, lastDate, monthLast:[12]}
   recs.forEach((r, idx) => {
     const m = seaMonth(r.date); if(!m || m < 1 || m > 12) return;
+    if(!cutoff && String(r.date).slice(0,7)===_curYM) return;   // 跳过正在进行的本月
     [0,1,2].forEach(pi => {
       const raw = r.nums[pi]; if(raw == null || raw === '') return;
       const num = pz(raw);
