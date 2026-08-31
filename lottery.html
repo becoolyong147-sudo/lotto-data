@@ -5597,10 +5597,14 @@ function seaCollect(market,prize,level,period,yearsBack){
   const w=seaWindows(period);
   const prizes=prize==='all'?[0,1,2]:[parseInt(prize,10)];
   const minYear=seaMinYear(recs,yearsBack);
+  // 排除「当年当月」这半截未走完的月份 → 季节统计只看往年，名单提前固定、不马后炮
+  const _now=new Date(), _curY=_now.getFullYear(), _curM=_now.getMonth()+1;
   const out=[];
   recs.forEach(r=>{
     const m=seaMonth(r.date); if(!m||m<1||m>12) return;
-    if(minYear!==null){const y=parseInt(String(r.date).slice(0,4),10); if(y<minYear) return;}
+    const y=parseInt(String(r.date).slice(0,4),10);
+    if(y===_curY && m===_curM) return;   // 跳过正在进行的本月
+    if(minYear!==null){ if(y<minYear) return;}
     const wi=w.idxOf(m);
     prizes.forEach(pi=>{
       const raw=r.nums[pi]; if(raw==null||raw==='') return;
