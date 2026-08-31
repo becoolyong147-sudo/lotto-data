@@ -7713,6 +7713,10 @@ function doBacktest(){
         <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-多多">多多</label>
         <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-新加坡">新加坡</label>
         <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-豪龙">豪龙</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-沙巴">沙巴</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-9龙">9龙</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-砂拉越">砂拉越</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#dbeafe;border-radius:5px;padding:5px 10px;font-size:13px;font-weight:700"><input type="checkbox" id="zo-mem-mk-山打根">山打根</label>
       </div>
     </div>
     <div class="ig"><label>🚫 已开号</label>
@@ -12132,7 +12136,7 @@ function zoRohanStatCached(market, cutoff){
 
 // 候选池构建（生肖图 / 主打号 / 会员版 / 复盘共用）：该月开出过的分身组 + 集中度/冷度/共识 + 罗汉置信分
 function zoBuildPool(market, month, main, cutoff){
-  const MK = ['万能','跑马','多多','新加坡','豪龙'];
+  const MK = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   const allStats = {};
   MK.forEach(mk => { allStats[mk] = (mk === market) ? main : zoMarketStats(mk, cutoff); });
   // 各市场罗汉月统计（用于跨市场罗汉共识）
@@ -13433,7 +13437,7 @@ function zoMemConfStars(c, refYear, demoted, alreadyHit){
 // 生成多家公司的会员名单（主入口）
 function zoMemberGenAll(){
   if(zoMemberPublicBlocked()) return;   // public 模式不生成会员内容
-  const MK = ['万能','跑马','多多','新加坡','豪龙'];
+  const MK = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   const sel = MK.filter(m => { const el = document.getElementById('zo-mem-mk-'+m); return el && el.checked; });
   const out = document.getElementById('zo-member-result');
   if(!sel.length){ out.innerHTML = '<div class="error">请至少勾选一家公司。</div>'; return; }
@@ -13541,7 +13545,7 @@ function zoMemberGen(marketOverride, append){
   // 分组：24/12打用评分前N；6/4打用高门槛精选（不够则降级用普通排序补位，标注降级）
   const groups = {}, groupConf = {}; // groupConf: true=高门槛通过
   selDa.forEach(da => {
-    const byDa = sorted.filter(c => zoDaCount(c.num) === da);
+    const byDa = sorted.filter(c => zoDaCount(c.num) === da && c.num !== star.num);
     if(da === 6 || da === 4){
       const highConf = byDa.filter(c => zoIsHighConf(c, refYear)).slice(0, topN);
       const fallback = highConf.length < topN ? byDa.filter(c => !zoIsHighConf(c, refYear)).slice(0, topN - highConf.length) : [];
