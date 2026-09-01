@@ -8463,22 +8463,38 @@ function zoSeasonMemberShow(){
     h+='<div style="color:#94a3b8;font-size:13px">本期没有可提示的号码。</div></div>';
     out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
-  // 固定列表格：市场 | 各打数
-  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;min-width:100%">';
-  h+='<tr style="background:#fef3c7"><th style="text-align:left;padding:4px 8px;color:#b45309;font-size:12px">市场</th>';
-  cols.forEach(function(d){ h+='<th style="text-align:left;padding:4px 8px"><span style="background:'+DACOL[d]+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">'+DALBL[d]+'</span></th>'; });
-  h+='</tr>';
-  show.forEach(function(x){
-    h+='<tr style="border-top:1px solid #fde68a">';
-    h+='<td style="padding:5px 8px;font-weight:800;color:#b45309;white-space:nowrap;vertical-align:top">'+x.mk+'</td>';
-    cols.forEach(function(d){
-      h+='<td style="padding:5px 8px;vertical-align:top;font-family:monospace;font-size:13px;color:#92400e;letter-spacing:1px;line-height:1.7">';
-      h+=x.grp[d].length ? x.grp[d].map(function(n){return '<div>'+n+'</div>';}).join('') : '<span style="color:#e2e8f0">–</span>';
-      h+='</td>';
-    });
+  var narrow = (window.innerWidth||9999) < 640;
+  if(!narrow){
+    // 电脑：固定列表格，市场 | 各打数（列对齐）
+    h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;min-width:100%">';
+    h+='<tr style="background:#fef3c7"><th style="text-align:left;padding:4px 8px;color:#b45309;font-size:12px">市场</th>';
+    cols.forEach(function(d){ h+='<th style="text-align:left;padding:4px 8px"><span style="background:'+DACOL[d]+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">'+DALBL[d]+'</span></th>'; });
     h+='</tr>';
-  });
-  h+='</table></div>';
+    show.forEach(function(x){
+      h+='<tr style="border-top:1px solid #fde68a">';
+      h+='<td style="padding:5px 8px;font-weight:800;color:#b45309;white-space:nowrap;vertical-align:top">'+x.mk+'</td>';
+      cols.forEach(function(d){
+        h+='<td style="padding:5px 8px;vertical-align:top;font-family:monospace;font-size:13px;color:#92400e;letter-spacing:1px;line-height:1.7">';
+        h+=x.grp[d].length ? x.grp[d].map(function(n){return '<div>'+n+'</div>';}).join('') : '<span style="color:#e2e8f0">–</span>';
+        h+='</td>';
+      });
+      h+='</tr>';
+    });
+    h+='</table></div>';
+  } else {
+    // 手机：每市场一块，打数竖排，不用左右滑
+    show.forEach(function(x){
+      h+='<div style="border-top:1px solid #fde68a;padding:7px 0">';
+      h+='<div style="font-weight:800;color:#b45309;font-size:14px;margin-bottom:3px">● '+x.mk+'</div>';
+      DAS.forEach(function(d){ if(!x.grp[d].length) return;
+        h+='<div style="display:flex;align-items:flex-start;gap:6px;margin:2px 0">';
+        h+='<span style="background:'+DACOL[d]+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;white-space:nowrap;margin-top:2px">'+DALBL[d]+'</span>';
+        h+='<span style="font-family:monospace;font-size:14px;font-weight:700;color:#92400e;letter-spacing:1px;line-height:1.7">'+x.grp[d].join('&nbsp; ')+'</span>';
+        h+='</div>';
+      });
+      h+='</div>';
+    });
+  }
   // 复制文本（跟当前筛选一致）
   show.forEach(function(x){ var tp=[]; DAS.forEach(function(d){ if(x.grp[d].length) tp.push(DALBL[d]+' '+x.grp[d].join(' ')); }); allTxt.push(x.mk+'｜'+tp.join('｜')); });
   var full=(mo+'月精选号\\n'+allTxt.join('\\n')).replace(/'/g,"\\'");
