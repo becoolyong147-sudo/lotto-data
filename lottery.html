@@ -8427,12 +8427,15 @@ function zoNextMainShow(){
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
-// 🌟 会员版提示：只给凑出来的号码，不露前中后2D
+// 🌟 会员版提示：只给凑出来的号码，不露前中后2D。固定打数列对齐 + 可选市场
 function zoSeasonMemberShow(){
   var out=document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('mem-mk-sel'); var pick=selEl?selEl.value:'all';
   var data=zoSpMatchCompute();
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   var mo=new Date().getMonth()+1;
+  var DAS=[24,12,6,4,1], DALBL={24:'24打',12:'12打',6:'6打',4:'4打',1:'1打'};
+  var DACOL={24:'#b45309',12:'#0891b2',6:'#7c3aed',4:'#16a34a',1:'#64748b'};
   var perMk=[], allTxt=[];
   mkts.forEach(function(mk){
     var L=data[mk].latest; if(!L) return;
@@ -8440,27 +8443,46 @@ function zoSeasonMemberShow(){
     var set={};
     sm.forEach(function(r){ Object.keys(r.f).forEach(function(p){set[p]=1;}); Object.keys(r.m).forEach(function(p){set[p]=1;}); Object.keys(r.b).forEach(function(p){set[p]=1;}); });
     var nums=Object.keys(set).sort();
-    if(nums.length){ perMk.push({mk:mk,nums:nums}); allTxt.push(mk+'：'+nums.join(' ')); }
+    if(!nums.length) return;
+    var grp={}; DAS.forEach(function(d){grp[d]=[];}); nums.forEach(function(n){ grp[zoDaCount(n)].push(n); });
+    perMk.push({mk:mk,grp:grp,total:nums.length});
   });
+  // 市场下拉（含哪些市场有号）
+  function opt(v,t){ return '<option value="'+v+'"'+(pick===v?' selected':'')+'>'+t+'</option>'; }
+  var selHtml='<select id="mem-mk-sel" onchange="zoSeasonMemberShow()" style="font-size:13px;padding:3px 8px;border:1px solid #fbbf24;border-radius:6px;color:#b45309;font-weight:700">'+opt('all','全部市场');
+  perMk.forEach(function(x){ selHtml+=opt(x.mk,x.mk); }); selHtml+='</select>';
+
+  var show = pick==='all' ? perMk : perMk.filter(function(x){return x.mk===pick;});
+  // 只保留有号的打数列
+  var cols=DAS.filter(function(d){ return show.some(function(x){return x.grp[d].length;}); });
+
   var h='<div class="card" style="border:2px solid #d97706;background:#fffbeb">';
-  h+='<h3 style="color:#b45309">🌟 '+mo+'月 会员精选号（可直接发群）</h3>';
-  if(!perMk.length){
-    h+='<div style="color:#94a3b8;font-size:13px">本期各市场都没有可提示的号码。</div></div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">';
+  h+='<h3 style="color:#b45309;margin:0">🌟 '+mo+'月 会员精选号</h3>'+selHtml+'</div>';
+  if(!show.length){
+    h+='<div style="color:#94a3b8;font-size:13px">本期没有可提示的号码。</div></div>';
     out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return;
   }
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-top:8px">';
-  perMk.forEach(function(x){
-    h+='<div style="border:1px solid #fde68a;border-radius:10px;padding:10px 12px;background:#fff">';
-    h+='<div style="font-size:15px;font-weight:800;color:#b45309;margin-bottom:6px">● '+x.mk+' <span style="font-size:11px;font-weight:400;color:#94a3b8">'+x.nums.length+'个</span></div>';
-    h+='<div style="line-height:2.1">';
-    x.nums.forEach(function(n){ h+='<span style="font-family:monospace;font-size:16px;font-weight:700;background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 8px;margin:2px;letter-spacing:1px">'+n+'</span>'; });
-    h+='</div>';
-    h+='<button class="btn" style="padding:3px 10px;font-size:11px;margin-top:6px;background:#d97706;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+x.mk+'：'+x.nums.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制本市场\',1200)})">📋复制本市场</button>';
-    h+='</div>';
+  // 固定列表格：市场 | 各打数
+  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:12px;min-width:100%">';
+  h+='<tr style="background:#fef3c7"><th style="text-align:left;padding:4px 8px;color:#b45309;font-size:12px">市场</th>';
+  cols.forEach(function(d){ h+='<th style="text-align:left;padding:4px 8px"><span style="background:'+DACOL[d]+';color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">'+DALBL[d]+'</span></th>'; });
+  h+='</tr>';
+  show.forEach(function(x){
+    h+='<tr style="border-top:1px solid #fde68a">';
+    h+='<td style="padding:5px 8px;font-weight:800;color:#b45309;white-space:nowrap;vertical-align:top">'+x.mk+'</td>';
+    cols.forEach(function(d){
+      h+='<td style="padding:5px 8px;vertical-align:top;font-family:monospace;font-size:13px;color:#92400e;letter-spacing:1px;line-height:1.7">';
+      h+=x.grp[d].length ? x.grp[d].map(function(n){return '<div>'+n+'</div>';}).join('') : '<span style="color:#e2e8f0">–</span>';
+      h+='</td>';
+    });
+    h+='</tr>';
   });
-  h+='</div>';
+  h+='</table></div>';
+  // 复制文本（跟当前筛选一致）
+  show.forEach(function(x){ var tp=[]; DAS.forEach(function(d){ if(x.grp[d].length) tp.push(DALBL[d]+' '+x.grp[d].join(' ')); }); allTxt.push(x.mk+'｜'+tp.join('｜')); });
   var full=(mo+'月精选号\\n'+allTxt.join('\\n')).replace(/'/g,"\\'");
-  h+='<div style="margin-top:10px"><button class="btn" style="padding:7px 16px;font-size:13px;background:#b45309;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+full+'\').then(()=>{this.textContent=\'✅全部已复制\';setTimeout(()=>this.textContent=\'📋一键复制全部\',1500)})">📋 一键复制全部</button></div>';
+  h+='<div style="margin-top:10px"><button class="btn" style="padding:6px 14px;font-size:12px;background:#b45309;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+full+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制'+(pick==='all'?'全部':pick)+'\',1500)})">📋 复制'+(pick==='all'?'全部':pick)+'</button></div>';
   h+='<div style="font-size:10px;color:#b45309;margin-top:6px">仅供娱乐参考，历史统计，不构成预测，量力而为。</div>';
   h+='</div>';
   out.innerHTML=h;
