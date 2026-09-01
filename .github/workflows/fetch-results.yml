@@ -2,15 +2,26 @@ name: Fetch 4D Results
 
 on:
   schedule:
-    # GitHub Actions 用 UTC; 马来西亚 = UTC+8
-    # 免费队列会迟到, 所以开奖时段密集排班, 总有一班排得上
+    # GitHub Actions 用 UTC; 马来西亚 = UTC+8。免费队列会迟到,所以密集排班,总有一班排得上。
+    # ── 开彩时段:19:30–00:30 MYT 每约20分钟一趟 ──
+    - cron: '30 11 * * *'   # 19:30 MYT 提前候场
     - cron: '0 12 * * *'    # 20:00 MYT
-    - cron: '30 12 * * *'   # 20:30 MYT
+    - cron: '20 12 * * *'   # 20:20 MYT
+    - cron: '40 12 * * *'   # 20:40 MYT
     - cron: '0 13 * * *'    # 21:00 MYT
+    - cron: '20 13 * * *'   # 21:20 MYT
     - cron: '35 13 * * *'   # 21:35 MYT 主抓
+    - cron: '50 13 * * *'   # 21:50 MYT
     - cron: '10 14 * * *'   # 22:10 MYT
+    - cron: '30 14 * * *'   # 22:30 MYT
+    - cron: '50 14 * * *'   # 22:50 MYT
     - cron: '0 15 * * *'    # 23:00 MYT
-    - cron: '30 15 * * *'   # 23:30 MYT 收尾
+    - cron: '30 15 * * *'   # 23:30 MYT
+    - cron: '0 16 * * *'    # 00:00 MYT 深夜补
+    - cron: '30 16 * * *'   # 00:30 MYT 收尾
+    # ── 白天安全网:补抓昨晚漏掉的 ──
+    - cron: '0 1 * * *'     # 09:00 MYT 早上补
+    - cron: '0 5 * * *'     # 13:00 MYT 午间补
   workflow_dispatch: {}      # 手动触发按钮
 
 permissions:

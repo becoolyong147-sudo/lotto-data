@@ -8263,11 +8263,15 @@ function zoSpHistoryShow(){
   }
   if(!recs.length){ out.innerHTML='<div class="warn">'+mk+' 没有含特别奖的期数,无法查回。</div>'; return; }
   var COL={'前2D':'#f59e0b','中2D':'#3b82f6','后2D':'#6366f1','前1D':'#16a34a','后1D':'#db2777'};
-  var H4=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{},last:{}};
+  // 逐个号码的历史开出日期(头二三),用于「到某期为止、之前开过几次」
+  var occByNum={};
+  merged.forEach(function(d){ [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)){ (occByNum[s]=occByNum[s]||[]).push(d.date); } } }); });
+  Object.keys(occByNum).forEach(function(k){ occByNum[k].sort(); });
+  function beforeCount(num, date){ var a=occByNum[num]||[]; var lo=0,hi=a.length; while(lo<hi){ var m=(lo+hi)>>1; if(a[m]<date) lo=m+1; else hi=m; } return lo; } // 严格 < date
   function openLine(r){
     if(!r.nn) return '下期'+r.nextDate;
-    var parts=r.nn.map(function(x){ var c=(H4.cnt[x]||0); var before=c-1;
-      return x+(before>0?'<span style="color:#16a34a;font-size:10px">·历史'+before+'次</span>':'<span style="color:#94a3b8;font-size:10px">·首次</span>'); });
+    var parts=r.nn.map(function(x){ var before=beforeCount(x, r.nextDate);
+      return x+(before>0?'<span style="color:#16a34a;font-size:10px">·之前'+before+'次</span>':'<span style="color:#94a3b8;font-size:10px">·首次</span>'); });
     return '下期 '+r.nextDate+' 开 '+parts.join(' / ');
   }
   function hit2(tg,wa,wb,nn){ if(!nn)return null; var ts={}; tg.forEach(function(t){ts[t]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x&&!res){ var w=x.slice(wa,wb+1); if(ts[w]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
