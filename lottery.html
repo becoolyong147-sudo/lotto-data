@@ -8308,6 +8308,37 @@ function zoSpHistoryShow(){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
+// 🌟 当月季节常客（分身组）：全年份·该月≥2次·集中度≥1.8x·不含本月，按集中度排
+function zoSeasonRegulars(mk){
+  if(typeof seaCollect!=='function' || typeof DB==='undefined' || !DB[mk]) return [];
+  var col; try{ col=seaCollect(mk,'all','perm','month',0); }catch(e){ return []; }
+  var samples=col.samples||[], w=col.w;
+  if(!samples.length) return [];
+  var wi=w.idxOf(new Date().getMonth()+1);
+  var stat={};
+  samples.forEach(function(s){ if(!stat[s.key]) stat[s.key]={total:0,win:new Array(w.count).fill(0),sample:s.num,last:''}; stat[s.key].total++; stat[s.key].win[s.winIdx]++; if(s.date>stat[s.key].last) stat[s.key].last=s.date; });
+  var uniform=1/w.count, minHits=2, minConc=1.8, entries=[];
+  for(var key in stat){ var st=stat[key]; var h=st.win[wi]; if(h<minHits) continue; var conc=(h/st.total)/uniform; if(conc<minConc) continue; entries.push({num:String(st.sample).padStart(4,'0'),conc:conc,hits:h}); }
+  entries.sort(function(a,b){ return b.conc-a.conc || b.hits-a.hits; });
+  return entries.slice(0,12);
+}
+// 某4D的全部不重复排列（调字）
+function zoUniqPerms(s){ var out={}; (function go(pre,rest){ if(!rest){ out[pre]=1; return; } for(var i=0;i<rest.length;i++) go(pre+rest.charAt(i), rest.slice(0,i)+rest.slice(i+1)); })('',String(s)); return Object.keys(out); }
+// 把季节常客号 调字，凑中 前/中/后2D 缺席目标
+function zoSeasonMatch(L, seas){
+  var f2={},m2={},b2={};
+  (L.f2.tg||'').split(' ').filter(Boolean).forEach(function(t){f2[t]=1;});
+  (L.m2.tg||'').split(' ').filter(Boolean).forEach(function(t){m2[t]=1;});
+  (L.b2.tg||'').split(' ').filter(Boolean).forEach(function(t){b2[t]=1;});
+  var res=[];
+  seas.forEach(function(se){
+    var num=se.num; if(!/^\d{4}$/.test(num)) return;
+    var perms=zoUniqPerms(num), hitF={},hitM={},hitB={};
+    perms.forEach(function(p){ if(f2[p.slice(0,2)]) hitF[p]=p.slice(0,2); if(m2[p.slice(1,3)]) hitM[p]=p.slice(1,3); if(b2[p.slice(2,4)]) hitB[p]=p.slice(2,4); });
+    if(Object.keys(hitF).length||Object.keys(hitM).length||Object.keys(hitB).length) res.push({orig:num,conc:se.conc,f:hitF,m:hitM,b:hitB});
+  });
+  return res;
+}
 function zoNextMainShow(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var data=zoSpMatchCompute();
@@ -8348,6 +8379,25 @@ function zoNextMainShow(){
     h+='<div><b style="color:#0891b2">完整4D('+lk.d4.length+')：</b>';
     d4r.forEach(function(x){ if(x.c>0) h+='<span title="开过'+x.c+'次" style="font-family:monospace;background:#0891b2;color:#fff;border-radius:4px;padding:0 4px;margin:1px;font-weight:700">'+x.n+'·'+x.c+'</span>'; else h+='<span style="font-family:monospace;background:#f1f5f9;color:#94a3b8;border-radius:4px;padding:0 4px;margin:1px">'+x.n+'○</span>'; });
     h+='</div></div>';
+    h+='</div>';
+    // 🌟 季节常客 × 缺席目标：把当月季节常客调字，凑中 前/中/后2D 目标
+    var seas=zoSeasonRegulars(mk);
+    var sm=zoSeasonMatch(L, seas);
+    h+='<div style="margin-top:6px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 8px">';
+    h+='<div style="font-size:11px;font-weight:700;color:#b45309">🌟 季节常客 × 缺席目标（'+(new Date().getMonth()+1)+'月常客调字凑中目标2D）</div>';
+    if(!seas.length){
+      h+='<div style="font-size:10px;color:#94a3b8;margin-top:2px">本月无季节常客（样本不足或未达门槛）</div>';
+    } else if(!sm.length){
+      h+='<div style="font-size:10px;color:#94a3b8;margin-top:2px">'+seas.length+'个常客都凑不中本期目标2D</div>';
+    } else {
+      sm.forEach(function(r){
+        var parts=[];
+        function seg(hit,lbl,col){ var ks=Object.keys(hit); if(!ks.length) return; var s='<span style="color:'+col+';font-weight:700">'+lbl+'</span> '; s+=ks.map(function(p){ return '<span style="font-family:monospace;background:'+col+';color:#fff;border-radius:4px;padding:0 4px;margin:1px;font-weight:700" title="'+lbl+'='+hit[p]+'">'+p+'</span>'; }).join(''); parts.push(s); }
+        seg(r.f,'前2D','#f59e0b'); seg(r.m,'中2D','#3b82f6'); seg(r.b,'后2D','#6366f1');
+        h+='<div style="font-size:11px;margin-top:3px;line-height:1.9"><span style="font-family:monospace;background:#fef3c7;color:#92400e;border-radius:4px;padding:0 5px;font-weight:700">'+r.orig+'</span> <span style="color:#cbd5e1">→</span> '+parts.join(' <span style="color:#e2e8f0">｜</span> ')+'</div>';
+      });
+      h+='<div style="font-size:9px;color:#b45309;margin-top:3px">左=当月季节常客(全年份·集中度≥1.8x)，右=调字后落在缺席目标里的排列。⚠️ 历史统计，不构成预测。</div>';
+    }
     h+='</div>';
     // 展开数根拆解
     var did='nmdet-'+mk;
