@@ -8524,6 +8524,18 @@ function zoComboGenShow(){
   }
   h+=grpRow('A','#0f766e');
   h+=grpRow('B','#2563eb');
+  // 🔎 高级筛选：点数(和) / 打数 / 必含 / 排除
+  h+='<div style="margin:6px 0;padding:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">';
+  h+='<div style="font-size:11px;font-weight:700;color:#334155;margin-bottom:5px">🔎 高级筛选（对凑出来的号再过滤，空=不限）</div>';
+  h+='<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px">';
+  h+='<span>点数和 <input type="number" id="cg-pt-from" min="0" max="36" placeholder="0" style="width:52px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px"> – <input type="number" id="cg-pt-to" min="0" max="36" placeholder="36" style="width:52px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px"></span>';
+  h+='<span style="border-left:1px solid #e2e8f0;padding-left:10px">打数 ';
+  [24,12,6,4,1].forEach(function(d){ h+='<label style="cursor:pointer;margin-right:5px;white-space:nowrap"><input type="checkbox" id="cg-da-'+d+'" style="vertical-align:middle">'+d+'</label>'; });
+  h+='</span>';
+  h+='<span style="border-left:1px solid #e2e8f0;padding-left:10px">必含 <input type="text" id="cg-inc" placeholder="如 190" style="width:70px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace"></span>';
+  h+='<span>排除 <input type="text" id="cg-exc" placeholder="如 58" style="width:70px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace"></span>';
+  h+='</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">必含=这些数字都要在号里；排除=含任一就踢掉。改条件后再点「生成」。</div>';
+  h+='</div>';
   h+='<button class="btn" style="background:#0d9488;color:#fff;padding:7px 18px;font-size:13px;margin-top:4px" onclick="zoComboGenRun()">⚙️ 生成</button>';
   h+='<div id="cg-result" style="margin-top:10px"></div>';
   h+='</div>';
@@ -8556,14 +8568,32 @@ function zoComboGenRun(){
   var gA=genGroup(cA), gB=genGroup(cB);
   if(!gA && !gB){ res.innerHTML='<div style="color:#dc2626;font-size:13px">请至少在一组里勾一个窗口。</div>'; return; }
   var union={}; if(gA) Object.keys(gA).forEach(function(k){union[k]=1;}); if(gB) Object.keys(gB).forEach(function(k){union[k]=1;});
-  var nums=Object.keys(union);
+  var rawCount=Object.keys(union).length;
+  // 🔎 高级筛选
+  var pv=function(id){ var e=document.getElementById(id); return e&&e.value!==''?parseInt(e.value,10):null; };
+  var pFrom=pv('cg-pt-from'), pTo=pv('cg-pt-to');
+  var das={}, anyDa=false; [24,12,6,4,1].forEach(function(d){ var e=document.getElementById('cg-da-'+d); if(e&&e.checked){das[d]=1;anyDa=true;} });
+  var inc=((document.getElementById('cg-inc')||{value:''}).value.match(/\d/g)||[]);
+  var exc=((document.getElementById('cg-exc')||{value:''}).value.match(/\d/g)||[]);
+  function passF(n){
+    var sum=0; for(var i=0;i<4;i++) sum+=+n[i];
+    if(pFrom!=null && sum<pFrom) return false;
+    if(pTo!=null && sum>pTo) return false;
+    if(anyDa && !das[zoDaCount(n)]) return false;
+    if(inc.length && !inc.every(function(d){return n.indexOf(d)>=0;})) return false;
+    if(exc.length && exc.some(function(d){return n.indexOf(d)>=0;})) return false;
+    return true;
+  }
+  var nums=Object.keys(union).filter(passF);
+  var filtered = (pFrom!=null||pTo!=null||anyDa||inc.length||exc.length);
   var H4=zoNum4Hist(mk);
   var rich=nums.map(function(n){ var inA=gA&&gA[n], inB=gB&&gB[n]; return {n:n,c:H4.cnt[n]||0,last:H4.last[n]||'',both:!!(inA&&inB),grp:inA&&inB?'AB':(inA?'A':'B')}; });
   rich.sort(function(a,b){ if(a.both!==b.both) return a.both?-1:1; if(b.c!==a.c) return b.c-a.c; return a.n.localeCompare(b.n); });
   var opened=rich.filter(function(x){return x.c>0;}).length, both=rich.filter(function(x){return x.both;}).length;
   function lbl(g){ return ZO_CG_WINS.filter(function(w){return g[w[0]];}).map(function(w){return w[1];}).join('+')||'—'; }
   var h='<div style="font-size:12px;color:#0f766e;font-weight:700;margin-bottom:4px">'+mk+'：A组['+(gA?lbl(cA):'空')+'] · B组['+(gB?lbl(cB):'空')+']</div>';
-  h+='<div style="font-size:13px;margin-bottom:6px">合计 <b>'+rich.length+'</b> 个（去重后）· 历史开过 <b style="color:#0d9488">'+opened+'</b> · <b style="color:#dc2626">🔥撞号 '+both+'</b></div>';
+  h+='<div style="font-size:13px;margin-bottom:6px">合计 <b>'+rich.length+'</b> 个（去重后'+(filtered?'·已筛选，凑出'+rawCount+'）':'）')+' · 历史开过 <b style="color:#0d9488">'+opened+'</b> · <b style="color:#dc2626">🔥撞号 '+both+'</b></div>';
+  if(!rich.length){ h+='<div style="color:#dc2626;font-size:12px">筛选后没有号（凑出 '+rawCount+' 个都被条件过滤了），放宽条件再试。</div>'; res.innerHTML=h; return; }
   h+='<div style="line-height:2.1;max-height:320px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff">';
   rich.forEach(function(x){
     var bd=x.both?'border:2px solid #dc2626;':'border:1px solid transparent;';
