@@ -1337,7 +1337,8 @@ function renderPatternTrend(){
   <!-- Row 7: Buttons + 预设 -->
   <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
     <button class="btn btn-green" onclick="runAdvancedFilter()" style="padding:8px 20px;font-size:14px">🔍 筛选</button>
-    <button class="btn" onclick="zoFilterCollision()" style="padding:8px 16px;font-size:14px;background:#dc2626;color:#fff">🔥 跨市场撞号</button>
+    <button class="btn" onclick="fltSaveGroupA()" style="padding:8px 14px;font-size:14px;background:#0d9488;color:#fff">🅰 存为A组</button>
+    <button class="btn" onclick="fltCollideAB()" style="padding:8px 14px;font-size:14px;background:#dc2626;color:#fff">🅱 存B组并撞号</button>
     <button class="btn btn-red" onclick="clearAdvancedFilter()">🗑 全部清空</button>
     <div style="border-left:1px solid #e2e8f0;margin:0 4px"></div>
     <button class="btn" onclick="fltSavePreset()" style="background:#7c3aed;color:#fff;border:none">💾 保存条件</button>
@@ -4848,9 +4849,8 @@ function _fltReadConds(){
     posSets:getPosDigitSets()
   };
 }
-function _fltNumMatches(C, market, num, j){
-  if(!num||num==='0000')return false;
-  if(C.prizeFilter!=='all'&&String(j)!==C.prizeFilter)return false;
+// 只用「数字属性」条件判断一个号（生成撞号用，忽略年月/奖位/冷热等历史维度）
+function _fltNumMatchesGen(C, num){
   const a=ana(num);
   if(C.front2Roots.length&&!C.front2Roots.includes(a.root2d[0]))return false;
   if(C.mid2Roots.length&&!C.mid2Roots.includes(a.root2d[1]))return false;
@@ -4872,38 +4872,50 @@ function _fltNumMatches(C, market, num, j){
   if(C.posSets.some(s=>s.size)){ const _s4=String(num).padStart(4,'0'); for(let _pi=0;_pi<4;_pi++){ if(C.posSets[_pi].size&&!C.posSets[_pi].has(_s4[_pi]))return false; } }
   if(C.grpPicks.length&&!C.grpPicks.includes(flt1990Group(num)))return false;
   if(C.rhnPicks.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(h=>C.rhnPicks.includes(h.index)))return false;
-  if(C.freqTiers.length&&!C.freqTiers.includes(fltGetCategory(market,pz(num)).tier))return false;
   return true;
 }
-function zoFilterCollision(){
+// 该组条件有没有设任何「数字属性」筛选
+function _fltGenHasCond(C){
+  return !!(C.front2Roots.length||C.mid2Roots.length||C.back2Roots.length||C.root4Ds.length||C.permTypes.length||
+    C.front3Roots.length||C.back3Roots.length||C.pts4Picks.length||C.pts4Range||C.pts3fRange||C.pts3bRange||
+    C.patterns.length||C.containsTokens.length||C.posPatterns.length||C.posSets.some(s=>s.size)||C.grpPicks.length||C.rhnPicks.length);
+}
+function _fltGenSet(C){ const set={}; for(let i=0;i<10000;i++){ const s=String(i).padStart(4,'0'); if(_fltNumMatchesGen(C,s)) set[s]=1; } return set; }
+var __fltGrpA=null;
+function fltSaveGroupA(){
   const outEl=document.getElementById('filter-result'); if(!outEl) return;
   const C=_fltReadConds();
-  const mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
-  const numMk={}; // pz(num) -> Set(markets)
-  mkts.forEach(mk=>{
-    const recs=DB[mk]||[]; const seen={};
-    recs.forEach(r=>{
-      if(!inYearRange(r.date,C.fromY,C.toY,C.fromM,C.toM))return;
-      if(C.monthPicks.length){const _m=parseInt(String(r.date||'').slice(5,7),10);if(!C.monthPicks.includes(_m))return;}
-      r.nums.forEach((num,j)=>{ if(_fltNumMatches(C,mk,num,j)){ const k=pz(num); if(!seen[k+'|'+mk]){ seen[k+'|'+mk]=1; (numMk[k]=numMk[k]||{})[mk]=1; } } });
-    });
+  if(!_fltGenHasCond(C)){ outEl.innerHTML='<div class="card" style="border:2px solid #f59e0b"><h3 style="color:#b45309">🅰 A组没设条件</h3><div class="warn">先勾一些「数字属性」条件（数根/点数/打数/1-9-0/罗汉/位数/含数字），再存A组。</div></div>'; return; }
+  const set=_fltGenSet(C); const n=Object.keys(set).length;
+  __fltGrpA={set:set,count:n};
+  outEl.innerHTML='<div class="card" style="border:2px solid #0d9488"><h3 style="color:#0f766e">🅰 A组已存 · '+n+' 个号</h3><div class="warn">现在<b>改条件</b>（设B组），再点 <b>🅱 存B组并撞号</b>，会列出两组都符合的号（交集）。</div></div>';
+}
+function fltCollideAB(){
+  const outEl=document.getElementById('filter-result'); if(!outEl) return;
+  if(!__fltGrpA){ outEl.innerHTML='<div class="card" style="border:2px solid #f59e0b"><h3 style="color:#b45309">还没存A组</h3><div class="warn">先设A组条件 → 点「🅰 存为A组」，再改条件设B组来撞。</div></div>'; return; }
+  const C=_fltReadConds();
+  if(!_fltGenHasCond(C)){ outEl.innerHTML='<div class="card" style="border:2px solid #f59e0b"><h3 style="color:#b45309">🅱 B组没设条件</h3><div class="warn">先勾一些条件当B组，再撞号。</div></div>'; return; }
+  const setB=_fltGenSet(C);
+  const inter=Object.keys(setB).filter(k=>__fltGrpA.set[k]).sort();
+  const market=document.getElementById('flt-market').value;
+  const H4=(typeof zoNum4Hist==='function')?zoNum4Hist(market):{cnt:{}};
+  let h='<div class="card" style="border:2px solid #dc2626"><h3 style="color:#b91c1c">🔥 A∩B 撞号 — 两组条件都符合的号</h3>';
+  h+='<div class="warn" style="margin:6px 0">A组 <b>'+__fltGrpA.count+'</b> 个 × B组 <b>'+Object.keys(setB).length+'</b> 个 → <b style="color:#b91c1c">交集 '+inter.length+'</b> 个。深色=在「'+market+'」历史开过（带次数）。⚠️ 历史统计，不构成预测。</div>';
+  if(!inter.length){ h+='<div style="color:#94a3b8;font-size:13px">两组没有交集。放宽某组条件再试。</div></div>'; outEl.innerHTML=h; outEl.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  const rich=inter.map(n=>({n:n,c:H4.cnt[n]||0})).sort((a,b)=>b.c-a.c||a.n.localeCompare(b.n));
+  const opened=rich.filter(x=>x.c>0).length;
+  h+='<div style="font-size:13px;margin-bottom:6px">其中历史开过 <b style="color:#0d9488">'+opened+'</b> 个（'+market+'）。</div>';
+  h+='<div style="line-height:2.2;max-height:340px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:8px;background:#fff">';
+  rich.forEach(x=>{
+    if(x.c>0) h+='<span title="'+market+'开过'+x.c+'次" style="display:inline-block;font-family:monospace;font-size:15px;font-weight:700;background:#0d9488;color:#fff;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'<span style="font-size:10px;opacity:.85">·'+x.c+'</span></span>';
+    else h+='<span style="display:inline-block;font-family:monospace;font-size:15px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'○</span>';
   });
-  const coll=Object.keys(numMk).map(k=>({num:k,mks:Object.keys(numMk[k])})).filter(x=>x.mks.length>=2);
-  coll.sort((a,b)=>b.mks.length-a.mks.length||a.num.localeCompare(b.num));
-  let h='<div class="card" style="border:2px solid #dc2626"><h3 style="color:#b91c1c">🔥 跨市场撞号 — 同条件下，多个市场都开过的号</h3>';
-  h+='<div class="warn" style="margin:6px 0">把你现在的筛选条件（数根/点数/打数/1-9-0/罗汉/位数…）套到<b>全部9市场</b>的历史，列出<b>2个或以上市场都出现过</b>的号。市场数越多=越"通吃"。⚠️ 历史统计，不构成预测。</div>';
-  if(!coll.length){ h+='<div style="color:#94a3b8;font-size:13px">当前条件下没有跨市场撞号（放宽条件、或先设一些筛选条件再撞）。</div></div>'; outEl.innerHTML=h; outEl.scrollIntoView({behavior:'smooth',block:'start'}); return; }
-  const byN={}; coll.forEach(x=>{(byN[x.mks.length]=byN[x.mks.length]||[]).push(x);});
-  h+='<div style="font-size:13px;margin-bottom:8px">共 <b>'+coll.length+'</b> 个撞号（≥2市场）。</div>';
-  Object.keys(byN).sort((a,b)=>b-a).forEach(n=>{
-    h+='<div style="margin-top:8px"><div style="font-size:12px;font-weight:800;color:#b91c1c;margin-bottom:4px">🔥 '+n+' 个市场都开过（'+byN[n].length+'个）</div>';
-    h+='<div style="line-height:2.2">';
-    byN[n].forEach(x=>{ h+='<span title="'+x.mks.join(' / ')+'" style="display:inline-block;font-family:monospace;font-size:15px;font-weight:700;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:6px;padding:1px 8px;margin:2px">'+x.num+'<span style="font-size:10px;opacity:.8">·'+n+'市</span></span>'; });
-    h+='</div></div>';
-  });
-  const allNums=coll.map(x=>x.num);
-  h+='<div style="margin-top:10px"><button class="btn" style="padding:5px 12px;font-size:12px;background:#dc2626;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allNums.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制全部撞号('+allNums.length+')\',1200)})">📋复制全部撞号('+allNums.length+')</button></div>';
-  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">悬停号码看是哪几个市场。空条件=全部号都撞，先设几个筛选条件才有意义。</div>';
+  h+='</div>';
+  const openedList=rich.filter(x=>x.c>0).map(x=>x.n);
+  h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
+  h+='<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+inter.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+inter.length+')\',1200)})">📋全部('+inter.length+')</button>';
+  if(openedList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#0d9488;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
+  h+='</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">深绿=在「'+market+'」历史开过（换市场看下拉「市场」）；灰○=没开过。撞号只按数字属性生成，忽略年月/奖位/冷热。</div>';
   h+='</div>';
   outEl.innerHTML=h;
   outEl.scrollIntoView({behavior:'smooth',block:'start'});
