@@ -798,6 +798,7 @@ function renderPatternTrend(){
       </select>
     </div>
     <button class="btn btn-green" onclick="ovRender()" style="padding:9px 22px">🔄 刷新</button>
+    <button class="btn" onclick="zoPullLatestFromGitHub(this)" style="padding:9px 16px;background:#1e3a5f;color:#fff" title="从云端 GitHub 拉最新开奖成绩">☁️ 拉GitHub最新</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
   <div class="warn" style="margin-top:8px">
@@ -5569,9 +5570,10 @@ function loadSavedResults(){
 
 // ===== V63: 自动抓取导入 — auto_fetch_results.py 产出的 auto_results.json =====
 // 在 loadSavedResults() 之前调用: 只写 localStorage(只增不覆盖), DB 合并与冷号更新走原有流程
-async function autoImportFetchedResults(){
+async function autoImportFetchedResults(srcUrl){
   try{
-    const r = await fetch('auto_results.json?t='+Date.now(), {cache:'no-store'});
+    const url = srcUrl || ('auto_results.json?t='+Date.now());
+    const r = await fetch(url, {cache:'no-store'});
     if(!r.ok) return 0;
     const j = await r.json();
     const draws = (j && j.draws) || [];
@@ -5610,6 +5612,24 @@ async function autoImportFetchedResults(){
     console.log('[V63 auto-import] 新增', added, '期, 补充特/安', enriched, '期:', [...markets].join('、'));
     return added + enriched;
   }catch(e){ console.warn('[V63 auto-import] 失败:', e); return 0; }
+}
+// 🔄 一键从 GitHub 拉最新成绩（云端 auto_fetch 抓的，绕过本地文件/缓存）
+async function zoPullLatestFromGitHub(btn){
+  const RAW='https://raw.githubusercontent.com/becoolyong147-sudo/lotto-data/main/auto_results.json?t='+Date.now();
+  const old = btn? btn.textContent : '';
+  if(btn){ btn.disabled=true; btn.textContent='⏳ 拉取中…'; }
+  try{
+    const n = await autoImportFetchedResults(RAW);
+    if(n>0){
+      if(btn){ btn.textContent='✅ 已更新 '+n+' 期'; }
+      setTimeout(()=>location.reload(), 1200);   // 重载让各页面读到新数据
+    }else{
+      if(btn){ btn.textContent='✔ 已是最新'; setTimeout(()=>{btn.textContent=old;btn.disabled=false;},1800); }
+    }
+  }catch(e){
+    if(btn){ btn.textContent='❌ 拉取失败'; setTimeout(()=>{btn.textContent=old;btn.disabled=false;},2000); }
+    console.warn('[GitHub pull] 失败:', e);
+  }
 }
 function _autoImportToast(n, markets){
   const div=document.createElement('div');
