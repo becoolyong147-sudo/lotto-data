@@ -8532,9 +8532,9 @@ function zoComboGenShow(){
   h+='<span style="border-left:1px solid #e2e8f0;padding-left:10px">打数 ';
   [24,12,6,4,1].forEach(function(d){ h+='<label style="cursor:pointer;margin-right:5px;white-space:nowrap"><input type="checkbox" id="cg-da-'+d+'" style="vertical-align:middle">'+d+'</label>'; });
   h+='</span>';
-  h+='<span style="border-left:1px solid #e2e8f0;padding-left:10px">必含 <input type="text" id="cg-inc" placeholder="如 190" style="width:70px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace"></span>';
+  h+='<span style="border-left:1px solid #e2e8f0;padding-left:10px">含任一 <input type="text" id="cg-inc" placeholder="如 190" style="width:70px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace"></span>';
   h+='<span>排除 <input type="text" id="cg-exc" placeholder="如 58" style="width:70px;padding:2px 4px;border:1px solid #cbd5e1;border-radius:4px;font-family:monospace"></span>';
-  h+='</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">必含=这些数字都要在号里；排除=含任一就踢掉。改条件后再点「生成」。</div>';
+  h+='</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">含任一=号里有其中任何一个数字就保留；排除=含任一就踢掉。改条件后再点「生成」。</div>';
   h+='</div>';
   h+='<button class="btn" style="background:#0d9488;color:#fff;padding:7px 18px;font-size:13px;margin-top:4px" onclick="zoComboGenRun()">⚙️ 生成</button>';
   h+='<div id="cg-result" style="margin-top:10px"></div>';
@@ -8580,7 +8580,7 @@ function zoComboGenRun(){
     if(pFrom!=null && sum<pFrom) return false;
     if(pTo!=null && sum>pTo) return false;
     if(anyDa && !das[zoDaCount(n)]) return false;
-    if(inc.length && !inc.every(function(d){return n.indexOf(d)>=0;})) return false;
+    if(inc.length && !inc.some(function(d){return n.indexOf(d)>=0;})) return false;
     if(exc.length && exc.some(function(d){return n.indexOf(d)>=0;})) return false;
     return true;
   }
