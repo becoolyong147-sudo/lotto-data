@@ -3497,7 +3497,12 @@ function ovRender(){
   const out = document.getElementById('overview-result');
   const meta = document.getElementById('ov-meta');
 
-  const rows = (DB[market]||[]).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  // 合并 auto_results(最近成绩) + DB(历史底库)，按日期去重，让"最新一期"真的是最新
+  const _nd = (typeof getNewResults==='function') ? getNewResults() : {};
+  const _seen = {}, _merged = [];
+  (_nd[market]||[]).forEach(d=>{ if(d&&d.date&&!_seen[d.date]){ _seen[d.date]=1; _merged.push(d); } });
+  ((DB[market])||[]).forEach(d=>{ if(d&&d.date&&!_seen[d.date]){ _seen[d.date]=1; _merged.push(d); } });
+  const rows = _merged.sort((a,b)=>b.date.localeCompare(a.date));
   if(!rows.length){
     out.innerHTML = '<div class="error">该市场暂无数据。</div>';
     meta.textContent = '';
