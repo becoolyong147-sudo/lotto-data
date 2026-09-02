@@ -8049,6 +8049,7 @@ function doBacktest(){
         <button class="btn" style="background:#0d9488;color:#fff;padding:9px 14px;font-size:14px" onclick="zoComboGenShow()">🧩 组合生成器</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
         <button class="btn" style="background:#334155;color:#fff;padding:9px 14px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计</button>
+        <button class="btn" style="background:#9333ea;color:#fff;padding:9px 14px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#0891b2;color:#fff;padding:9px 14px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
@@ -8631,6 +8632,75 @@ function zoComboGenRun(){
   if(bothList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#dc2626;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+bothList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋撞号('+bothList.length+')\',1200)})">📋撞号('+bothList.length+')</button>';
   h+='</div>';
   h+='<div style="font-size:10px;color:#64748b;margin-top:4px">深绿=历史开过（·次数·几年没来 y）；灰○=从没开过（久违∞）；🔥红框=A、B两组都命中。「久违≥N年」把从没开过的也算进去。</div>';
+  res.innerHTML=h;
+}
+// 🧮 EV 计算器：成本 / 中奖概率 / 期望回报 / 庄家抽水（马来西亚4D标准赔率，可改）
+function zoEVShow(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var h='<div class="card" style="border:2px solid #9333ea">';
+  h+='<h3 style="color:#7e22ce">🧮 成本 × 赔率 计算器（EV）· 看清楚你在玩什么</h3>';
+  h+='<div class="warn" style="margin:6px 0">纯算术，100%成立：算你的成本、中奖概率、期望回报、庄家长期抽水。⚠️ 不预测号码。</div>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:8px">';
+  h+='<div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">号码</label><input type="text" id="ev-num" maxlength="4" placeholder="1234" oninput="this.value=this.value.replace(/\\D/g,\'\')" style="width:90px;font-family:monospace;font-size:18px;letter-spacing:2px;padding:4px 6px;border:1px solid #d8b4fe;border-radius:6px"></div>';
+  h+='<div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">玩法</label><select id="ev-type" style="font-size:14px;padding:5px 8px;border:1px solid #d8b4fe;border-radius:6px"><option value="big">大（23个奖）</option><option value="small">小（头二三）</option></select></div>';
+  h+='<div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">投法</label><select id="ev-mode" style="font-size:14px;padding:5px 8px;border:1px solid #d8b4fe;border-radius:6px"><option value="box">包/调字（全部排列）</option><option value="straight">正字（就这1个）</option></select></div>';
+  h+='<div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">每字下注 RM</label><input type="number" id="ev-stake" min="0.1" step="0.5" value="1" style="width:70px;font-size:14px;padding:5px 6px;border:1px solid #d8b4fe;border-radius:6px"></div>';
+  h+='<button class="btn" style="background:#9333ea;color:#fff;padding:7px 18px;font-size:14px" onclick="zoEVRun()">⚙️ 计算</button>';
+  h+='</div>';
+  // 赔率面板（每RM1，可改）
+  h+='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:8px 10px;margin-bottom:8px">';
+  h+='<div style="font-size:12px;font-weight:700;color:#7e22ce;margin-bottom:5px">赔率（每 RM1 中的赔付，可改 · 默认 Magnum）</div>';
+  function pin(id,v,lbl){ return '<span style="font-size:12px;margin-right:10px;white-space:nowrap">'+lbl+' <input type="number" id="'+id+'" value="'+v+'" style="width:64px;padding:2px 4px;border:1px solid #d8b4fe;border-radius:4px"></span>'; }
+  h+='<div style="margin-bottom:4px"><b style="color:#7e22ce;font-size:11px">大：</b>'+pin('ev-b1',2500,'头')+pin('ev-b2',1000,'二')+pin('ev-b3',500,'三')+pin('ev-bsp',180,'特别×10')+pin('ev-bco',60,'安慰×10')+'</div>';
+  h+='<div><b style="color:#7e22ce;font-size:11px">小：</b>'+pin('ev-s1',3500,'头')+pin('ev-s2',2000,'二')+pin('ev-s3',1000,'三')+'</div>';
+  h+='</div>';
+  h+='<div id="ev-result"></div>';
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zoEVRun(){
+  var res=document.getElementById('ev-result'); if(!res) return;
+  var num=(document.getElementById('ev-num')||{value:''}).value;
+  if(!/^\d{4}$/.test(num)){ res.innerHTML='<div style="color:#dc2626;font-size:13px">请输入4位数字号码。</div>'; return; }
+  var type=(document.getElementById('ev-type')||{value:'big'}).value;
+  var mode=(document.getElementById('ev-mode')||{value:'box'}).value;
+  var stake=parseFloat((document.getElementById('ev-stake')||{value:'1'}).value)||1;
+  var gv=function(id){ return parseFloat((document.getElementById(id)||{value:'0'}).value)||0; };
+  var da=zoDaCount(num);                 // 24/12/6/4/1
+  var N = mode==='box' ? da : 1;          // 下注的号码个数
+  var cost = N*stake;
+  // 每个号码、每RM1的期望回报
+  var perUnit;
+  if(type==='big'){ perUnit=(gv('ev-b1')+gv('ev-b2')+gv('ev-b3')+10*gv('ev-bsp')+10*gv('ev-bco'))/10000; }
+  else { perUnit=(gv('ev-s1')+gv('ev-s2')+gv('ev-s3'))/10000; }
+  var expReturn = N*stake*perUnit;
+  var net = expReturn - cost;
+  var edge = 1-perUnit;                    // 庄家抽水比例
+  // 中奖概率（至少中一个奖）：奖位数 S 个不同4D 里，命中你的 N 个之一
+  var S = type==='big'?23:3;
+  var pNone=1; for(var i=0;i<N;i++){ pNone *= (10000-S-i)/(10000-i); }
+  var pWin = 1-pNone;
+  function rm(x){ return 'RM'+(x<0?'-':'')+Math.abs(x).toFixed(2); }
+  function pct(x){ return (x*100).toFixed(x<0.01?3:2)+'%'; }
+  var h='<div style="background:#fff;border:1px solid #e9d5ff;border-radius:10px;padding:12px">';
+  h+='<div style="font-size:14px;font-weight:800;color:#7e22ce;margin-bottom:8px">'+num+' · '+(type==='big'?'大':'小')+' · '+(mode==='box'?'包（'+da+'打，'+N+'个号）':'正字（1个号）')+' · 每字 '+rm(stake)+'</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px">';
+  function box(lbl,val,col){ return '<div style="background:#faf5ff;border-radius:8px;padding:8px 10px"><div style="font-size:11px;color:#6b21a8">'+lbl+'</div><div style="font-size:18px;font-weight:800;color:'+(col||'#1e293b')+'">'+val+'</div></div>'; }
+  h+=box('总成本',rm(cost));
+  h+=box('中奖概率(每期)',pct(pWin),'#0d9488');
+  h+=box('期望回报',rm(expReturn));
+  h+=box('净期望',rm(net),net<0?'#dc2626':'#16a34a');
+  h+=box('庄家抽水',pct(edge),'#dc2626');
+  h+='</div>';
+  // 长期视角
+  var per100=net*100;
+  h+='<div style="margin-top:10px;font-size:13px;color:#334155;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px">';
+  h+='💸 <b>长期真相：</b>每下这一注,平均<b style="color:#dc2626">亏 '+rm(-net)+'</b>（花'+rm(cost)+'、平均只拿回'+rm(expReturn)+'）。<br>';
+  h+='玩 <b>100 期</b>,预期净亏约 <b style="color:#dc2626">'+rm(-per100)+'</b>。庄家每收 RM1,长期留下 '+pct(edge)+'。';
+  h+='</div>';
+  h+='<div style="margin-top:6px;font-size:11px;color:#94a3b8">概率是"命中任一奖位"的每期机会；期望回报已含各奖赔付加权。数字全随机,连玩不会"回本",这就是娱乐的价格。改上面赔率可套你本地庄家的实际赔付。</div>';
+  h+='</div>';
   res.innerHTML=h;
 }
 // 🔬 诚实审计：对每市场4位数字跑卡方拟合优度，查是否偏离均匀随机
