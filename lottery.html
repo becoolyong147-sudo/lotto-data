@@ -8041,22 +8041,27 @@ function doBacktest(){
       </div>
     </div>
     <div class="ig" style="align-self:flex-end;width:100%">
-      <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:3px">主功能</div>
+      <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:3px">🟢 日常（发群常用）</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
-        <button class="btn" style="background:#0d9488;color:#fff;padding:9px 14px;font-size:14px" onclick="zoComboGenShow()">🧩 组合生成器</button>
-        <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
-        <button class="btn" style="background:#334155;color:#fff;padding:9px 14px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计</button>
-        <button class="btn" style="background:#9333ea;color:#fff;padding:9px 14px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
-        <button class="btn" style="background:#0891b2;color:#fff;padding:9px 14px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
         <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
-        <button class="btn" style="background:#e2e8f0;color:#475569;padding:9px 12px;font-size:13px" onclick="var e=document.getElementById('abs-adv');e.style.display=(e.style.display==='none'||!e.style.display)?'flex':'none';this.textContent=(e.style.display==='none'?'▾ 进阶分析':'▴ 收起进阶')">▾ 进阶分析</button>
       </div>
-      <div id="abs-adv" style="display:none;flex-wrap:wrap;gap:6px;margin-top:8px;padding-top:8px;border-top:1px dashed #e2e8f0">
+      <div style="font-size:11px;font-weight:700;color:#7e22ce;margin:10px 0 3px">🧮 诚实工具（守住底线·别当预测）</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <button class="btn" style="background:#9333ea;color:#fff;padding:9px 14px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器</button>
+        <button class="btn" style="background:#334155;color:#fff;padding:9px 14px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计</button>
+        <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
+      </div>
+      <div style="margin:10px 0 3px">
+        <button class="btn" style="background:#e2e8f0;color:#475569;padding:6px 12px;font-size:13px" onclick="var e=document.getElementById('abs-adv');var open=(e.style.display==='none'||!e.style.display);e.style.display=open?'flex':'none';this.textContent=(open?'▴ 收起造号进阶':'🧩 造号进阶（组合生成器 / 链接 / 回测…）')">🧩 造号进阶（组合生成器 / 链接 / 回测…）</button>
+      </div>
+      <div id="abs-adv" style="display:none;flex-wrap:wrap;gap:6px;margin-top:4px;padding-top:8px;border-top:1px dashed #e2e8f0">
+        <button class="btn" style="background:#0d9488;color:#fff;padding:7px 12px;font-size:12px" onclick="zoComboGenShow()">🧩 组合生成器</button>
+        <button class="btn" style="background:#0891b2;color:#fff;padding:7px 12px;font-size:12px" onclick="zoLinkShow()">🔗 链接号码</button>
         <button class="btn" style="background:#0f766e;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentFront2D()">🔗 缺席前2D→历史开出</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
         <button class="btn" style="background:#9333ea;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsent9Markets()">🏢 9市场命中对照</button>
