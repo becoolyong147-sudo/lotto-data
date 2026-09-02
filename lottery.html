@@ -8048,6 +8048,7 @@ function doBacktest(){
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#0d9488;color:#fff;padding:9px 14px;font-size:14px" onclick="zoComboGenShow()">🧩 组合生成器</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
+        <button class="btn" style="background:#334155;color:#fff;padding:9px 14px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#0891b2;color:#fff;padding:9px 14px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
@@ -8631,6 +8632,62 @@ function zoComboGenRun(){
   h+='</div>';
   h+='<div style="font-size:10px;color:#64748b;margin-top:4px">深绿=历史开过（·次数·几年没来 y）；灰○=从没开过（久违∞）；🔥红框=A、B两组都命中。「久违≥N年」把从没开过的也算进去。</div>';
   res.innerHTML=h;
+}
+// 🔬 诚实审计：对每市场4位数字跑卡方拟合优度，查是否偏离均匀随机
+function zoHonestyAudit(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var CRIT05=16.919, CRIT01=21.666; // df=9 卡方临界值
+  var POS=['千位','百位','十位','个位'];
+  var rows=mkts.map(function(mk){
+    var dseen={}, cells=[{},{},{},{}], N=0;
+    function scanD(d){ if(!d||!d.date||dseen[d.date])return; dseen[d.date]=1; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)){ N++; for(var p=0;p<4;p++){ var dig=s[p]; cells[p][dig]=(cells[p][dig]||0)+1; } } } }); }
+    (newData[mk]||[]).forEach(scanD); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scanD);
+    var pos=cells.map(function(c){
+      var exp=N/10, chi=0; for(var d=0;d<=9;d++){ var o=c[''+d]||0; chi+=(o-exp)*(o-exp)/exp; }
+      var st = chi>=CRIT01?'fail01':(chi>=CRIT05?'fail05':'pass');
+      return {chi:chi,st:st};
+    });
+    var fails01=pos.filter(function(p){return p.st==='fail01';}).length;
+    var fails05=pos.filter(function(p){return p.st!=='pass';}).length;
+    return {mk:mk,N:N,pos:pos,fails01:fails01,fails05:fails05};
+  }).filter(function(r){return r.N>0;});
+  var h='<div class="card" style="border:2px solid #334155">';
+  h+='<h3 style="color:#1e293b">🔬 诚实审计 · 9市场是否偏离"纯随机"（卡方拟合优度，每位数字0-9）</h3>';
+  h+='<div class="warn" style="margin:6px 0">检验每一位数字的分布跟"均匀随机"差多少。<b>✓通过</b>=看不出偏差（χ²&lt;16.9）；<b style="color:#d97706">⚠可疑</b>=5%显著（χ²≥16.9）；<b style="color:#dc2626">✗异常</b>=1%显著（χ²≥21.7）。df=9。</div>';
+  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;min-width:100%">';
+  h+='<tr style="background:#e2e8f0;color:#1e293b"><th style="text-align:left;padding:6px 10px">市场</th><th style="text-align:right;padding:6px 10px">样本(号数)</th>';
+  POS.forEach(function(p){ h+='<th style="text-align:center;padding:6px 10px">'+p+'</th>'; });
+  h+='<th style="text-align:left;padding:6px 10px">结论</th></tr>';
+  function cell(p){
+    if(p.st==='pass') return '<td style="text-align:center;padding:5px 10px;color:#16a34a">✓ '+p.chi.toFixed(1)+'</td>';
+    if(p.st==='fail05') return '<td style="text-align:center;padding:5px 10px;color:#d97706;font-weight:700">⚠ '+p.chi.toFixed(1)+'</td>';
+    return '<td style="text-align:center;padding:5px 10px;color:#dc2626;font-weight:800">✗ '+p.chi.toFixed(1)+'</td>';
+  }
+  rows.forEach(function(r){
+    var verdict, vc;
+    if(r.N<300){ verdict='🔵 样本偏少'; vc='#64748b'; }
+    else if(r.fails01>0){ verdict='🔴 有异常位'; vc='#dc2626'; }
+    else if(r.fails05>0){ verdict='🟡 有可疑位'; vc='#d97706'; }
+    else { verdict='🟢 通过·看不出偏差'; vc='#16a34a'; }
+    h+='<tr style="border-top:1px solid #e2e8f0">';
+    h+='<td style="padding:5px 10px;font-weight:800;color:#1e293b">'+r.mk+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+r.N+'</td>';
+    r.pos.forEach(function(p){ h+=cell(p); });
+    h+='<td style="padding:5px 10px;font-weight:700;color:'+vc+'">'+verdict+'</td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  var anyFlag=rows.some(function(r){return r.N>=300&&r.fails05>0;});
+  h+='<div style="font-size:12px;color:#334155;margin-top:8px;background:#f1f5f9;border-radius:8px;padding:8px 10px">';
+  h+='<b>怎么读:</b> 全绿 🟢 = 这些市场在数字分布上看不出任何偏差，跟公平随机一致——也就是说"冷热/该来了"没有统计依据。<br>';
+  h+='⚠️ <b>多重检验提醒:</b> 一次跑 9市场×4位=36个检验，纯随机下也会偶然冒出 1-2 个 ⚠。所以<b>单个⚠不算数</b>；只有某位 ✗(1%级) 且反复出现，才值得当真信号深挖。';
+  if(anyFlag) h+='<br>👉 本次有标记位，先别激动，多半是多重检验的正常噪音；要确认可复跑或换时间段看是否稳定复现。';
+  else h+='<br>👉 本次全部通过，没有可疑位——诚实的结论:看不出可利用的偏差。';
+  h+='</div></div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 📊 市场周期报告：9市场 历史跨度 / 期数 / 平均回归周期 一览
 function zoMktCycleReport(){
