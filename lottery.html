@@ -8715,9 +8715,9 @@ function zoComboGenRun(){
   var openedList=rich.filter(function(x){return x.c>0;}).map(function(x){return x.n;});
   var bothList=rich.filter(function(x){return x.both;}).map(function(x){return x.n;});
   h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
-  h+='<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+rich.length+')\',1200)})">📋全部('+rich.length+')</button>';
-  if(openedList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#0d9488;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
-  if(bothList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#dc2626;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+bothList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋撞号('+bothList.length+')\',1200)})">📋撞号('+bothList.length+')</button>';
+  h+='<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+rich.length+')\',1200)})">📋全部('+rich.length+')</button>';
+  if(openedList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#0d9488;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
+  if(bothList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#dc2626;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+bothList.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋撞号('+bothList.length+')\',1200)})">📋撞号('+bothList.length+')</button>';
   h+='</div>';
   h+='<div style="font-size:10px;color:#64748b;margin-top:4px">深绿=历史开过（·次数·几年没来 y）；灰○=从没开过（久违∞）；🔥红框=A、B两组都命中。「久违≥N年」把从没开过的也算进去。</div>';
   res.innerHTML=h;
