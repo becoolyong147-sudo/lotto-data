@@ -248,8 +248,8 @@ tr:hover td{background:#fafaf5}
     <div class="scene" onclick="switchScene('analysis',this)"><span class="icon">📈</span>行为分析</div>
     <div class="scene" onclick="switchScene('data',this)"><span class="icon">📥</span>数据管理</div>
     <div class="scene" onclick="switchScene('dranalysis',this)"><span class="icon">🔢</span>走势分析</div>
+    <div class="scene" onclick="switchScene('honest',this)"><span class="icon">🧮</span>诚实工具</div>
   </div>
-  <button class="cold-trigger" onclick="openColdDrawer()" title="打开冷热库抽屉">❄️ 冷热库</button>
 </div>
 
 <!-- Scene: 决策中心 -->
@@ -265,19 +265,23 @@ tr:hover td{background:#fafaf5}
 <!-- Scene: 行为分析 -->
 <div id="scene-analysis" class="scene-panel">
   <div class="subtabs">
+    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap">📊 号码行为</span>
     <div class="subtab active" data-tab="pointtrend" onclick="switchSubtab(this)">📈 点数行为</div>
     <div class="subtab" data-tab="matrix" onclick="switchSubtab(this)">🔢 数根分析</div>
     <div class="subtab" data-tab="twin" onclick="switchSubtab(this)">👥 2D行为</div>
     <div class="subtab" data-tab="permtrend" onclick="switchSubtab(this)">🎲 打数走势</div>
     <div class="subtab" data-tab="digitlock" onclick="switchSubtab(this)">🔒 位数锁定</div>
+    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">🗓️ 季节·生肖·属性</span>
     <div class="subtab" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
     <div class="subtab" data-tab="zodiac" onclick="switchSubtab(this)">🐲 生肖图</div>
     <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
+    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">🔢 排列·格子·深挖</span>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
     <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
     <div class="subtab" data-tab="digitgrid" onclick="switchSubtab(this)">🔳 数字格子</div>
     <div class="subtab" data-tab="posgrid" onclick="switchSubtab(this)">📅 位置·半月</div>
     <div class="subtab" data-tab="grid3d" onclick="switchSubtab(this)">🎴 后3D九宫格</div>
+    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">⭐ 主打</span>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -304,6 +308,23 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="dr-zone" onclick="switchSubtab(this)">🗺️ 分区地图</div>
     <div class="subtab" data-tab="digit-track" onclick="switchSubtab(this)">🔢 四位走势</div>
     <div class="subtab" data-tab="ptt-trend" onclick="switchSubtab(this);renderPatternTrend();">🎨 大小单双走势</div>
+  </div>
+</div>
+
+<!-- Scene: 诚实工具 -->
+<div id="scene-honest" class="scene-panel">
+  <div style="padding:14px">
+    <div class="card" style="border:2px solid #7e22ce;background:#faf5ff">
+      <h3 style="color:#7e22ce">🧮 诚实工具 · 守住底线（不预测号码）</h3>
+      <div class="warn" style="margin:6px 0">这三个工具是全套里唯一"真能算、站得住脚"的：算成本、查公平、看周期。用来管本、复盘、对会员讲道理。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+        <button class="btn" style="background:#9333ea;color:#fff;padding:10px 16px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器（成本×赔率）</button>
+        <button class="btn" style="background:#334155;color:#fff;padding:10px 16px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计（公不公平）</button>
+        <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告（几年轮一次）</button>
+      </div>
+      <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
+    </div>
+    <div id="honest-out"></div>
   </div>
 </div>
 
@@ -591,47 +612,6 @@ function showRHub(name){
 </div>
 
 <!-- Cold Drawer -->
-<div class="drawer-mask" id="cold-mask" onclick="closeColdDrawer()"></div>
-<div class="cold-drawer" id="cold-drawer">
-  <div class="drawer-head">
-    <h3>❄️ 冷热库 — 跨场景速查</h3>
-    <button class="drawer-close" onclick="closeColdDrawer()">×</button>
-  </div>
-  <div class="drawer-body">
-    <div class="card" style="margin-bottom:8px">
-      <div class="row">
-        <div class="ig"><label>市场</label>
-          <select id="cold-market" onchange="doCold()">
-            <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option>
-          </select>
-        </div>
-        <div class="ig"><label>过期倍数</label>
-          <select id="cold-min-ratio" onchange="doCold()">
-            <option value="1.5">≥ 1.5倍</option>
-            <option value="2">≥ 2倍</option>
-            <option value="3">≥ 3倍</option>
-            <option value="5">≥ 5倍</option>
-          </select>
-        </div>
-        <div class="ig"><label>排序</label>
-          <select id="cold-sort" onchange="doCold()">
-            <option value="ratio">过期倍数</option>
-            <option value="curr">已过期数</option>
-          </select>
-        </div>
-        <div class="ig"><label>点数</label>
-          <select id="cold-pts" onchange="doCold()">
-            <option value="">全部点数</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div id="cold-result"></div>
-  </div>
-</div>
-
-
-
 <!-- TAB: 四位走势 -->
 <div id="tab-digit-track" class="panel" style="padding:12px">
   <div class="card">
@@ -1975,7 +1955,6 @@ function init(){
   const dataCountEl=document.getElementById('data-count');
   if(dataCountEl) dataCountEl.textContent=`历史${total}期 + 新增${newCount}期`;
 
-  doCold();
   showAdded();
 
   // V53: auto-render the one-click overview if it's the default landing tab
@@ -3227,6 +3206,7 @@ function _coldPopulatePtsSelect(){
 }
 
 function doCold(){
+  if(!document.getElementById('cold-market')) return; // 冷热库已移除
   _coldPopulatePtsSelect();
   const market=document.getElementById('cold-market').value;
   const minRatio=parseFloat(document.getElementById('cold-min-ratio').value);
@@ -8050,13 +8030,8 @@ function doBacktest(){
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
         <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
       </div>
-      <div style="font-size:11px;font-weight:700;color:#7e22ce;margin:10px 0 3px">🧮 诚实工具（守住底线·别当预测）</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <button class="btn" style="background:#9333ea;color:#fff;padding:9px 14px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器</button>
-        <button class="btn" style="background:#334155;color:#fff;padding:9px 14px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计</button>
-        <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
-      </div>
-      <div style="margin:10px 0 3px">
+      <div style="font-size:11px;color:#94a3b8;margin:8px 0 3px">🧮 EV计算器 / 🔬 诚实审计 / 📊 市场周期报告 已移到顶部「🧮 诚实工具」区</div>
+      <div style="margin:6px 0 3px">
         <button class="btn" style="background:#e2e8f0;color:#475569;padding:6px 12px;font-size:13px" onclick="var e=document.getElementById('abs-adv');var open=(e.style.display==='none'||!e.style.display);e.style.display=open?'flex':'none';this.textContent=(open?'▴ 收起造号进阶':'🧩 造号进阶（组合生成器 / 链接 / 回测…）')">🧩 造号进阶（组合生成器 / 链接 / 回测…）</button>
       </div>
       <div id="abs-adv" style="display:none;flex-wrap:wrap;gap:6px;margin-top:4px;padding-top:8px;border-top:1px dashed #e2e8f0">
@@ -8641,7 +8616,7 @@ function zoComboGenRun(){
 }
 // 🧮 EV 计算器：成本 / 中奖概率 / 期望回报 / 庄家抽水（马来西亚4D标准赔率，可改）
 function zoEVShow(){
-  var out=document.getElementById('abs-out'); if(!out) return;
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
   var h='<div class="card" style="border:2px solid #9333ea">';
   h+='<h3 style="color:#7e22ce">🧮 成本 × 赔率 计算器（EV）· 看清楚你在玩什么</h3>';
   h+='<div class="warn" style="margin:6px 0">纯算术，100%成立：算你的成本、中奖概率、期望回报、庄家长期抽水。⚠️ 不预测号码。</div>';
@@ -8710,7 +8685,7 @@ function zoEVRun(){
 }
 // 🔬 诚实审计：对每市场4位数字跑卡方拟合优度，查是否偏离均匀随机
 function zoHonestyAudit(){
-  var out=document.getElementById('abs-out'); if(!out) return;
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   var newData=(typeof getNewResults==='function')?getNewResults():{};
   var CRIT05=16.919, CRIT01=21.666; // df=9 卡方临界值
@@ -8766,7 +8741,7 @@ function zoHonestyAudit(){
 }
 // 📊 市场周期报告：9市场 历史跨度 / 期数 / 平均回归周期 一览
 function zoMktCycleReport(){
-  var out=document.getElementById('abs-out'); if(!out) return;
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
   var yEl=document.getElementById('mcr-years'); var winY=(yEl&&yEl.value!=='')?parseFloat(yEl.value):null;
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   var newData=(typeof getNewResults==='function')?getNewResults():{};
@@ -10526,7 +10501,8 @@ let CURRENT_SCENE='decision';
 const SCENE_MAP={
   decision:['flow','filter','decompose'],
   analysis:['pointtrend','matrix','twin','permtrend','digitlock','season'],
-  data:['add','paste','sync','backup','recent']
+  data:['add','paste','sync','backup','recent'],
+  honest:[]
 };
 const TAB_TO_SCENE={};
 for(const[scene,tabs]of Object.entries(SCENE_MAP)){
@@ -10600,14 +10576,14 @@ function v16Go(name){
 
 // ===== V20 Cold Drawer =====
 function openColdDrawer(){
-  document.getElementById('cold-mask').classList.add('open');
-  document.getElementById('cold-drawer').classList.add('open');
-  // Refresh cold data on open
+  var m=document.getElementById('cold-mask'), d=document.getElementById('cold-drawer');
+  if(!d) return; // 冷热库已移除
+  if(m)m.classList.add('open'); d.classList.add('open');
   if(typeof doCold==='function')doCold();
 }
 function closeColdDrawer(){
-  document.getElementById('cold-mask').classList.remove('open');
-  document.getElementById('cold-drawer').classList.remove('open');
+  var m=document.getElementById('cold-mask'), d=document.getElementById('cold-drawer');
+  if(m)m.classList.remove('open'); if(d)d.classList.remove('open');
 }
 // ESC to close drawer
 document.addEventListener('keydown',function(e){
