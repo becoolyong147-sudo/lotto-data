@@ -8047,6 +8047,7 @@ function doBacktest(){
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#0d9488;color:#fff;padding:9px 14px;font-size:14px" onclick="zoComboGenShow()">🧩 组合生成器</button>
+        <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#0891b2;color:#fff;padding:9px 14px;font-size:14px" onclick="zoLinkShow()">🔗 链接号码</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
@@ -8630,6 +8631,48 @@ function zoComboGenRun(){
   h+='</div>';
   h+='<div style="font-size:10px;color:#64748b;margin-top:4px">深绿=历史开过（·次数·几年没来 y）；灰○=从没开过（久违∞）；🔥红框=A、B两组都命中。「久违≥N年」把从没开过的也算进去。</div>';
   res.innerHTML=h;
+}
+// 📊 市场周期报告：9市场 历史跨度 / 期数 / 平均回归周期 一览
+function zoMktCycleReport(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var yEl=document.getElementById('mcr-years'); var winY=(yEl&&yEl.value!=='')?parseFloat(yEl.value):null;
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var newData=(typeof getNewResults==='function')?getNewResults():{};
+  var YRMS=365.25*86400000;
+  var cutoff=null;
+  if(winY!=null&&winY>0){ var c=new Date(Date.now()-winY*YRMS); cutoff=c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0'); }
+  var rows=mkts.map(function(mk){
+    var minD='9999-99-99',maxD='',dseen={},cnt={};
+    function scanD(d){ if(!d||!d.date)return; if(cutoff&&d.date<cutoff)return; if(dseen[d.date])return; dseen[d.date]=1; if(d.date<minD)minD=d.date; if(d.date>maxD)maxD=d.date; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)) cnt[s]=(cnt[s]||0)+1; } }); }
+    (newData[mk]||[]).forEach(scanD); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scanD);
+    var draws=Object.keys(dseen).length;
+    var span=(maxD&&minD<'9999')?(new Date(maxD).getTime()-new Date(minD).getTime())/YRMS:0;
+    var sumCnt=0, distinct=Object.keys(cnt).length; Object.keys(cnt).forEach(function(k){sumCnt+=cnt[k];});
+    var avg=(span>0&&sumCnt>0)?(span*10000/sumCnt):null;
+    return {mk:mk,draws:draws,span:span,minD:minD<'9999'?minD:'',maxD:maxD,sumCnt:sumCnt,distinct:distinct,avg:avg};
+  }).filter(function(r){return r.draws>0;});
+  rows.sort(function(a,b){ return (a.avg||1e9)-(b.avg||1e9); });
+  var h='<div class="card" style="border:2px solid #0369a1">';
+  h+='<h3 style="color:#075985">📊 市场周期报告 · 9市场平均多少年轮到一个特定4D</h3>';
+  h+='<div style="margin:6px 0;font-size:13px">统计范围：近 <input type="number" id="mcr-years" min="0" step="1" value="'+(winY!=null?winY:'')+'" placeholder="全部" onchange="zoMktCycleReport()" style="width:64px;padding:2px 5px;border:1px solid #7dd3fc;border-radius:5px"> 年（空=全部历史）'+(cutoff?' · 只算 '+cutoff+' 之后':'')+'</div>';
+  h+='<div class="warn" style="margin:6px 0">平均回归周期 = 该范围跨度 × 10000 ÷ 该范围总出现个数（头/二/三奖合计）。数字越小=该市场"号来得越密"。⚠️ 理论周期，历史统计，不构成预测。</div>';
+  h+='<div style="overflow-x:auto"><table style="border-collapse:collapse;font-size:13px;min-width:100%">';
+  h+='<tr style="background:#e0f2fe;color:#075985"><th style="text-align:left;padding:6px 10px">市场</th><th style="text-align:right;padding:6px 10px">平均回归周期</th><th style="text-align:right;padding:6px 10px">历史跨度</th><th style="text-align:right;padding:6px 10px">开奖期数</th><th style="text-align:right;padding:6px 10px">出现过的号(种)</th><th style="text-align:left;padding:6px 10px">数据起止</th></tr>';
+  rows.forEach(function(r){
+    h+='<tr style="border-top:1px solid #e2e8f0">';
+    h+='<td style="padding:5px 10px;font-weight:800;color:#075985">'+r.mk+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right;font-weight:800;color:#0369a1">'+(r.avg?('约 '+r.avg.toFixed(1)+' 年'):'—')+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+r.span.toFixed(1)+' 年</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+r.draws+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+r.distinct+' / 10000</td>';
+    h+='<td style="padding:5px 10px;font-size:11px;color:#64748b">'+r.minD+' ~ '+r.maxD+'</td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#64748b;margin-top:6px">按平均回归周期从小到大排（越上面=号越密）。「出现过的号」= 历史上真正开过的不同4D数量，越接近10000代表覆盖越广。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 共用：某市场每个完整4D 历史开出次数 + 最近日期
 function zoNum4Hist(mk){
