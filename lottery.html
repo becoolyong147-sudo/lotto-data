@@ -4913,8 +4913,8 @@ function fltCollideAB(){
   h+='</div>';
   const openedList=rich.filter(x=>x.c>0).map(x=>x.n);
   h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
-  h+='<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+inter.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+inter.length+')\',1200)})">📋全部('+inter.length+')</button>';
-  if(openedList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#0d9488;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
+  h+='<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+inter.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+inter.length+')\',1200)})">📋全部('+inter.length+')</button>';
+  if(openedList.length) h+='<button class="btn" style="padding:4px 10px;font-size:11px;background:#0d9488;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
   h+='</div><div style="font-size:10px;color:#94a3b8;margin-top:4px">深绿=在「'+market+'」历史开过（换市场看下拉「市场」）；灰○=没开过。撞号只按数字属性生成，忽略年月/奖位/冷热。</div>';
   h+='</div>';
   outEl.innerHTML=h;
