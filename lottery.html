@@ -9476,7 +9476,12 @@ function zoAbsentZoneReview(){
   var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
   var pz={p0:chk('abs-pz-0'),p1:chk('abs-pz-1'),p2:chk('abs-pz-2'),sp:chk('abs-pz-sp'),cs:chk('abs-pz-cs')};
   var K=3;
+  // 💵 下注设定（每打RM + 大/小）+ iBet赔率（每中1注按 大/小 tier ÷ 打数）
+  var stake=parseFloat((document.getElementById('abs-azr-stake')||{}).value)||1;
+  var betType=(document.getElementById('abs-azr-type')||{}).value||'big';
+  var PAY = betType==='small' ? {0:3500,1:2000,2:1000} : {0:2500,1:1000,2:500,sp:180,cs:60};
   function permSet4(s){ var o={}; (function go(pre,rest){ if(rest.length===0){o[pre]=1;return;} for(var i=0;i<rest.length;i++) go(pre+rest.charAt(i), rest.slice(0,i)+rest.slice(i+1)); })('',String(s)); return Object.keys(o); }
+  function _permCount(s){ var c={}; String(s).split('').forEach(function(d){c[d]=(c[d]||0)+1;}); var m=Object.keys(c).map(function(x){return c[x];}).sort().join(''); return m==='1111'?24:m==='112'?12:m==='22'?6:m==='13'?4:1; }
   var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
   (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
   ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
@@ -9503,7 +9508,14 @@ function zoAbsentZoneReview(){
     var boxH=next.filter(function(s){ return cover[s]&&!cand[s]; }); // box但非正字
     // box注数：同一组数字(排序后)只算一注
     var bk={}; candArr.forEach(function(n){ bk[n.split('').sort().join('')]=1; });
-    recs.push({src:all[k].date, next:all[k+1].date, nn:next, cand:candArr, exact:exactH, box:boxH, boxKeys:Object.keys(bk)});
+    var boxKeys=Object.keys(bk);
+    // 💵 这期钱账：成本=打数×每打；回本=被box盖到的开号，按 大/小 tier ÷ 打数（iBet）
+    var nd=all[k+1];
+    var cost=boxKeys.length*stake, win=0;
+    function _drawTier(s){ var v=0; if(nd.nums){[0,1,2].forEach(function(p){ if(String(nd.nums[p]).padStart(4,'0')===s && PAY[p]!=null) v=Math.max(v,PAY[p]); });} if(betType!=='small'){ if(Array.isArray(nd.sp)&&nd.sp.some(function(x){return String(x).padStart(4,'0')===s;})) v=Math.max(v,PAY.sp||0); if(Array.isArray(nd.cs)&&nd.cs.some(function(x){return String(x).padStart(4,'0')===s;})) v=Math.max(v,PAY.cs||0); } return v; }
+    var _wseen={};
+    next.forEach(function(s){ if(cover[s]&&!_wseen[s]){ _wseen[s]=1; var tv=_drawTier(s); if(tv>0) win += (tv/_permCount(s))*stake; } });
+    recs.push({src:all[k].date, next:all[k+1].date, nn:next, cand:candArr, exact:exactH, box:boxH, boxKeys:boxKeys, cost:cost, win:win});
   }
   if(!recs.length){ out.innerHTML='<div class="warn">没有可列的期数。</div>'; return; }
   function ptype(key){ var c={}; key.split('').forEach(function(d){c[d]=(c[d]||0)+1;}); var m=Object.keys(c).map(function(x){return c[x];}).sort().join(''); return m==='1111'?24:m==='112'?12:m==='22'?6:m==='13'?4:1; }
@@ -9511,18 +9523,41 @@ function zoAbsentZoneReview(){
   // 累计 box 注数 + 打数类型分布（各期去重后相加）
   var totBox=0, tType={24:0,12:0,6:0,4:0,1:0};
   recs.forEach(function(r){ totBox+=r.boxKeys.length; r.boxKeys.forEach(function(kk){ tType[ptype(kk)]++; }); });
+  // 💵 累计钱账
+  var totCost=0, totWin=0; recs.forEach(function(r){ totCost+=r.cost; totWin+=r.win; });
+  var net=totWin-totCost, roi=totCost>0?(totWin/totCost*100):0;
+  function rm(x){ return 'RM'+(x<0?'-':'')+Math.abs(x).toFixed(2); }
   var h='<div class="card" style="border:2px solid #0d9488">';
   h+='<h3 style="color:#0d9488">📋 '+mk+' · 融合4D 逐期推荐清单（'+recs.length+'期 · 新→旧）</h3>';
   h+='<div class="warn">每期point-in-time推荐的4D → 下期实际开号。<b>正字</b>=原号对上；<b>box</b>=调字对上。累计：正字命中 <b>'+exN+'</b> 期 · box命中 <b>'+boxN+'</b> 期（box含正字）。⚠️历史统计不构成预测。</div>';
-  h+='<div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:7px;padding:8px 10px;margin-bottom:6px;font-size:13px">';
-  h+='💰 <b>全部买 box 一共 '+totBox+' 打</b>（'+recs.length+'期合计,同组数字排列只算1打）· 平均每期 '+Math.round(totBox/recs.length)+' 打<br>';
-  h+='<span style="font-size:12px;color:#dc2626;font-weight:700">💵 若 1块/打：总下注 '+totBox+' 元（平均每期 '+Math.round(totBox/recs.length)+' 元）· box中 '+boxN+'/'+recs.length+' 期</span><br>';
-  h+='<span style="font-size:11px;color:#0f766e">打数类型：24打 '+tType[24]+' · 12打 '+tType[12]+' · 6打 '+tType[6]+' · 4打 '+tType[4]+(tType[1]?' · 1打 '+tType[1]:'')+'（24打=4位全不同,依此类推）</span></div>';
+  // 下注设定
+  h+='<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:13px">';
+  h+='<span>每打下注 RM <input type="number" id="abs-azr-stake" value="'+stake+'" min="0.1" step="0.5" onchange="zoAbsentZoneReview()" style="width:64px;padding:3px 5px;border:1px solid #99f6e4;border-radius:5px"></span>';
+  h+='<span>玩法 <select id="abs-azr-type" onchange="zoAbsentZoneReview()" style="padding:3px 6px;border:1px solid #99f6e4;border-radius:5px"><option value="big"'+(betType==='big'?' selected':'')+'>大</option><option value="small"'+(betType==='small'?' selected':'')+'>小</option></select></span>';
+  h+='<span style="font-size:11px;color:#64748b">iBet 玩法：1组数字=1打1注,中了按 大/小 赔付 ÷ 打数</span></div>';
+  // 钱账总结
+  h+='<div style="background:'+(net<0?'#fef2f2':'#f0fdf4')+';border:1px solid '+(net<0?'#fecaca':'#bbf7d0')+';border-radius:8px;padding:10px 12px;margin-bottom:8px">';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">';
+  function box(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:17px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  h+=box('总下注(打数)',totBox+' 打');
+  h+=box('总成本',rm(totCost),'#dc2626');
+  h+=box('平均每期成本',rm(totCost/recs.length),'#dc2626');
+  h+=box('总回本',rm(totWin),'#0d9488');
+  h+=box('净盈亏',rm(net),net<0?'#dc2626':'#16a34a');
+  h+=box('回本率',roi.toFixed(1)+'%',net<0?'#dc2626':'#16a34a');
+  h+='</div>';
+  h+='<div style="font-size:12px;color:'+(net<0?'#b91c1c':'#166534')+';margin-top:6px;font-weight:700">'+(net<0?'💸 这 '+recs.length+' 期照做，净亏 '+rm(-net)+'（平均每期亏 '+rm(-net/recs.length)+'）':'✅ 这段期间净赚 '+rm(net))+'</div>';
+  h+='<div style="font-size:11px;color:#0f766e;margin-top:2px">平均每期 '+Math.round(totBox/recs.length)+' 打 · 打数分布：24打 '+tType[24]+' / 12打 '+tType[12]+' / 6打 '+tType[6]+' / 4打 '+tType[4]+(tType[1]?' / 1打 '+tType[1]:'')+'</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">⚠️ 这是拿历史「事后」复盘的账，不代表未来。长期看庄家抽水，回本率通常远低于100%。</div>';
+  h+='</div>';
   recs.forEach(function(r,idx){
     var hit = r.exact.length?('<span style="color:#16a34a;font-weight:700">✅正字 '+r.exact.join('/')+'</span>') : (r.box.length?('<span style="color:#0891b2;font-weight:700">✅box '+r.box.join('/')+'</span>') : '<span style="color:#dc2626">❌未中</span>');
     var did='azr-'+idx;
     h+='<div style="border:1px solid #e2e8f0;border-left:4px solid '+(r.exact.length?'#16a34a':r.box.length?'#0891b2':'#e2e8f0')+';border-radius:8px;padding:7px 10px;margin-top:6px">';
+    var pnl=r.win-r.cost;
+    var money='<span style="font-size:11px;color:#64748b">花'+rm(r.cost)+'</span>'+(r.win>0?' <span style="font-size:11px;color:#0d9488;font-weight:700">回'+rm(r.win)+'</span>':'')+' <span style="font-size:11px;font-weight:700;color:'+(pnl<0?'#dc2626':'#16a34a')+'">净'+rm(pnl)+'</span>';
     h+='<div style="font-size:12px;font-weight:700;color:#1e3a5f">📅 '+r.src+' 推荐<b>'+r.cand.length+'</b>个4D（box <b style="color:#0d9488">'+r.boxKeys.length+'</b>打）→ 下期 '+r.next+' 开 '+r.nn.join('/')+' · '+hit+'</div>';
+    h+='<div style="margin-top:2px">'+money+'</div>';
     h+='<div style="margin-top:2px"><span onclick="zoNextMainToggle(\''+did+'\')" style="cursor:pointer;color:#0d9488;font-size:11px;font-weight:700">▾ 看这期推荐的号</span></div>';
     h+='<div id="'+did+'" style="display:none;font-family:monospace;font-size:11px;color:#475569;line-height:1.8;word-break:break-all;margin-top:2px">';
     h+=r.cand.map(function(n){ var isE=r.exact.indexOf(n)>=0; return '<span style="'+(isE?'background:#16a34a;color:#fff;border-radius:3px;padding:0 3px;font-weight:700':'')+'">'+n+'</span>'; }).join(' ');
