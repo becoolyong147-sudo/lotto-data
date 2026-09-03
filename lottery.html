@@ -800,6 +800,7 @@ function renderPatternTrend(){
     </div>
     <button class="btn btn-green" onclick="ovRender()" style="padding:9px 22px">🔄 刷新</button>
     <button class="btn" onclick="zoPullLatestFromGitHub(this)" style="padding:9px 16px;background:#1e3a5f;color:#fff" title="从云端 GitHub 拉最新开奖成绩">☁️ 拉GitHub最新</button>
+    <button class="btn" onclick="zoOverviewBacktest()" style="padding:9px 16px;background:#7c3aed;color:#fff" title="回测三大引擎到底准不准">🔬 回测三大引擎</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
   <div class="warn" style="margin-top:8px">
@@ -3437,6 +3438,78 @@ function _ovDigitalRoot(num){
   return n;
 }
 
+// 🔬 回测三大引擎：point-in-time 滚动，诚实对比 引擎命中率 vs 随机/最佳固定猜
+function zoOverviewBacktest(){
+  var out=document.getElementById('overview-result'); if(!out) return;
+  var market=document.getElementById('ov-market').value;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
+  if(m.length<40){ out.innerHTML='<div class="card"><div class="warn">'+market+' 数据太少('+m.length+'期),回测需要≥40期。</div></div>'; return; }
+  function dsum(s){ var t=0; for(var i=0;i<4;i++) t+=+s[i]; return t; }
+  function droot(s){ var n=dsum(s); while(n>=10){ n=String(n).split('').reduce(function(a,b){return a+(+b);},0); } return n; }
+  // 每个奖位分开跑,最后合计
+  var R={ chainN:0, chainHit:0, mcRootHit:0, ptN:0, ptHit:0, mcPtHit:0 };
+  [0,1,2].forEach(function(pi){
+    // 该奖位序列
+    var seq=[]; m.forEach(function(d){ var x=d.nums&&d.nums[pi]; if(x!=null&&x!==''){ var s=String(x).padStart(4,'0'); if(/^\d{4}$/.test(s)) seq.push(s); } });
+    if(seq.length<10) return;
+    // 全历史最常见 数根 / 点数（当"最佳固定猜"基准）
+    var rf={}, pf={}; seq.forEach(function(s){ rf[droot(s)]=(rf[droot(s)]||0)+1; pf[dsum(s)]=(pf[dsum(s)]||0)+1; });
+    var mcRoot=+Object.keys(rf).sort(function(a,b){return rf[b]-rf[a];})[0];
+    var mcPt=+Object.keys(pf).sort(function(a,b){return pf[b]-pf[a];})[0];
+    // 数根链：前两期数根→下一期,只用当期之前的数据
+    var chain={};
+    for(var i=0;i<seq.length;i++){
+      var rt=droot(seq[i]);
+      if(i>=2){
+        var key=droot(seq[i-2])+'_'+droot(seq[i-1]);
+        var mp=chain[key];
+        if(mp){ // 之前见过这个组合→预测出现最多的下一根
+          var pred=+Object.keys(mp).sort(function(a,b){return mp[b]-mp[a];})[0];
+          R.chainN++; if(pred===rt) R.chainHit++;
+          if(mcRoot===rt) R.mcRootHit++;
+        }
+      }
+      if(i>=2){ var k2=droot(seq[i-2])+'_'+droot(seq[i-1]); (chain[k2]=chain[k2]||{}); chain[k2][rt]=(chain[k2][rt]||0)+1; }
+    }
+    // 点数惯性±1：预测下一期点数落在 上一期±1
+    for(var j=1;j<seq.length;j++){
+      var prev=dsum(seq[j-1]), cur=dsum(seq[j]);
+      R.ptN++; if(Math.abs(cur-prev)<=1) R.ptHit++;
+      if(Math.abs(cur-mcPt)<=1) R.mcPtHit++;   // 最佳固定：总是猜最常见点数±1
+    }
+  });
+  function pctv(a,b){ return b>0?(a/b*100):0; }
+  function verdict(hit,n,base){
+    if(n<20) return {t:'🔵 样本少',c:'#64748b'};
+    var p=hit/n, se=Math.sqrt(base/100*(1-base/100)/n)*100, lead=p*100-base;
+    if(lead > 2*se) return {t:'🟡 略高于基准('+lead.toFixed(1)+'个点)',c:'#d97706'};
+    if(lead < -2*se) return {t:'🔴 反而低于基准',c:'#dc2626'};
+    return {t:'🟢 跟随机没差别',c:'#16a34a'};
+  }
+  var chainPct=pctv(R.chainHit,R.chainN), mcRootPct=pctv(R.mcRootHit,R.chainN), uniRoot=100/9;
+  var ptPct=pctv(R.ptHit,R.ptN), mcPtPct=pctv(R.mcPtHit,R.ptN);
+  var vChain=verdict(R.chainHit,R.chainN,Math.max(mcRootPct,uniRoot));
+  var vPt=verdict(R.ptHit,R.ptN,mcPtPct);
+  var h='<div class="card" style="border:2px solid #7c3aed">';
+  h+='<h3 style="color:#6d28d9">🔬 回测三大引擎 · '+market+'（头/二/三奖合计 · point-in-time 不偷看未来）</h3>';
+  h+='<div class="warn" style="margin:6px 0">拿全历史逐期检验:每一期只用"之前"的数据做预测,再对下期核对。跟两个诚实基准比——<b>均匀随机</b>和<b>最佳固定猜</b>(永远猜历史最常见的那个)。赢不过基准=没预测力。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse">';
+  h+='<tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">引擎</th><th style="text-align:right;padding:6px 10px">回测期数</th><th style="text-align:right;padding:6px 10px">引擎命中率</th><th style="text-align:right;padding:6px 10px">最佳固定猜</th><th style="text-align:right;padding:6px 10px">均匀随机</th><th style="text-align:left;padding:6px 10px">判定</th></tr>';
+  h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">🔗 数根链</td><td style="padding:6px 10px;text-align:right">'+R.chainN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+chainPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mcRootPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+uniRoot.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vChain.c+'">'+vChain.t+'</td></tr>';
+  h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">📈 点数惯性±1</td><td style="padding:6px 10px;text-align:right">'+R.ptN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+ptPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mcPtPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">—</td><td style="padding:6px 10px;font-weight:700;color:'+vPt.c+'">'+vPt.t+'</td></tr>';
+  h+='</table></div>';
+  var win = (vChain.t.indexOf('略高')>=0)||(vPt.t.indexOf('略高')>=0);
+  h+='<div style="margin-top:8px;font-size:12px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px">';
+  h+='<b>怎么读:</b> 「引擎命中率」要<b>明显赢过</b>右边两个基准才算有料。<br>';
+  h+= win ? '👉 本次有引擎略高于基准,但小幅领先多半是噪音——换市场/多跑几个看是否稳定复现,单次别当真。' : '👉 本次两个引擎都<b>跟随机没差别(或更差)</b>——符合"4D随机"的结论。三大引擎适合当复盘/娱乐,别当预测。';
+  h+='<br><span style="color:#94a3b8">数根链基准取「最佳固定猜」和「均匀1/9」里较高者;点数惯性基准=永远猜历史最常见点数±1。</span></div>';
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 function _ovRunPrize(market, prizeIdx, prizeNum){
   // ===== Block A: V16 Point Trend (4D 点数, 全部历史, ±1 区间) =====
   _ovSetVal('pt-market', market);
