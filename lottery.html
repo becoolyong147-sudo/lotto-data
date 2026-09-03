@@ -800,6 +800,7 @@ function renderPatternTrend(){
     </div>
     <button class="btn btn-green" onclick="ovRender()" style="padding:9px 22px">🔄 刷新</button>
     <button class="btn" onclick="zoPullLatestFromGitHub(this)" style="padding:9px 16px;background:#1e3a5f;color:#fff" title="从云端 GitHub 拉最新开奖成绩">☁️ 拉GitHub最新</button>
+    <span style="font-size:12px;color:#6d28d9">回测 <input type="number" id="ov-bt-n" min="20" step="10" placeholder="全部" style="width:70px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"> 期</span>
     <button class="btn" onclick="zoOverviewBacktest()" style="padding:9px 16px;background:#7c3aed;color:#fff" title="回测三大引擎到底准不准">🔬 回测三大引擎</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
@@ -3446,39 +3447,47 @@ function zoOverviewBacktest(){
   (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
   ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
   m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
-  if(m.length<40){ out.innerHTML='<div class="card"><div class="warn">'+market+' 数据太少('+m.length+'期),回测需要≥40期。</div></div>'; return; }
+  var _btN=parseInt((document.getElementById('ov-bt-n')||{}).value,10);
+  var _totAvail=m.length;
+  if(_btN>0 && _btN<m.length) m=m.slice(m.length-_btN);  // 只取最近 N 期
+  if(m.length<40){ out.innerHTML='<div class="card"><div class="warn">'+market+' 可回测数据太少('+m.length+'期),需要≥40期。'+(_btN>0?'把「回测期数」调大或留空(全部)。':'')+'</div></div>'; return; }
+  var _rangeFrom=m[0].date, _rangeTo=m[m.length-1].date;
   function dsum(s){ var t=0; for(var i=0;i<4;i++) t+=+s[i]; return t; }
   function droot(s){ var n=dsum(s); while(n>=10){ n=String(n).split('').reduce(function(a,b){return a+(+b);},0); } return n; }
   // 每个奖位分开跑,最后合计
   var R={ chainN:0, chainHit:0, mcRootHit:0, ptN:0, ptHit:0, mcPtHit:0 };
+  var CD=[], PD=[];  // 逐期明细：数根链 / 点数
+  var PNAME=['头','二','三'];
   [0,1,2].forEach(function(pi){
-    // 该奖位序列
-    var seq=[]; m.forEach(function(d){ var x=d.nums&&d.nums[pi]; if(x!=null&&x!==''){ var s=String(x).padStart(4,'0'); if(/^\d{4}$/.test(s)) seq.push(s); } });
+    // 该奖位序列（带日期）
+    var seq=[]; m.forEach(function(d){ var x=d.nums&&d.nums[pi]; if(x!=null&&x!==''){ var s=String(x).padStart(4,'0'); if(/^\d{4}$/.test(s)) seq.push({s:s,date:d.date}); } });
     if(seq.length<10) return;
     // 全历史最常见 数根 / 点数（当"最佳固定猜"基准）
-    var rf={}, pf={}; seq.forEach(function(s){ rf[droot(s)]=(rf[droot(s)]||0)+1; pf[dsum(s)]=(pf[dsum(s)]||0)+1; });
+    var rf={}, pf={}; seq.forEach(function(o){ rf[droot(o.s)]=(rf[droot(o.s)]||0)+1; pf[dsum(o.s)]=(pf[dsum(o.s)]||0)+1; });
     var mcRoot=+Object.keys(rf).sort(function(a,b){return rf[b]-rf[a];})[0];
     var mcPt=+Object.keys(pf).sort(function(a,b){return pf[b]-pf[a];})[0];
     // 数根链：前两期数根→下一期,只用当期之前的数据
     var chain={};
     for(var i=0;i<seq.length;i++){
-      var rt=droot(seq[i]);
+      var rt=droot(seq[i].s);
       if(i>=2){
-        var key=droot(seq[i-2])+'_'+droot(seq[i-1]);
+        var key=droot(seq[i-2].s)+'_'+droot(seq[i-1].s);
         var mp=chain[key];
-        if(mp){ // 之前见过这个组合→预测出现最多的下一根
+        if(mp){
           var pred=+Object.keys(mp).sort(function(a,b){return mp[b]-mp[a];})[0];
-          R.chainN++; if(pred===rt) R.chainHit++;
+          R.chainN++; var hit=pred===rt; if(hit) R.chainHit++;
           if(mcRoot===rt) R.mcRootHit++;
+          CD.push({date:seq[i].date, pi:pi, key:key.replace('_','→'), pred:pred, act:rt, hit:hit, num:seq[i].s});
         }
+        var k2=droot(seq[i-2].s)+'_'+droot(seq[i-1].s); (chain[k2]=chain[k2]||{}); chain[k2][rt]=(chain[k2][rt]||0)+1;
       }
-      if(i>=2){ var k2=droot(seq[i-2])+'_'+droot(seq[i-1]); (chain[k2]=chain[k2]||{}); chain[k2][rt]=(chain[k2][rt]||0)+1; }
     }
     // 点数惯性±1：预测下一期点数落在 上一期±1
     for(var j=1;j<seq.length;j++){
-      var prev=dsum(seq[j-1]), cur=dsum(seq[j]);
-      R.ptN++; if(Math.abs(cur-prev)<=1) R.ptHit++;
-      if(Math.abs(cur-mcPt)<=1) R.mcPtHit++;   // 最佳固定：总是猜最常见点数±1
+      var prev=dsum(seq[j-1].s), cur=dsum(seq[j].s), hp=Math.abs(cur-prev)<=1;
+      R.ptN++; if(hp) R.ptHit++;
+      if(Math.abs(cur-mcPt)<=1) R.mcPtHit++;
+      PD.push({date:seq[j].date, pi:pi, band:(prev-1)+'~'+(prev+1), cur:cur, hit:hp, num:seq[j].s});
     }
   });
   function pctv(a,b){ return b>0?(a/b*100):0; }
@@ -3495,7 +3504,8 @@ function zoOverviewBacktest(){
   var vPt=verdict(R.ptHit,R.ptN,mcPtPct);
   var h='<div class="card" style="border:2px solid #7c3aed">';
   h+='<h3 style="color:#6d28d9">🔬 回测三大引擎 · '+market+'（头/二/三奖合计 · point-in-time 不偷看未来）</h3>';
-  h+='<div class="warn" style="margin:6px 0">拿全历史逐期检验:每一期只用"之前"的数据做预测,再对下期核对。跟两个诚实基准比——<b>均匀随机</b>和<b>最佳固定猜</b>(永远猜历史最常见的那个)。赢不过基准=没预测力。</div>';
+  h+='<div style="font-size:12px;color:#6d28d9;font-weight:600;margin-bottom:4px">📆 回测范围：<b>'+m.length+'</b> 期'+(_btN>0&&_btN<_totAvail?'（最近'+_btN+'期，共'+_totAvail+'期可用）':'（全部）')+' · '+_rangeFrom+' ~ '+_rangeTo+'</div>';
+  h+='<div class="warn" style="margin:6px 0">拿这段历史逐期检验:每一期只用"之前"的数据做预测,再对下期核对。跟两个诚实基准比——<b>均匀随机</b>和<b>最佳固定猜</b>(永远猜历史最常见的那个)。赢不过基准=没预测力。</div>';
   h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse">';
   h+='<tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">引擎</th><th style="text-align:right;padding:6px 10px">回测期数</th><th style="text-align:right;padding:6px 10px">引擎命中率</th><th style="text-align:right;padding:6px 10px">最佳固定猜</th><th style="text-align:right;padding:6px 10px">均匀随机</th><th style="text-align:left;padding:6px 10px">判定</th></tr>';
   h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">🔗 数根链</td><td style="padding:6px 10px;text-align:right">'+R.chainN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+chainPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mcRootPct.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+uniRoot.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vChain.c+'">'+vChain.t+'</td></tr>';
@@ -3506,6 +3516,16 @@ function zoOverviewBacktest(){
   h+='<b>怎么读:</b> 「引擎命中率」要<b>明显赢过</b>右边两个基准才算有料。<br>';
   h+= win ? '👉 本次有引擎略高于基准,但小幅领先多半是噪音——换市场/多跑几个看是否稳定复现,单次别当真。' : '👉 本次两个引擎都<b>跟随机没差别(或更差)</b>——符合"4D随机"的结论。三大引擎适合当复盘/娱乐,别当预测。';
   h+='<br><span style="color:#94a3b8">数根链基准取「最佳固定猜」和「均匀1/9」里较高者;点数惯性基准=永远猜历史最常见点数±1。</span></div>';
+  // 逐期明细（可展开）
+  function detTable(id,title,rows,cols,rowFn,hitN){
+    var s='<div style="margin-top:8px"><span onclick="var e=document.getElementById(\''+id+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#6d28d9;font-size:12px;font-weight:700">▾ '+title+'（'+rows.length+'期，命中 '+hitN+'）</span>';
+    s+='<div id="'+id+'" style="display:none;margin-top:4px;max-height:320px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#f5f3ff">'+cols.map(function(c){return '<th style="text-align:left;padding:4px 8px">'+c+'</th>';}).join('')+'</tr>';
+    rows.slice().reverse().forEach(function(r){ s+='<tr style="border-top:1px solid #f1f5f9;background:'+(r.hit?'#f0fdf4':'#fff')+'">'+rowFn(r)+'</tr>'; });
+    return s+'</table></div></div>';
+  }
+  var _detail=detTable('bt-cd3','🔗 数根链 逐期明细',CD,['日期','奖','前两期根','预测','实际','中?','号码'],function(r){return '<td style="padding:4px 8px">'+r.date+'</td><td style="padding:4px 8px">'+PNAME[r.pi]+'</td><td style="padding:4px 8px">'+r.key+'</td><td style="padding:4px 8px;font-weight:700;color:#6d28d9">'+r.pred+'</td><td style="padding:4px 8px;font-weight:700">'+r.act+'</td><td style="padding:4px 8px">'+(r.hit?'✅':'❌')+'</td><td style="padding:4px 8px;font-family:monospace">'+r.num+'</td>';},R.chainHit);
+  _detail+=detTable('bt-pd3','📈 点数惯性±1 逐期明细',PD,['日期','奖','预测区间','实际点数','中?','号码'],function(r){return '<td style="padding:4px 8px">'+r.date+'</td><td style="padding:4px 8px">'+PNAME[r.pi]+'</td><td style="padding:4px 8px">'+r.band+'</td><td style="padding:4px 8px;font-weight:700">'+r.cur+'</td><td style="padding:4px 8px">'+(r.hit?'✅':'❌')+'</td><td style="padding:4px 8px;font-family:monospace">'+r.num+'</td>';},R.ptHit);
+  h+=_detail;
   h+='</div>';
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
