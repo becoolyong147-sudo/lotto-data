@@ -8278,6 +8278,7 @@ function doBacktest(){
         <button class="btn" style="background:#0d9488;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneReview()">📋 融合逐期清单(看推荐号)</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
         <button class="btn" style="background:#0891b2;color:#fff;padding:7px 12px;font-size:12px" onclick="zo2DRootBacktest()">🎲 前2D数根回测</button>
+        <button class="btn" style="background:#9d174d;color:#fff;padding:7px 12px;font-size:12px" onclick="zoCrossPrizeShow()">🔁 跨奖位重复(头↔二↔三)</button>
       </div>
     </div>
   </div>
@@ -8995,6 +8996,74 @@ function zoEVRun(){
   h+='<div style="margin-top:6px;font-size:11px;color:#94a3b8">概率是"命中任一奖位"的每期机会；期望回报已含各奖赔付加权。数字全随机,连玩不会"回本",这就是娱乐的价格。改上面赔率可套你本地庄家的实际赔付。</div>';
   h+='</div>';
   res.innerHTML=h;
+}
+// 🔁 跨奖位重复：同一个4D号在 头/二/三奖 之间会不会重复出现
+function zoCrossPrizeShow(){
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('cx-mk-sel'); var mk=selEl?selEl.value:((document.getElementById('abs-market')||{value:'万能'}).value);
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
+  // 每个奖位:号码 → 出现日期列表(升序)
+  var T=[{},{},{}], N=[0,0,0];
+  m.forEach(function(d){ [0,1,2].forEach(function(pi){ var x=d.nums&&d.nums[pi]; if(x!=null&&x!==''){ var s=String(x).padStart(4,'0'); if(/^\d{4}$/.test(s)){ (T[pi][s]=T[pi][s]||[]).push(d.date); N[pi]++; } } }); });
+  var names=['头奖','二奖','三奖'];
+  var distinct=T.map(function(t){return Object.keys(t).length;});
+  function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var h='<div class="card" style="border:2px solid #9d174d;margin-top:8px" id="abs-cx-card">';
+  h+='<h3 style="color:#9d174d">🔁 跨奖位重复 · '+mk+'（号在A奖开过 → 之后又在B奖开，隔几天）</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="cx-mk-sel" onchange="zoCrossPrizeShow()" style="font-size:13px;padding:3px 8px;border:1px solid #fbcfe8;border-radius:6px;color:#9d174d;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  if(N[0]+N[1]+N[2]<30){ h+='<div class="warn">数据太少,无法分析。</div></div>'; out.insertAdjacentHTML('beforeend',h); return; }
+  h+='<div class="warn" style="margin:6px 0">按<b>时间顺序</b>:一个号先在 A 奖开,之后又在 B 奖开,记下相隔天数。展开可看<b>具体是哪些号</b>。带「随机预期 + 判定」——赢不过随机=没规律。⚠️ 历史统计,不构成预测。</div>';
+  var YRMS=86400000;
+  // A→B 时间顺序:每个A号,找它首次A之后最早的一次B
+  function seq(a,b){
+    var list=[];
+    Object.keys(T[a]).forEach(function(num){
+      var aFirst=T[a][num][0]; var bd=T[b][num]; if(!bd) return;
+      var after=null; for(var i=0;i<bd.length;i++){ if(bd[i]>aFirst){ after=bd[i]; break; } }
+      if(after){ var gap=Math.round((new Date(after).getTime()-new Date(aFirst).getTime())/YRMS); list.push({num:num,a:aFirst,b:after,gap:gap}); }
+    });
+    list.sort(function(x,y){return x.gap-y.gap;});
+    return list;
+  }
+  var pairs=[[0,1],[0,2],[1,0],[1,2],[2,0],[2,1]];
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse">';
+  h+='<tr style="background:#fdf2f8;color:#9d174d"><th style="text-align:left;padding:6px 10px">方向</th><th style="text-align:right;padding:6px 10px">A的号(种)</th><th style="text-align:right;padding:6px 10px">之后又中B(种)</th><th style="text-align:right;padding:6px 10px">占比</th><th style="text-align:right;padding:6px 10px">随机预期</th><th style="text-align:right;padding:6px 10px">平均隔</th><th style="text-align:left;padding:6px 10px">判定</th><th></th></tr>';
+  var _lists={};
+  pairs.forEach(function(p,pi){
+    var a=p[0],b=p[1], list=seq(a,b), n=list.length, base=distinct[b]/10000, exp=distinct[a]*base;
+    var pct=distinct[a]?(n/distinct[a]*100):0;
+    var avgGap=n?Math.round(list.reduce(function(s,x){return s+x.gap;},0)/n):0;
+    var se=Math.sqrt(distinct[a]*base*(1-base)), lead=n-exp;
+    var vd = distinct[a]<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡偏高',c:'#d97706'}:(lead<-2*se?{t:'🔴偏低',c:'#dc2626'}:{t:'🟢随机',c:'#16a34a'}));
+    var lid='cx-l-'+pi; _lists[lid]=list;
+    h+='<tr style="border-top:1px solid #fce7f3">';
+    h+='<td style="padding:5px 10px;font-weight:700">'+names[a]+' → '+names[b]+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+distinct[a]+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right;font-weight:800;color:#9d174d">'+n+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+pct.toFixed(1)+'%</td>';
+    h+='<td style="padding:5px 10px;text-align:right;color:#64748b">≈'+exp.toFixed(0)+'</td>';
+    h+='<td style="padding:5px 10px;text-align:right">'+(n?avgGap+'天':'—')+'</td>';
+    h+='<td style="padding:5px 10px;font-weight:700;color:'+vd.c+'">'+vd.t+'</td>';
+    h+='<td style="padding:5px 10px">'+(n?'<span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'table-row\':\'none\'" style="cursor:pointer;color:#9d174d;font-weight:700">看号▾</span>':'')+'</td>';
+    h+='</tr>';
+    if(n){
+      h+='<tr id="'+lid+'" style="display:none"><td colspan="8" style="padding:6px 10px;background:#fdf2f8">';
+      h+='<div style="max-height:220px;overflow-y:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9d174d"><th style="text-align:left;padding:2px 6px">号码</th><th style="text-align:left;padding:2px 6px">'+names[a]+'开</th><th style="text-align:left;padding:2px 6px">'+names[b]+'开</th><th style="text-align:right;padding:2px 6px">隔天</th></tr>';
+      list.forEach(function(x){ h+='<tr><td style="padding:2px 6px;font-family:monospace;font-weight:700">'+x.num+'</td><td style="padding:2px 6px">'+x.a+'</td><td style="padding:2px 6px">'+x.b+'</td><td style="padding:2px 6px;text-align:right">'+x.gap+'</td></tr>'; });
+      h+='</table></div>';
+      h+='<button class="btn" style="padding:3px 10px;font-size:11px;margin-top:4px;background:#9d174d;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+list.map(function(x){return x.num;}).join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制这些号('+n+')\',1200)})">📋复制这些号('+n+')</button>';
+      h+='</td></tr>';
+    }
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#9d174d;margin-top:6px">👉「之后又中B」实际数 ≈「随机预期」→ 判 🟢随机,代表奖位之间没规律。判定用误差范围(2×标准误)。点「看号▾」列出具体号码+相隔天数,可复制。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔍 查一个号：一个4D的九市场档案（历史事实，不预测）
 function zoNumLookup(){
