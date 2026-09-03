@@ -322,6 +322,7 @@ tr:hover td{background:#fafaf5}
         <button class="btn" style="background:#9333ea;color:#fff;padding:10px 16px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器（成本×赔率）</button>
         <button class="btn" style="background:#334155;color:#fff;padding:10px 16px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计（公不公平）</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告（几年轮一次）</button>
+        <button class="btn" style="background:#be123c;color:#fff;padding:10px 16px;font-size:14px" onclick="zoBetLogShow()">📓 下注账本（记录+复盘）</button>
       </div>
       <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
     </div>
@@ -8757,6 +8758,82 @@ function zoComboGenRun(){
   h+='<div style="font-size:10px;color:#64748b;margin-top:4px">深绿=历史开过（·次数·几年没来 y）；灰○=从没开过（久违∞）；🔥红框=A、B两组都命中。「久违≥N年」把从没开过的也算进去。</div>';
   res.innerHTML=h;
 }
+// 📓 下注账本：记录每一注真实花费/回本，复盘钱亏在哪
+function _betLogGet(){ try{ return JSON.parse(localStorage.getItem('zoBetLog')||'[]'); }catch(e){ return []; } }
+function _betLogSave(a){ try{ localStorage.setItem('zoBetLog', JSON.stringify(a)); }catch(e){} }
+function zoBetLogShow(){
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
+  var logs=_betLogGet();
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var types=['正字','iBox','box','Jackpot','其他'];
+  var today=new Date().toISOString().slice(0,10);
+  var h='<div class="card" style="border:2px solid #be123c">';
+  h+='<h3 style="color:#9f1239">📓 下注账本 · 记录你真实的每一注 → 诚实复盘</h3>';
+  h+='<div class="warn" style="margin:6px 0">直接记<b>实花的钱</b>和<b>回本的钱</b>(不靠系统猜赔率,100%准)。开奖后填回本,系统算出你钱亏在哪个市场/玩法。资料存在这台设备浏览器里。</div>';
+  // 录入表单
+  h+='<div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:8px;padding:10px;margin-bottom:10px">';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px">';
+  h+='<div><label style="display:block;color:#9f1239;font-weight:700">日期</label><input type="date" id="bl-date" value="'+today+'" style="padding:4px 6px;border:1px solid #fda4af;border-radius:5px"></div>';
+  h+='<div><label style="display:block;color:#9f1239;font-weight:700">市场</label><select id="bl-market" style="padding:5px 6px;border:1px solid #fda4af;border-radius:5px">'+mkts.map(function(m){return '<option>'+m+'</option>';}).join('')+'</select></div>';
+  h+='<div><label style="display:block;color:#9f1239;font-weight:700">玩法</label><select id="bl-type" style="padding:5px 6px;border:1px solid #fda4af;border-radius:5px">'+types.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select></div>';
+  h+='<div style="flex:1;min-width:160px"><label style="display:block;color:#9f1239;font-weight:700">号码(随便记)</label><input type="text" id="bl-nums" placeholder="1234 5678..." style="width:100%;padding:4px 6px;border:1px solid #fda4af;border-radius:5px;font-family:monospace"></div>';
+  h+='<div><label style="display:block;color:#9f1239;font-weight:700">花费RM</label><input type="number" id="bl-cost" min="0" step="0.1" placeholder="0" style="width:80px;padding:4px 6px;border:1px solid #fda4af;border-radius:5px"></div>';
+  h+='<div><label style="display:block;color:#9f1239;font-weight:700">回本RM</label><input type="number" id="bl-win" min="0" step="1" placeholder="0" style="width:80px;padding:4px 6px;border:1px solid #fda4af;border-radius:5px"></div>';
+  h+='<button class="btn" style="background:#be123c;color:#fff;padding:7px 16px;font-size:13px" onclick="zoBetLogAdd()">➕ 记一笔</button>';
+  h+='</div><div style="font-size:10px;color:#9f1239;margin-top:4px">还没开奖就先填花费、回本留空(0);开奖后再来补回本。</div></div>';
+  if(!logs.length){ h+='<div style="color:#94a3b8;font-size:13px">还没有记录。记你第一笔试试。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // 汇总
+  function rm(x){ return 'RM'+(x<0?'-':'')+Math.abs(x).toFixed(2); }
+  var totCost=0,totWin=0; logs.forEach(function(l){ totCost+=(+l.cost||0); totWin+=(+l.win||0); });
+  var net=totWin-totCost, roi=totCost>0?(totWin/totCost*100):0;
+  var settled=logs.filter(function(l){return (+l.win||0)>0;}).length;
+  h+='<div style="background:'+(net<0?'#fef2f2':'#f0fdf4')+';border:1px solid '+(net<0?'#fecaca':'#bbf7d0')+';border-radius:8px;padding:10px 12px;margin-bottom:8px">';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">';
+  function bx(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:17px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  h+=bx('总笔数',logs.length+' 笔');
+  h+=bx('总花费',rm(totCost),'#dc2626');
+  h+=bx('总回本',rm(totWin),'#0d9488');
+  h+=bx('净盈亏',rm(net),net<0?'#dc2626':'#16a34a');
+  h+=bx('回本率',roi.toFixed(1)+'%',net<0?'#dc2626':'#16a34a');
+  h+='</div>';
+  h+='<div style="font-size:12px;color:'+(net<0?'#b91c1c':'#166534')+';font-weight:700;margin-top:6px">'+(net<0?'💸 到目前净亏 '+rm(-net):'✅ 到目前净赚 '+rm(net))+'</div></div>';
+  // 分市场 / 分玩法 找问题
+  function group(key){ var g={}; logs.forEach(function(l){ var k=l[key]||'?'; if(!g[k])g[k]={cost:0,win:0,n:0}; g[k].cost+=(+l.cost||0); g[k].win+=(+l.win||0); g[k].n++; }); return Object.keys(g).map(function(k){ return {k:k,cost:g[k].cost,win:g[k].win,net:g[k].win-g[k].cost,n:g[k].n}; }).sort(function(a,b){return a.net-b.net;}); }
+  function tbl(title,rows){ var s='<div style="margin-top:8px"><div style="font-size:12px;font-weight:800;color:#9f1239;margin-bottom:3px">'+title+'（按净亏排,最亏在最上）</div><div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#fff1f2"><th style="text-align:left;padding:4px 8px">项目</th><th style="text-align:right;padding:4px 8px">笔数</th><th style="text-align:right;padding:4px 8px">花费</th><th style="text-align:right;padding:4px 8px">回本</th><th style="text-align:right;padding:4px 8px">净</th></tr>';
+    rows.forEach(function(r){ s+='<tr style="border-top:1px solid #fee2e2"><td style="padding:4px 8px;font-weight:700">'+r.k+'</td><td style="padding:4px 8px;text-align:right">'+r.n+'</td><td style="padding:4px 8px;text-align:right;color:#dc2626">'+rm(r.cost)+'</td><td style="padding:4px 8px;text-align:right;color:#0d9488">'+rm(r.win)+'</td><td style="padding:4px 8px;text-align:right;font-weight:800;color:'+(r.net<0?'#dc2626':'#16a34a')+'">'+rm(r.net)+'</td></tr>'; });
+    return s+'</table></div></div>';
+  }
+  h+=tbl('🏢 分市场',group('market'));
+  h+=tbl('🎲 分玩法',group('type'));
+  // 明细
+  h+='<div style="margin-top:10px;font-size:12px;font-weight:800;color:#9f1239">📋 明细（新→旧）</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#fff1f2"><th style="text-align:left;padding:4px 6px">日期</th><th style="text-align:left;padding:4px 6px">市场</th><th style="text-align:left;padding:4px 6px">玩法</th><th style="text-align:left;padding:4px 6px">号码</th><th style="text-align:right;padding:4px 6px">花费</th><th style="text-align:right;padding:4px 6px">回本</th><th style="text-align:right;padding:4px 6px">净</th><th></th></tr>';
+  logs.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'')|| (b.id-a.id);}).forEach(function(l){
+    var net1=(+l.win||0)-(+l.cost||0);
+    h+='<tr style="border-top:1px solid #fee2e2">';
+    h+='<td style="padding:4px 6px">'+(l.date||'')+'</td><td style="padding:4px 6px">'+(l.market||'')+'</td><td style="padding:4px 6px">'+(l.type||'')+'</td>';
+    h+='<td style="padding:4px 6px;font-family:monospace;font-size:11px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+(l.nums||'')+'">'+(l.nums||'')+'</td>';
+    h+='<td style="padding:4px 6px;text-align:right;color:#dc2626">'+rm(+l.cost||0)+'</td>';
+    h+='<td style="padding:4px 6px;text-align:right"><input type="number" value="'+(+l.win||0)+'" min="0" step="1" onchange="zoBetLogSetWin('+l.id+',this.value)" style="width:64px;padding:2px 4px;border:1px solid #fda4af;border-radius:4px;text-align:right"></td>';
+    h+='<td style="padding:4px 6px;text-align:right;font-weight:700;color:'+(net1<0?'#dc2626':'#16a34a')+'">'+rm(net1)+'</td>';
+    h+='<td style="padding:4px 6px"><span onclick="zoBetLogDel('+l.id+')" style="cursor:pointer;color:#94a3b8" title="删除">✕</span></td>';
+    h+='</tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="margin-top:8px;font-size:11px;color:#9f1239">👉 「分市场/分玩法」最上面那行=你<b>最烧钱</b>的地方。想止血,先看那里。回本可随时改(直接改数字)。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zoBetLogAdd(){
+  var g=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  var cost=parseFloat(g('bl-cost'))||0;
+  if(cost<=0){ alert('花费RM要填(大于0)。'); return; }
+  var logs=_betLogGet();
+  logs.push({ id:Date.now(), date:g('bl-date')||new Date().toISOString().slice(0,10), market:g('bl-market'), type:g('bl-type'), nums:(g('bl-nums')||'').trim(), cost:cost, win:parseFloat(g('bl-win'))||0 });
+  _betLogSave(logs); zoBetLogShow();
+}
+function zoBetLogSetWin(id,val){ var logs=_betLogGet(); var l=logs.find(function(x){return x.id===id;}); if(l){ l.win=parseFloat(val)||0; _betLogSave(logs); zoBetLogShow(); } }
+function zoBetLogDel(id){ if(!confirm('删除这一笔?')) return; var logs=_betLogGet().filter(function(x){return x.id!==id;}); _betLogSave(logs); zoBetLogShow(); }
 // 🧮 EV 计算器：成本 / 中奖概率 / 期望回报 / 庄家抽水（马来西亚4D标准赔率，可改）
 function zoEVShow(){
   var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
