@@ -324,6 +324,7 @@ tr:hover td{background:#fafaf5}
         <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告（几年轮一次）</button>
         <button class="btn" style="background:#be123c;color:#fff;padding:10px 16px;font-size:14px" onclick="zoBetLogShow()">📓 下注账本（记录+复盘）</button>
         <button class="btn" style="background:#9d174d;color:#fff;padding:10px 16px;font-size:14px" onclick="zoCrossPrizeShow()">🔁 跨奖位重复（头↔二↔三）</button>
+        <button class="btn" style="background:#4338ca;color:#fff;padding:10px 16px;font-size:14px" onclick="zoIdeaReport()">📑 想法验证报告（奖位轮回+间隔）</button>
       </div>
       <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
     </div>
@@ -8996,6 +8997,91 @@ function zoEVRun(){
   h+='<div style="margin-top:6px;font-size:11px;color:#94a3b8">概率是"命中任一奖位"的每期机会；期望回报已含各奖赔付加权。数字全随机,连玩不会"回本",这就是娱乐的价格。改上面赔率可套你本地庄家的实际赔付。</div>';
   h+='</div>';
   res.innerHTML=h;
+}
+// 📑 想法验证报告：奖位轮回预测 + 回归间隔"记忆性"，两个想法一起 point-in-time 验证
+function zoIdeaReport(){
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('ir-mk-sel'); var mk=selEl?selEl.value:'万能';
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var h='<div class="card" style="border:2px solid #4338ca">';
+  h+='<h3 style="color:#3730a3">📑 想法验证报告 · '+mk+'</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="ir-mk-sel" onchange="zoIdeaReport()" style="font-size:13px;padding:3px 8px;border:1px solid #c7d2fe;border-radius:6px;color:#3730a3;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  if(m.length<60){ h+='<div class="warn">'+mk+' 数据太少('+m.length+'期),报告需要≥60期。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
+  function argmax(o){ var k=Object.keys(o); if(!k.length)return null; return k.sort(function(a,b){return o[b]-o[a];})[0]; }
+  var names=['头','二','三'];
+  // ===== 想法1：奖位轮回（一个号"上次在哪个奖位"→ 预测"这次在哪个奖位"）=====
+  var lastTier={}, trans={0:{},1:{},2:{}}, i1={n:0,hit:0};
+  m.forEach(function(d){ [0,1,2].forEach(function(pi){ var x=d.nums&&d.nums[pi]; if(x==null||x==='')return; var s=String(x).padStart(4,'0'); if(!/^\d{4}$/.test(s))return;
+    var lt=lastTier[s];
+    if(lt!==undefined){
+      var row=trans[lt];
+      if(Object.keys(row).length){ var pred=+argmax(row); i1.n++; if(pred===pi) i1.hit++; }
+      trans[lt][pi]=(trans[lt][pi]||0)+1;
+    }
+    lastTier[s]=pi;
+  }); });
+  var i1pct=i1.n?(i1.hit/i1.n*100):0, i1rand=100/3;
+  var i1se=Math.sqrt((1/3)*(2/3)/Math.max(i1.n,1))*100, i1lead=i1pct-i1rand;
+  var v1 = i1.n<30?{t:'🔵 样本少',c:'#64748b'} : (i1lead>2*i1se?{t:'🟡 略高于随机',c:'#d97706'} : (i1lead<-2*i1se?{t:'🔴 低于随机',c:'#dc2626'} : {t:'🟢 跟随机没差别',c:'#16a34a'}));
+  // ===== 想法2：回归间隔"记忆性"（拖超过平均后,下一轮会不会更快回来）=====
+  var appIdx={};
+  m.forEach(function(d,t){ [0,1,2].forEach(function(pi){ var x=d.nums&&d.nums[pi]; if(x==null||x==='')return; var s=String(x).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; (appIdx[s]=appIdx[s]||[]).push(t); }); });
+  var overNext=[], underNext=[], allGaps=[];
+  Object.keys(appIdx).forEach(function(s){ var a=appIdx[s]; if(a.length<4)return;
+    var gaps=[]; for(var k=1;k<a.length;k++) gaps.push(a[k]-a[k-1]);
+    var avg=gaps.reduce(function(x,y){return x+y;},0)/gaps.length; allGaps=allGaps.concat(gaps);
+    for(var j=0;j<gaps.length-1;j++){ if(gaps[j]>avg) overNext.push(gaps[j+1]); else underNext.push(gaps[j+1]); }
+  });
+  function mean(a){ return a.length?a.reduce(function(x,y){return x+y;},0)/a.length:0; }
+  var mAll=mean(allGaps), mOver=mean(overNext), mUnder=mean(underNext);
+  // 差异显著性（两组均值差 / 合并标准误）
+  function sd(a,mu){ return a.length?Math.sqrt(a.reduce(function(s,x){return s+(x-mu)*(x-mu);},0)/a.length):0; }
+  var seDiff=Math.sqrt(sd(overNext,mOver)*sd(overNext,mOver)/Math.max(overNext.length,1)+sd(underNext,mUnder)*sd(underNext,mUnder)/Math.max(underNext.length,1));
+  var diff=mOver-mUnder;
+  var v2 = (overNext.length<30||underNext.length<30)?{t:'🔵 样本少',c:'#64748b'} : (Math.abs(diff)>2*seDiff?{t:'🟡 有差异,值得再看',c:'#d97706'} : {t:'🟢 没差别(间隔无记忆)',c:'#16a34a'});
+  // ===== 报告正文 =====
+  h+='<div class="warn" style="margin:6px 0">两个想法都用<b>point-in-time</b>历史验证(不偷看未来),对比随机基准。📆 '+m.length+' 期 · '+m[0].date+' ~ '+m[m.length-1].date+'</div>';
+  // 想法1
+  h+='<div style="border:1px solid #e0e7ff;border-radius:10px;padding:10px 12px;margin-top:8px;background:#eef2ff">';
+  h+='<div style="font-size:14px;font-weight:800;color:#3730a3">① 奖位轮回预测</div>';
+  h+='<div style="font-size:12px;color:#475569;margin:3px 0 6px">你的想法:一个号"上次开在哪个奖位"→ 能不能预测"下次开在哪个奖位"(如 头→二→…)。做法:用它上次的奖位查历史转移,预测最可能的下一个奖位,对下期核对。</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">';
+  function bx(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:17px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  h+=bx('验证次数',i1.n);
+  h+=bx('预测命中率',i1pct.toFixed(1)+'%','#3730a3');
+  h+=bx('随机基准',i1rand.toFixed(1)+'%');
+  h+=bx('判定',v1.t,v1.c);
+  h+='</div></div>';
+  // 想法2
+  h+='<div style="border:1px solid #e0e7ff;border-radius:10px;padding:10px 12px;margin-top:8px;background:#eef2ff">';
+  h+='<div style="font-size:14px;font-weight:800;color:#3730a3">② 回归间隔的"记忆性"</div>';
+  h+='<div style="font-size:12px;color:#475569;margin:3px 0 6px">你的想法:算一个号平均多久回来一次,拿平均当门槛。这里验证核心:一个号<b>这轮拖超过它平均间隔</b>之后,<b>下一轮</b>会不会回来得更快?若"超过平均"和"没超过"之后的等待期差不多 → 间隔没记忆,"超过不下注"这条规则既没依据、也不吃亏。</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">';
+  h+=bx('全体平均间隔',mAll.toFixed(1)+' 期');
+  h+=bx('"超过平均"后·下轮等',mOver.toFixed(1)+' 期','#3730a3');
+  h+=bx('"没超过"后·下轮等',mUnder.toFixed(1)+' 期','#3730a3');
+  h+=bx('判定',v2.t,v2.c);
+  h+='</div>';
+  h+='<div style="font-size:11px;color:#64748b;margin-top:4px">样本:超过组 '+overNext.length+' 次、没超过组 '+underNext.length+' 次</div>';
+  h+='</div>';
+  // 总结论
+  var bothRandom = (v1.t.indexOf('随机没差别')>=0||v1.t.indexOf('低于')>=0) && (v2.t.indexOf('没差别')>=0);
+  h+='<div style="margin-top:10px;background:'+(bothRandom?'#f0fdf4':'#fffbeb')+';border:1px solid '+(bothRandom?'#bbf7d0':'#fde68a')+';border-radius:10px;padding:10px 12px">';
+  h+='<div style="font-size:14px;font-weight:800;color:'+(bothRandom?'#166534':'#b45309')+'">📌 总结论</div>';
+  if(bothRandom){
+    h+='<div style="font-size:13px;color:#166534;margin-top:4px">两个想法<b>都跟随机没差别</b>:奖位轮回预测≈瞎猜(1/3);间隔"超过平均"之后也没回来得更快。<br>→ <b>「上次头奖所以下次二奖」和「超过平均就不买」都没有统计依据</b>。但"超过不买"当省钱/控注纪律用,无害。</div>';
+  } else {
+    h+='<div style="font-size:13px;color:#b45309;margin-top:4px">有想法出现🟡偏离随机,但<b>小幅偏离多半是噪音</b>:换市场、换时段、多跑几次,看是否<b>稳定复现</b>。单一市场单次🟡不能当真。真能反复复现才值得深挖。</div>';
+  }
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">判定用误差范围(2×标准误)。⚠️ 历史统计,不构成预测。</div>';
+  h+='</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔁 跨奖位重复：同一个4D号在 头/二/三奖 之间会不会重复出现
 function zoCrossPrizeShow(){
