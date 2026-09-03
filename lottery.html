@@ -9459,8 +9459,10 @@ function zoAbsentZoneFusion(){
   });
   h+='</table></div>';
   h+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
-  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制候选（空格）\',1500)})">📋 复制候选（空格）</button>';
-  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制候选（换行）\',1500)})">📋 复制候选（换行）</button>';
+  var numsStar=nums.map(function(n){return '*'+n;});
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（换行·无*）\',1500)})">📋 复制（换行·无*）</button>';
+  h+='<button class="btn" style="padding:6px 14px;font-size:12px;background:#1e40af;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+numsStar.join('\\n')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'⭐ 复制带*（换行）\',1500)})">⭐ 复制带*（换行）</button>';
+  h+='<button class="btn btn-green" style="padding:6px 14px;font-size:12px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+nums.join(' ')+'\').then(()=>{this.textContent=\'✅ 已复制\';setTimeout(()=>this.textContent=\'📋 复制（空格·无*）\',1500)})">📋 复制（空格·无*）</button>';
   h+='<span style="font-size:11px;color:#64748b">久违倍=后3D已过÷平均回归期（越大=越久没来）；cv越低越规律。</span>';
   h+='</div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 「久违倍」只是纯记录——<b>久没来不代表会开</b>（号是随机的，不会补开）。看「历史开过」有没有底子、「命中本期」当参考。整体<b>不构成预测</b>，收窄候选/复盘用。</div>';
