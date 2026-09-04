@@ -9441,6 +9441,36 @@ function zoLinkShow(){
     h+='<button class="btn" style="padding:2px 8px;font-size:10px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+d4a.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部('+d4a.length+')\',1200)})">📋全部('+d4a.length+')</button>';
     h+='</div><div style="font-size:9px;color:#94a3b8;margin-top:2px">深蓝·数字=历史开过次数(底子厚)；灰○=纯链接从没开过。悬停看最近日期。</div>';
     h+='</div>';
+    // 🔢 数根补链：没接上的2D → 用缺数根补一位凑 前3D/后3D（个位/千位留X）
+    var uF2=f2.filter(function(a){return !m2.some(function(b){return a[1]===b[0];});});
+    var uB2=b2.filter(function(c){return !m2.some(function(b){return b[1]===c[0];});});
+    var uM2=m2.filter(function(b){var l=f2.some(function(a){return a[1]===b[0];}),r=b2.some(function(c){return b[1]===c[0];});return !(l&&r);});
+    if(uF2.length||uM2.length||uB2.length){
+      function dr2(x,y){ var s=(+x)+(+y); return s===0?0:(s%9===0?9:s%9); }
+      var fr=(L.f2.a2||'').split(',').filter(Boolean).map(Number);
+      var mr=(L.m2.a2||'').split(',').filter(Boolean).map(Number);
+      var br=(L.b2.a2||'').split(',').filter(Boolean).map(Number);
+      var rf3={}, rb3={};
+      // 前3D：中2D 前面补千位使前2D数根∈缺前根 ；前2D 后面补十位使中2D数根∈缺中根
+      uM2.forEach(function(mm){ for(var a=0;a<=9;a++){ if(fr.indexOf(dr2(a,mm[0]))>=0) rf3[''+a+mm]=1; } });
+      uF2.forEach(function(ff){ for(var c=0;c<=9;c++){ if(mr.indexOf(dr2(ff[1],c))>=0) rf3[''+ff+c]=1; } });
+      // 后3D：中2D 后面补个位使后2D数根∈缺后根 ；后2D 前面补百位使中2D数根∈缺中根
+      uM2.forEach(function(mm){ for(var d=0;d<=9;d++){ if(br.indexOf(dr2(mm[1],d))>=0) rb3[''+mm+d]=1; } });
+      uB2.forEach(function(bb){ for(var b=0;b<=9;b++){ if(mr.indexOf(dr2(b,bb[0]))>=0) rb3[''+b+bb]=1; } });
+      var rf3a=Object.keys(rf3).sort(), rb3a=Object.keys(rb3).sort();
+      var lid='rlk-'+mk;
+      h+='<div style="margin-top:6px;background:#fdf4ff;border:1px solid #f0abfc;border-radius:7px;padding:6px 8px">';
+      h+='<div style="font-size:11px;font-weight:700;color:#a21caf">🔢 数根补链（救没接上的2D）</div>';
+      var un2=[]; if(uF2.length)un2.push('前2D['+uF2.join(',')+']'); if(uM2.length)un2.push('中2D['+uM2.join(',')+']'); if(uB2.length)un2.push('后2D['+uB2.join(',')+']');
+      h+='<div style="font-size:10px;color:#86198f;margin-top:1px">没接上：'+un2.join(' · ')+' → 用缺数根(前'+(fr.join('/')||'-')+' 中'+(mr.join('/')||'-')+' 后'+(br.join('/')||'-')+')补一位</div>';
+      h+='<div style="margin-top:2px"><span onclick="zoNextMainToggle(\''+lid+'\')" style="cursor:pointer;color:#a21caf;font-size:11px;font-weight:700">▾ 展开补链 前3D('+rf3a.length+') / 后3D('+rb3a.length+')</span></div>';
+      h+='<div id="'+lid+'" style="display:none;margin-top:3px">';
+      h+='<div style="font-size:10px;color:#a21caf;font-weight:700">前3D（个位留X）</div><div style="font-family:monospace;font-size:12px;color:#334155;line-height:1.7;word-break:break-all">'+(rf3a.map(function(x){return x+'X';}).join(' ')||'无')+'</div>';
+      h+='<div style="font-size:10px;color:#a21caf;font-weight:700;margin-top:3px">后3D（千位留X）</div><div style="font-family:monospace;font-size:12px;color:#334155;line-height:1.7;word-break:break-all">'+(rb3a.map(function(x){return 'X'+x;}).join(' ')||'无')+'</div>';
+      var _rlkAll=rf3a.map(function(x){return x+'X';}).concat(rb3a.map(function(x){return 'X'+x;})).join('\\n');
+      if(rf3a.length||rb3a.length) h+='<button class="btn" style="padding:2px 8px;font-size:10px;margin-top:3px;background:#a21caf;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+_rlkAll+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制补链\',1200)})">📋复制补链</button>';
+      h+='</div></div>';
+    }
     h+='</div>';
   });
   h+='</div></div>';
