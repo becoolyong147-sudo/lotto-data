@@ -9337,7 +9337,7 @@ function zoRootLink4DReview(){
   function dr(x){ return x===0?0:(x%9===0?9:x%9); }
   function dr2(x,y){ return dr((+x)+(+y)); }
   function an2(g,wa,wb){ var roots={},first={}; g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; }); var a2=[]; for(var r=1;r<=9;r++) if(!roots[r])a2.push(r); var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d])a1.push(''+d); var most=null,mc=-1; Object.keys(first).forEach(function(k){if(first[k]>mc){mc=first[k];most=k;}}); var t1=a1.concat(most!=null?[most]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1;}}); return {a2:a2, tg:Object.keys(ts)}; }
-  var recs=[], A={hit:0,rand:0,cand:0}, B={hit:0,rand:0,cand:0}, n=0;
+  var recs=[], A={hit:0,rand:0,cand:0,p:[0,0,0]}, B={hit:0,rand:0,cand:0,p:[0,0,0]}, n=0;
   for(var i=0;i<m.length-1;i++){
     var d=m[i]; if(!(d.sp&&d.sp.length))continue;
     var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3)continue;
@@ -9350,9 +9350,9 @@ function zoRootLink4DReview(){
     var aK=Object.keys(candA), bK=Object.keys(candB); if(!aK.length&&!bK.length)continue;
     var next=m[i+1]; var nn=[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
     if(!nn.length)continue;
-    function chk(setObj,list){ var hn=''; nn.forEach(function(s,pi){ if(hn)return; if(setObj[s]) hn='✅'+['头','二','三'][pi]+'('+s+')'; }); return hn; }
+    function chk(setObj,list,pArr){ var hn=''; nn.forEach(function(s,pi){ if(setObj[s]){ if(pArr)pArr[pi]++; if(!hn) hn='✅'+['头','二','三'][pi]+'('+s+')'; } }); return hn; }
     function randHit(k){ var o={},guard=0; while(Object.keys(o).length<k&&guard++<40000){ o[pad(Math.floor(Math.random()*10000))]=1; if(Object.keys(o).length>=10000)break; } var hit=false; nn.forEach(function(s){ if(o[s])hit=true; }); return hit; }
-    var aHit=chk(candA,aK), bHit=chk(candB,bK);
+    var aHit=chk(candA,aK,A.p), bHit=chk(candB,bK,B.p);
     n++; A.cand+=aK.length; B.cand+=bK.length;
     if(aHit)A.hit++; if(bHit)B.hit++; if(randHit(aK.length))A.rand++; if(randHit(bK.length))B.rand++;
     recs.push({s:d.date,next:next.date,nn:nn,aK:aK,bK:bK,aHit:aHit,bHit:bHit});
@@ -9370,6 +9370,16 @@ function zoRootLink4DReview(){
   h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">A 前2D×后2D</td><td style="padding:6px 10px;text-align:right">'+Math.round(A.cand/n)+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6b21a8">'+A.hit+'期 ('+pct(A.hit)+')</td><td style="padding:6px 10px;text-align:right">'+A.rand+'期 ('+pct(A.rand)+')</td><td style="padding:6px 10px;font-weight:700;color:'+vA.c+'">'+vA.t+'</td></tr>';
   h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">B 千+中2D+个</td><td style="padding:6px 10px;text-align:right">'+Math.round(B.cand/n)+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6b21a8">'+B.hit+'期 ('+pct(B.hit)+')</td><td style="padding:6px 10px;text-align:right">'+B.rand+'期 ('+pct(B.rand)+')</td><td style="padding:6px 10px;font-weight:700;color:'+vB.c+'">'+vB.t+'</td></tr>';
   h+='</table></div>';
+  // 命中分布：头/二/三（统计所有命中落点，不是只第一个）
+  var tp=[A.p[0]+B.p[0], A.p[1]+B.p[1], A.p[2]+B.p[2]]; var tpAll=tp[0]+tp[1]+tp[2];
+  h+='<div style="margin-top:8px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 10px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#166534;margin-bottom:3px">🎯 所有命中落在哪个奖（A+B合计 '+tpAll+' 次）</div>';
+  if(tpAll){
+    h+='<div style="font-size:13px;color:#334155">头奖 <b>'+tp[0]+'</b>（'+(tp[0]/tpAll*100).toFixed(0)+'%） · 二奖 <b>'+tp[1]+'</b>（'+(tp[1]/tpAll*100).toFixed(0)+'%） · 三奖 <b>'+tp[2]+'</b>（'+(tp[2]/tpAll*100).toFixed(0)+'%）</div>';
+    var t23=tp[1]+tp[2];
+    h+='<div style="font-size:12px;color:'+(t23>tp[0]*1.8?'#d97706':'#166534')+';margin-top:3px;font-weight:700">'+(t23>tp[0]*1.8?'⚠️ 确实偏二三奖('+t23+' vs 头'+tp[0]+') —— 但小样本('+tpAll+'次)可能巧合,随机下应各约33%':'≈ 头二三差不多('+tp[0]+'/'+tp[1]+'/'+tp[2]+') —— 符合随机,没有偏二三')+'</div>';
+  } else { h+='<div style="font-size:12px;color:#94a3b8">没有命中,无法看分布。</div>'; }
+  h+='</div>';
   h+='<div style="font-size:12px;color:#334155;background:#faf5ff;border-radius:8px;padding:8px 10px;margin-top:8px">💬 <b>看这里:</b> "正字命中"要明显高过"随机同量"才有料。'+((vA.t.indexOf('没差别')>=0||vA.t.indexOf('太少')>=0)&&(vB.t.indexOf('没差别')>=0||vB.t.indexOf('太少')>=0)?'两种接法都<b>跟随机没差别</b> —— 凑出这么多4D能中,是因为号多(覆盖广),不是接法准。':'有接法🟡高于随机,但小样本(仅'+n+'期)多半是噪音,换市场再看。')+'</div>';
   h+='<div class="warn" style="font-size:11px">正字=完整4D原样对上下期头/二/三。对照=同数量随机4D正字。仅 '+n+' 期(特别奖数据限制),正字命中很稀少属正常。</div>';
   var lid='rlk4-list';
