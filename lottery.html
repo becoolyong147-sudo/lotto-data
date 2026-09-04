@@ -249,6 +249,7 @@ tr:hover td{background:#fafaf5}
     <div class="scene" onclick="switchScene('data',this)"><span class="icon">📥</span>数据管理</div>
     <div class="scene" onclick="switchScene('dranalysis',this)"><span class="icon">🔢</span>走势分析</div>
     <div class="scene" onclick="switchScene('honest',this)"><span class="icon">🧮</span>诚实工具</div>
+    <div class="scene" onclick="switchScene('hub',this)"><span class="icon">🏭</span>工作台</div>
   </div>
 </div>
 
@@ -331,6 +332,64 @@ tr:hover td{background:#fafaf5}
     <div id="honest-out"></div>
   </div>
 </div>
+
+<!-- Scene: 工作台（流水线） -->
+<div id="scene-hub" class="scene-panel">
+  <div style="padding:14px">
+    <div class="card">
+      <h3>🏭 工作台 · 工具流水线（点方块直接跳）</h3>
+      <div class="warn" style="margin:6px 0">四个阶段:① 造号 → ② 收窄 → ③ 算账/验证 → ④ 记录复盘。点任一方块跳到那个工具。⚠️ 前三阶段帮你选号/收窄/算成本;<b>没有任何组合能提高中奖率</b>——那是随机的。</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:10px" id="hub-grid"></div>
+      <div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px">
+        <div style="font-size:13px;font-weight:800;color:#1e3a5f;margin-bottom:6px">🔗 推荐串法（顺着走）</div>
+        <div style="font-size:12px;color:#334155;line-height:2">
+          <div><b>发群主线:</b> 缺席分析 → 分区地图4D(加*) → 会员版</div>
+          <div><b>精选主线:</b> 组合生成器(A∩B撞号) → 高级筛选(打数/数根/久违) → 复制</div>
+          <div><b>算账主线:</b> 下一期主打(1D+2D) → 你的box打法 → 融合清单钱账</div>
+          <div><b>单号决策:</b> 条件筛选(撞号) → 查一个号 → EV计算器</div>
+          <div><b>长期复盘:</b> 任何选号 → 下注账本 → 分市场/玩法找漏</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var HUB=[
+    {t:'① 造号 / 选号',c:'#0d9488',bg:'#f0fdfa',items:[
+      ['🎯 缺席分析','absent'],['🎯 下一期主打','absent'],['🧩 组合生成器','absent'],
+      ['🗺️ 分区地图4D','absent'],['🔗 链接号码','absent'],['🗓️ 季节常客','season'],
+      ['🐲 生肖图','zodiac'],['🔢 号码排列','numsort']
+    ]},
+    {t:'② 收窄 / 撞号',c:'#dc2626',bg:'#fef2f2',items:[
+      ['🧰 条件筛选(A∩B撞号)','filter'],['🧩 组合生成器(过滤)','absent'],['🔍 查一个号','numlookup']
+    ]},
+    {t:'③ 算账 / 验证',c:'#7c3aed',bg:'#faf5ff',items:[
+      ['🧮 EV计算器','__honest'],['🔬 诚实审计','__honest'],['📊 市场周期报告','__honest'],
+      ['🔁 跨奖位重复','__honest'],['📑 想法验证报告','__honest'],['🎯 一键总览(回测)','overview']
+    ]},
+    {t:'④ 记录 / 复盘',c:'#be123c',bg:'#fff1f2',items:[
+      ['📓 下注账本','__honest'],['📜 查回历史','absent'],['🌟 会员版','absent']
+    ]}
+  ];
+  function go(target){
+    if(target==='__honest'){ if(typeof switchScene==='function') switchScene('honest'); return; }
+    if(typeof switchTab==='function') switchTab(target);
+    else if(typeof showTabPanel==='function') showTabPanel(target);
+  }
+  window.__hubGo=go;
+  function render(){
+    var g=document.getElementById('hub-grid'); if(!g) return;
+    g.innerHTML=HUB.map(function(col){
+      var chips=col.items.map(function(it){
+        return '<div onclick="__hubGo(\''+it[1]+'\')" style="cursor:pointer;background:#fff;border:1px solid '+col.c+'33;border-left:3px solid '+col.c+';border-radius:7px;padding:7px 9px;margin:5px 0;font-size:12px;font-weight:600;color:#1e293b;transition:all .1s" onmouseover="this.style.background=\''+col.bg+'\'" onmouseout="this.style.background=\'#fff\'">'+it[0]+'</div>';
+      }).join('');
+      return '<div style="background:'+col.bg+';border:1px solid '+col.c+'44;border-radius:12px;padding:10px"><div style="font-size:14px;font-weight:800;color:'+col.c+';margin-bottom:4px">'+col.t+'</div>'+chips+'</div>';
+    }).join('');
+  }
+  if(document.readyState!=='loading') render(); else document.addEventListener('DOMContentLoaded',render);
+})();
+</script>
 
 <!-- 走势分析 panels -->
 <div id="tab-dr-table" class="panel" style="padding:12px">
@@ -11081,7 +11140,8 @@ const SCENE_MAP={
   decision:['flow','filter','decompose'],
   analysis:['pointtrend','matrix','twin','permtrend','digitlock','season'],
   data:['add','paste','sync','backup','recent'],
-  honest:[]
+  honest:[],
+  hub:[]
 };
 const TAB_TO_SCENE={};
 for(const[scene,tabs]of Object.entries(SCENE_MAP)){
