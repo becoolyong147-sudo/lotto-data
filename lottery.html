@@ -267,23 +267,9 @@ tr:hover td{background:#fafaf5}
 <!-- Scene: 行为分析 -->
 <div id="scene-analysis" class="scene-panel">
   <div class="subtabs">
-    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap">📊 号码行为</span>
-    <div class="subtab active" data-tab="pointtrend" onclick="switchSubtab(this)">📈 点数行为</div>
-    <div class="subtab" data-tab="matrix" onclick="switchSubtab(this)">🔢 数根分析</div>
-    <div class="subtab" data-tab="twin" onclick="switchSubtab(this)">👥 2D行为</div>
-    <div class="subtab" data-tab="permtrend" onclick="switchSubtab(this)">🎲 打数走势</div>
-    <div class="subtab" data-tab="digitlock" onclick="switchSubtab(this)">🔒 位数锁定</div>
-    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">🗓️ 季节·生肖·属性</span>
-    <div class="subtab" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
+    <div class="subtab active" data-tab="season" onclick="switchSubtab(this)">🗓️ 季节常客</div>
     <div class="subtab" data-tab="zodiac" onclick="switchSubtab(this)">🐲 生肖图</div>
-    <div class="subtab" data-tab="prizeprofile" onclick="switchSubtab(this)">🏆 大奖属性</div>
-    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">🔢 排列·格子·深挖</span>
     <div class="subtab" data-tab="numsort" onclick="switchSubtab(this)">🔢 号码排列</div>
-    <div class="subtab" data-tab="grpdig" onclick="switchSubtab(this)">🔟 组深挖</div>
-    <div class="subtab" data-tab="digitgrid" onclick="switchSubtab(this)">🔳 数字格子</div>
-    <div class="subtab" data-tab="posgrid" onclick="switchSubtab(this)">📅 位置·半月</div>
-    <div class="subtab" data-tab="grid3d" onclick="switchSubtab(this)">🎴 后3D九宫格</div>
-    <span style="align-self:center;font-size:10px;font-weight:800;color:#94a3b8;padding:0 4px;white-space:nowrap;border-left:2px solid #e4e8ee;margin-left:4px">⭐ 主打</span>
     <div class="subtab" data-tab="luohan" onclick="switchSubtab(this)">🧘 十八罗汉</div>
     <div class="subtab" data-tab="absent" onclick="switchSubtab(this)">🎯 缺席的它</div>
   </div>
@@ -303,13 +289,6 @@ tr:hover td{background:#fafaf5}
 <div id="scene-dranalysis" class="scene-panel">
   <div class="subtabs">
     <div class="subtab active" data-tab="recommend-hub" onclick="switchSubtab(this)">🎯 推荐中心</div>
-    <div class="subtab" data-tab="dr-table" onclick="switchSubtab(this)">📋 分解表</div>
-    <div class="subtab" data-tab="dr-1db3d" onclick="switchSubtab(this)">📊 1D＋后3D走势</div>
-    <div class="subtab" data-tab="dr-b3d-pair" onclick="switchSubtab(this)">🔗 后3D配对分析</div>
-    <div class="subtab" data-tab="dr-matrix" onclick="switchSubtab(this)">🔲 转移矩阵</div>
-    <div class="subtab" data-tab="dr-zone" onclick="switchSubtab(this)">🗺️ 分区地图</div>
-    <div class="subtab" data-tab="digit-track" onclick="switchSubtab(this)">🔢 四位走势</div>
-    <div class="subtab" data-tab="ptt-trend" onclick="switchSubtab(this);renderPatternTrend();">🎨 大小单双走势</div>
   </div>
 </div>
 
@@ -11367,9 +11346,10 @@ let CURRENT_SCENE='decision';
 
 // Map: which scene contains which tabs
 const SCENE_MAP={
-  decision:['flow','filter','decompose'],
-  analysis:['pointtrend','matrix','twin','permtrend','digitlock','season'],
-  data:['add','paste','sync','backup','recent'],
+  decision:['overview','numlookup','filter','decompose','wizard'],
+  analysis:['season','zodiac','numsort','luohan','absent'],
+  data:['add','paste','dataexport'],
+  dranalysis:['recommend-hub'],
   honest:[],
   hub:[]
 };
