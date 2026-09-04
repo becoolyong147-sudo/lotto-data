@@ -10000,6 +10000,13 @@ function zoAbsent9Markets(){
 // 🗺️ 缺席2D × 分区地图 → 完整4D：缺席前2D(千百) 拼 分区地图挑的后3D(到期+规律)
 function zoAbsentZoneFusion(){
   var out=document.getElementById('abs-out'); if(!out) return;
+  // 先读筛选值(卡片删除前,否则输入被删读不到)
+  var _pv=function(id){var e=document.getElementById(id);return e&&e.value!==''?parseInt(e.value,10):null;};
+  var pFrom=_pv('fz-pt-from'), pTo=_pv('fz-pt-to');
+  var das={},anyDa=false; [24,12,6,4,1].forEach(function(dd){var e=document.getElementById('fz-da-'+dd);if(e&&e.checked){das[dd]=1;anyDa=true;}});
+  var inc=((document.getElementById('fz-inc')||{value:''}).value.match(/\d/g)||[]);
+  var exc=((document.getElementById('fz-exc')||{value:''}).value.match(/\d/g)||[]);
+  var rts={},anyRt=false; for(var _r=1;_r<=9;_r++){var re=document.getElementById('fz-rt-'+_r);if(re&&re.checked){rts[_r]=1;anyRt=true;}}
   var old=document.getElementById('abs-zf-card'); if(old) old.remove();
   if(!window.__absentSets){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">请先点「🎯 分析」算出缺席数字，再点本按钮。</div></div>'); return; }
   var a0=window.__absentSets[0]||[], a1=window.__absentSets[1]||[];   // 千 / 百 缺席
@@ -10029,11 +10036,29 @@ function zoAbsentZoneFusion(){
   });
   if(!cands.length){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">这些缺席前2D对应的后3D历史太少（&lt;2次），拼不出候选。可换市场/放宽奖项。</div></div>'); return; }
   cands.sort(function(x,y){ return y.over-x.over || ((x.cv==null?9:x.cv)-(y.cv==null?9:y.cv)); });
+  // 🔎 筛选（值已在函数开头读好）
+  function _passF(nm){ var sum=0; for(var i=0;i<4;i++)sum+=+nm[i]; if(pFrom!=null&&sum<pFrom)return false; if(pTo!=null&&sum>pTo)return false; if(anyDa&&!das[zoDaCount(nm)])return false; if(anyRt){var rt=sum===0?0:(sum%9===0?9:sum%9); if(!rts[rt])return false;} if(inc.length&&!inc.some(function(d){return nm.indexOf(d)>=0;}))return false; if(exc.length&&exc.some(function(d){return nm.indexOf(d)>=0;}))return false; return true; }
+  var _filtered=(pFrom!=null||pTo!=null||anyDa||anyRt||inc.length||exc.length);
+  var _rawN=cands.length;
+  if(_filtered) cands=cands.filter(function(c){return _passF(c.num);});
   var show=cands.slice(0,40);
-  var nums=show.map(function(c){return c.num;});
+  var nums=cands.map(function(c){return c.num;});
   var h='<div id="abs-zf-card" class="card" style="margin-top:8px;border:2px solid #1e40af">';
   h+='<h3 style="color:#1e40af">🗺️ 缺席2D × 分区地图 → 完整4D · '+mk+'</h3>';
-  h+='<div class="warn">前2D 来自<b>缺席</b>（千缺 '+a0.join('/')+' × 百缺 '+a1.join('/')+'），后3D 来自<b>分区地图</b>挑「久违 + 规律高（cv低）」。共 '+cands.length+' 个候选，显示久违最狠的前 '+show.length+' 个。<b>历史开过</b>=这个4D以前真开过几次；<b>命中本期</b>=它落在本期主打的缺席目标里。</div>';
+  h+='<div class="warn">前2D 来自<b>缺席</b>（千缺 '+a0.join('/')+' × 百缺 '+a1.join('/')+'），后3D 来自<b>分区地图</b>挑「久违 + 规律高（cv低）」。共 '+cands.length+' 个候选'+(_filtered?'（已筛选，原 '+_rawN+' 个）':'')+'，显示前 '+show.length+' 个。<b>历史开过</b>=这4D以前开过几次；<b>命中本期</b>=落在本期主打缺席目标里。</div>';
+  // 筛选栏
+  h+='<div style="margin:6px 0;padding:8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px">';
+  h+='<div style="font-weight:700;color:#1e40af;margin-bottom:4px">🔎 筛选（改后自动重算，空=不限）</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">';
+  h+='<span>点数和 <input type="number" id="fz-pt-from" value="'+(pFrom!=null?pFrom:'')+'" min="0" max="36" placeholder="0" onchange="zoAbsentZoneFusion()" style="width:50px;padding:2px 4px;border:1px solid #93c5fd;border-radius:4px"> – <input type="number" id="fz-pt-to" value="'+(pTo!=null?pTo:'')+'" min="0" max="36" placeholder="36" onchange="zoAbsentZoneFusion()" style="width:50px;padding:2px 4px;border:1px solid #93c5fd;border-radius:4px"></span>';
+  h+='<span style="border-left:1px solid #bfdbfe;padding-left:10px">打数 ';
+  [24,12,6,4,1].forEach(function(dd){ h+='<label style="cursor:pointer;margin-right:5px"><input type="checkbox" id="fz-da-'+dd+'"'+(das[dd]?' checked':'')+' onchange="zoAbsentZoneFusion()" style="vertical-align:middle">'+dd+'</label>'; });
+  h+='</span>';
+  h+='<span style="border-left:1px solid #bfdbfe;padding-left:10px">含任一 <input type="text" id="fz-inc" value="'+inc.join('')+'" placeholder="如190" onchange="zoAbsentZoneFusion()" style="width:60px;padding:2px 4px;border:1px solid #93c5fd;border-radius:4px;font-family:monospace"></span>';
+  h+='<span>排除 <input type="text" id="fz-exc" value="'+exc.join('')+'" placeholder="如58" onchange="zoAbsentZoneFusion()" style="width:60px;padding:2px 4px;border:1px solid #93c5fd;border-radius:4px;font-family:monospace"></span>';
+  h+='</div><div style="margin-top:5px">数根 ';
+  for(var _r2=1;_r2<=9;_r2++){ h+='<label style="cursor:pointer;margin-right:5px"><input type="checkbox" id="fz-rt-'+_r2+'"'+(rts[_r2]?' checked':'')+' onchange="zoAbsentZoneFusion()" style="vertical-align:middle">'+_r2+'</label>'; }
+  h+='<span style="color:#94a3b8;font-size:10px">（4D和的数根）</span></div></div>';
   h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr>'+
      '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">完整4D</th>'+
      '<th style="text-align:left;padding:5px 8px;border-bottom:2px solid #e2e8f0">历史开过</th>'+
