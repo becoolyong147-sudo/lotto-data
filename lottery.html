@@ -327,6 +327,7 @@ tr:hover td{background:#fafaf5}
         <button class="btn" style="background:#9d174d;color:#fff;padding:10px 16px;font-size:14px" onclick="zoCrossPrizeShow()">🔁 跨奖位重复（头↔二↔三）</button>
         <button class="btn" style="background:#4338ca;color:#fff;padding:10px 16px;font-size:14px" onclick="zoIdeaReport()">📑 想法验证报告（奖位轮回+间隔）</button>
         <button class="btn" style="background:#a21caf;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLinkReview()">🔢 缺席数根链接·回测</button>
+        <button class="btn" style="background:#7e22ce;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLink4DReview()">🔢 数根链接·完整4D回测</button>
       </div>
       <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
     </div>
@@ -9268,14 +9269,14 @@ function zoRootLinkReview(){
     uM2.forEach(function(mm){ for(var dd=0;dd<=9;dd++){ if(b2.a2.indexOf(dr2(mm[1],dd))>=0) rb3[''+mm+dd]=1; } });
     uB2.forEach(function(bb){ for(var b=0;b<=9;b++){ if(m2.a2.indexOf(dr2(b,bb[0]))>=0) rb3[''+b+bb]=1; } });
     var rf=Object.keys(rf3), rb=Object.keys(rb3); var cand=rf.length+rb.length; if(!cand)continue;
-    var rfSet={}; rf.forEach(function(x){rfSet[s3(x)]=1;}); var rbSet={}; rb.forEach(function(x){rbSet[s3(x)]=1;});
+    var rfSet={}; rf.forEach(function(x){rfSet[x]=1;}); var rbSet={}; rb.forEach(function(x){rbSet[x]=1;});
     var next=m[i+1]; var nn=[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
     if(!nn.length)continue;
     var hit='', hnum='';
-    nn.forEach(function(s,pi){ if(hit)return; if(rfSet[s3(s.slice(0,3))]){hit='前3D·'+['头','二','三'][pi];hnum=s;} else if(rbSet[s3(s.slice(1,4))]){hit='后3D·'+['头','二','三'][pi];hnum=s;} });
-    function randSet(k){ var o={},guard=0; while(Object.keys(o).length<k&&guard++<2000){ o[s3(pad(Math.floor(Math.random()*1000)).slice(-3))]=1; if(Object.keys(o).length>=220)break; } return o; }
+    nn.forEach(function(s,pi){ if(hit)return; if(rfSet[s.slice(0,3)]){hit='前3D·'+['头','二','三'][pi];hnum=s;} else if(rbSet[s.slice(1,4)]){hit='后3D·'+['头','二','三'][pi];hnum=s;} });
+    function randSet(k){ var o={},guard=0; while(Object.keys(o).length<k&&guard++<8000){ o[pad(Math.floor(Math.random()*1000)).slice(-3)]=1; if(Object.keys(o).length>=1000)break; } return o; }
     var rrf=randSet(rf.length), rrb=randSet(rb.length), rhit=false;
-    nn.forEach(function(s){ if(rrf[s3(s.slice(0,3))]||rrb[s3(s.slice(1,4))])rhit=true; });
+    nn.forEach(function(s){ if(rrf[s.slice(0,3)]||rrb[s.slice(1,4)])rhit=true; });
     n++; sumCand+=cand; if(hit)methodHit++; if(rhit)randHit++;
     recs.push({s:d.date,next:next.date,cand:cand,hit:hit,hnum:hnum,rf:rf,rb:rb,nn:nn});
   }
@@ -9298,20 +9299,20 @@ function zoRootLinkReview(){
   h+=bx('平均每期候选',Math.round(sumCand/n)+'个');
   h+=bx('判定',vd.t,vd.c);
   h+='</div>';
-  h+='<div class="warn" style="font-size:11px">命中定义:补链前3D/后3D 用<b>调字(box)</b>对下期头/二/三奖的前3D或后3D,任一中即算。对照=每期用<b>同样多的随机3D</b>去撞,看补链有没有比乱凑强。<br>📌 只有 '+n+' 期是因为<b>特别奖数据只在最近约30期有</b>(老历史库没存特别奖),不是bug。</div>';
+  h+='<div class="warn" style="font-size:11px">命中定义:补链前3D/后3D 用<b>正字(原样对位)</b>对下期头/二/三奖的前3D(千百十)或后3D(百十个),任一中即算。对照=每期用<b>同样多的随机3D</b>正字去撞,看补链有没有比乱凑强。<br>📌 只有 '+n+' 期是因为<b>特别奖数据只在最近约30期有</b>(老历史库没存特别奖),不是bug。</div>';
   function s3b(s){ return s.split('').sort().join(''); }
   var lid='rlk-review-list';
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#a21caf;font-weight:700;font-size:13px">🔽 逐期明细·每期补出来的号（'+n+'期,命中'+methodHit+'）— 点可收起</span>';
   h+='<div id="'+lid+'" style="display:block;margin-top:4px;max-height:520px;overflow:auto">';
   recs.slice().reverse().forEach(function(r){
     // 下期各奖的 前3D/后3D box集合（用来高亮命中的补链号）
-    var winF={}, winB={}; r.nn.forEach(function(s){ winF[s3b(s.slice(0,3))]=1; winB[s3b(s.slice(1,4))]=1; });
+    var winF={}, winB={}; r.nn.forEach(function(s){ winF[s.slice(0,3)]=1; winB[s.slice(1,4)]=1; });
     h+='<div style="border:1px solid '+(r.hit?'#86efac':'#f0abfc')+';border-radius:8px;padding:7px 10px;margin-top:6px;background:'+(r.hit?'#f0fdf4':'#fff')+'">';
     h+='<div style="font-size:12px;font-weight:700;color:#1e3a5f">📅 '+r.s+' → 下期 '+r.next+' 开 '+r.nn.join('/')+' · '+(r.hit?'<span style="color:#16a34a">✅ '+r.hit+'('+r.hnum+')</span>':'<span style="color:#dc2626">❌ 没中</span>')+'</div>';
     function line(lbl,list,win,wa,wb,pre,suf){
       if(!list.length) return '';
       var s='<div style="font-size:11px;margin-top:3px"><b style="color:#a21caf">'+lbl+'('+list.length+')：</b><span style="font-family:monospace;line-height:1.9;word-break:break-all">';
-      s+=list.map(function(x){ var isHit=win[s3b(x)]; return '<span style="'+(isHit?'background:#16a34a;color:#fff;font-weight:700;':'color:#475569;')+'border-radius:3px;padding:0 3px;margin:1px">'+pre+x+suf+'</span>'; }).join('');
+      s+=list.map(function(x){ var isHit=win[x]; return '<span style="'+(isHit?'background:#16a34a;color:#fff;font-weight:700;':'color:#475569;')+'border-radius:3px;padding:0 3px;margin:1px">'+pre+x+suf+'</span>'; }).join('');
       return s+'</span></div>';
     }
     h+=line('补前3D',r.rf,winF,0,2,'','X');
@@ -9320,6 +9321,70 @@ function zoRootLinkReview(){
   });
   h+='</div></div>';
   h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">⚠️ 历史统计,不构成预测。判定用误差范围(2×标准误)。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🔢 数根链接·完整4D回测：A=前2D×后2D  B=千+中2D+个(两头补数根)，正字对下期头二三
+function zoRootLink4DReview(){
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('rlk4-mk-sel'); var mk=selEl?selEl.value:'万能';
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+  function dr2(x,y){ return dr((+x)+(+y)); }
+  function an2(g,wa,wb){ var roots={},first={}; g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; }); var a2=[]; for(var r=1;r<=9;r++) if(!roots[r])a2.push(r); var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d])a1.push(''+d); var most=null,mc=-1; Object.keys(first).forEach(function(k){if(first[k]>mc){mc=first[k];most=k;}}); var t1=a1.concat(most!=null?[most]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1;}}); return {a2:a2, tg:Object.keys(ts)}; }
+  var recs=[], A={hit:0,rand:0,cand:0}, B={hit:0,rand:0,cand:0}, n=0;
+  for(var i=0;i<m.length-1;i++){
+    var d=m[i]; if(!(d.sp&&d.sp.length))continue;
+    var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3)continue;
+    var f2=an2(g,0,1),m2=an2(g,1,2),b2=an2(g,2,3);
+    // A: 前2D × 后2D → 4D
+    var candA={}; f2.tg.forEach(function(f){ b2.tg.forEach(function(b){ candA[f+b]=1; }); });
+    // B: 千(缺前根)+中2D+个(缺后根)
+    var candB={};
+    m2.tg.forEach(function(mm){ for(var a=0;a<=9;a++){ if(f2.a2.indexOf(dr2(a,mm[0]))<0)continue; for(var dd=0;dd<=9;dd++){ if(b2.a2.indexOf(dr2(mm[1],dd))>=0) candB[''+a+mm+dd]=1; } } });
+    var aK=Object.keys(candA), bK=Object.keys(candB); if(!aK.length&&!bK.length)continue;
+    var next=m[i+1]; var nn=[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
+    if(!nn.length)continue;
+    function chk(setObj,list){ var hn=''; nn.forEach(function(s,pi){ if(hn)return; if(setObj[s]) hn='✅'+['头','二','三'][pi]+'('+s+')'; }); return hn; }
+    function randHit(k){ var o={},guard=0; while(Object.keys(o).length<k&&guard++<40000){ o[pad(Math.floor(Math.random()*10000))]=1; if(Object.keys(o).length>=10000)break; } var hit=false; nn.forEach(function(s){ if(o[s])hit=true; }); return hit; }
+    var aHit=chk(candA,aK), bHit=chk(candB,bK);
+    n++; A.cand+=aK.length; B.cand+=bK.length;
+    if(aHit)A.hit++; if(bHit)B.hit++; if(randHit(aK.length))A.rand++; if(randHit(bK.length))B.rand++;
+    recs.push({s:d.date,next:next.date,nn:nn,aK:aK,bK:bK,aHit:aHit,bHit:bHit});
+  }
+  function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var h='<div class="card" style="border:2px solid #7e22ce">';
+  h+='<h3 style="color:#6b21a8">🔢 数根链接 · 完整4D回测 · '+mk+'（正字·两种接法）</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="rlk4-mk-sel" onchange="zoRootLink4DReview()" style="font-size:13px;padding:3px 8px;border:1px solid #d8b4fe;border-radius:6px;color:#6b21a8;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  if(n<20){ h+='<div class="warn">可回测期数太少('+n+'),特别奖数据只在最近约30期有。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
+  function pct(a){ return (a/n*100).toFixed(1)+'%'; }
+  function verdict(hit,rand){ var p=hit/n,rp=rand/n,se=Math.sqrt(rp*(1-rp)/n),lead=p-rp; if(hit<3&&rand<3)return {t:'🔵 命中太少',c:'#64748b'}; return lead>2*se?{t:'🟡 比随机高',c:'#d97706'}:(lead<-2*se?{t:'🔴 比随机差',c:'#dc2626'}:{t:'🟢 跟随机没差别',c:'#16a34a'}); }
+  var vA=verdict(A.hit,A.rand), vB=verdict(B.hit,B.rand);
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse">';
+  h+='<tr style="background:#faf5ff;color:#6b21a8"><th style="text-align:left;padding:6px 10px">接法</th><th style="text-align:right;padding:6px 10px">平均每期候选</th><th style="text-align:right;padding:6px 10px">正字命中</th><th style="text-align:right;padding:6px 10px">随机同量</th><th style="text-align:left;padding:6px 10px">判定</th></tr>';
+  h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">A 前2D×后2D</td><td style="padding:6px 10px;text-align:right">'+Math.round(A.cand/n)+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6b21a8">'+A.hit+'期 ('+pct(A.hit)+')</td><td style="padding:6px 10px;text-align:right">'+A.rand+'期 ('+pct(A.rand)+')</td><td style="padding:6px 10px;font-weight:700;color:'+vA.c+'">'+vA.t+'</td></tr>';
+  h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">B 千+中2D+个</td><td style="padding:6px 10px;text-align:right">'+Math.round(B.cand/n)+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6b21a8">'+B.hit+'期 ('+pct(B.hit)+')</td><td style="padding:6px 10px;text-align:right">'+B.rand+'期 ('+pct(B.rand)+')</td><td style="padding:6px 10px;font-weight:700;color:'+vB.c+'">'+vB.t+'</td></tr>';
+  h+='</table></div>';
+  h+='<div style="font-size:12px;color:#334155;background:#faf5ff;border-radius:8px;padding:8px 10px;margin-top:8px">💬 <b>看这里:</b> "正字命中"要明显高过"随机同量"才有料。'+((vA.t.indexOf('没差别')>=0||vA.t.indexOf('太少')>=0)&&(vB.t.indexOf('没差别')>=0||vB.t.indexOf('太少')>=0)?'两种接法都<b>跟随机没差别</b> —— 凑出这么多4D能中,是因为号多(覆盖广),不是接法准。':'有接法🟡高于随机,但小样本(仅'+n+'期)多半是噪音,换市场再看。')+'</div>';
+  h+='<div class="warn" style="font-size:11px">正字=完整4D原样对上下期头/二/三。对照=同数量随机4D正字。仅 '+n+' 期(特别奖数据限制),正字命中很稀少属正常。</div>';
+  var lid='rlk4-list';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7e22ce;font-weight:700;font-size:13px">🔽 逐期明细·每期凑的4D数量+命中（'+n+'期）</span>';
+  h+='<div id="'+lid+'" style="display:block;margin-top:4px;max-height:420px;overflow:auto">';
+  recs.slice().reverse().forEach(function(r){
+    var anyHit=r.aHit||r.bHit;
+    h+='<div style="border:1px solid '+(anyHit?'#86efac':'#e9d5ff')+';border-radius:8px;padding:6px 10px;margin-top:5px;background:'+(anyHit?'#f0fdf4':'#fff')+'">';
+    h+='<div style="font-size:12px;font-weight:700;color:#1e3a5f">📅 '+r.s+' → 下期 '+r.next+' 开 '+r.nn.join('/')+'</div>';
+    h+='<div style="font-size:11px;margin-top:2px">A 前2D×后2D：<b>'+r.aK.length+'</b>个 · '+(r.aHit?'<span style="color:#16a34a;font-weight:700">'+r.aHit+'</span>':'<span style="color:#dc2626">❌</span>')+'</div>';
+    h+='<div style="font-size:11px">B 千+中2D+个：<b>'+r.bK.length+'</b>个 · '+(r.bHit?'<span style="color:#16a34a;font-weight:700">'+r.bHit+'</span>':'<span style="color:#dc2626">❌</span>')+'</div>';
+    h+='</div>';
+  });
+  h+='</div></div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">⚠️ 历史统计,不构成预测。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
