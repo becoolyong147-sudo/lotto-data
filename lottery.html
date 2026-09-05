@@ -8309,6 +8309,7 @@ function doBacktest(){
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
         <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
+        <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoQuick2D()">🎯 2D速选</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
@@ -9253,6 +9254,43 @@ function zoCrossPrizeShow(){
   h+='</div>';
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🎯 2D速选：各窗口缺席目标2D + 每个2D的 数根/历史出现/久违，一页选2D
+function zoQuick2D(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('q2d-mk-sel'); var mk=selEl?selEl.value:((document.getElementById('abs-market')||{value:'万能'}).value);
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var data=(typeof zoSpMatchCompute==='function')?zoSpMatchCompute():{}; var L=data[mk]&&data[mk].latest;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={};
+  var HW=[{},{},{}], HL=[{},{},{}], YRMS=365.25*86400000, nowT=Date.now();
+  function scan(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)){ [[0,2],[1,3],[2,4]].forEach(function(w,wi){ var k=s.slice(w[0],w[1]); HW[wi][k]=(HW[wi][k]||0)+1; if(!HL[wi][k]||d.date>HL[wi][k])HL[wi][k]=d.date; }); } } }); }
+  (nd[mk]||[]).forEach(scan); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scan);
+  function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var h='<div class="card" style="border:2px solid #0369a1">';
+  h+='<h3 style="color:#075985">🎯 2D速选 · '+mk+'（缺席目标2D + 历史脾气）</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="q2d-mk-sel" onchange="zoQuick2D()" style="font-size:13px;padding:3px 8px;border:1px solid #7dd3fc;border-radius:6px;color:#075985;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  if(!L){ h+='<div class="warn">'+mk+' 无待开期数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
+  h+='<div class="warn" style="margin:6px 0">每个窗口列出<b>缺席目标2D</b>,旁边给历史脾气:该2D在这位历史开过几次、多久没来、数根。⚠️ 都是描述,不预测——帮你<b>取舍/收窄</b>,不是选更准。</div>';
+  function dr2(s){ var t=(+s[0])+(+s[1]); return t===0?0:(t%9===0?9:t%9); }
+  var WIN=[['前2D','f2',0],['中2D','m2',1],['后2D','b2',2]];
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">';
+  WIN.forEach(function(w){
+    var tg=(L[w[1]].tg||'').split(' ').filter(Boolean);
+    var wi=w[2];
+    var rows=tg.map(function(t){ var c=HW[wi][t]||0; var last=HL[wi][t]||''; var yrs=(c>0&&last)?(nowT-new Date(last).getTime())/YRMS:Infinity; return {t:t,c:c,last:last,yrs:yrs,root:dr2(t)}; });
+    rows.sort(function(a,b){ return b.c-a.c; });
+    h+='<div style="border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;background:#f0f9ff">';
+    h+='<div style="font-size:14px;font-weight:800;color:#075985;margin-bottom:4px">'+w[0]+'（缺席目标 '+tg.length+'个 · 缺数根 '+(L[w[1]].a2||'')+'）</div>';
+    h+='<table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#075985"><th style="text-align:left;padding:2px 6px">2D</th><th style="text-align:right;padding:2px 6px">开过</th><th style="text-align:right;padding:2px 6px">久违</th><th style="text-align:center;padding:2px 6px">根</th></tr>';
+    rows.forEach(function(r){ var yv=r.yrs===Infinity?'从未':r.yrs.toFixed(1)+'y'; var yc=r.yrs===Infinity?'#94a3b8':(r.yrs>=8?'#dc2626':(r.yrs>=4?'#d97706':'#334155')); h+='<tr style="border-top:1px solid #e0f2fe"><td style="padding:2px 6px;font-family:monospace;font-weight:700;font-size:14px;color:#0369a1">'+r.t+'</td><td style="padding:2px 6px;text-align:right;color:'+(r.c>0?'#0d9488':'#cbd5e1')+'">'+(r.c>0?r.c+'次':'○')+'</td><td style="padding:2px 6px;text-align:right;color:'+yc+'">'+yv+'</td><td style="padding:2px 6px;text-align:center">'+r.root+'</td></tr>'; });
+    h+='</table>';
+    h+='<button class="btn" style="padding:3px 10px;font-size:11px;margin-top:5px;background:#0369a1;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+tg.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制'+w[0]+'('+tg.length+')\',1200)})">📋复制'+w[0]+'('+tg.length+')</button>';
+    h+='</div>';
+  });
+  h+='</div>';
+  h+='<div style="font-size:11px;color:#075985;margin-top:8px">👉 按「开过次数」排序(有底子的在上)。想省钱就<b>挑几个</b>玩,别全铺。要更小的池子:去「🧰条件筛选→撞号」或「🧩组合生成器」再收窄。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔢 缺席数根链接·回测：逐期用缺席数根补链凑3D(box)，对下期头二三，看是否比随机强
 function zoRootLinkReview(){
