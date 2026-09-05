@@ -9734,8 +9734,8 @@ async function zoBigPrizeExcel(){
       var st=stat[pi]; st.n++; st.sumPts+=pts; st.pts[pts]=(st.pts[pts]||0)+1; st.root[rt]=(st.root[rt]||0)+1; st.da[da]=(st.da[da]||0)+1; st.thou[s[0]]=(st.thou[s[0]]||0)+1; st.unit[s[3]]=(st.unit[s[3]]||0)+1; st.f2r[f2r]=(st.f2r[f2r]||0)+1; st.b2r[b2r]=(st.b2r[b2r]||0)+1; st.bsForm[bs]=(st.bsForm[bs]||0)+1; st.oeForm[oe]=(st.oeForm[oe]||0)+1; st.g190[g9]=(st.g190[g9]||0)+1;
       s.split('').forEach(function(dd){ if(+dd>=5)st.big++;else st.small++; if((+dd)%2)st.odd++;else st.even++; });
     });
-    ws.getColumn(1).width=12; ws.getColumn(2).width=8; for(var j=3;j<=20;j++) ws.getColumn(j).width=6;
-    ws.getColumn(14).width=6; ws.getColumn(17).width=6;
+    var W=[12,9,6,7,6,7,11,11,8,5,5,5,5,7,8,8,7,8,8,8];
+    W.forEach(function(w,wi){ ws.getColumn(wi+1).width=w; });
     ws.views=[{state:'frozen',ySplit:3,xSplit:2}];
     ws.autoFilter={from:{row:3,column:1},to:{row:3,column:20}};
   });
