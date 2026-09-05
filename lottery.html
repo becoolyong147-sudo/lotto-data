@@ -9262,33 +9262,62 @@ function zoQuick2D(){
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   var data=(typeof zoSpMatchCompute==='function')?zoSpMatchCompute():{}; var L=data[mk]&&data[mk].latest;
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={};
-  var HW=[{},{},{}], HL=[{},{},{}], YRMS=365.25*86400000, nowT=Date.now();
-  function scan(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=String(n).padStart(4,'0'); if(/^\d{4}$/.test(s)){ [[0,2],[1,3],[2,4]].forEach(function(w,wi){ var k=s.slice(w[0],w[1]); HW[wi][k]=(HW[wi][k]||0)+1; if(!HL[wi][k]||d.date>HL[wi][k])HL[wi][k]=d.date; }); } } }); }
+  var YRMS=365.25*86400000, nowT=Date.now();
+  // 每窗口每2D: {c,last,first,pz:[0,0,0],mon:[12],r12, co:{}}
+  var HW=[{},{},{}]; var recentCut=new Date(nowT-365*86400000).toISOString().slice(0,10);
+  function ent(wi,k){ if(!HW[wi][k])HW[wi][k]={c:0,last:'',first:'9999',pz:[0,0,0],mon:new Array(12).fill(0),r12:0,co:{}}; return HW[wi][k]; }
+  function scan(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; var mo=parseInt(String(d.date).slice(5,7),10)-1; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=String(n).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; var wins=[s.slice(0,2),s.slice(1,3),s.slice(2,4)]; for(var wi=0;wi<3;wi++){ var k=wins[wi]; var e=ent(wi,k); e.c++; if(d.date>e.last)e.last=d.date; if(d.date<e.first)e.first=d.date; e.pz[pi]++; if(mo>=0&&mo<12)e.mon[mo]++; if(d.date>=recentCut)e.r12++; // 搭配：前2D↔后2D，中2D↔前&后
+      if(wi===0)e.co[wins[2]]=(e.co[wins[2]]||0)+1; else if(wi===2)e.co[wins[0]]=(e.co[wins[0]]||0)+1; else { e.co['前'+wins[0]]=(e.co['前'+wins[0]]||0)+1; e.co['后'+wins[2]]=(e.co['后'+wins[2]]||0)+1; } } }); }
   (nd[mk]||[]).forEach(scan); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scan);
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var MN=['1','2','3','4','5','6','7','8','9','10','11','12'];
+  function dr2(s){ var t=(+s[0])+(+s[1]); return t===0?0:(t%9===0?9:t%9); }
+  function topco(co,n){ return Object.keys(co).map(function(k){return [k,co[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,n||3).map(function(x){return x[0]+'('+x[1]+')';}).join(' '); }
   var h='<div class="card" style="border:2px solid #0369a1">';
-  h+='<h3 style="color:#075985">🎯 2D速选 · '+mk+'（缺席目标2D + 历史脾气）</h3>';
+  h+='<h3 style="color:#075985">🎯 2D深度分析 · '+mk+'（缺席目标2D + 全套脾气）</h3>';
   h+='<div style="margin-bottom:8px">市场 <select id="q2d-mk-sel" onchange="zoQuick2D()" style="font-size:13px;padding:3px 8px;border:1px solid #7dd3fc;border-radius:6px;color:#075985;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
   if(!L){ h+='<div class="warn">'+mk+' 无待开期数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
-  h+='<div class="warn" style="margin:6px 0">每个窗口列出<b>缺席目标2D</b>,旁边给历史脾气:该2D在这位历史开过几次、多久没来、数根。⚠️ 都是描述,不预测——帮你<b>取舍/收窄</b>,不是选更准。</div>';
-  function dr2(s){ var t=(+s[0])+(+s[1]); return t===0?0:(t%9===0?9:t%9); }
+  h+='<div class="warn" style="margin:6px 0">每个缺席目标2D的全套历史脾气。<b>倍</b>=久违÷平均间隔(>1=憋超常态)；<b>头/二/三</b>=奖位分布；<b>爱月</b>=最常开的月；<b>趋势</b>=近12月次数；<b>常配</b>=同期另一段2D(帮拼3D/4D)。⚠️ 全是描述,不预测。</div>';
   var WIN=[['前2D','f2',0],['中2D','m2',1],['后2D','b2',2]];
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px">';
   WIN.forEach(function(w){
-    var tg=(L[w[1]].tg||'').split(' ').filter(Boolean);
-    var wi=w[2];
-    var rows=tg.map(function(t){ var c=HW[wi][t]||0; var last=HL[wi][t]||''; var yrs=(c>0&&last)?(nowT-new Date(last).getTime())/YRMS:Infinity; return {t:t,c:c,last:last,yrs:yrs,root:dr2(t)}; });
-    rows.sort(function(a,b){ return b.c-a.c; });
-    h+='<div style="border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;background:#f0f9ff">';
+    var tg=(L[w[1]].tg||'').split(' ').filter(Boolean); var wi=w[2];
+    var rows=tg.map(function(t){ var e=HW[wi][t]||{c:0,last:'',first:'9999',pz:[0,0,0],mon:new Array(12).fill(0),r12:0,co:{}};
+      var yrs=(e.c>0&&e.last)?(nowT-new Date(e.last).getTime())/YRMS:Infinity;
+      var avg=(e.c>=2)?((new Date(e.last).getTime()-new Date(e.first).getTime())/YRMS)/(e.c-1):null;
+      var mult=(avg&&avg>0&&yrs!==Infinity)?yrs/avg:null;
+      var moTop=e.c?e.mon.indexOf(Math.max.apply(null,e.mon)):-1;
+      return {t:t,e:e,yrs:yrs,avg:avg,mult:mult,moTop:moTop,root:dr2(t),pts:(+t[0])+(+t[1])};
+    });
+    rows.sort(function(a,b){ return b.e.c-a.e.c; });
+    h+='<div style="border:1px solid #bae6fd;border-radius:10px;padding:8px 10px;background:#f0f9ff;margin-top:8px">';
     h+='<div style="font-size:14px;font-weight:800;color:#075985;margin-bottom:4px">'+w[0]+'（缺席目标 '+tg.length+'个 · 缺数根 '+(L[w[1]].a2||'')+'）</div>';
-    h+='<table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#075985"><th style="text-align:left;padding:2px 6px">2D</th><th style="text-align:right;padding:2px 6px">开过</th><th style="text-align:right;padding:2px 6px">久违</th><th style="text-align:center;padding:2px 6px">根</th></tr>';
-    rows.forEach(function(r){ var yv=r.yrs===Infinity?'从未':r.yrs.toFixed(1)+'y'; var yc=r.yrs===Infinity?'#94a3b8':(r.yrs>=8?'#dc2626':(r.yrs>=4?'#d97706':'#334155')); h+='<tr style="border-top:1px solid #e0f2fe"><td style="padding:2px 6px;font-family:monospace;font-weight:700;font-size:14px;color:#0369a1">'+r.t+'</td><td style="padding:2px 6px;text-align:right;color:'+(r.c>0?'#0d9488':'#cbd5e1')+'">'+(r.c>0?r.c+'次':'○')+'</td><td style="padding:2px 6px;text-align:right;color:'+yc+'">'+yv+'</td><td style="padding:2px 6px;text-align:center">'+r.root+'</td></tr>'; });
-    h+='</table>';
+    h+='<div style="overflow-x:auto"><table style="width:100%;font-size:11px;border-collapse:collapse;min-width:640px"><tr style="color:#075985;background:#e0f2fe"><th style="text-align:left;padding:3px 6px">2D</th><th style="text-align:right;padding:3px 6px">开过</th><th style="text-align:right;padding:3px 6px">久违</th><th style="text-align:right;padding:3px 6px">平均</th><th style="text-align:right;padding:3px 6px">倍</th><th style="text-align:center;padding:3px 6px">头/二/三</th><th style="text-align:center;padding:3px 6px">爱月</th><th style="text-align:center;padding:3px 6px">趋势</th><th style="text-align:center;padding:3px 6px">点/根</th><th style="text-align:left;padding:3px 6px">常配</th></tr>';
+    rows.forEach(function(r){ var e=r.e;
+      var yv=r.yrs===Infinity?'从未':r.yrs.toFixed(1)+'y'; var yc=r.yrs===Infinity?'#94a3b8':(r.yrs>=8?'#dc2626':(r.yrs>=4?'#d97706':'#334155'));
+      var mv=r.mult==null?'-':r.mult.toFixed(1)+'x'; var mc=r.mult>=1.5?'#dc2626':(r.mult!=null&&r.mult<0.7?'#16a34a':'#334155');
+      h+='<tr style="border-top:1px solid #e0f2fe">';
+      h+='<td style="padding:3px 6px;font-family:monospace;font-weight:700;font-size:14px;color:#0369a1">'+r.t+'</td>';
+      h+='<td style="padding:3px 6px;text-align:right;color:'+(e.c>0?'#0d9488':'#cbd5e1')+'">'+(e.c>0?e.c:'○')+'</td>';
+      h+='<td style="padding:3px 6px;text-align:right;color:'+yc+'">'+yv+'</td>';
+      h+='<td style="padding:3px 6px;text-align:right;color:#64748b">'+(r.avg?r.avg.toFixed(1)+'y':'-')+'</td>';
+      h+='<td style="padding:3px 6px;text-align:right;font-weight:700;color:'+mc+'">'+mv+'</td>';
+      h+='<td style="padding:3px 6px;text-align:center;color:#64748b">'+e.pz[0]+'/'+e.pz[1]+'/'+e.pz[2]+'</td>';
+      h+='<td style="padding:3px 6px;text-align:center">'+(r.moTop>=0?MN[r.moTop]+'月':'-')+'</td>';
+      h+='<td style="padding:3px 6px;text-align:center;color:'+(e.r12>0?"#dc2626":"#94a3b8")+'">'+(e.r12>0?e.r12+'次':'冷')+'</td>';
+      h+='<td style="padding:3px 6px;text-align:center;color:#64748b">'+r.pts+'/'+r.root+'</td>';
+      h+='<td style="padding:3px 6px;font-family:monospace;font-size:10px;color:#475569">'+(topco(e.co,3)||'-')+'</td>';
+      h+='</tr>';
+    });
+    h+='</table></div>';
     h+='<button class="btn" style="padding:3px 10px;font-size:11px;margin-top:5px;background:#0369a1;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+tg.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制'+w[0]+'('+tg.length+')\',1200)})">📋复制'+w[0]+'('+tg.length+')</button>';
     h+='</div>';
   });
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:12px;color:#1e40af;line-height:1.8">';
+  h+='<b>💡 怎么用(诚实版):</b><br>';
+  h+='• <b>倍数</b>看它反不反常(纯记录,不代表会开)　• <b>头/二/三</b>看它偏哪个奖位　• <b>爱月</b>发群话术("这号X月最爱开")<br>';
+  h+='• <b>常配</b>最实用:前2D 看它常配哪个后2D → 直接拼完整4D;中2D 看常配前/后 → 拼前3D/后3D<br>';
+  h+='• 选好2D后 → 配1D/另一段2D → box。想省钱先用「撞号/筛选」砍小池子。<b>记住:中率高≠赚,配EV看成本。</b>';
   h+='</div>';
-  h+='<div style="font-size:11px;color:#075985;margin-top:8px">👉 按「开过次数」排序(有底子的在上)。想省钱就<b>挑几个</b>玩,别全铺。要更小的池子:去「🧰条件筛选→撞号」或「🧩组合生成器」再收窄。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
