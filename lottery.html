@@ -1537,6 +1537,15 @@ function renderPatternTrend(){
     <button id="dexp-btn-sync" onclick="showDExp('sync')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">☁️ 云端同步</button>
     <button id="dexp-btn-excel" onclick="showDExp('excel')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">📤 导出 Excel</button>
   </div>
+  <div class="card" style="border:2px solid #b45309;margin-bottom:10px">
+    <h3 style="color:#b45309">🏆 大奖走势报告（头/二/三奖分开 · Excel）</h3>
+    <div class="warn">每个奖位一个 sheet，逐期一行:点数/数根/打数/大小/单双/千个位/前后2D，方便滚动看走势找「脾气」。另有「脾气汇总」sheet 看各奖位分布。⚠️ 描述历史，不预测。</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+      <span>市场 <select id="bpx-market" style="font-size:13px;padding:5px 8px;border:1px solid #fbbf24;border-radius:6px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></span>
+      <button class="btn" style="background:#b45309;color:#fff;padding:8px 18px;font-size:14px" onclick="zoBigPrizeExcel()">📊 导出大奖走势 Excel</button>
+    </div>
+    <div id="bpx-msg" style="margin-top:6px;font-size:12px"></div>
+  </div>
   <div id="dexp-backup"></div>
   <div id="dexp-sync" style="display:none"></div>
   <div id="dexp-excel" style="display:none"></div>
@@ -9682,6 +9691,73 @@ function zoSpMatchCompute(){
     res[mk]={rows:rows, latest:latest, stat:stat, f2hist:f2hist, b2hist:b2hist};
   });
   return res;
+}
+// 🏆 大奖走势报告 Excel：头/二/三奖各一sheet逐期一行 + 脾气汇总
+async function zoBigPrizeExcel(){
+  var msg=document.getElementById('bpx-msg');
+  if(typeof ExcelJS==='undefined'||typeof saveAs==='undefined'){ if(msg)msg.innerHTML='<span style="color:#dc2626">❌ ExcelJS/FileSaver 未加载(需联网)。</span>'; return; }
+  var mk=(document.getElementById('bpx-market')||{value:'万能'}).value;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}); // 新→旧
+  if(!m.length){ if(msg)msg.innerHTML='<span style="color:#dc2626">该市场无数据。</span>'; return; }
+  function pad(n){return String(n).padStart(4,'0');}
+  function dsum(s){ var t=0; for(var i=0;i<4;i++) t+=+s[i]; return t; }
+  function droot(s){ var n=dsum(s); return n===0?0:(n%9===0?9:n%9); }
+  function daCount(s){ var c={}; s.split('').forEach(function(d){c[d]=(c[d]||0)+1;}); var sig=Object.values(c).sort(function(a,b){return b-a;}).join(''); return sig==='1111'?24:sig==='211'?12:sig==='22'?6:sig==='31'?4:1; }
+  function bigsmall(s){ return s.split('').map(function(d){return +d>=5?'大':'小';}).join(''); }
+  function oddeven(s){ return s.split('').map(function(d){return (+d)%2?'单':'双';}).join(''); }
+  if(msg)msg.innerHTML='⏳ 生成中…';
+  var wb=new ExcelJS.Workbook(); wb.creator='大奖走势';
+  var HFILL={type:'pattern',pattern:'solid',fgColor:{argb:'FFB45309'}}, HFONT={name:'Arial',bold:true,size:10,color:{argb:'FFFFFFFF'}};
+  var names=['头奖','二奖','三奖'];
+  var stat=[{},{},{}]; // per tier: {pts:{}, root:{}, da:{}, thou:{}, unit:{}, big:0,small:0,odd:0,even:0, n:0, sumPts:0}
+  [0,1,2].forEach(function(pi){ stat[pi]={pts:{},root:{},da:{},thou:{},unit:{},big:0,small:0,odd:0,even:0,n:0,sumPts:0}; });
+  var cols=['日期','号码','点数','数根','打数','大小','单双','千','百','十','个','前2D','后2D'];
+  [0,1,2].forEach(function(pi){
+    var ws=wb.addWorksheet(names[pi]+'走势');
+    ws.getCell('A1').value=mk+' · '+names[pi]+' 逐期走势（新→旧）'; ws.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
+    var hr=ws.getRow(3); cols.forEach(function(c,ci){ var cell=hr.getCell(ci+1); cell.value=c; cell.fill=HFILL; cell.font=HFONT; cell.alignment={horizontal:'center'}; });
+    var ri=4;
+    m.forEach(function(d){ var x=d.nums&&d.nums[pi]; if(x==null||x==='')return; var s=pad(x); if(!/^\d{4}$/.test(s))return;
+      var pts=dsum(s), rt=droot(s), da=daCount(s), bs=bigsmall(s), oe=oddeven(s);
+      var R=ws.getRow(ri++);
+      R.getCell(1).value=d.date; R.getCell(2).value=s; R.getCell(3).value=pts; R.getCell(4).value=rt; R.getCell(5).value=da+'打';
+      R.getCell(6).value=bs; R.getCell(7).value=oe; R.getCell(8).value=s[0]; R.getCell(9).value=s[1]; R.getCell(10).value=s[2]; R.getCell(11).value=s[3];
+      R.getCell(12).value=s.slice(0,2); R.getCell(13).value=s.slice(2,4);
+      for(var k=1;k<=13;k++){ R.getCell(k).alignment={horizontal:'center'}; R.getCell(k).font={name:'Arial',size:10}; }
+      var st=stat[pi]; st.n++; st.sumPts+=pts; st.pts[pts]=(st.pts[pts]||0)+1; st.root[rt]=(st.root[rt]||0)+1; st.da[da]=(st.da[da]||0)+1; st.thou[s[0]]=(st.thou[s[0]]||0)+1; st.unit[s[3]]=(st.unit[s[3]]||0)+1;
+      s.split('').forEach(function(dd){ if(+dd>=5)st.big++;else st.small++; if((+dd)%2)st.odd++;else st.even++; });
+    });
+    ws.getColumn(1).width=12; ws.getColumn(2).width=8; for(var j=3;j<=13;j++) ws.getColumn(j).width=6;
+    ws.views=[{state:'frozen',ySplit:3}];
+    ws.autoFilter={from:{row:3,column:1},to:{row:3,column:13}};
+  });
+  // 脾气汇总
+  var sm=wb.addWorksheet('脾气汇总'); sm.getCell('A1').value=mk+' · 头/二/三奖 脾气对比'; sm.getCell('A1').font={name:'Arial',bold:true,size:14,color:{argb:'FFB45309'}};
+  function topStr(o,suf,topn){ var e=Object.keys(o).map(function(k){return [k,o[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,topn||3); return e.map(function(x){return x[0]+(suf||'')+'('+x[1]+')';}).join(' '); }
+  var rows=[['指标','头奖','二奖','三奖']];
+  rows.push(['期数', stat[0].n, stat[1].n, stat[2].n]);
+  rows.push(['平均点数', (stat[0].sumPts/(stat[0].n||1)).toFixed(1), (stat[1].sumPts/(stat[1].n||1)).toFixed(1), (stat[2].sumPts/(stat[2].n||1)).toFixed(1)]);
+  rows.push(['最常点数', topStr(stat[0].pts,'点'), topStr(stat[1].pts,'点'), topStr(stat[2].pts,'点')]);
+  rows.push(['数根Top3', topStr(stat[0].root,'根'), topStr(stat[1].root,'根'), topStr(stat[2].root,'根')]);
+  rows.push(['打数Top3', topStr(stat[0].da,'打'), topStr(stat[1].da,'打'), topStr(stat[2].da,'打')]);
+  rows.push(['千位最多', topStr(stat[0].thou,''), topStr(stat[1].thou,''), topStr(stat[2].thou,'')]);
+  rows.push(['个位最多', topStr(stat[0].unit,''), topStr(stat[1].unit,''), topStr(stat[2].unit,'')]);
+  function pctBS(st){ var t=st.big+st.small; return t?Math.round(st.big/t*100)+'% : '+Math.round(st.small/t*100)+'%':'-'; }
+  function pctOE(st){ var t=st.odd+st.even; return t?Math.round(st.odd/t*100)+'% : '+Math.round(st.even/t*100)+'%':'-'; }
+  rows.push(['大 : 小', pctBS(stat[0]), pctBS(stat[1]), pctBS(stat[2])]);
+  rows.push(['单 : 双', pctOE(stat[0]), pctOE(stat[1]), pctOE(stat[2])]);
+  rows.forEach(function(rw,ri){ var R=sm.getRow(ri+3); rw.forEach(function(v,ci){ var c=R.getCell(ci+1); c.value=v; c.alignment={horizontal:ci===0?'left':'center'}; if(ri===0){ c.fill=HFILL; c.font=HFONT; } else if(ci===0){ c.font={name:'Arial',bold:true,size:10}; } else { c.font={name:'Arial',size:10}; } }); });
+  sm.getColumn(1).width=12; for(var j=2;j<=4;j++) sm.getColumn(j).width=22;
+  sm.getCell('A'+(rows.length+5)).value='⚠️ 描述历史，不构成预测。头二三奖本质随机，看规律/脾气/教学用。';
+  sm.getCell('A'+(rows.length+5)).font={name:'Arial',italic:true,size:9,color:{argb:'FF94A3B8'}};
+
+  var today=new Date().toISOString().slice(0,10);
+  var buf=await wb.xlsx.writeBuffer();
+  saveAs(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), '大奖走势_'+mk+'_'+today+'.xlsx');
+  if(msg)msg.innerHTML='<span style="color:#166534;font-weight:700">✅ 已导出 大奖走势_'+mk+'_'+today+'.xlsx（头/二/三奖走势 + 脾气汇总，共 '+(stat[0].n)+' 期）</span>';
 }
 async function zoSpMatchExport(){
   var out=document.getElementById('abs-out');
