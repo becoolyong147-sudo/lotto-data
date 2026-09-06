@@ -5336,6 +5336,31 @@ function runAdvancedFilter(){
     html+=`<div class="ot"><table id="flt-num-table"><tr><th>号码</th><th>分类</th><th>出现次数</th><th>奖项分布</th><th>4D点/根</th><th>前2D根</th><th>前3D点/根</th><th>后3D点/根</th><th>后3D追号</th><th>出现记录</th></tr>`+
       buildRows(grouped)+`</table></div>`;
     if(grouped.length>200)html+=`<div class="warn">结果超过 200 个号码，只显示前 200 个。建议缩小年份、奖位或增加位数条件。</div>`;
+    // 🏆 按奖位分类：互斥分组，每个号只出现一次（只头/只二/只三/跨多奖）
+    const PNM=['头奖','二奖','三奖'];
+    const BUCK={only0:[],only1:[],only2:[],multi:[]};
+    grouped.forEach(g=>{ const num=String(g.num).padStart(4,'0'); const seen=[false,false,false]; (g.items||[]).forEach(it=>{ if(it.prize>=0&&it.prize<=2)seen[it.prize]=true; });
+      const tiers=[0,1,2].filter(p=>seen[p]);
+      if(tiers.length===0)return;
+      if(tiers.length===1)BUCK['only'+tiers[0]].push(num);
+      else BUCK.multi.push({num:num,tag:tiers.map(p=>PNM[p][0]).join('')}); // 如 "二三"
+    });
+    const GRP=[['only0','只开头奖','#dc2626','#fef2f2'],['only1','只开二奖','#7c5a1e','#fef9e7'],['only2','只开三奖','#0f6e56','#f0fdf4'],['multi','跨多奖位','#7c3aed','#faf5ff']];
+    html+=`<div class="card" style="margin-top:10px;border:2px solid #7c5a1e"><h3 style="color:#7c5a1e">🏆 按奖位分类（每个号只归一组，不重复）</h3>`+
+      `<div class="warn">按每个号<b>历史开过的奖位</b>互斥分组:只开某一个奖位的进「只开X」；头二三里开过<b>两个以上</b>的进「跨多奖位」(标出是哪几个)。</div>`+
+      `<div class="g2" style="margin-top:8px">`;
+    GRP.forEach(gr=>{
+      const key=gr[0], isMulti=key==='multi', list=BUCK[key];
+      const copyStr=(isMulti?list.map(x=>x.num):list).join('\\n');
+      html+=`<div style="background:${gr[3]};border:1px solid ${gr[2]}44;border-radius:10px;padding:8px 10px">`+
+        `<div style="font-size:14px;font-weight:800;color:${gr[2]};margin-bottom:4px">${gr[1]} · ${list.length}个</div>`+
+        `<div style="font-family:monospace;font-size:13px;line-height:1.9;word-break:break-all;max-height:200px;overflow:auto">`+
+        (list.length?(isMulti?list.map(x=>`${x.num}<span style="font-size:9px;color:${gr[2]};font-family:sans-serif">·${x.tag}</span>`).join(' '):list.join(' ')):'<span style="color:#cbd5e1">无</span>')+
+        `</div>`+
+        (list.length?`<button class="btn" style="padding:3px 10px;font-size:11px;margin-top:5px;background:${gr[2]};color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText('${copyStr}').then(()=>{this.textContent='✅';setTimeout(()=>this.textContent='📋复制(${list.length})',1200)})">📋复制(${list.length})</button>`:'')+
+        `</div>`;
+    });
+    html+=`</div></div>`;
   }
   html+=`</div>`;
   // 命中率回测 + 注入到结果前面
