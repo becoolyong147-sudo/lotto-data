@@ -8730,6 +8730,10 @@ function zoNextMainShow(){
     h+=line('后2D','缺数根',L.b2.a2,null,'目标2D',L.b2.tg);
     h+=line('前1D','缺(千位)',L.f1.a1,L.f1.most,'目标',L.f1.set);
     h+=line('后1D','缺(个位)',L.b1.a1,L.b1.most,'目标',L.b1.set);
+    // 📤 各2D 单独送去条件筛选(归位锁定)
+    h+='<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">';
+    [['前2D',L.f2.tg,0],['中2D',L.m2.tg,1],['后2D',L.b2.tg,2]].forEach(function(w){ var t=(w[1]||'').trim(); if(!t)return; h+='<button class="btn" style="padding:2px 8px;font-size:10px;background:#166534;color:#fff" onclick="zoSend2DToFilter(\''+t+'\',\''+mk+'\','+w[2]+')">📤'+w[0]+'</button>'; });
+    h+='</div>';
     // 🔗 链接（前3D/后3D/4D + 没链接上的2D）
     var lk=zoLinkCompute(L.f2.tg.split(' ').filter(Boolean), L.m2.tg.split(' ').filter(Boolean), L.b2.tg.split(' ').filter(Boolean));
     var H4=zoNum4Hist(mk);
@@ -9341,6 +9345,7 @@ function zoAbsentPerPeriod(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var selEl=document.getElementById('app-mk-sel'); var mk=selEl?selEl.value:((document.getElementById('abs-market')||{value:'万能'}).value);
   var Nsel=document.getElementById('app-n'); var N=Nsel?parseInt(Nsel.value,10):40;
+  var Ksel=document.getElementById('app-k'); var K=Ksel?parseInt(Ksel.value,10):3;
   var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
   (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
@@ -9350,11 +9355,29 @@ function zoAbsentPerPeriod(){
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
   var h='<div class="card" style="border:2px solid #0f766e">';
   h+='<h3 style="color:#0f766e">📅 逐期缺席表 · '+mk+'（每期头二三 · 各位 已出现/缺席）</h3>';
-  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select></div>';
+  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select> · 🔀交集近 <select id="app-k" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(K===2?' selected':'')+'>2</option><option'+(K===3?' selected':'')+'>3</option><option'+(K===5?' selected':'')+'>5</option></select> 期</div>';
   h+='<div class="warn" style="margin:6px 0">每期用<b>特别奖(10-13个号)</b>算每位缺席(号多→缺席窄,才准)。「下期开」「命中」对的是下期<b>头/二/三奖</b>。⚠️ 特别奖数据只在最近约30期有。描述历史,不预测。</div>';
   var rows=m.slice(0,N);
   if(!rows.length){ h+='<div class="warn">无数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
   var PN=['千','百','十','个'];
+  // 🔀 最近K期 出现数字交集（每位取这K期都出现过的数字）
+  (function(){
+    var inter=[null,null,null,null], used=0, kdates=[];
+    for(var i=0;i<rows.length && used<K;i++){ var gg=(rows[i].sp||[]).map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(gg.length<3)continue;
+      kdates.push(rows[i].date);
+      for(var p=0;p<4;p++){ var app={}; gg.forEach(function(s){app[s[p]]=1;}); if(inter[p]===null)inter[p]=app; else { var ni={}; Object.keys(inter[p]).forEach(function(d){ if(app[d])ni[d]=1; }); inter[p]=ni; } }
+      used++;
+    }
+    if(used<2){ return; }
+    function chip(dg,bg){ return '<span style="display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;background:'+bg+';color:#fff;border-radius:5px;font-size:12px;font-weight:700;margin:1px">'+dg+'</span>'; }
+    var posStr=inter.map(function(s){return Object.keys(s).sort().join('');}).join('|');
+    h+='<div style="background:#ecfeff;border:2px solid #06b6d4;border-radius:10px;padding:10px 12px;margin-bottom:10px">';
+    h+='<div style="font-size:14px;font-weight:800;color:#0e7490">🔀 最近 '+used+' 期 出现数字 交集（这几期<b>每位都出现</b>的数字）</div>';
+    h+='<div style="font-size:11px;color:#0e7490;margin:3px 0 6px">期:'+kdates.join(' / ')+' —— 越多期交集越窄,代表这些数字在该位<b>稳定出现</b>。（描述,不预测）</div>';
+    for(var p=0;p<4;p++){ var ds=Object.keys(inter[p]).sort(); h+='<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:24px;font-weight:700;color:#0e7490">'+PN[p]+'</span>'+(ds.length?ds.map(function(d){return chip(d,'#0891b2');}).join(''):'<span style="color:#cbd5e1;font-size:12px">无交集</span>')+'</div>'; }
+    h+='<button class="btn" style="padding:4px 12px;font-size:12px;margin-top:6px;background:#0e7490;color:#fff" onclick="zoSendPosSetsToFilter(\''+posStr+'\',\''+mk+'\')">📤 交集送去条件筛选(可视化点选)</button>';
+    h+='</div>';
+  })();
   h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:820px"><tr style="background:#f0fdfa;color:#0f766e"><th style="text-align:left;padding:4px 8px">日期</th><th style="text-align:left;padding:4px 8px">特别奖(来源)</th>';
   PN.forEach(function(p){ h+='<th style="text-align:left;padding:4px 8px">'+p+'位 出现号码</th>'; });
   h+='<th style="text-align:left;padding:4px 8px">下期开</th><th style="text-align:left;padding:4px 8px">整号命中(四位全在目标)</th><th style="text-align:center;padding:4px 8px">送筛选</th></tr>';
