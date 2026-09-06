@@ -307,6 +307,7 @@ tr:hover td{background:#fafaf5}
         <button class="btn" style="background:#4338ca;color:#fff;padding:10px 16px;font-size:14px" onclick="zoIdeaReport()">📑 想法验证报告（奖位轮回+间隔）</button>
         <button class="btn" style="background:#a21caf;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLinkReview()">🔢 缺席数根链接·回测</button>
         <button class="btn" style="background:#7e22ce;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLink4DReview()">🔢 数根链接·完整4D回测</button>
+        <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoAll1DReview()">🔢 四位1D(千百十个)·回测</button>
       </div>
       <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
     </div>
@@ -9319,6 +9320,63 @@ function zoSend2DToFilter(list2d, mk, wi){
     setTimeout(function(){ var el=document.getElementById('flt-pos-pattern'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
     alert('已把 '+arr.length+' 个 '+wn+' 按位置锁进「条件筛选 → 位数条件」。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
+}
+// 🔢 四位1D(千/百/十/个)·逐期回测：每位「缺席+最多」目标，对下期头二三，vs随机
+function zoAll1DReview(){
+  var out=document.getElementById('honest-out')||document.getElementById('abs-out'); if(!out) return;
+  var selEl=document.getElementById('a1d-mk-sel'); var mk=selEl?selEl.value:'万能';
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  function pad(n){return String(n).padStart(4,'0');}
+  var POS=['千位(前1D)','百位','十位','个位(后1D)'];
+  var R=[0,1,2,3].map(function(){return {hit:0,rand:0,n:0,setSum:0};});
+  var recs=[];
+  for(var i=0;i<m.length-1;i++){
+    var d=m[i]; if(!(d.sp&&d.sp.length))continue;
+    var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3)continue;
+    var next=m[i+1]; var nn=[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
+    if(!nn.length)continue;
+    var perPos=[];
+    for(var p=0;p<4;p++){
+      var first={}; g.forEach(function(nnn){ first[nnn[p]]=(first[nnn[p]]||0)+1; });
+      var absent=[]; for(var dd=0;dd<=9;dd++){ if(!first[''+dd])absent.push(''+dd); }
+      var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} });
+      var set={}; absent.forEach(function(x){set[x]=1;}); if(most!=null)set[most]=1;
+      var setArr=Object.keys(set); var k=setArr.length;
+      var hit=''; nn.forEach(function(s,pi){ if(hit)return; if(set[s[p]])hit='✅'+['头','二','三'][pi]+'('+s+')'; });
+      // 随机同量
+      var rset={},guard=0; while(Object.keys(rset).length<k&&guard++<50){ rset[''+Math.floor(Math.random()*10)]=1; } var rhit=false; nn.forEach(function(s){ if(rset[s[p]])rhit=true; });
+      R[p].n++; R[p].setSum+=k; if(hit)R[p].hit++; if(rhit)R[p].rand++;
+      perPos.push({set:setArr.join(''),hit:hit});
+    }
+    recs.push({s:d.date,next:next.date,nn:nn,pos:perPos});
+  }
+  function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
+  var h='<div class="card" style="border:2px solid #0369a1">';
+  h+='<h3 style="color:#075985">🔢 四位1D（千/百/十/个）· 逐期回测 · '+mk+'</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="a1d-mk-sel" onchange="zoAll1DReview()" style="font-size:13px;padding:3px 8px;border:1px solid #7dd3fc;border-radius:6px;color:#075985;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  var n=R[0].n;
+  if(n<20){ h+='<div class="warn">可回测期数太少('+n+'),特别奖数据只在最近约30期有。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
+  h+='<div class="warn" style="margin:6px 0">每位用「缺席+最多」算目标(约5-6个数字),对下期头/二/三看该位有没有中。跟<b>同数量随机数字</b>比。因为1D覆盖半数,命中率天生就高——关键看<b>比随机高不高</b>。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#e0f2fe;color:#075985"><th style="text-align:left;padding:6px 10px">位</th><th style="text-align:right;padding:6px 10px">平均目标数</th><th style="text-align:right;padding:6px 10px">命中率</th><th style="text-align:right;padding:6px 10px">随机同量</th><th style="text-align:left;padding:6px 10px">判定</th></tr>';
+  for(var p=0;p<4;p++){ var mp=R[p].hit/n*100, rp=R[p].rand/n*100, se=Math.sqrt((rp/100)*(1-rp/100)/n)*100, lead=mp-rp;
+    var vd=lead>2*se?{t:'🟡 比随机高',c:'#d97706'}:(lead<-2*se?{t:'🔴 比随机差',c:'#dc2626'}:{t:'🟢 跟随机没差别',c:'#16a34a'});
+    h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">'+POS[p]+'</td><td style="padding:6px 10px;text-align:right">'+(R[p].setSum/n).toFixed(1)+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#0369a1">'+mp.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+rp.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vd.c+'">'+vd.t+'</td></tr>';
+  }
+  h+='</table></div>';
+  var anyGreen=false; for(var pp=0;pp<4;pp++){ var _mp=R[pp].hit/n*100,_rp=R[pp].rand/n*100,_se=Math.sqrt((_rp/100)*(1-_rp/100)/n)*100; if(_mp-_rp>2*_se)anyGreen=true; }
+  h+='<div style="font-size:12px;color:#334155;background:#f0f9ff;border-radius:8px;padding:8px 10px;margin-top:8px">💬 '+(anyGreen?'有位🟡比随机高,但小样本('+n+'期)多半噪音,换市场多跑看能否稳定复现。':'四位都<b>跟随机没差别</b> —— 1D命中率高是因为它覆盖半数数字(必然),不是"缺席+最多"选得准。当收窄用可以,别当预测。')+'</div>';
+  var lid='a1d-list';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0369a1;font-weight:700;font-size:12px">🔽 逐期明细（'+n+'期）</span>';
+  h+='<div id="'+lid+'" style="display:block;margin-top:4px;max-height:360px;overflow:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="background:#e0f2fe;color:#075985"><th style="text-align:left;padding:3px 6px">源期</th><th style="text-align:left;padding:3px 6px">下期开</th><th style="text-align:center;padding:3px 6px">千</th><th style="text-align:center;padding:3px 6px">百</th><th style="text-align:center;padding:3px 6px">十</th><th style="text-align:center;padding:3px 6px">个</th></tr>';
+  recs.slice().reverse().forEach(function(r){ h+='<tr style="border-top:1px solid #e0f2fe"><td style="padding:3px 6px">'+r.s+'</td><td style="padding:3px 6px;font-family:monospace">'+r.nn.join('/')+'</td>'; r.pos.forEach(function(pp){ h+='<td style="padding:3px 6px;text-align:center;background:'+(pp.hit?'#f0fdf4':'#fff')+'" title="目标 '+pp.set+'">'+(pp.hit?'✅':'❌')+'</td>'; }); h+='</tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">⚠️ 历史统计,不构成预测。判定用误差范围(2×标准误)。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🎯 2D速选：各窗口缺席目标2D + 每个2D的 数根/历史出现/久违，一页选2D
 function zoQuick2D(){
