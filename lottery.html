@@ -5996,7 +5996,12 @@ function doSeasonRank(){
       html+='<div class="warn">这个窗口没有符合条件的'+levelName+'（命中≥'+minHits+' 且 集中度≥'+minConc+'x）。试试放宽门槛。</div>';
     }else{
       html+='<div class="ot"><table><tr><th>#</th><th>'+levelName+'</th><th>'+pw.label+'命中</th><th>总命中</th><th>窗口占比</th><th>集中度</th><th title="'+refYear+'年该窗口是否真的开出过">本年出现<br><span style="font-size:9px;font-weight:400;color:#94a3b8">'+refYear+'</span></th><th>状态</th><th>审核</th><th></th></tr>';
+      const onlyGreen=(document.getElementById('sea-only-green')||{}).checked;
+      let shown=0;
       pw.entries.forEach((e,idx)=>{
+        const _av=seaAuditVerdict(e.hitsInWin,e.distinctYears,e.maxYr);
+        if(onlyGreen && _av.badge.indexOf('🟢')<0) return; // 只看真常客
+        shown++;
         const rowStyle=e.reliable?'':'opacity:.5';
         const numDisplay=level==='perm'
           ? '<span class="nc nc-sm" title="分身组代表">'+e.sample+'</span> <span style="font-size:10px;color:#888">组</span>'
@@ -6022,6 +6027,7 @@ function doSeasonRank(){
           +'<td style="white-space:nowrap;font-size:11px"><span style="color:#1e3a5f">🔍 明细</span> · <span onclick="'+auditClick+'" style="color:#9d174d;cursor:pointer" title="审核跨年份稳健性">🔬 审核</span></td></tr>';
       });
       html+='</table></div>';
+      if(onlyGreen && shown===0) html+='<div class="warn">这个窗口没有 🟢真常客(多年分散)。取消勾选可看全部,或放宽门槛。</div>';
     }
     html+='</div>';
   });
@@ -7783,6 +7789,7 @@ function doBacktest(){
         <option value="30">每窗 Top 30</option>
       </select>
     </div>
+    <div class="ig" style="align-self:flex-end"><label style="cursor:pointer;font-weight:700;color:#16a34a"><input type="checkbox" id="sea-only-green" onchange="doSeasonRank()" style="vertical-align:middle"> ⭐ 只看真常客(🟢多年分散)</label></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doSeasonRank()">🏆 生成季节排行榜</button></div>
   </div>
 </div>
