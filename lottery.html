@@ -5839,13 +5839,13 @@ function seaMonth(date){return parseInt(String(date).slice(5,7),10);}
 function seaWindows(period){
   if(period==='month'){
     const names=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    return{count:12, label:i=>names[i], idxOf:m=>m-1};
+    return{count:12, label:i=>names[i], idxOf:(m,d)=>m-1};
   }
   if(period==='quarter'){
-    return{count:4, label:i=>['Q1 (1-3月)','Q2 (4-6月)','Q3 (7-9月)','Q4 (10-12月)'][i], idxOf:m=>Math.floor((m-1)/3)};
+    return{count:4, label:i=>['Q1 (1-3月)','Q2 (4-6月)','Q3 (7-9月)','Q4 (10-12月)'][i], idxOf:(m,d)=>Math.floor((m-1)/3)};
   }
   // half
-  return{count:2, label:i=>['上半年 (1-6月)','下半年 (7-12月)'][i], idxOf:m=>m<=6?0:1};
+  return{count:2, label:i=>['上半年 (1-6月)','下半年 (7-12月)'][i], idxOf:(m,d)=>m<=6?0:1};
 }
 // 把 DB 行展开成样本 {date,prize,num,key,month,winIdx}
 // 计算年份下限: yearsBack=0 表示全部; 否则用数据中最新一期的年份往回推
@@ -5866,10 +5866,11 @@ function seaCollect(market,prize,level,period,yearsBack){
   const out=[];
   recs.forEach(r=>{
     const m=seaMonth(r.date); if(!m||m<1||m>12) return;
+    const dyy=parseInt(String(r.date).slice(8,10),10)||1;
     const y=parseInt(String(r.date).slice(0,4),10);
     if(y===_curY && m===_curM) return;   // 跳过正在进行的本月
     if(minYear!==null){ if(y<minYear) return;}
-    const wi=w.idxOf(m);
+    const wi=w.idxOf(m,dyy);
     prizes.forEach(pi=>{
       const raw=r.nums[pi]; if(raw==null||raw==='') return;
       const num=pz(raw);
@@ -5982,17 +5983,19 @@ function doSeasonRank(){
     +'<span style="opacity:.45">灰色 = 样本太少，当噪音看待</span>。</div>';
   html+='</div>';
 
-  // ⭐ 本月推荐（当前月窗口里的 🟢真常客，按集中度排，取前8）
+  // ⭐ 推荐（可选任意月份/窗口里的 🟢真常客，按集中度排，取前8）
   (function(){
-    var curMon=new Date().getMonth()+1; var curWi=w.idxOf(curMon);
-    var pw=perWindow.find(function(p){return p.winIdx===curWi;});
+    var curMon=new Date().getMonth()+1; var curWi=w.idxOf(curMon,new Date().getDate());
+    var selEl=document.getElementById('sea-rec-win'); var pickWi=selEl?parseInt(selEl.value,10):curWi;
+    var pw=perWindow.find(function(p){return p.winIdx===pickWi;}) || perWindow.find(function(p){return p.winIdx===curWi;}) || perWindow[0];
     if(!pw) return;
     var recs=pw.entries.filter(function(e){ var av=seaAuditVerdict(e.hitsInWin,e.distinctYears,e.maxYr); return av.badge.indexOf('🟢')>=0; })
       .sort(function(a,b){ return b.conc-a.conc || b.hitsInWin-a.hitsInWin; }).slice(0,8);
+    var winSel='<select id="sea-rec-win" onchange="doSeasonRank()" style="font-size:13px;padding:3px 8px;border:1px solid #86efac;border-radius:6px;color:#166534;font-weight:700">'+perWindow.map(function(p){return '<option value="'+p.winIdx+'"'+(p.winIdx===pw.winIdx?' selected':'')+'>'+p.label+'</option>';}).join('')+'</select>';
     html+='<div class="card" style="border:2px solid #16a34a;background:#f0fdf4">';
-    html+='<h3 style="color:#166534">⭐ '+pw.label+' 推荐号（真常客·🟢多年分散）</h3>';
-    if(!recs.length){ html+='<div class="warn">'+pw.label+' 目前没有 🟢真常客(多年分散)。可放宽门槛,或换看别的月。</div></div>'; return; }
-    html+='<div class="warn" style="margin:6px 0">从'+pw.label+'里自动挑出<b>多年都爱这个月(🟢分散)</b>的号,按集中度排。玩就 box(调字)。⚠️ 历史规律,不保证今年,当娱乐主题。</div>';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3 style="color:#166534;margin:0">⭐ 推荐号（真常客·🟢多年分散）</h3><span style="font-size:13px;color:#166534">看哪个月 '+winSel+'</span></div>';
+    if(!recs.length){ html+='<div class="warn" style="margin-top:6px">'+pw.label+' 没有 🟢真常客(多年分散)。换个月、或放宽门槛。</div></div>'; return; }
+    html+='<div class="warn" style="margin:6px 0">「'+pw.label+'」里自动挑出<b>多年都爱这个月(🟢分散)</b>的号,按集中度排。玩就 box(调字)。⚠️ 历史规律,不保证今年,当娱乐主题。</div>';
     html+='<div style="line-height:2.4">';
     recs.forEach(function(e){ html+='<span title="集中度'+e.conc.toFixed(2)+'x · 该月中'+e.hitsInWin+'次 · 跨'+e.distinctYears+'年" style="display:inline-block;font-family:monospace;font-size:17px;font-weight:800;background:#dcfce7;color:#166534;border:1px solid #86efac;border-radius:6px;padding:2px 10px;margin:3px">*'+e.sample+'<span style="font-size:10px;font-weight:400;opacity:.7"> '+e.conc.toFixed(1)+'x</span></span>'; });
     html+='</div>';
