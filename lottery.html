@@ -9336,14 +9336,14 @@ function zoAbsentPerPeriod(){
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
   var h='<div class="card" style="border:2px solid #0f766e">';
   h+='<h3 style="color:#0f766e">📅 逐期缺席表 · '+mk+'（每期头二三 · 各位 已出现/缺席）</h3>';
-  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select></div>';
+  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select></div>';
   h+='<div class="warn" style="margin:6px 0">每期用<b>头/二/三奖</b>3个号,看每一位0-9里<b>哪些出现了、哪些缺席</b>。⚠️ 描述历史,不预测。</div>';
   var rows=m.slice(0,N);
   if(!rows.length){ h+='<div class="warn">无数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
   var PN=['千','百','十','个'];
   h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:820px"><tr style="background:#f0fdfa;color:#0f766e"><th style="text-align:left;padding:4px 8px">日期</th><th style="text-align:left;padding:4px 8px">号码</th>';
   PN.forEach(function(p){ h+='<th style="text-align:left;padding:4px 8px">'+p+'位 目标(🟢缺席+🟠最多)</th>'; });
-  h+='<th style="text-align:left;padding:4px 8px">下期开</th><th style="text-align:center;padding:4px 8px">命中(千百十个)</th></tr>';
+  h+='<th style="text-align:left;padding:4px 8px">下期开</th><th style="text-align:left;padding:4px 8px">整号命中(四位全在目标)</th></tr>';
   rows.forEach(function(d,ri){
     var g=[d.nums&&d.nums[0],d.nums&&d.nums[1],d.nums&&d.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
     if(!g.length)return;
@@ -9352,22 +9352,22 @@ function zoAbsentPerPeriod(){
     h+='<tr style="border-top:1px solid #e2e8f0">';
     h+='<td style="padding:4px 8px;white-space:nowrap">'+d.date+'</td>';
     h+='<td style="padding:4px 8px;font-family:monospace;font-weight:700">'+g.join(' ')+'</td>';
-    var hits=[];
-    for(var p=0;p<4;p++){ var cnt={}; g.forEach(function(s){ cnt[s[p]]=(cnt[s[p]]||0)+1; }); var appear=[],absent=[]; for(var dd=0;dd<=9;dd++){ if(cnt[dd])appear.push(dd); else absent.push(dd); }
+    var tgtSets=[];
+    for(var p=0;p<4;p++){ var cnt={}; g.forEach(function(s){ cnt[s[p]]=(cnt[s[p]]||0)+1; }); var absent=[]; for(var dd=0;dd<=9;dd++){ if(!cnt[dd])absent.push(dd); }
       var most=null,mc=-1; Object.keys(cnt).forEach(function(k){ if(cnt[k]>mc){mc=cnt[k];most=k;} });
-      var tgt={}; absent.forEach(function(x){tgt[x]=1;}); if(most!=null)tgt[most]=1; var tgtArr=Object.keys(tgt).sort();
-      var hit=''; if(nn){ nn.forEach(function(s,pi){ if(hit)return; if(tgt[s[p]])hit='✅'+['头','二','三'][pi]+':'+s; }); if(!hit)hit='❌'; } else hit='-';
-      hits.push({r:hit,p:PN[p]});
+      var tgt={}; absent.forEach(function(x){tgt[x]=1;}); if(most!=null)tgt[most]=1; tgtSets.push(tgt);
       function chip(dg,bg){ return '<span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;background:'+bg+';color:#fff;border-radius:5px;font-size:11px;font-weight:700;margin:1px">'+dg+'</span>'; }
       var chips=absent.map(function(dg){return chip(dg,'#0f766e');}).join('')+(most!=null?chip(most,'#ea580c'):'');
       h+='<td style="padding:4px 6px;white-space:nowrap">'+chips+'</td>';
     }
+    // 整号命中：下期头二三里，四位全落在目标里的号
+    var fullHits=[]; if(nn){ nn.forEach(function(s,pi){ if(tgtSets[0][s[0]]&&tgtSets[1][s[1]]&&tgtSets[2][s[2]]&&tgtSets[3][s[3]]) fullHits.push(['头','二','三'][pi]+' '+s); }); }
     h+='<td style="padding:4px 8px;font-family:monospace;color:#64748b">'+(nn?nn.join('/'):'—')+'</td>';
-    h+='<td style="padding:4px 8px;font-size:11px;line-height:1.7">'+hits.map(function(x){ if(x.r==='-')return x.p+':—'; if(x.r.indexOf('✅')>=0){ var parts=x.r.slice(1).split(':'); return '<span style="color:#16a34a;font-weight:700">'+x.p+' ✅'+parts[0]+'('+parts[1]+')</span>'; } return '<span style="color:#cbd5e1">'+x.p+' ❌</span>'; }).join('<br>')+'</td>';
+    h+='<td style="padding:4px 8px;font-size:12px">'+(!nn?'—':(fullHits.length?'<span style="color:#16a34a;font-weight:800">✅ '+fullHits.join(' · ')+'</span>':'<span style="color:#dc2626">❌ 没有整号命中</span>'))+'</td>';
     h+='</tr>';
   });
   h+='</table></div>';
-  h+='<div style="font-size:11px;color:#0f766e;margin-top:6px">每位色块=该位的<b>目标</b>:<span style="background:#0f766e;color:#fff;padding:1px 6px;border-radius:4px">青=缺席</span> + <span style="background:#ea580c;color:#fff;padding:1px 6px;border-radius:4px">橙=最多</span>。「命中」=该位目标 有没有对上<b>下期</b>头/二/三(标出是哪个号)。⚠️ 描述历史,不预测。</div>';
+  h+='<div style="font-size:11px;color:#0f766e;margin-top:6px">每位色块=该位的<b>目标</b>:<span style="background:#0f766e;color:#fff;padding:1px 6px;border-radius:4px">青=缺席</span> + <span style="background:#ea580c;color:#fff;padding:1px 6px;border-radius:4px">橙=最多</span>。「整号命中」=下期头/二/三里,<b>四位数字全落在目标里</b>的号(才算真的被你目标组合覆盖到)。⚠️ 描述历史,不预测。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
