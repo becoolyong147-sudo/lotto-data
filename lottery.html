@@ -9329,6 +9329,18 @@ function zoSend2DToFilter(list2d, mk, wi){
 // 🔍 回查历史：四位数字集合 posStr，找历史头/二/三里四位全在集合内的号
 function zoInterCheckHistory(posStr, mk){
   var out=document.getElementById('inter-check-out'); if(!out) return;
+  // 读筛选(控件在上次渲染的结果里,重建前还在)
+  var _pv=function(id){var e=document.getElementById(id);return e&&e.value!==''?parseInt(e.value,10):null;};
+  var pFrom=_pv('ic-pt-from'), pTo=_pv('ic-pt-to');
+  var das={},anyDa=false; [24,12,6,4,1].forEach(function(dd){var e=document.getElementById('ic-da-'+dd);if(e&&e.checked){das[dd]=1;anyDa=true;}});
+  var rts={},anyRt=false; for(var _r=1;_r<=9;_r++){var re=document.getElementById('ic-rt-'+_r);if(re&&re.checked){rts[_r]=1;anyRt=true;}}
+  function _dr2(a,b){ var s=(+a)+(+b); return s===0?0:(s%9===0?9:s%9); }
+  var f2r={},anyF2=false,m2r={},anyM2=false,b2r={},anyB2=false;
+  for(var _q=1;_q<=9;_q++){ var e1=document.getElementById('ic-f2r-'+_q); if(e1&&e1.checked){f2r[_q]=1;anyF2=true;} var e2=document.getElementById('ic-m2r-'+_q); if(e2&&e2.checked){m2r[_q]=1;anyM2=true;} var e3=document.getElementById('ic-b2r-'+_q); if(e3&&e3.checked){b2r[_q]=1;anyB2=true;} }
+  var inc=((document.getElementById('ic-inc')||{value:''}).value.match(/\d/g)||[]);
+  var exc=((document.getElementById('ic-exc')||{value:''}).value.match(/\d/g)||[]);
+  function _passF(nm){ var sum=0; for(var i=0;i<4;i++)sum+=+nm[i]; if(pFrom!=null&&sum<pFrom)return false; if(pTo!=null&&sum>pTo)return false; if(anyDa&&!das[(typeof zoDaCount==='function'?zoDaCount(nm):24)])return false; if(anyRt){var rt=sum===0?0:(sum%9===0?9:sum%9); if(!rts[rt])return false;} if(anyF2&&!f2r[_dr2(nm[0],nm[1])])return false; if(anyM2&&!m2r[_dr2(nm[1],nm[2])])return false; if(anyB2&&!b2r[_dr2(nm[2],nm[3])])return false; if(inc.length&&!inc.some(function(d){return nm.indexOf(d)>=0;}))return false; if(exc.length&&exc.some(function(d){return nm.indexOf(d)>=0;}))return false; return true; }
+  var _filtered=(pFrom!=null||pTo!=null||anyDa||anyRt||anyF2||anyM2||anyB2||inc.length||exc.length);
   var sets=posStr.split('|').map(function(s){ var o={}; s.split('').forEach(function(d){o[d]=1;}); return o; });
   function pad(n){return String(n).padStart(4,'0');}
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, hits=[], draws=0;
@@ -9336,11 +9348,33 @@ function zoInterCheckHistory(posStr, mk){
   (nd[mk]||[]).forEach(scan); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scan);
   // 按号码去重：同号只列一次 + 开过几次 + 最近日期
   var byNum={}; hits.forEach(function(x){ if(!byNum[x.num])byNum[x.num]={num:x.num,c:0,last:''}; byNum[x.num].c++; if(x.date>byNum[x.num].last)byNum[x.num].last=x.date; });
-  var uniq=Object.keys(byNum).map(function(k){return byNum[k];}).sort(function(a,b){return b.c-a.c||b.last.localeCompare(a.last);});
+  var uniqAll=Object.keys(byNum).map(function(k){return byNum[k];}).sort(function(a,b){return b.c-a.c||b.last.localeCompare(a.last);});
+  var rawN=uniqAll.length;
+  var uniq=_filtered?uniqAll.filter(function(x){return _passF(x.num);}):uniqAll;
   var h='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:8px 10px">';
   h+='<div style="font-size:13px;font-weight:800;color:#6b21a8">🔍 回查:四位全在交集里的历史号 · '+mk+'</div>';
-  if(!uniq.length){ h+='<div style="font-size:12px;color:#94a3b8;margin-top:3px">扫了 '+draws+' 期,<b>历史从没有</b>四位全落在这个交集里的号。→ 交集太紧,历史没出现过。</div></div>'; out.innerHTML=h; return; }
-  h+='<div style="font-size:12px;color:#334155;margin:3px 0 5px">扫 '+draws+' 期,共 <b style="color:#6b21a8">'+uniq.length+'</b> 个不同的号 曾四位全在交集里(合计开 '+hits.length+' 次·头/二/三):</div>';
+  if(!rawN){ h+='<div style="font-size:12px;color:#94a3b8;margin-top:3px">扫了 '+draws+' 期,<b>历史从没有</b>四位全落在这个交集里的号。→ 交集太紧,历史没出现过。</div></div>'; out.innerHTML=h; return; }
+  // 🔎 筛选栏
+  h+='<div style="margin:5px 0;padding:6px 8px;background:#fdf4ff;border:1px solid #f0abfc;border-radius:8px;font-size:12px">';
+  h+='<div style="font-weight:700;color:#86198f;margin-bottom:4px">🔎 筛选(改后自动重算)</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  h+='<span>点数 <input type="number" id="ic-pt-from" value="'+(pFrom!=null?pFrom:'')+'" min="0" max="36" placeholder="0" onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="width:48px;padding:2px 4px;border:1px solid #d8b4fe;border-radius:4px">–<input type="number" id="ic-pt-to" value="'+(pTo!=null?pTo:'')+'" min="0" max="36" placeholder="36" onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="width:48px;padding:2px 4px;border:1px solid #d8b4fe;border-radius:4px"></span>';
+  h+='<span style="border-left:1px solid #f0abfc;padding-left:8px">打数 ';
+  [24,12,6,4,1].forEach(function(dd){ h+='<label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ic-da-'+dd+'"'+(das[dd]?' checked':'')+' onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="vertical-align:middle">'+dd+'</label>'; });
+  h+='</span>';
+  h+='<span style="border-left:1px solid #f0abfc;padding-left:8px">含任一 <input type="text" id="ic-inc" value="'+inc.join('')+'" placeholder="如190" onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="width:56px;padding:2px 4px;border:1px solid #d8b4fe;border-radius:4px;font-family:monospace"></span>';
+  h+='<span>排除 <input type="text" id="ic-exc" value="'+exc.join('')+'" placeholder="如58" onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="width:56px;padding:2px 4px;border:1px solid #d8b4fe;border-radius:4px;font-family:monospace"></span>';
+  h+='</div><div style="margin-top:4px">4D数根 ';
+  for(var _r2=1;_r2<=9;_r2++){ h+='<label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ic-rt-'+_r2+'"'+(rts[_r2]?' checked':'')+' onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="vertical-align:middle">'+_r2+'</label>'; }
+  h+='</div>';
+  [['前2D根','ic-f2r',f2r],['中2D根','ic-m2r',m2r],['后2D根','ic-b2r',b2r]].forEach(function(w){
+    h+='<div style="margin-top:3px">'+w[0]+' ';
+    for(var _q2=1;_q2<=9;_q2++){ h+='<label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="'+w[1]+'-'+_q2+'"'+(w[2][_q2]?' checked':'')+' onchange="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')" style="vertical-align:middle">'+_q2+'</label>'; }
+    h+='</div>';
+  });
+  h+='</div>';
+  if(!uniq.length){ h+='<div style="font-size:12px;color:#dc2626;margin-top:3px">筛选后没有号(原 '+rawN+' 个都被条件过滤了),放宽条件。</div></div>'; out.innerHTML=h; return; }
+  h+='<div style="font-size:12px;color:#334155;margin:5px 0">共 <b style="color:#6b21a8">'+uniq.length+'</b> 个号'+(_filtered?'(已筛选,原'+rawN+')':'')+' 曾四位全在交集里(合计开 '+hits.length+' 次·头/二/三):</div>';
   h+='<div style="max-height:280px;overflow:auto;line-height:2.1">';
   uniq.forEach(function(x){ h+='<span title="开过'+x.c+'次·最近'+x.last+'" style="display:inline-block;font-family:monospace;font-size:13px;background:#f3e8ff;color:#6b21a8;border-radius:5px;padding:1px 7px;margin:2px"><b>'+x.num+'</b><span style="font-size:9px;opacity:.75">·'+x.c+'</span></span>'; });
   h+='</div>';
