@@ -9326,6 +9326,27 @@ function zoSend2DToFilter(list2d, mk, wi){
     alert('已把 '+arr.length+' 个 '+wn+' 按位置锁进「条件筛选 → 位数条件」。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
 }
+// 🔍 回查历史：四位数字集合 posStr，找历史头/二/三里四位全在集合内的号
+function zoInterCheckHistory(posStr, mk){
+  var out=document.getElementById('inter-check-out'); if(!out) return;
+  var sets=posStr.split('|').map(function(s){ var o={}; s.split('').forEach(function(d){o[d]=1;}); return o; });
+  function pad(n){return String(n).padStart(4,'0');}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, hits=[], draws=0;
+  function scan(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; draws++; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); if(/^\d{4}$/.test(s)){ if(sets[0][s[0]]&&sets[1][s[1]]&&sets[2][s[2]]&&sets[3][s[3]]) hits.push({date:d.date,num:s,prize:['头','二','三'][pi]}); } } }); }
+  (nd[mk]||[]).forEach(scan); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scan);
+  hits.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var h='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:8px 10px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#6b21a8">🔍 回查:四位全在交集里的历史号 · '+mk+'</div>';
+  if(!hits.length){ h+='<div style="font-size:12px;color:#94a3b8;margin-top:3px">扫了 '+draws+' 期,<b>历史从没有</b>四位全落在这个交集里的号。→ 说明这个交集组合太紧/太偏,历史没出现过。</div></div>'; out.innerHTML=h; return; }
+  h+='<div style="font-size:12px;color:#334155;margin:3px 0 5px">扫 '+draws+' 期,历史有 <b style="color:#6b21a8">'+hits.length+'</b> 次(头/二/三)四位全在交集里:</div>';
+  h+='<div style="max-height:240px;overflow:auto;line-height:2">';
+  hits.slice(0,120).forEach(function(x){ var pc=x.prize==='头'?'#dc2626':x.prize==='二'?'#7c5a1e':'#0f6e56'; h+='<span title="'+x.date+' '+x.prize+'奖" style="display:inline-block;font-family:monospace;font-size:13px;background:#f3e8ff;color:#6b21a8;border-radius:5px;padding:1px 7px;margin:2px"><b>'+x.num+'</b><span style="font-size:9px;color:'+pc+'">·'+x.prize+'</span></span>'; });
+  if(hits.length>120)h+='<span style="color:#94a3b8"> …</span>';
+  h+='</div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">这些是历史真开过、且四位都在你交集内的号。⚠️ 开过≠会再开,当参考。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+}
 // 把四位数字集合(如 "39|013|26|7") 送到「条件筛选 → 可视化点选」并切过去
 function zoSendPosSetsToFilter(posStr, mk){
   try{
@@ -9375,7 +9396,11 @@ function zoAbsentPerPeriod(){
     h+='<div style="font-size:14px;font-weight:800;color:#0e7490">🔀 最近 '+used+' 期 出现数字 交集（这几期<b>每位都出现</b>的数字）</div>';
     h+='<div style="font-size:11px;color:#0e7490;margin:3px 0 6px">期:'+kdates.join(' / ')+' —— 越多期交集越窄,代表这些数字在该位<b>稳定出现</b>。（描述,不预测）</div>';
     for(var p=0;p<4;p++){ var ds=Object.keys(inter[p]).sort(); h+='<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:24px;font-weight:700;color:#0e7490">'+PN[p]+'</span>'+(ds.length?ds.map(function(d){return chip(d,'#0891b2');}).join(''):'<span style="color:#cbd5e1;font-size:12px">无交集</span>')+'</div>'; }
-    h+='<button class="btn" style="padding:4px 12px;font-size:12px;margin-top:6px;background:#0e7490;color:#fff" onclick="zoSendPosSetsToFilter(\''+posStr+'\',\''+mk+'\')">📤 交集送去条件筛选(可视化点选)</button>';
+    h+='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">';
+    h+='<button class="btn" style="padding:4px 12px;font-size:12px;background:#0e7490;color:#fff" onclick="zoSendPosSetsToFilter(\''+posStr+'\',\''+mk+'\')">📤 送去条件筛选</button>';
+    h+='<button class="btn" style="padding:4px 12px;font-size:12px;background:#9333ea;color:#fff" onclick="zoInterCheckHistory(\''+posStr+'\',\''+mk+'\')">🔍 回查历史命中</button>';
+    h+='</div>';
+    h+='<div id="inter-check-out" style="margin-top:6px"></div>';
     h+='</div>';
   })();
   h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:820px"><tr style="background:#f0fdfa;color:#0f766e"><th style="text-align:left;padding:4px 8px">日期</th><th style="text-align:left;padding:4px 8px">特别奖(来源)</th>';
