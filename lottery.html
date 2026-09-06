@@ -9355,7 +9355,7 @@ function zoAbsentPerPeriod(){
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
   var h='<div class="card" style="border:2px solid #0f766e">';
   h+='<h3 style="color:#0f766e">📅 逐期缺席表 · '+mk+'（每期头二三 · 各位 已出现/缺席）</h3>';
-  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select> · 🔀交集近 <select id="app-k" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(K===2?' selected':'')+'>2</option><option'+(K===3?' selected':'')+'>3</option><option'+(K===5?' selected':'')+'>5</option></select> 期</div>';
+  h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select> · 🔀交集近 <select id="app-k" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(K===1?' selected':'')+'>1</option><option'+(K===2?' selected':'')+'>2</option><option'+(K===3?' selected':'')+'>3</option><option'+(K===5?' selected':'')+'>5</option></select> 期</div>';
   h+='<div class="warn" style="margin:6px 0">每期用<b>特别奖(10-13个号)</b>算每位缺席(号多→缺席窄,才准)。「下期开」「命中」对的是下期<b>头/二/三奖</b>。⚠️ 特别奖数据只在最近约30期有。描述历史,不预测。</div>';
   var rows=m.slice(0,N);
   if(!rows.length){ h+='<div class="warn">无数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
@@ -9368,7 +9368,7 @@ function zoAbsentPerPeriod(){
       for(var p=0;p<4;p++){ var app={}; gg.forEach(function(s){app[s[p]]=1;}); if(inter[p]===null)inter[p]=app; else { var ni={}; Object.keys(inter[p]).forEach(function(d){ if(app[d])ni[d]=1; }); inter[p]=ni; } }
       used++;
     }
-    if(used<2){ return; }
+    if(used<1){ return; }
     function chip(dg,bg){ return '<span style="display:inline-flex;width:22px;height:22px;align-items:center;justify-content:center;background:'+bg+';color:#fff;border-radius:5px;font-size:12px;font-weight:700;margin:1px">'+dg+'</span>'; }
     var posStr=inter.map(function(s){return Object.keys(s).sort().join('');}).join('|');
     h+='<div style="background:#ecfeff;border:2px solid #06b6d4;border-radius:10px;padding:10px 12px;margin-bottom:10px">';
