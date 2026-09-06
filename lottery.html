@@ -9322,7 +9322,21 @@ function zoSend2DToFilter(list2d, mk, wi){
     alert('已把 '+arr.length+' 个 '+wn+' 按位置锁进「条件筛选 → 位数条件」。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
 }
-// 📅 逐期缺席表：每一期(头二三)各位的 已出现 / 缺席
+// 把四位数字集合(如 "39|013|26|7") 送到「条件筛选 → 可视化点选」并切过去
+function zoSendPosSetsToFilter(posStr, mk){
+  try{
+    var sets=posStr.split('|').map(function(s){return s.split('');});
+    var fm=document.getElementById('flt-market'); if(fm&&mk) fm.value=mk;
+    if(typeof switchTab==='function') switchTab('filter'); else if(typeof showTabPanel==='function') showTabPanel('filter');
+    setTimeout(function(){
+      if(typeof clearPosGrid==='function') clearPosGrid();
+      for(var p=0;p<4;p++){ (sets[p]||[]).forEach(function(dg){ var el=document.getElementById('posd-'+p+'-'+dg); if(el&&el.dataset.on!=='1'&&typeof togglePosDigit==='function') togglePosDigit(p,+dg,el); }); }
+      var pg=document.getElementById('flt-posgrid'); if(pg) pg.scrollIntoView({behavior:'smooth',block:'center'});
+    },250);
+    alert('已把这期各位「出现的数字」锁进「条件筛选 → 可视化点选」。\n千:'+(sets[0]||[]).join('')+' 百:'+(sets[1]||[]).join('')+' 十:'+(sets[2]||[]).join('')+' 个:'+(sets[3]||[]).join('')+'\n再叠加 点数/打数/数根 → 点🔍筛选。');
+  }catch(e){ console.warn(e); }
+}
+// 📅 逐期缺席表：每一期各位的 出现号码（特别奖来源）
 function zoAbsentPerPeriod(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var selEl=document.getElementById('app-mk-sel'); var mk=selEl?selEl.value:((document.getElementById('abs-market')||{value:'万能'}).value);
@@ -9342,8 +9356,8 @@ function zoAbsentPerPeriod(){
   if(!rows.length){ h+='<div class="warn">无数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
   var PN=['千','百','十','个'];
   h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:820px"><tr style="background:#f0fdfa;color:#0f766e"><th style="text-align:left;padding:4px 8px">日期</th><th style="text-align:left;padding:4px 8px">特别奖(来源)</th>';
-  PN.forEach(function(p){ h+='<th style="text-align:left;padding:4px 8px">'+p+'位 缺席号码</th>'; });
-  h+='<th style="text-align:left;padding:4px 8px">下期开</th><th style="text-align:left;padding:4px 8px">整号命中(四位全在目标)</th></tr>';
+  PN.forEach(function(p){ h+='<th style="text-align:left;padding:4px 8px">'+p+'位 出现号码</th>'; });
+  h+='<th style="text-align:left;padding:4px 8px">下期开</th><th style="text-align:left;padding:4px 8px">整号命中(四位全在目标)</th><th style="text-align:center;padding:4px 8px">送筛选</th></tr>';
   rows.forEach(function(d,ri){
     var g=(d.sp||[]).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
     if(g.length<3)return;
@@ -9352,21 +9366,23 @@ function zoAbsentPerPeriod(){
     h+='<tr style="border-top:1px solid #e2e8f0">';
     h+='<td style="padding:4px 8px;white-space:nowrap">'+d.date+'</td>';
     h+='<td style="padding:4px 8px;font-family:monospace;font-size:11px;max-width:150px" title="'+g.join(' ')+'"><b>'+g.length+'个</b> '+g.join(' ')+'</td>';
-    var absSets=[];
-    for(var p=0;p<4;p++){ var cnt={}; g.forEach(function(s){ cnt[s[p]]=(cnt[s[p]]||0)+1; }); var absent=[],aset={}; for(var dd=0;dd<=9;dd++){ if(!cnt[dd]){absent.push(dd);aset[dd]=1;} }
-      absSets.push(aset);
+    var appSets=[];
+    for(var p=0;p<4;p++){ var cnt={}; g.forEach(function(s){ cnt[s[p]]=(cnt[s[p]]||0)+1; }); var appear=[],aset={}; for(var dd=0;dd<=9;dd++){ if(cnt[dd]){appear.push(dd);aset[dd]=1;} }
+      appSets.push(aset);
       function chip(dg,bg){ return '<span style="display:inline-flex;width:20px;height:20px;align-items:center;justify-content:center;background:'+bg+';color:#fff;border-radius:5px;font-size:11px;font-weight:700;margin:1px">'+dg+'</span>'; }
-      var chips=absent.map(function(dg){return chip(dg,'#0f766e');}).join('')||'<span style="color:#cbd5e1;font-size:11px">无缺</span>';
+      var chips=appear.map(function(dg){return chip(dg,'#0d9488');}).join('')||'<span style="color:#cbd5e1;font-size:11px">无</span>';
       h+='<td style="padding:4px 6px;white-space:nowrap">'+chips+'</td>';
     }
-    // 整号命中：下期头二三里，四位全落在"缺席"里的号
-    var fullHits=[]; if(nn){ nn.forEach(function(s,pi){ if(absSets[0][s[0]]&&absSets[1][s[1]]&&absSets[2][s[2]]&&absSets[3][s[3]]) fullHits.push(['头','二','三'][pi]+' '+s); }); }
+    // 整号命中：下期头二三里，四位全落在"出现"里的号
+    var fullHits=[]; if(nn){ nn.forEach(function(s,pi){ if(appSets[0][s[0]]&&appSets[1][s[1]]&&appSets[2][s[2]]&&appSets[3][s[3]]) fullHits.push(['头','二','三'][pi]+' '+s); }); }
     h+='<td style="padding:4px 8px;font-family:monospace;color:#64748b">'+(nn?nn.join('/'):'—')+'</td>';
     h+='<td style="padding:4px 8px;font-size:12px">'+(!nn?'—':(fullHits.length?'<span style="color:#16a34a;font-weight:800">✅ '+fullHits.join(' · ')+'</span>':'<span style="color:#dc2626">❌ 没有整号命中</span>'))+'</td>';
+    var posStr=appSets.map(function(s){return Object.keys(s).join('');}).join('|');
+    h+='<td style="padding:4px 8px;text-align:center"><button class="btn" style="padding:3px 9px;font-size:10px;background:#166534;color:#fff" onclick="zoSendPosSetsToFilter(\''+posStr+'\',\''+mk+'\')">📤</button></td>';
     h+='</tr>';
   });
   h+='</table></div>';
-  h+='<div style="font-size:11px;color:#0f766e;margin-top:6px">青色块=该位<b>缺席的数字</b>(0-9里这期头二三没出现的)。「整号命中」=下期头/二/三里,<b>四位全是缺席数字</b>的号。⚠️ 描述历史,不预测。<br>💡 只用3个号→缺席很多(7个);要缺席变少变准,该用「特别奖(10+号)」当来源。</div>';
+  h+='<div style="font-size:11px;color:#0f766e;margin-top:6px">青色块=该位<b>出现的数字</b>(这期特别奖在这位开过的)。「整号命中」=下期头/二/三里,<b>四位全是出现过的数字</b>的号。⚠️ 描述历史,不预测。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
