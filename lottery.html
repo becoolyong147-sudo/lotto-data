@@ -9306,14 +9306,18 @@ function zoCrossPrizeShow(){
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
-// 把一批2D 送到「条件筛选 → 含数字」框，并切过去
-function zoSend2DToFilter(list2d, mk){
+// 把一批2D 按位置(前/中/后)送到「条件筛选 → 位数条件」，归位锁定
+function zoSend2DToFilter(list2d, mk, wi){
   try{
+    var arr=list2d.split(' ').filter(Boolean);
+    var wrap=wi===0?function(t){return t+'xx';}:wi===2?function(t){return 'xx'+t;}:function(t){return 'x'+t+'x';};
+    var pats=arr.map(wrap).join(' ');
+    var wn=['前2D(千百)','中2D(百十)','后2D(十个)'][wi];
     var fm=document.getElementById('flt-market'); if(fm&&mk) fm.value=mk;
-    var cd=document.getElementById('flt-contains-digit'); if(cd) cd.value=list2d;
+    var pp=document.getElementById('flt-pos-pattern'); if(pp) pp.value=pats;
     if(typeof switchTab==='function') switchTab('filter'); else if(typeof showTabPanel==='function') showTabPanel('filter');
-    setTimeout(function(){ var el=document.getElementById('flt-contains-digit'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
-    alert('已把 '+list2d.split(' ').length+' 个2D 填进「条件筛选 → 含数字」。\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。\n(含数字=号里含这些2D任一)');
+    setTimeout(function(){ var el=document.getElementById('flt-pos-pattern'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
+    alert('已把 '+arr.length+' 个 '+wn+' 按位置锁进「条件筛选 → 位数条件」。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
 }
 // 🎯 2D速选：各窗口缺席目标2D + 每个2D的 数根/历史出现/久违，一页选2D
@@ -9372,7 +9376,7 @@ function zoQuick2D(){
     h+='</table></div>';
     h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">';
     h+='<button class="btn" style="padding:3px 10px;font-size:11px;background:#0369a1;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+tg.join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制'+w[0]+'\',1200)})">📋复制'+w[0]+'</button>';
-    h+='<button class="btn" style="padding:3px 10px;font-size:11px;background:#166534;color:#fff" onclick="zoSend2DToFilter(\''+tg.join(' ')+'\',\''+mk+'\')">📤 送去条件筛选</button>';
+    h+='<button class="btn" style="padding:3px 10px;font-size:11px;background:#166534;color:#fff" onclick="zoSend2DToFilter(\''+tg.join(' ')+'\',\''+mk+'\','+wi+')">📤 送去条件筛选(归位)</button>';
     h+='</div>';
     h+='</div>';
   });
