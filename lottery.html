@@ -9334,16 +9334,18 @@ function zoInterCheckHistory(posStr, mk){
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, hits=[], draws=0;
   function scan(d){ if(!d||!d.date||seen[d.date])return; seen[d.date]=1; draws++; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); if(/^\d{4}$/.test(s)){ if(sets[0][s[0]]&&sets[1][s[1]]&&sets[2][s[2]]&&sets[3][s[3]]) hits.push({date:d.date,num:s,prize:['头','二','三'][pi]}); } } }); }
   (nd[mk]||[]).forEach(scan); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(scan);
-  hits.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  // 按号码去重：同号只列一次 + 开过几次 + 最近日期
+  var byNum={}; hits.forEach(function(x){ if(!byNum[x.num])byNum[x.num]={num:x.num,c:0,last:''}; byNum[x.num].c++; if(x.date>byNum[x.num].last)byNum[x.num].last=x.date; });
+  var uniq=Object.keys(byNum).map(function(k){return byNum[k];}).sort(function(a,b){return b.c-a.c||b.last.localeCompare(a.last);});
   var h='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:8px;padding:8px 10px">';
   h+='<div style="font-size:13px;font-weight:800;color:#6b21a8">🔍 回查:四位全在交集里的历史号 · '+mk+'</div>';
-  if(!hits.length){ h+='<div style="font-size:12px;color:#94a3b8;margin-top:3px">扫了 '+draws+' 期,<b>历史从没有</b>四位全落在这个交集里的号。→ 说明这个交集组合太紧/太偏,历史没出现过。</div></div>'; out.innerHTML=h; return; }
-  h+='<div style="font-size:12px;color:#334155;margin:3px 0 5px">扫 '+draws+' 期,历史有 <b style="color:#6b21a8">'+hits.length+'</b> 次(头/二/三)四位全在交集里:</div>';
-  h+='<div style="max-height:240px;overflow:auto;line-height:2">';
-  hits.slice(0,120).forEach(function(x){ var pc=x.prize==='头'?'#dc2626':x.prize==='二'?'#7c5a1e':'#0f6e56'; h+='<span title="'+x.date+' '+x.prize+'奖" style="display:inline-block;font-family:monospace;font-size:13px;background:#f3e8ff;color:#6b21a8;border-radius:5px;padding:1px 7px;margin:2px"><b>'+x.num+'</b><span style="font-size:9px;color:'+pc+'">·'+x.prize+'</span></span>'; });
-  if(hits.length>120)h+='<span style="color:#94a3b8"> …</span>';
+  if(!uniq.length){ h+='<div style="font-size:12px;color:#94a3b8;margin-top:3px">扫了 '+draws+' 期,<b>历史从没有</b>四位全落在这个交集里的号。→ 交集太紧,历史没出现过。</div></div>'; out.innerHTML=h; return; }
+  h+='<div style="font-size:12px;color:#334155;margin:3px 0 5px">扫 '+draws+' 期,共 <b style="color:#6b21a8">'+uniq.length+'</b> 个不同的号 曾四位全在交集里(合计开 '+hits.length+' 次·头/二/三):</div>';
+  h+='<div style="max-height:280px;overflow:auto;line-height:2.1">';
+  uniq.forEach(function(x){ h+='<span title="开过'+x.c+'次·最近'+x.last+'" style="display:inline-block;font-family:monospace;font-size:13px;background:#f3e8ff;color:#6b21a8;border-radius:5px;padding:1px 7px;margin:2px"><b>'+x.num+'</b><span style="font-size:9px;opacity:.75">·'+x.c+'</span></span>'; });
   h+='</div>';
-  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">这些是历史真开过、且四位都在你交集内的号。⚠️ 开过≠会再开,当参考。</div>';
+  h+='<div style="margin-top:5px"><button class="btn" style="padding:3px 10px;font-size:11px;background:#9333ea;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+uniq.map(function(x){return x.num;}).join('\\n')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制这些号('+uniq.length+')\',1200)})">📋复制这些号('+uniq.length+')</button></div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">按开过次数排序。这些是历史真开过、且四位都在交集内的不同号。⚠️ 开过≠会再开。</div>';
   h+='</div>';
   out.innerHTML=h;
 }
