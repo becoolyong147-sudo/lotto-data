@@ -3670,6 +3670,23 @@ function ovRender(){
     ];
 
     let html = '';
+    // 📌 本期重点卡（描述本期头/二/三的属性，一眼看懂）
+    (function(){
+      function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+      function pad4(n){ return String(n).padStart(4,'0'); }
+      function daCount(s){ var c={}; s.split('').forEach(function(d){c[d]=(c[d]||0)+1;}); var sig=Object.values(c).sort(function(a,b){return b-a;}).join(''); return sig==='1111'?24:sig==='211'?12:sig==='22'?6:sig==='31'?4:1; }
+      var pdefs=[['头奖','#dc2626','#fef2f2'],['二奖','#7c5a1e','#fef9e7'],['三奖','#0f6e56','#f0fdf4']];
+      html+='<div class="card" style="border:2px solid #7c5a1e;background:#fffdf5"><h3 style="color:#7c5a1e">📌 本期重点（'+latest.date+'）· 头/二/三属性一览</h3>';
+      html+='<div class="warn" style="margin:4px 0">直接列出最新一期每个奖的:点数·数根·前3D根·后3D根·大小·单双·打数。⚠️ 描述事实,不预测。</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;font-size:13px;border-collapse:collapse;min-width:560px"><tr style="background:#fef9e7;color:#7c5a1e"><th style="text-align:left;padding:5px 8px">奖</th><th style="text-align:left;padding:5px 8px">号码</th><th style="text-align:right;padding:5px 8px">点数</th><th style="text-align:center;padding:5px 8px">数根</th><th style="text-align:center;padding:5px 8px">前3D根</th><th style="text-align:center;padding:5px 8px">后3D根</th><th style="text-align:left;padding:5px 8px">大小</th><th style="text-align:left;padding:5px 8px">单双</th><th style="text-align:center;padding:5px 8px">打数</th></tr>';
+      pdefs.forEach(function(pd,pi){ var num=latest.nums&&latest.nums[pi]; if(num==null||num===''){return;} var s=pad4(num); if(!/^\d{4}$/.test(s))return;
+        var sum=0; for(var k=0;k<4;k++)sum+=+s[k];
+        var f3=dr((+s[0])+(+s[1])+(+s[2])), b3=dr((+s[1])+(+s[2])+(+s[3]));
+        var bs=s.split('').map(function(d){return +d>=5?'大':'小';}).join(''), oe=s.split('').map(function(d){return (+d)%2?'单':'双';}).join('');
+        html+='<tr style="border-top:1px solid #fde68a"><td style="padding:5px 8px;font-weight:800;color:'+pd[1]+'">'+pd[0]+'</td><td style="padding:5px 8px;font-family:monospace;font-weight:700;font-size:15px">'+s+'</td><td style="padding:5px 8px;text-align:right;font-weight:700">'+sum+'</td><td style="padding:5px 8px;text-align:center;font-weight:700;color:#7c3aed">'+dr(sum)+'</td><td style="padding:5px 8px;text-align:center;color:#7c3aed">'+f3+'</td><td style="padding:5px 8px;text-align:center;color:#7c3aed">'+b3+'</td><td style="padding:5px 8px;font-family:monospace">'+bs+'</td><td style="padding:5px 8px;font-family:monospace">'+oe+'</td><td style="padding:5px 8px;text-align:center">'+daCount(s)+'打</td></tr>';
+      });
+      html+='</table></div></div>';
+    })();
     // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
     const uniChainPts=new Set(), uniInertiaPts=new Set(), uniRoots=new Set();
     prizes.forEach((p, pi) => {
