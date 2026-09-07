@@ -3687,6 +3687,42 @@ function ovRender(){
       });
       html+='</table></div></div>';
     })();
+    // 🔄 各维度惯性：本期值 → 历史上"此值之后"最常接的下一个值
+    (function(){
+      function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+      function pad4(n){ return String(n).padStart(4,'0'); }
+      function val(dim,s){ var a=+s[0],b=+s[1],c=+s[2],d=+s[3];
+        if(dim==='r4')return '根'+dr(a+b+c+d);
+        if(dim==='f3')return '根'+dr(a+b+c);
+        if(dim==='b3')return '根'+dr(b+c+d);
+        if(dim==='pt')return (a+b+c+d)+'点';
+        if(dim==='bs')return s.split('').map(function(x){return +x>=5?'大':'小';}).join('');
+        if(dim==='oe')return s.split('').map(function(x){return (+x)%2?'单':'双';}).join('');
+        return '';
+      }
+      var chrono=rows.slice().reverse(); // 旧→新
+      var dims=[['4D数根','r4'],['前3D根','f3'],['后3D根','b3'],['点数','pt'],['大小','bs'],['单双','oe']];
+      var PN=[['头','#dc2626'],['二','#7c5a1e'],['三','#0f6e56']];
+      html+='<div class="card" style="border:2px solid #6d28d9"><h3 style="color:#6d28d9">🔄 各维度惯性（本期值 → 历史上此值之后最常接什么）</h3>';
+      html+='<div class="warn" style="margin:4px 0">看每个维度:本期是这个值,历史上<b>出现这个值之后、下一期最常变成什么</b>(带占比+次数)。⚠️ 回测显示接近随机,当参考,别当预测。</div>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:600px"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:5px 8px">维度</th>';
+      PN.forEach(function(p){ html+='<th style="text-align:left;padding:5px 8px">'+p[0]+'奖: 本期 → 常接</th>'; });
+      html+='</tr>';
+      dims.forEach(function(dm){
+        html+='<tr style="border-top:1px solid #e0e7ff"><td style="padding:5px 8px;font-weight:700">'+dm[0]+'</td>';
+        PN.forEach(function(p,pi){
+          var seq=chrono.map(function(r){ var x=r.nums&&r.nums[pi]; if(x==null||x==='')return null; var s=pad4(x); return /^\d{4}$/.test(s)?val(dm[1],s):null; }).filter(function(x){return x!=null;});
+          if(seq.length<3){ html+='<td style="padding:5px 8px;color:#cbd5e1">—</td>'; return; }
+          var cur=seq[seq.length-1];
+          var nxt={}, tot=0; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur){ nxt[seq[i+1]]=(nxt[seq[i+1]]||0)+1; tot++; } }
+          var top=Object.keys(nxt).map(function(k){return [k,nxt[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,2);
+          var tstr=tot?top.map(function(x){return '<b>'+x[0]+'</b>('+Math.round(x[1]/tot*100)+'%·'+x[1]+')';}).join(' / '):'<span style="color:#cbd5e1">无样本</span>';
+          html+='<td style="padding:5px 8px"><span style="color:'+p[1]+';font-weight:700">'+cur+'</span> → '+tstr+'</td>';
+        });
+        html+='</tr>';
+      });
+      html+='</table></div><div style="font-size:10px;color:#94a3b8;margin-top:4px">「本期→常接」= 历史上此奖位出现"本期这个值"之后、下一期最常出现的值(占比·次数)。样本越多越可信,但仍不构成预测。</div></div>';
+    })();
     // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
     const uniChainPts=new Set(), uniInertiaPts=new Set(), uniRoots=new Set();
     prizes.forEach((p, pi) => {
