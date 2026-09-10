@@ -846,6 +846,7 @@ function renderPatternTrend(){
     <span style="font-size:12px;color:#6d28d9">回测 <input type="number" id="ov-bt-n" min="20" step="10" placeholder="全部" style="width:70px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"> 期</span>
     <button class="btn" onclick="zoOverviewBacktest()" style="padding:9px 16px;background:#7c3aed;color:#fff" title="回测三大引擎到底准不准">🔬 回测三大引擎</button>
     <span style="font-size:12px;color:#6d28d9">🔄惯性范围 <select id="ov-inertia-range" onchange="ovRender()" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">全部</option><option value="y1">近1年</option><option value="y2">近2年</option><option value="y3">近3年</option><option value="p100">近100期</option><option value="p200">近200期</option></select></span>
+    <button class="btn" onclick="zoInertiaBacktest()" style="padding:9px 16px;background:#6d28d9;color:#fff" title="回测惯性预测历史准不准">🔬 惯性·回测</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
   <div class="warn" style="margin-top:8px">
@@ -3492,6 +3493,50 @@ function _ovDigitalRoot(num){
   return n;
 }
 
+// 🔬 惯性·回测：逐期point-in-time验证"本期值→最常接"预测,各维度命中率 vs 最常见值基准
+function zoInertiaBacktest(){
+  var out=document.getElementById('overview-result'); if(!out) return;
+  var market=document.getElementById('ov-market').value;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
+  // 范围(跟惯性卡一致)
+  var _rg=(document.getElementById('ov-inertia-range')||{value:'all'}).value, _rgLbl='全部';
+  if(_rg&&_rg!=='all'){ if(_rg[0]==='y'){ var yrs=+_rg.slice(1); var cut=new Date(Date.now()-yrs*365.25*86400000).toISOString().slice(0,10); m=m.filter(function(r){return r.date>=cut;}); _rgLbl='近'+yrs+'年'; } else if(_rg[0]==='p'){ var pp=+_rg.slice(1); if(m.length>pp)m=m.slice(m.length-pp); _rgLbl='近'+pp+'期'; } }
+  if(m.length<40){ out.innerHTML='<div class="card"><div class="warn">'+market+' 可回测期数太少('+m.length+'期,范围'+_rgLbl+')。放宽范围。</div></div>'; return; }
+  function pad4(n){ return String(n).padStart(4,'0'); }
+  function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+  function val(dim,s){ var a=+s[0],b=+s[1],c=+s[2],d=+s[3]; if(dim==='r4')return 'r'+dr(a+b+c+d); if(dim==='f3')return 'r'+dr(a+b+c); if(dim==='b3')return 'r'+dr(b+c+d); if(dim==='pt')return 'p'+(a+b+c+d); if(dim==='bs')return s.split('').map(function(x){return +x>=5?'H':'L';}).join(''); if(dim==='oe')return s.split('').map(function(x){return (+x)%2?'O':'E';}).join(''); return ''; }
+  var dims=[['4D数根','r4'],['前3D根','f3'],['后3D根','b3'],['点数','pt'],['大小','bs'],['单双','oe']];
+  var rowsH='';
+  dims.forEach(function(dm){
+    var chainN=0,chainHit=0,mcHit=0;
+    [0,1,2].forEach(function(pi){
+      var seq=m.map(function(r){ var x=r.nums&&r.nums[pi]; if(x==null||x==='')return null; var s=pad4(x); return /^\d{4}$/.test(s)?val(dm[1],s):null; }).filter(function(x){return x!=null;});
+      var trans={}, freq={};
+      for(var i=0;i<seq.length;i++){ var v=seq[i];
+        if(i>=1){ var prev=seq[i-1]; var mp=trans[prev];
+          if(mp && Object.keys(mp).length){ var pred=Object.keys(mp).sort(function(a,b){return mp[b]-mp[a];})[0]; chainN++; if(pred===v)chainHit++;
+            var mcp=Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];})[0]; if(mcp===v)mcHit++;
+          }
+          (trans[prev]=trans[prev]||{})[v]=(trans[prev][v]||0)+1;
+        }
+        freq[v]=(freq[v]||0)+1;
+      }
+    });
+    var cp=chainN?chainHit/chainN*100:0, mp2=chainN?mcHit/chainN*100:0;
+    var se=Math.sqrt((mp2/100)*(1-mp2/100)/Math.max(chainN,1))*100, lead=cp-mp2;
+    var vd=chainN<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比基准高',c:'#d97706'}:(lead<-2*se?{t:'🔴比基准差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'}));
+    rowsH+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">'+dm[0]+'</td><td style="padding:6px 10px;text-align:right">'+chainN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+cp.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mp2.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vd.c+'">'+vd.t+'</td></tr>';
+  });
+  var h='<div class="card" style="border:2px solid #6d28d9"><h3 style="color:#6d28d9">🔬 惯性·回测 · '+market+'（'+_rgLbl+' · 头二三合计 · 不偷看未来）</h3>';
+  h+='<div class="warn" style="margin:6px 0">逐期验证「惯性重点」的预测法(本期值→历史最常接的),每期只用之前数据。基准=「永远猜历史最常见的值」。<b>惯性要明显赢过基准才算有料。</b>这样能诚实告诉会员:这套过往到底准不准,不是事后才说。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">维度</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">惯性命中率</th><th style="text-align:right;padding:6px 10px">最常见值基准</th><th style="text-align:left;padding:6px 10px">判定</th></tr>'+rowsH+'</table></div>';
+  h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 大概率各维度都 🟢<b>跟随机没差别</b> —— 意思是「本期→常接」这套,历史命中率跟"瞎猜最常见"一样,<b>没有预测力</b>。<br>把这个诚实结果给会员看:我们提前讲清楚"这是娱乐参考、过往不比随机准",而不是事后吹嘘。⚠️ 判定用误差范围(2×标准误)。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 // 🔬 回测三大引擎：point-in-time 滚动，诚实对比 引擎命中率 vs 随机/最佳固定猜
 function zoOverviewBacktest(){
   var out=document.getElementById('overview-result'); if(!out) return;
@@ -3715,6 +3760,7 @@ function ovRender(){
       html+='<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:600px"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:5px 8px">维度</th>';
       PN.forEach(function(p){ html+='<th style="text-align:left;padding:5px 8px">'+p[0]+'奖: 本期 → 常接</th>'; });
       html+='</tr>';
+      var best=[null,null,null]; // 每奖位最明显的惯性
       dims.forEach(function(dm){
         html+='<tr style="border-top:1px solid #e0e7ff"><td style="padding:5px 8px;font-weight:700">'+dm[0]+'</td>';
         PN.forEach(function(p,pi){
@@ -3725,10 +3771,22 @@ function ovRender(){
           var top=Object.keys(nxt).map(function(k){return [k,nxt[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,2);
           var tstr=tot?top.map(function(x){return '<b>'+x[0]+'</b>('+Math.round(x[1]/tot*100)+'%·'+x[1]+')';}).join(' / '):'<span style="color:#cbd5e1">无样本</span>';
           html+='<td style="padding:5px 8px"><span style="color:'+p[1]+';font-weight:700">'+cur+'</span> → '+tstr+'</td>';
+          if(top.length){ var p1=top[0][1]/tot, c1=top[0][1]; var score=p1*c1; if(c1>=3 && p1>=0.25 && (!best[pi]||score>best[pi].score)) best[pi]={dim:dm[0],cur:cur,nxt:top[0][0],pct:Math.round(p1*100),cnt:c1,score:score}; }
         });
         html+='</tr>';
       });
-      html+='</table></div><div style="font-size:10px;color:#94a3b8;margin-top:4px">「本期→常接」= 历史上此奖位出现"本期这个值"之后、下一期最常出现的值(占比·次数)。样本越多越可信,但仍不构成预测。</div></div>';
+      html+='</table></div>';
+      // 💡 本期惯性重点
+      html+='<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;margin-top:8px">';
+      html+='<div style="font-size:13px;font-weight:800;color:#6d28d9;margin-bottom:3px">💡 本期惯性重点(发群参考)</div>';
+      var anyB=false;
+      [['头','#dc2626'],['二','#7c5a1e'],['三','#0f6e56']].forEach(function(p,pi){ var b=best[pi];
+        if(b){ anyB=true; html+='<div style="font-size:12px;color:#334155;margin:2px 0"><b style="color:'+p[1]+'">'+p[0]+'奖</b>:'+b.dim+' 本期 <b>'+b.cur+'</b> → 历史最常接 <b style="color:#6d28d9">'+b.nxt+'</b>('+b.pct+'%·'+b.cnt+'次)</div>'; }
+        else html+='<div style="font-size:12px;color:#94a3b8;margin:2px 0"><b>'+p[0]+'奖</b>:没有明显惯性(都接近随机)</div>';
+      });
+      html+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">挑各奖位「占比≥25%且≥3次」里最强的一条。'+(anyB?'⚠️ 但小样本"看起来强"多半是巧合 —— 回测过=随机,别当预测,发群当谈资、玩当娱乐。':'四个都没突出=符合随机,别追。')+'</div>';
+      html+='</div>';
+      html+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">「本期→常接」= 历史上此奖位出现"本期这个值"之后、下一期最常出现的值(占比·次数)。⚠️ 样本越多越可信,但仍不构成预测。</div></div>';
     })();
     // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
     const uniChainPts=new Set(), uniInertiaPts=new Set(), uniRoots=new Set();
