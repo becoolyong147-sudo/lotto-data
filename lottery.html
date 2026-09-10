@@ -3509,16 +3509,19 @@ function zoInertiaBacktest(){
   function dr(x){ return x===0?0:(x%9===0?9:x%9); }
   function val(dim,s){ var a=+s[0],b=+s[1],c=+s[2],d=+s[3]; if(dim==='r4')return 'r'+dr(a+b+c+d); if(dim==='f3')return 'r'+dr(a+b+c); if(dim==='b3')return 'r'+dr(b+c+d); if(dim==='pt')return 'p'+(a+b+c+d); if(dim==='bs')return s.split('').map(function(x){return +x>=5?'H':'L';}).join(''); if(dim==='oe')return s.split('').map(function(x){return (+x)%2?'O':'E';}).join(''); return ''; }
   var dims=[['4D数根','r4'],['前3D根','f3'],['后3D根','b3'],['点数','pt'],['大小','bs'],['单双','oe']];
+  var PNn=['头','二','三'];
+  function disp(v){ if(v[0]==='r')return '根'+v.slice(1); if(v[0]==='p')return v.slice(1)+'点'; return v.replace(/H/g,'大').replace(/L/g,'小').replace(/O/g,'单').replace(/E/g,'双'); }
   var rowsH='';
-  dims.forEach(function(dm){
-    var chainN=0,chainHit=0,mcHit=0;
+  dims.forEach(function(dm,di){
+    var chainN=0,chainHit=0,mcHit=0, det=[];
     [0,1,2].forEach(function(pi){
-      var seq=m.map(function(r){ var x=r.nums&&r.nums[pi]; if(x==null||x==='')return null; var s=pad4(x); return /^\d{4}$/.test(s)?val(dm[1],s):null; }).filter(function(x){return x!=null;});
+      var sq=[]; m.forEach(function(r){ var x=r.nums&&r.nums[pi]; if(x!=null&&x!==''){ var s=pad4(x); if(/^\d{4}$/.test(s)) sq.push({v:val(dm[1],s),date:r.date}); } });
       var trans={}, freq={};
-      for(var i=0;i<seq.length;i++){ var v=seq[i];
-        if(i>=1){ var prev=seq[i-1]; var mp=trans[prev];
-          if(mp && Object.keys(mp).length){ var pred=Object.keys(mp).sort(function(a,b){return mp[b]-mp[a];})[0]; chainN++; if(pred===v)chainHit++;
+      for(var i=0;i<sq.length;i++){ var v=sq[i].v;
+        if(i>=1){ var prev=sq[i-1].v; var mp=trans[prev];
+          if(mp && Object.keys(mp).length){ var pred=Object.keys(mp).sort(function(a,b){return mp[b]-mp[a];})[0]; chainN++; var hit=pred===v; if(hit)chainHit++;
             var mcp=Object.keys(freq).sort(function(a,b){return freq[b]-freq[a];})[0]; if(mcp===v)mcHit++;
+            det.push({date:sq[i].date,prize:PNn[pi],prev:prev,pred:pred,act:v,hit:hit});
           }
           (trans[prev]=trans[prev]||{})[v]=(trans[prev][v]||0)+1;
         }
@@ -3528,11 +3531,16 @@ function zoInertiaBacktest(){
     var cp=chainN?chainHit/chainN*100:0, mp2=chainN?mcHit/chainN*100:0;
     var se=Math.sqrt((mp2/100)*(1-mp2/100)/Math.max(chainN,1))*100, lead=cp-mp2;
     var vd=chainN<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比基准高',c:'#d97706'}:(lead<-2*se?{t:'🔴比基准差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'}));
-    rowsH+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">'+dm[0]+'</td><td style="padding:6px 10px;text-align:right">'+chainN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+cp.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mp2.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vd.c+'">'+vd.t+'</td></tr>';
+    var lid='inb-det-'+di;
+    rowsH+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">'+dm[0]+'</td><td style="padding:6px 10px;text-align:right">'+chainN+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#6d28d9">'+cp.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+mp2.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+vd.c+'">'+vd.t+'</td><td style="padding:6px 10px"><span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'table-row\':\'none\'" style="cursor:pointer;color:#6d28d9;font-weight:700">逐期▾</span></td></tr>';
+    var dh='<div style="max-height:260px;overflow:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#6d28d9"><th style="text-align:left;padding:2px 6px">日期</th><th style="padding:2px 6px">奖</th><th style="padding:2px 6px">前值</th><th style="padding:2px 6px">预测</th><th style="padding:2px 6px">实际</th><th style="padding:2px 6px">中?</th></tr>';
+    det.slice().reverse().forEach(function(x){ dh+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:2px 6px">'+x.date+'</td><td style="padding:2px 6px;text-align:center">'+x.prize+'</td><td style="padding:2px 6px;text-align:center">'+disp(x.prev)+'</td><td style="padding:2px 6px;text-align:center;color:#6d28d9;font-weight:700">'+disp(x.pred)+'</td><td style="padding:2px 6px;text-align:center;font-weight:700">'+disp(x.act)+'</td><td style="padding:2px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+    dh+='</table></div>';
+    rowsH+='<tr id="'+lid+'" style="display:none"><td colspan="6" style="padding:4px 10px;background:#f5f3ff">'+dh+'</td></tr>';
   });
   var h='<div class="card" style="border:2px solid #6d28d9"><h3 style="color:#6d28d9">🔬 惯性·回测 · '+market+'（'+_rgLbl+' · 头二三合计 · 不偷看未来）</h3>';
   h+='<div class="warn" style="margin:6px 0">逐期验证「惯性重点」的预测法(本期值→历史最常接的),每期只用之前数据。基准=「永远猜历史最常见的值」。<b>惯性要明显赢过基准才算有料。</b>这样能诚实告诉会员:这套过往到底准不准,不是事后才说。</div>';
-  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">维度</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">惯性命中率</th><th style="text-align:right;padding:6px 10px">最常见值基准</th><th style="text-align:left;padding:6px 10px">判定</th></tr>'+rowsH+'</table></div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">维度</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">惯性命中率</th><th style="text-align:right;padding:6px 10px">最常见值基准</th><th style="text-align:left;padding:6px 10px">判定</th><th style="text-align:left;padding:6px 10px">明细</th></tr>'+rowsH+'</table></div>';
   h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 大概率各维度都 🟢<b>跟随机没差别</b> —— 意思是「本期→常接」这套,历史命中率跟"瞎猜最常见"一样,<b>没有预测力</b>。<br>把这个诚实结果给会员看:我们提前讲清楚"这是娱乐参考、过往不比随机准",而不是事后吹嘘。⚠️ 判定用误差范围(2×标准误)。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
