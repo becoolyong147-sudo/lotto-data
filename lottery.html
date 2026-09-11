@@ -8248,6 +8248,8 @@ function doBacktest(){
     <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单（本月）</button></div>
     <div class="ig"><button class="btn" id="zo-mem-pp" style="background:#0e7490;color:#fff" onclick="zoMemberPerPeriod()" title="每一期都不一样：按最近开奖的久违回补生成">🔄 逐期会员版（每期不同）</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberPPCopy()" id="zo-mem-pp-copy" style="display:none">📋 复制逐期话术</button></div>
+    <div class="ig"><button class="btn" id="zo-mem-rohan" style="background:#b45309;color:#fff" onclick="zoMemberRohan()" title="按18罗汉选号：热罗汉+久违罗汉">🔱 罗汉版会员</button></div>
+    <div class="ig"><button class="btn" onclick="zoMemberRohanCopy()" id="zo-mem-rohan-copy" style="display:none">📋 复制罗汉话术</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG('simple')" id="zo-mem-png-simple" style="display:none">📸 会员图·简洁（号码+星）</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberPNG('full')" id="zo-mem-png" style="display:none;background:#475569;color:#fff">📸 详细图·自己看（带证据）</button></div>
@@ -15468,6 +15470,110 @@ function zoMemberPPCopy(){
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).then(()=>alert('已复制逐期话术，可直接发群。')).catch(()=>alert(t));
   } else { alert(t); }
+}
+// ===== 🔱 罗汉版会员：按18罗汉选号（热罗汉 + 久违罗汉）=====
+let ZO_MEM_ROHAN = null;
+function zoMemberRohanOne(market, month, topN, selDa){
+  const nd = (typeof getNewResults==='function') ? getNewResults() : {};
+  const seen = {}, draws = [];
+  (nd[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  (DB[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  if(draws.length < 100) return null;
+  draws.sort((a,b) => (b.date||'').localeCompare(a.date||''));  // 新→旧
+  const lastDate = draws[0].date;
+  // 本月各罗汉出现次数 + 久违期数 + 每组历史号码(调字组去重, 记打数)
+  const monHit = {}, streak = {}, doneStreak = {}, numsByGroup = {};
+  ZO_ROHAN.forEach(g => { monHit[g.id]=0; streak[g.id]=0; numsByGroup[g.id]={}; });
+  for(let i=0;i<draws.length;i++){
+    const dMonth = seaMonth(draws[i].date);
+    const active = {};
+    (draws[i].nums||[]).forEach(n => {
+      if(n==null||n==='') return;
+      zoRohanOf(n).forEach(g => {
+        active[g.id]=1;
+        if(dMonth===month) monHit[g.id]++;
+        const k = seaPermKey(n);
+        if(!numsByGroup[g.id][k]) numsByGroup[g.id][k] = {num:pz(n), da:zoDaCount(n), cnt:0};
+        numsByGroup[g.id][k].cnt++;
+      });
+    });
+    ZO_ROHAN.forEach(g => { if(doneStreak[g.id]) return; if(active[g.id]) doneStreak[g.id]=1; else streak[g.id]++; });
+  }
+  // 热罗汉 = 本月出现最多的前3组；久违罗汉 = 连续没开最久的前3组
+  const byHot = ZO_ROHAN.slice().sort((a,b)=> monHit[b.id]-monHit[a.id]).slice(0,3);
+  const byAbs = ZO_ROHAN.slice().sort((a,b)=> streak[b.id]-streak[a.id]).slice(0,3);
+  function pickNums(groupList){
+    // 汇总这些组的历史号(去重), 按打数分层, 每层取历史开出最多的 topN
+    const pool = {};
+    groupList.forEach(g => { for(const k in numsByGroup[g.id]){ const it=numsByGroup[g.id][k]; if(!pool[k]||pool[k].cnt<it.cnt) pool[k]=it; } });
+    const out = {};
+    selDa.forEach(da => {
+      out[da] = Object.values(pool).filter(x=>x.da===da).sort((a,b)=> b.cnt-a.cnt).slice(0, topN);
+    });
+    return out;
+  }
+  return {
+    market, lastDate, month, selDa,
+    hotGroups: byHot.map(g=>({name:g.name, cnt:monHit[g.id]})),
+    absGroups: byAbs.map(g=>({name:g.name, gap:streak[g.id]})),
+    hotNums: pickNums(byHot),
+    absNums: pickNums(byAbs)
+  };
+}
+function zoMemberRohan(){
+  if(typeof zoMemberPublicBlocked==='function' && zoMemberPublicBlocked()) return;
+  const MK = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  const sel = MK.filter(m => { const el=document.getElementById('zo-mem-mk-'+m); return el&&el.checked; });
+  const out = document.getElementById('zo-member-result');
+  if(!sel.length){ out.innerHTML='<div class="error">请至少勾选一家公司。</div>'; return; }
+  const selDa = [24,12,6,4].filter(d => document.getElementById('zo-mem-da-'+d).checked);
+  if(!selDa.length){ out.innerHTML='<div class="error">请至少勾选一种打数。</div>'; return; }
+  const topN = parseInt(document.getElementById('zo-mem-topn').value,10) || 5;
+  const month = parseInt(document.getElementById('zo-month').value,10) || (new Date().getMonth()+1);
+  const results = [];
+  sel.forEach(mk => { try{ const r=zoMemberRohanOne(mk, month, topN, selDa); if(r) results.push(r); }catch(e){ console.warn('罗汉版失败',mk,e); } });
+  if(!results.length){ out.innerHTML='<div class="error">选中的公司数据太少（需≥100期）。</div>'; return; }
+  ZO_MEM_ROHAN = results;
+  const daLbl = {24:'24打',12:'12打',6:'6打',4:'4打'};
+  function block(title,color,groups,nums,gfmt){
+    let s = '<div style="margin:6px 0"><div style="font-weight:700;color:'+color+'">'+title+' <span style="font-weight:500;color:#64748b;font-size:11px">'+groups.map(gfmt).join('、')+'</span></div>';
+    selDa.forEach(da=>{
+      const list = nums[da]||[];
+      s += '<div style="margin:3px 0"><span style="display:inline-block;min-width:44px;font-weight:700;color:'+color+'">'+daLbl[da]+'</span> ';
+      s += list.length? list.map(c=>'<span style="display:inline-block;background:#fff;border:1px solid #fcd34d;border-radius:6px;padding:2px 8px;margin:2px;font-weight:800;font-family:monospace">'+c.num+'<span style="font-weight:500;color:#b45309;font-size:11px"> 开'+c.cnt+'</span></span>').join('') : '<span style="color:#94a3b8">—无</span>';
+      s += '</div>';
+    });
+    return s+'</div>';
+  }
+  let h = '<div class="card" style="border:2px solid #b45309;border-radius:14px">';
+  h += '<h3 style="color:#b45309;margin:0 0 4px">🔱 罗汉版会员 · 按18罗汉选号</h3>';
+  h += '<div class="warn" style="margin:6px 0">从<b>本月最热3组罗汉</b>和<b>最久违3组罗汉</b>里，各按打数挑历史开最多的号。⚠️诚实讲：罗汉只是把号分18桶，回测显示≈随机，非预测，发群作娱乐参考。</div>';
+  results.forEach(r=>{
+    h += '<div style="margin:12px 0;padding:10px 12px;background:#fffbeb;border-radius:10px">';
+    h += '<div style="font-weight:800;color:#b45309;margin-bottom:4px">'+r.market+' <span style="font-weight:500;color:#64748b;font-size:12px">（'+r.month+'月 · 最新 '+r.lastDate+'）</span></div>';
+    h += block('🔥 热罗汉','#dc2626',r.hotGroups,r.hotNums,g=>g.name+'('+g.cnt+')');
+    h += block('❄️ 久违罗汉','#0e7490',r.absGroups,r.absNums,g=>g.name+'(久违'+g.gap+')');
+    h += '</div>';
+  });
+  h += '<div style="font-size:11px;color:#475569;background:#f8fafc;border-radius:8px;padding:8px 10px">热罗汉后括号=本月历史开出次数；久违罗汉后=连续没开的期数；号码后「开N」=该号历史总开出次数。</div>';
+  h += '</div>';
+  out.innerHTML = h;
+  const cp=document.getElementById('zo-mem-rohan-copy'); if(cp) cp.style.display='';
+  ['zo-mem-copy','zo-mem-png-simple','zo-mem-png','zo-mem-vid','zo-mem-pp-copy'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; });
+}
+function zoMemberRohanCopy(){
+  if(!ZO_MEM_ROHAN){ alert('请先「罗汉版会员」生成名单。'); return; }
+  const daLbl = {24:'24打',12:'12打',6:'6打',4:'4打'};
+  let t = '🔱 罗汉版参考\n';
+  ZO_MEM_ROHAN.forEach(r=>{
+    t += '\n【'+r.market+'】'+r.month+'月\n🔥热罗汉：\n';
+    r.selDa.forEach(da=>{ const l=r.hotNums[da]||[]; if(l.length) t+=daLbl[da]+'：'+l.map(c=>c.num).join('  ')+'\n'; });
+    t += '❄️久违罗汉：\n';
+    r.selDa.forEach(da=>{ const l=r.absNums[da]||[]; if(l.length) t+=daLbl[da]+'：'+l.map(c=>c.num).join('  ')+'\n'; });
+  });
+  t += '\n⚠️罗汉≈随机，纯娱乐参考，量力而为。';
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(()=>alert('已复制罗汉话术。')).catch(()=>alert(t)); }
+  else alert(t);
 }
 // 🔱 缺席罗汉集合（ZO编号）：双重条件 = 近期连续遗漏≥minGap期 且 本月生肖图历史命中≤中位数
 // 返回 {zoId: {gap, monthCnt}}
