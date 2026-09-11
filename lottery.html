@@ -848,6 +848,7 @@ function renderPatternTrend(){
     <span style="font-size:12px;color:#6d28d9">🔄惯性范围 <select id="ov-inertia-range" onchange="ovRender()" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">全部</option><option value="y1">近1年</option><option value="y2">近2年</option><option value="y3">近3年</option><option value="p100">近100期</option><option value="p200">近200期</option></select></span>
     <span style="font-size:12px;color:#6d28d9">奖位 <select id="ov-inb-prize" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">头二三合计</option><option value="0">只头</option><option value="1">只二</option><option value="2">只三</option></select></span>
     <button class="btn" onclick="zoInertiaBacktest()" style="padding:9px 16px;background:#6d28d9;color:#fff" title="回测惯性预测历史准不准">🔬 惯性·回测</button>
+    <button class="btn" onclick="zoRohanBacktest()" style="padding:9px 16px;background:#b45309;color:#fff" title="回测18罗汉选号(热/久违)历史准不准">🔬 罗汉·回测</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
   <div class="warn" style="margin-top:8px">
@@ -3545,6 +3546,69 @@ function zoInertiaBacktest(){
   h+='<div class="warn" style="margin:6px 0">逐期验证「惯性重点」的预测法(本期值→历史最常接的),每期只用之前数据。基准=「永远猜历史最常见的值」。<b>惯性要明显赢过基准才算有料。</b>这样能诚实告诉会员:这套过往到底准不准,不是事后才说。</div>';
   h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">维度</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">惯性命中率</th><th style="text-align:right;padding:6px 10px">最常见值基准</th><th style="text-align:left;padding:6px 10px">判定</th><th style="text-align:left;padding:6px 10px">明细</th></tr>'+rowsH+'</table></div>';
   h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 大概率各维度都 🟢<b>跟随机没差别</b> —— 意思是「本期→常接」这套,历史命中率跟"瞎猜最常见"一样,<b>没有预测力</b>。<br>把这个诚实结果给会员看:我们提前讲清楚"这是娱乐参考、过往不比随机准",而不是事后吹嘘。⚠️ 判定用误差范围(2×标准误)。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🔬 罗汉·回测：point-in-time 滚动，测「本月最热罗汉」和「最久违罗汉」选号命中率 vs 固定最常见基准
+function zoRohanBacktest(){
+  var out=document.getElementById('overview-result'); if(!out) return;
+  var market=document.getElementById('ov-market').value;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
+  var _rg=(document.getElementById('ov-inertia-range')||{value:'all'}).value, _rgLbl='全部';
+  if(_rg&&_rg!=='all'){ if(_rg[0]==='y'){ var yrs=+_rg.slice(1); var cut=new Date(Date.now()-yrs*365.25*86400000).toISOString().slice(0,10); m=m.filter(function(r){return r.date>=cut;}); _rgLbl='近'+yrs+'年'; } else if(_rg[0]==='p'){ var pp=+_rg.slice(1); if(m.length>pp)m=m.slice(m.length-pp); _rgLbl='近'+pp+'期'; } }
+  if(m.length<120){ out.innerHTML='<div class="card"><div class="warn">'+market+' 可回测期数太少('+m.length+'期,范围'+_rgLbl+')。放宽范围。</div></div>'; return; }
+  var GN=ZO_ROHAN.length;
+  // 预算每期出现的罗汉id集合
+  var pres=m.map(function(r){ var s={}; (r.nums||[]).forEach(function(n){ if(n==null||n==='')return; zoRohanOf(n).forEach(function(g){ s[g.id]=1; }); }); return s; });
+  // 增量计数器
+  var overall={}, monthCnt={}, lastSeen={};
+  ZO_ROHAN.forEach(function(g){ overall[g.id]=0; lastSeen[g.id]=-1; });
+  function pickMax(obj){ var bId=null,bV=-1; ZO_ROHAN.forEach(function(g){ var v=obj[g.id]||0; if(v>bV){bV=v;bId=g.id;} }); return {id:bId,v:bV}; }
+  var WARM=60;
+  var hotN=0,hotHit=0, absN=0,absHit=0, mcHot=0,mcAbs=0, hotDet=[],absDet=[];
+  for(var i=0;i<m.length;i++){
+    var mon=seaMonth(m[i].date);
+    if(i>=WARM){
+      // 基准：整体最常见罗汉
+      var base=pickMax(overall);
+      var baseHit=base.id!=null && pres[i][base.id];
+      // 热罗汉：本月历史出现最多
+      var mc=monthCnt[mon]||{}; var hot=pickMax(mc);
+      if(hot.id!=null && hot.v>0){ hotN++; var hh=!!pres[i][hot.id]; if(hh)hotHit++; if(baseHit)mcHot++;
+        hotDet.push({date:m[i].date,pred:hot.id,hit:hh}); }
+      // 久违罗汉：连续没出现最久
+      var stObj={}; ZO_ROHAN.forEach(function(g){ stObj[g.id]=(lastSeen[g.id]<0)?i:(i-1-lastSeen[g.id]); });
+      var ab=pickMax(stObj);
+      if(ab.id!=null){ absN++; var ah=!!pres[i][ab.id]; if(ah)absHit++; if(baseHit)mcAbs++;
+        absDet.push({date:m[i].date,pred:ab.id,hit:ah}); }
+    }
+    // 更新计数器(用完当期后)
+    for(var k in pres[i]){ overall[k]=(overall[k]||0)+1; if(!monthCnt[mon])monthCnt[mon]={}; monthCnt[mon][k]=(monthCnt[mon][k]||0)+1; lastSeen[k]=i; }
+  }
+  var rname={}; ZO_ROHAN.forEach(function(g){ rname[g.id]=g.name; });
+  function rowFor(label,N,hit,mc){
+    var cp=N?hit/N*100:0, mp=N?mc/N*100:0;
+    var se=Math.sqrt((mp/100)*(1-mp/100)/Math.max(N,1))*100, lead=cp-mp;
+    var vd=N<30?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比基准高',c:'#d97706'}:(lead<-2*se?{t:'🔴比基准差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'}));
+    return {cp:cp,mp:mp,vd:vd,N:N};
+  }
+  var strat=[['🔥 本月最热罗汉',hotN,hotHit,mcHot,hotDet],['❄️ 最久违罗汉',absN,absHit,mcAbs,absDet]];
+  var rowsH='';
+  strat.forEach(function(st,si){
+    var r=rowFor(st[0],st[1],st[2],st[3]); var lid='rhb-det-'+si;
+    rowsH+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-weight:700">'+st[0]+'</td><td style="padding:6px 10px;text-align:right">'+r.N+'</td><td style="padding:6px 10px;text-align:right;font-weight:800;color:#b45309">'+r.cp.toFixed(1)+'%</td><td style="padding:6px 10px;text-align:right">'+r.mp.toFixed(1)+'%</td><td style="padding:6px 10px;font-weight:700;color:'+r.vd.c+'">'+r.vd.t+'</td><td style="padding:6px 10px"><span onclick="var e=document.getElementById(\''+lid+'\');e.style.display=e.style.display===\'none\'?\'table-row\':\'none\'" style="cursor:pointer;color:#b45309;font-weight:700">逐期▾</span></td></tr>';
+    var dh='<div style="max-height:260px;overflow:auto"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#b45309"><th style="text-align:left;padding:2px 6px">日期</th><th style="padding:2px 6px">选的罗汉</th><th style="padding:2px 6px">中?</th></tr>';
+    st[4].slice().reverse().forEach(function(x){ dh+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:2px 6px">'+x.date+'</td><td style="padding:2px 6px;text-align:center">'+rname[x.pred]+'</td><td style="padding:2px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+    dh+='</table></div>';
+    rowsH+='<tr id="'+lid+'" style="display:none"><td colspan="6" style="padding:4px 10px;background:#fffbeb">'+dh+'</td></tr>';
+  });
+  var h='<div class="card" style="border:2px solid #b45309"><h3 style="color:#b45309">🔬 罗汉·回测 · '+market+'（'+_rgLbl+' · 头二三合计 · 不偷看未来）</h3>';
+  h+='<div class="warn" style="margin:6px 0">每期只用之前数据挑「本月最热」/「最久违」的罗汉,看下一期头二三里有没有该罗汉组的号。<b>命中=该期至少一个奖号属于选中罗汉。</b>基准=「永远押整体最常见的罗汉」。要明显赢过基准才算有料。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#fffbeb;color:#b45309"><th style="text-align:left;padding:6px 10px">策略</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">命中率</th><th style="text-align:right;padding:6px 10px">最常见基准</th><th style="text-align:left;padding:6px 10px">判定</th><th style="text-align:left;padding:6px 10px">明细</th></tr>'+rowsH+'</table></div>';
+  h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 若判定是 🟢<b>跟随机没差别</b>,代表「热罗汉/久违罗汉」选号历史上<b>不比瞎押最常见的强</b>——没预测力。诚实给会员看,别事后吹。⚠️ 判定用 2×标准误。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
