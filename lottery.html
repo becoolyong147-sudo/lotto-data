@@ -846,6 +846,7 @@ function renderPatternTrend(){
     <span style="font-size:12px;color:#6d28d9">回测 <input type="number" id="ov-bt-n" min="20" step="10" placeholder="全部" style="width:70px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"> 期</span>
     <button class="btn" onclick="zoOverviewBacktest()" style="padding:9px 16px;background:#7c3aed;color:#fff" title="回测三大引擎到底准不准">🔬 回测三大引擎</button>
     <span style="font-size:12px;color:#6d28d9">🔄惯性范围 <select id="ov-inertia-range" onchange="ovRender()" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">全部</option><option value="y1">近1年</option><option value="y2">近2年</option><option value="y3">近3年</option><option value="p100">近100期</option><option value="p200">近200期</option></select></span>
+    <span style="font-size:12px;color:#6d28d9">奖位 <select id="ov-inb-prize" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">头二三合计</option><option value="0">只头</option><option value="1">只二</option><option value="2">只三</option></select></span>
     <button class="btn" onclick="zoInertiaBacktest()" style="padding:9px 16px;background:#6d28d9;color:#fff" title="回测惯性预测历史准不准">🔬 惯性·回测</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
@@ -3511,10 +3512,12 @@ function zoInertiaBacktest(){
   var dims=[['4D数根','r4'],['前3D根','f3'],['后3D根','b3'],['点数','pt'],['大小','bs'],['单双','oe']];
   var PNn=['头','二','三'];
   function disp(v){ if(v[0]==='r')return '根'+v.slice(1); if(v[0]==='p')return v.slice(1)+'点'; return v.replace(/H/g,'大').replace(/L/g,'小').replace(/O/g,'单').replace(/E/g,'双'); }
+  var _pz=(document.getElementById('ov-inb-prize')||{value:'all'}).value;
+  var _pzList=(_pz==='all')?[0,1,2]:[+_pz], _pzLbl=(_pz==='all')?'头二三合计':('只'+PNn[+_pz]);
   var rowsH='';
   dims.forEach(function(dm,di){
     var chainN=0,chainHit=0,mcHit=0, det=[];
-    [0,1,2].forEach(function(pi){
+    _pzList.forEach(function(pi){
       var sq=[]; m.forEach(function(r){ var x=r.nums&&r.nums[pi]; if(x!=null&&x!==''){ var s=pad4(x); if(/^\d{4}$/.test(s)) sq.push({v:val(dm[1],s),date:r.date}); } });
       var trans={}, freq={};
       for(var i=0;i<sq.length;i++){ var v=sq[i].v;
@@ -3538,7 +3541,7 @@ function zoInertiaBacktest(){
     dh+='</table></div>';
     rowsH+='<tr id="'+lid+'" style="display:none"><td colspan="6" style="padding:4px 10px;background:#f5f3ff">'+dh+'</td></tr>';
   });
-  var h='<div class="card" style="border:2px solid #6d28d9"><h3 style="color:#6d28d9">🔬 惯性·回测 · '+market+'（'+_rgLbl+' · 头二三合计 · 不偷看未来）</h3>';
+  var h='<div class="card" style="border:2px solid #6d28d9"><h3 style="color:#6d28d9">🔬 惯性·回测 · '+market+'（'+_rgLbl+' · '+_pzLbl+' · 不偷看未来）</h3>';
   h+='<div class="warn" style="margin:6px 0">逐期验证「惯性重点」的预测法(本期值→历史最常接的),每期只用之前数据。基准=「永远猜历史最常见的值」。<b>惯性要明显赢过基准才算有料。</b>这样能诚实告诉会员:这套过往到底准不准,不是事后才说。</div>';
   h+='<div class="ot"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#6d28d9"><th style="text-align:left;padding:6px 10px">维度</th><th style="text-align:right;padding:6px 10px">验证次数</th><th style="text-align:right;padding:6px 10px">惯性命中率</th><th style="text-align:right;padding:6px 10px">最常见值基准</th><th style="text-align:left;padding:6px 10px">判定</th><th style="text-align:left;padding:6px 10px">明细</th></tr>'+rowsH+'</table></div>';
   h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 大概率各维度都 🟢<b>跟随机没差别</b> —— 意思是「本期→常接」这套,历史命中率跟"瞎猜最常见"一样,<b>没有预测力</b>。<br>把这个诚实结果给会员看:我们提前讲清楚"这是娱乐参考、过往不比随机准",而不是事后吹嘘。⚠️ 判定用误差范围(2×标准误)。</div>';
@@ -8178,7 +8181,9 @@ function doBacktest(){
     </div>
   </div>
   <div class="row" style="margin-top:10px">
-    <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单</button></div>
+    <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单（本月）</button></div>
+    <div class="ig"><button class="btn" id="zo-mem-pp" style="background:#0e7490;color:#fff" onclick="zoMemberPerPeriod()" title="每一期都不一样：按最近开奖的久违回补生成">🔄 逐期会员版（每期不同）</button></div>
+    <div class="ig"><button class="btn" onclick="zoMemberPPCopy()" id="zo-mem-pp-copy" style="display:none">📋 复制逐期话术</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG('simple')" id="zo-mem-png-simple" style="display:none">📸 会员图·简洁（号码+星）</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberPNG('full')" id="zo-mem-png" style="display:none;background:#475569;color:#fff">📸 详细图·自己看（带证据）</button></div>
@@ -15307,6 +15312,98 @@ function zoMemSetExportMarket(){
   if(!ex || !ZO_MEM_ALL.length) return;
   const M = ZO_MEM_ALL.find(function(x){ return x.market === ex.value; }) || ZO_MEM_ALL[0];
   ZO_MEM = M;
+}
+// ===== 🔄 逐期会员版：每一期都不一样 =====
+// 逻辑：合并新旧数据(新→旧)，逐期统计每个调字组的「久违期数」和「历史开出次数」；
+// 从"历史常开(≥3次)但当前久违"的组里，按打数分层挑最久违的，作为下一期回补名单。
+// 因为久违期数每开一期就变，所以名单每期自动不同。诚实标注：这是回补参考，非预测。
+let ZO_MEM_PP = null;
+function zoMemberPerPeriodOne(market, topN, selDa){
+  const nd = (typeof getNewResults==='function') ? getNewResults() : {};
+  const seen = {}, draws = [];
+  (nd[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  (DB[market]||[]).forEach(d => { if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  if(draws.length < 100) return null;
+  draws.sort((a,b) => (b.date||'').localeCompare(a.date||''));  // 新→旧
+  const lastDate = draws[0].date;
+  // 逐期扫：记录每个调字组首次(从最新往回)出现的期号=久违期数；总开出次数
+  const info = {};   // key -> {gap, count, sampleNum}
+  for(let i=0;i<draws.length;i++){
+    (draws[i].nums||[]).forEach(n => {
+      if(n==null||n==='') return;
+      const k = seaPermKey(n);
+      if(!info[k]) info[k] = {gap:i, count:0, sampleNum:pz(n)};
+      info[k].count++;
+    });
+  }
+  // 候选：历史开≥3次；排除上一期(gap=0)刚开的；打数在勾选内
+  const cand = [];
+  for(const k in info){
+    const it = info[k];
+    if(it.count < 3) continue;
+    if(it.gap < 1) continue;
+    const da = zoDaCount(it.sampleNum);
+    if(selDa.indexOf(da) < 0) continue;
+    cand.push({key:k, num:it.sampleNum, gap:it.gap, count:it.count, da:da});
+  }
+  // 每个打数层：按久违期数 desc 取 topN
+  const groups = {};
+  selDa.forEach(da => {
+    groups[da] = cand.filter(c => c.da===da).sort((a,b)=> b.gap-a.gap || b.count-a.count).slice(0, topN);
+  });
+  return {market, lastDate, groups, selDa, draws:draws.length};
+}
+function zoMemberPerPeriod(){
+  if(typeof zoMemberPublicBlocked==='function' && zoMemberPublicBlocked()) return;
+  const MK = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  const sel = MK.filter(m => { const el=document.getElementById('zo-mem-mk-'+m); return el&&el.checked; });
+  const out = document.getElementById('zo-member-result');
+  if(!sel.length){ out.innerHTML='<div class="error">请至少勾选一家公司。</div>'; return; }
+  const selDa = [24,12,6,4].filter(d => document.getElementById('zo-mem-da-'+d).checked);
+  if(!selDa.length){ out.innerHTML='<div class="error">请至少勾选一种打数。</div>'; return; }
+  const topN = parseInt(document.getElementById('zo-mem-topn').value,10) || 5;
+  const results = [];
+  sel.forEach(mk => { try{ const r=zoMemberPerPeriodOne(mk, topN, selDa); if(r) results.push(r); }catch(e){ console.warn('逐期会员版失败',mk,e); } });
+  if(!results.length){ out.innerHTML='<div class="error">选中的公司数据太少（需≥100期）。</div>'; return; }
+  ZO_MEM_PP = results;
+  const daLbl = {24:'24打',12:'12打',6:'6打',4:'4打'};
+  let h = '<div class="card" style="border:2px solid #0e7490;border-radius:14px">';
+  h += '<h3 style="color:#0e7490;margin:0 0 4px">🔄 逐期会员版 · 下一期回补名单</h3>';
+  h += '<div class="warn" style="margin:6px 0">按「历史常开但当前久违」挑号，<b>每开一期名单自动变</b>。这是<b>回补参考</b>，不是预测——久违不代表更会开（每期都是独立随机）。发群请照实讲。</div>';
+  results.forEach(r => {
+    h += '<div style="margin:12px 0;padding:10px 12px;background:#ecfeff;border-radius:10px">';
+    h += '<div style="font-weight:800;color:#0e7490;margin-bottom:6px">'+r.market+' <span style="font-weight:500;color:#64748b;font-size:12px">（最新一期 '+r.lastDate+' → 下一期）</span></div>';
+    r.selDa.forEach(da => {
+      const list = r.groups[da]||[];
+      h += '<div style="margin:4px 0"><span style="display:inline-block;min-width:44px;font-weight:700;color:#155e75">'+daLbl[da]+'</span> ';
+      if(!list.length){ h += '<span style="color:#94a3b8">—无</span>'; }
+      else h += list.map(c => '<span style="display:inline-block;background:#fff;border:1px solid #a5f3fc;border-radius:6px;padding:2px 8px;margin:2px;font-weight:800;font-family:monospace">'+c.num+'<span style="font-weight:500;color:#0891b2;font-size:11px"> 久违'+c.gap+'·开'+c.count+'</span></span>').join('');
+      h += '</div>';
+    });
+    h += '</div>';
+  });
+  h += '<div style="font-size:11px;color:#475569;background:#f8fafc;border-radius:8px;padding:8px 10px">「久违X」=距上次开出的期数；「开N」=历史总开出次数。名单每期不同，因为久违期数每期都在变。</div>';
+  h += '</div>';
+  out.innerHTML = h;
+  const cp = document.getElementById('zo-mem-pp-copy'); if(cp) cp.style.display='';
+  // 隐藏本月版的导出按钮组(避免混淆)
+  ['zo-mem-copy','zo-mem-png-simple','zo-mem-png','zo-mem-vid'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; });
+}
+function zoMemberPPCopy(){
+  if(!ZO_MEM_PP){ alert('请先「逐期会员版」生成名单。'); return; }
+  const daLbl = {24:'24打',12:'12打',6:'6打',4:'4打'};
+  let t = '🔄 逐期回补参考（下一期）\n';
+  ZO_MEM_PP.forEach(r => {
+    t += '\n【'+r.market+'】'+r.lastDate+'→下期\n';
+    r.selDa.forEach(da => {
+      const list = r.groups[da]||[];
+      if(list.length) t += daLbl[da]+'：'+list.map(c=>c.num).join('  ')+'\n';
+    });
+  });
+  t += '\n⚠️久违≠更会开，纯回补参考，娱乐性质，量力而为。';
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>alert('已复制逐期话术，可直接发群。')).catch(()=>alert(t));
+  } else { alert(t); }
 }
 // 🔱 缺席罗汉集合（ZO编号）：双重条件 = 近期连续遗漏≥minGap期 且 本月生肖图历史命中≤中位数
 // 返回 {zoId: {gap, monthCnt}}
