@@ -849,6 +849,7 @@ function renderPatternTrend(){
     <span style="font-size:12px;color:#6d28d9">奖位 <select id="ov-inb-prize" style="font-size:12px;padding:5px 6px;border:1px solid #ddd6fe;border-radius:5px"><option value="all">头二三合计</option><option value="0">只头</option><option value="1">只二</option><option value="2">只三</option></select></span>
     <button class="btn" onclick="zoInertiaBacktest()" style="padding:9px 16px;background:#6d28d9;color:#fff" title="回测惯性预测历史准不准">🔬 惯性·回测</button>
     <button class="btn" onclick="zoRohanBacktest()" style="padding:9px 16px;background:#b45309;color:#fff" title="回测18罗汉选号(热/久违)历史准不准">🔬 罗汉·回测</button>
+    <button class="btn" onclick="zoShapeTrend()" style="padding:9px 16px;background:#0f766e;color:#fff" title="大小/单双形态的历史走势+你这期号的覆盖检查">📐 大小单双走势</button>
     <span id="ov-meta" style="margin-left:auto;align-self:center;font-size:12px;color:#7c5a1e"></span>
   </div>
   <div class="warn" style="margin-top:8px">
@@ -3548,6 +3549,65 @@ function zoInertiaBacktest(){
   h+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px">👉 大概率各维度都 🟢<b>跟随机没差别</b> —— 意思是「本期→常接」这套,历史命中率跟"瞎猜最常见"一样,<b>没有预测力</b>。<br>把这个诚实结果给会员看:我们提前讲清楚"这是娱乐参考、过往不比随机准",而不是事后吹嘘。⚠️ 判定用误差范围(2×标准误)。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 📐 大小/单双 形态走势 + 覆盖检查
+function zoShapeCls(s){ var big=0,odd=0; for(var i=0;i<4;i++){ var d=+s[i]; if(d>=5)big++; if(d%2)odd++; } return {big:big, odd:odd}; }
+function zoShapeTrend(){
+  var out=document.getElementById('overview-result'); if(!out) return;
+  var market=document.getElementById('ov-market').value;
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var _rg=(document.getElementById('ov-inertia-range')||{value:'all'}).value, _rgLbl='全部';
+  if(_rg&&_rg!=='all'){ if(_rg[0]==='y'){ var yrs=+_rg.slice(1); var cut=new Date(Date.now()-yrs*365.25*86400000).toISOString().slice(0,10); m=m.filter(function(r){return r.date>=cut;}); _rgLbl='近'+yrs+'年'; } else if(_rg[0]==='p'){ var pp=+_rg.slice(1); if(m.length>pp)m=m.slice(m.length-pp); _rgLbl='近'+pp+'期'; } }
+  if(!m.length){ out.innerHTML='<div class="card"><div class="warn">'+market+' 没有开奖数据。</div></div>'; return; }
+  function pad4(n){return String(n).padStart(4,'0');}
+  var C4=[1,4,6,4,1], TOT=16;
+  var bigTally=[0,0,0,0,0], oddTally=[0,0,0,0,0], N=0;
+  m.forEach(function(r){ (r.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=pad4(n); if(!/^\d{4}$/.test(s))return; var c=zoShapeCls(s); bigTally[c.big]++; oddTally[c.odd]++; N++; }); });
+  function lblBig(k){ return k+'大'+(4-k)+'小'; }
+  function lblOdd(j){ return j+'单'+(4-j)+'双'; }
+  function distTable(tally,lbl){
+    var s='<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="background:#f0fdfa;color:#0f766e"><th style="text-align:left;padding:5px 8px">形态</th><th style="text-align:right;padding:5px 8px">实际次数</th><th style="text-align:right;padding:5px 8px">实际%</th><th style="text-align:right;padding:5px 8px">理论%</th><th style="text-align:right;padding:5px 8px">差</th></tr>';
+    for(var k=4;k>=0;k--){ var act=tally[k]/N*100, th=C4[k]/TOT*100, df=act-th;
+      s+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:5px 8px;font-weight:700">'+lbl(k)+'</td><td style="padding:5px 8px;text-align:right">'+tally[k]+'</td><td style="padding:5px 8px;text-align:right;font-weight:800;color:#0f766e">'+act.toFixed(1)+'%</td><td style="padding:5px 8px;text-align:right;color:#64748b">'+th.toFixed(1)+'%</td><td style="padding:5px 8px;text-align:right;color:'+(Math.abs(df)<2?'#64748b':(df>0?'#d97706':'#0891b2'))+'">'+(df>=0?'+':'')+df.toFixed(1)+'</td></tr>'; }
+    return s+'</table>';
+  }
+  // 近30期头奖形态走势条
+  var strip=m.slice(-30).map(function(r){ var n=r.nums&&r.nums[0]; if(n==null||n==='')return ''; var s=pad4(n); if(!/^\d{4}$/.test(s))return ''; var c=zoShapeCls(s); return '<span title="'+r.date+' '+s+'" style="display:inline-block;margin:1px;padding:1px 5px;border-radius:4px;font-size:11px;font-weight:700;background:'+(c.big>=2?'#fed7aa':'#bae6fd')+';color:#334155">'+lblBig(c.big).replace('小','')+'/'+c.odd+'单</span>'; }).join('');
+  var h='<div class="card" style="border:2px solid #0f766e"><h3 style="color:#0f766e">📐 大小·单双 形态走势 · '+market+'（'+_rgLbl+' · 头二三合计 · '+N+'个号）</h3>';
+  h+='<div class="warn" style="margin:6px 0">看历史上各形态出现的比例,跟理论概率对比。<b>长期都会贴近理论(2大2小/2单2双最多)——这正说明它随机、没规律可押</b>,拿来管覆盖别拿来预测。</div>';
+  h+='<div style="display:flex;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:280px"><div style="font-weight:800;color:#0f766e;margin:4px 0">大小分布</div>'+distTable(bigTally,lblBig)+'</div>';
+  h+='<div style="flex:1;min-width:280px"><div style="font-weight:800;color:#0f766e;margin:4px 0">单双分布</div>'+distTable(oddTally,lblOdd)+'</div></div>';
+  h+='<div style="margin-top:10px"><div style="font-weight:700;color:#0f766e;margin-bottom:4px">近30期·头奖形态走势(橙=偏大,蓝=偏小;数字=单的个数)</div><div>'+strip+'</div></div>';
+  // 覆盖检查
+  h+='<div style="margin-top:12px;padding:10px;background:#f0fdfa;border-radius:10px"><div style="font-weight:800;color:#0f766e;margin-bottom:6px">✅ 你这期号的覆盖检查</div>';
+  h+='<textarea id="shape-cov-in" rows="2" style="width:100%;font-family:monospace;font-size:14px" placeholder="把你这期要买的号贴进来：1234 5678, 0369"></textarea>';
+  h+='<div style="margin-top:6px"><button class="btn" style="background:#0f766e;color:#fff;padding:7px 14px" onclick="zoShapeCoverage()">算覆盖</button></div>';
+  h+='<div id="shape-cov-out" style="margin-top:8px"></div></div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zoShapeCoverage(){
+  var el=document.getElementById('shape-cov-in'), out=document.getElementById('shape-cov-out');
+  if(!el||!out) return;
+  var nums=(el.value||'').split(/[\s,;，、]+/).map(function(s){return s.trim();}).filter(function(s){return /^\d{1,4}$/.test(s);}).map(function(s){return String(s).padStart(4,'0');});
+  if(!nums.length){ out.innerHTML='<div style="color:#dc2626">请先贴至少一个号码。</div>'; return; }
+  var C4=[1,4,6,4,1], TOT=16;
+  var big=[0,0,0,0,0], odd=[0,0,0,0,0];
+  nums.forEach(function(s){ var c=zoShapeCls(s); big[c.big]++; odd[c.odd]++; });
+  function line(tally,lbl){
+    var s='';
+    for(var k=4;k>=0;k--){ var th=C4[k]/TOT*100, cnt=tally[k], blind=(cnt===0&&C4[k]>=4);
+      s+='<span style="display:inline-block;margin:2px;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700;background:'+(cnt>0?'#ccfbf1':(blind?'#fee2e2':'#f1f5f9'))+';color:'+(blind?'#b91c1c':'#334155')+'">'+lbl(k)+'：'+cnt+'个 <span style="font-weight:500;color:#64748b">(理论'+th.toFixed(0)+'%)</span>'+(blind?' ⚠盲区':'')+'</span>'; }
+    return s;
+  }
+  var h='<div style="font-size:13px;margin-bottom:4px">共 '+nums.length+' 个号。红色⚠=理论上常出但你一个都没买(覆盖盲区)。</div>';
+  h+='<div style="margin:4px 0"><b style="color:#0f766e">大小：</b>'+line(big,function(k){return k+'大'+(4-k)+'小';})+'</div>';
+  h+='<div style="margin:4px 0"><b style="color:#0f766e">单双：</b>'+line(odd,function(j){return j+'单'+(4-j)+'双';})+'</div>';
+  h+='<div style="font-size:11px;color:#64748b;margin-top:4px">提示:覆盖是为了不押死一种形态,不代表补上盲区就更会中——每期独立随机。</div>';
+  out.innerHTML=h;
 }
 // 🔬 罗汉·回测：point-in-time 滚动，测「本月最热罗汉」和「最久违罗汉」选号命中率 vs 固定最常见基准
 function zoRohanBacktest(){
