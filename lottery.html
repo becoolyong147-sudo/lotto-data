@@ -21201,6 +21201,7 @@ async function doExportExcel(){
       headerRow.height = 22;
 
       let lastMonth = null;
+      const huazF = [], huazB = []; // V27 化整为一：整栏收集(全期) → 之后按相同值统一上色
       for(const r of rows){
         const month = r.date.slice(0,7);
         if(lastMonth !== null && month !== lastMonth){
@@ -21259,25 +21260,16 @@ async function doExportExcel(){
         for(const c of COL_PARITY) v25PaintCell(xlRow.getCell(c), v25LabelColor(xlRow.getCell(c).value));
         for(const c of COL_SIZE)   v25PaintCell(xlRow.getCell(c), v25LabelColor(xlRow.getCell(c).value));
         for(const c of COL_ROOT)   v25PaintCell(xlRow.getCell(c), v25RootColor(xlRow.getCell(c).value));
-        // V27 化整为一 6 列：F1F2F3 之间有相同就上色；B1B2B3 之间有相同就上色（前后不互比）
+        // V27 化整为一 6 列：先只设文本格式并记录，等整栏收集完再按「跨期相同值」统一上色
         // 列顺序：COL_HUAZ[0..2]=F1F2F3(值 HZ[0],HZ[2],HZ[4])；COL_HUAZ[3..5]=B1B2B3(值 HZ[1],HZ[3],HZ[5])
-        (function(){
-          const Ftrio = [HZ[0], HZ[2], HZ[4]];
-          const Btrio = [HZ[1], HZ[3], HZ[5]];
-          function paintTrio(trio, cols){
-            for(let i = 0; i < 3; i++){
-              const cell = xlRow.getCell(cols[i]);
-              cell.numFmt = '@'; // text format — 保护前导 0
-              const vi = trio[i].value;
-              if(vi == null || vi === '') continue;
-              let dup = false;
-              for(let j = 0; j < 3; j++){ if(j !== i && String(trio[j].value) === String(vi)){ dup = true; break; } }
-              if(dup) v25PaintCell(cell, v26HuazhengColor(trio[i]));
-            }
-          }
-          paintTrio(Ftrio, [COL_HUAZ[0], COL_HUAZ[1], COL_HUAZ[2]]);
-          paintTrio(Btrio, [COL_HUAZ[3], COL_HUAZ[4], COL_HUAZ[5]]);
-        })();
+        [HZ[0], HZ[2], HZ[4]].forEach(function(hz, i){
+          const cell = xlRow.getCell(COL_HUAZ[i]); cell.numFmt = '@';
+          if(hz.value != null && hz.value !== '') huazF.push({cell:cell, val:String(hz.value)});
+        });
+        [HZ[1], HZ[3], HZ[5]].forEach(function(hz, i){
+          const cell = xlRow.getCell(COL_HUAZ[3+i]); cell.numFmt = '@';
+          if(hz.value != null && hz.value !== '') huazB.push({cell:cell, val:String(hz.value)});
+        });
         for(const c of COL_ZONE4D) v25PaintCell(xlRow.getCell(c), v25ZoneColor(xlRow.getCell(c).value));
         for(const c of COL_BAND4D) v25PaintCell(xlRow.getCell(c), v25BandColor(xlRow.getCell(c).value));
         for(const c of COL_BAND3D) v25PaintCell(xlRow.getCell(c), v25BandColor(xlRow.getCell(c).value));
@@ -21299,6 +21291,24 @@ async function doExportExcel(){
 
         totalRecords++;
       }
+
+      // V27 化整为一：整栏(全期)里出现≥2次的相同值 → 统一上色(同值同色)，只出现一次的留白
+      // F 栏(F1F2F3)自成一组，B 栏(B1B2B3)自成一组，前后互不影响
+      const HUAZ_PAL = [
+        {bg:'FFFDE68A',fg:'FF78350F'}, {bg:'FFBBF7D0',fg:'FF14532D'}, {bg:'FFBFDBFE',fg:'FF1E3A8A'},
+        {bg:'FFFBCFE8',fg:'FF831843'}, {bg:'FFDDD6FE',fg:'FF4C1D95'}, {bg:'FFFED7AA',fg:'FF7C2D12'},
+        {bg:'FFA7F3D0',fg:'FF065F46'}, {bg:'FFE9D5FF',fg:'FF581C87'}, {bg:'FFFECACA',fg:'FF7F1D1D'},
+        {bg:'FFC7D2FE',fg:'FF3730A3'}, {bg:'FFFEF08A',fg:'FF713F12'}, {bg:'FF99F6E4',fg:'FF134E4A'}
+      ];
+      function colorHuazDup(entries){
+        const cnt = {};
+        entries.forEach(function(e){ cnt[e.val] = (cnt[e.val]||0) + 1; });
+        const colorOf = {}; let idx = 0;
+        Object.keys(cnt).sort().forEach(function(v){ if(cnt[v] >= 2){ colorOf[v] = HUAZ_PAL[idx % HUAZ_PAL.length]; idx++; } });
+        entries.forEach(function(e){ if(colorOf[e.val]) v25PaintCell(e.cell, colorOf[e.val]); });
+      }
+      colorHuazDup(huazF);
+      colorHuazDup(huazB);
     }
 
     // ---- 说明 sheet ----
