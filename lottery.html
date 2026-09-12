@@ -6107,6 +6107,14 @@ function doPermTrend(){
 function seaPermKey(num){return pz(num).split('').sort().join('');}
 // 把 YYYY-MM-DD 的月份 (1-12) 取出
 function seaMonth(date){return parseInt(String(date).slice(5,7),10);}
+// 合并「新期(auto_results)+ 历史库 DB」，按日期去重 → 季节统计才能反映最新开奖
+function seaRecs(market){
+  const nd=(typeof getNewResults==='function')?getNewResults():{};
+  const seen={}, out=[];
+  (nd[market]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; out.push(d); } });
+  ((typeof DB!=='undefined'&&DB[market])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; out.push(d); } });
+  return out;
+}
 // 时间窗口的标签 + 数量 + 理论均匀占比
 function seaWindows(period){
   if(period==='month'){
@@ -6129,7 +6137,7 @@ function seaMinYear(recs,yearsBack){
   return maxY-yearsBack+1; // 例: 最新2025, 近5年 => 2021..2025
 }
 function seaCollect(market,prize,level,period,yearsBack){
-  const recs=DB[market]||[];
+  const recs=seaRecs(market);
   const w=seaWindows(period);
   const prizes=prize==='all'?[0,1,2]:[parseInt(prize,10)];
   const minYear=seaMinYear(recs,yearsBack);
@@ -6204,13 +6212,22 @@ function doSeasonRank(){
 
   const uniform=1/w.count; // 理论均匀占比
 
-  // 「本年出现」核对：最新年份里，各窗口该组是否真的开出过（像生肖图的本月已开）
-  let refYear=0; samples.forEach(s=>{const y=parseInt(String(s.date).slice(0,4),10); if(y>refYear)refYear=y;});
+  // 「本年出现」核对：用「含本月」的完整数据（samples 排除了本月，会让本月窗口永远显示未开）
+  const _fullRecs=seaRecs(market);
+  const _prizesCH=prize==='all'?[0,1,2]:[parseInt(prize,10)];
+  let refYear=0; _fullRecs.forEach(r=>{const y=parseInt(String(r.date).slice(0,4),10); if(y>refYear)refYear=y;});
   const curHit={}; // key -> [win.count] of {date,num,prize} 或 null（取最新一次）
-  samples.forEach(s=>{
-    if(parseInt(String(s.date).slice(0,4),10)!==refYear) return;
-    if(!curHit[s.key]) curHit[s.key]=new Array(w.count).fill(null);
-    if(!curHit[s.key][s.winIdx]) curHit[s.key][s.winIdx]={date:s.date,num:s.num,prize:s.prize}; // samples 新→旧，首次即最新
+  _fullRecs.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).forEach(r=>{
+    const y=parseInt(String(r.date).slice(0,4),10); if(y!==refYear) return;
+    const m=seaMonth(r.date); if(!m||m<1||m>12) return;
+    const dyy=parseInt(String(r.date).slice(8,10),10)||1;
+    const wi=w.idxOf(m,dyy);
+    _prizesCH.forEach(pi=>{
+      const raw=r.nums[pi]; if(raw==null||raw==='') return;
+      const num=pz(raw); const key=level==='perm'?seaPermKey(num):num;
+      if(!curHit[key]) curHit[key]=new Array(w.count).fill(null);
+      if(!curHit[key][wi]) curHit[key][wi]={date:r.date,num:num,prize:pi}; // 新→旧，首次即最新
+    });
   });
 
   // 为每个窗口建一个排行: 在该窗口里集中度最高的 key
@@ -6440,7 +6457,7 @@ function doSeasonQuery(){
 
   // 月份 + 半年 + 季度 三套窗口都算, 给最丰富的视图
   const monthW=seaWindows('month'), halfW=seaWindows('half'), quarterW=seaWindows('quarter');
-  const recs=DB[market]||[];
+  const recs=seaRecs(market);
   const minYear=seaMinYear(recs,yearsBack);
   const yearLabel=yearsBack>0?('近 '+yearsBack+' 年（'+minYear+' 年起）'):'全部年份';
   const prizes=prize==='all'?[0,1,2]:[parseInt(prize,10)];
