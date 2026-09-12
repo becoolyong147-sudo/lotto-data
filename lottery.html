@@ -8302,6 +8302,26 @@ function doBacktest(){
   <div id="zo-freq-result" style="margin-top:10px"></div>
 </div>
 
+<div class="card" style="border:2px solid #0e7490">
+  <h3>🧾 回测这批号 — 查你发过的号中没中</h3>
+  <div class="warn">把你之前发群的号码贴进来，选公司和「发单日期」，它会去对<b>那天之后</b>的实际开奖，告诉你每个号中了没、什么时候中、哪个奖。<br><b>正字</b>=完全一样开在头/二/三；<b>调字</b>=全排列同组（发1234，开4231也算）。</div>
+  <div class="row" style="margin-top:10px">
+    <div class="ig"><label>市场</label>
+      <select id="zo-cb-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>发单日期(含之后)</label><input type="date" id="zo-cb-date"></div>
+    <div class="ig"><label>只查到</label><input type="date" id="zo-cb-date-to" title="留空=查到最新"></div>
+    <div class="ig"><label>命中算法</label>
+      <select id="zo-cb-mode"><option value="both">正字+调字</option><option value="exact">只正字</option><option value="box">只调字</option></select>
+    </div>
+  </div>
+  <div class="ig" style="margin-top:6px"><label style="display:block">号码（空格/逗号/换行分隔，可多个）</label>
+    <textarea id="zo-cb-nums" rows="3" style="width:100%;font-family:monospace;font-size:14px" placeholder="例如：1234 5678, 0369"></textarea>
+  </div>
+  <div class="ig" style="margin-top:6px"><button class="btn btn-green" onclick="zoCheckBatch()">🔍 回测这批号</button></div>
+  <div id="zo-cb-result" style="margin-top:10px"></div>
+</div>
+
 <div class="card" style="border:2px solid #16a34a">
   <h3>📊 公开复盘 — 验证生肖推荐是否命中头/二/三奖（含调字）</h3>
   <div class="warn">
@@ -15470,6 +15490,61 @@ function zoMemberPPCopy(){
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).then(()=>alert('已复制逐期话术，可直接发群。')).catch(()=>alert(t));
   } else { alert(t); }
+}
+// ===== 🧾 回测这批号：查用户发过的号在指定日期之后有没有中 =====
+function zoCheckBatch(){
+  const out = document.getElementById('zo-cb-result');
+  const market = document.getElementById('zo-cb-market').value;
+  const from = document.getElementById('zo-cb-date').value;
+  const to = document.getElementById('zo-cb-date-to').value;
+  const mode = document.getElementById('zo-cb-mode').value;
+  const raw = document.getElementById('zo-cb-nums').value || '';
+  if(!from){ out.innerHTML='<div class="error">请先选「发单日期」。</div>'; return; }
+  const nums = raw.split(/[\s,;，、]+/).map(s=>s.trim()).filter(s=>/^\d{1,4}$/.test(s)).map(s=>pz(s));
+  if(!nums.length){ out.innerHTML='<div class="error">请贴至少一个号码（1-4位数字）。</div>'; return; }
+  // 合并数据, 取 from..to 之间, 旧→新
+  const nd = (typeof getNewResults==='function') ? getNewResults() : {};
+  const seen={}, draws=[];
+  (nd[market]||[]).forEach(d=>{ if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  (DB[market]||[]).forEach(d=>{ if(d&&d.date&&!seen[d.date]){ seen[d.date]=1; draws.push(d); } });
+  let win = draws.filter(d=> d.date>=from && (!to || d.date<=to) && !String(d.date).endsWith('-00'));
+  win.sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  if(!win.length){ out.innerHTML='<div class="error">'+market+' 在这段日期没有开奖数据（可能还没开或数据没更新）。</div>'; return; }
+  const PN=['头','二','三'];
+  const dedup = Array.from(new Set(nums));
+  // 每个号找命中
+  const rows = dedup.map(function(bet){
+    const bKey = seaPermKey(bet);
+    const hits = [];
+    win.forEach(function(d){
+      (d.nums||[]).forEach(function(n,pi){
+        if(n==null||n==='') return; const s=pz(n);
+        const exact = s===bet;
+        const box = seaPermKey(s)===bKey;
+        if(mode==='exact' && !exact) return;
+        if(mode==='box' && !box) return;
+        if(!exact && !box) return;
+        hits.push({date:d.date, prize:PN[pi], num:s, type: exact?'正':'调'});
+      });
+    });
+    return {bet, hits};
+  });
+  const totalHitNums = rows.filter(r=>r.hits.length).length;
+  const totalHitTimes = rows.reduce((s,r)=>s+r.hits.length,0);
+  let h = '<div class="card" style="border:2px solid #0e7490">';
+  h += '<div style="font-weight:800;color:#0e7490;margin-bottom:6px">'+market+' · '+from+(to?(' → '+to):' → 最新')+' · 共 '+win.length+' 期</div>';
+  h += '<div style="margin-bottom:8px;font-size:14px">📊 '+dedup.length+' 个号里 <b style="color:#16a34a">'+totalHitNums+'</b> 个中过，累计命中 <b>'+totalHitTimes+'</b> 次（'+({both:'正字+调字',exact:'只正字',box:'只调字'}[mode])+'）。</div>';
+  h += '<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#ecfeff;color:#0e7490"><th style="text-align:left;padding:6px 10px">号码</th><th style="text-align:left;padding:6px 10px">结果</th></tr>';
+  rows.forEach(function(r){
+    if(r.hits.length){
+      const detail = r.hits.map(x=>x.date+' '+x.prize+'奖('+x.type+' '+x.num+')').join('<br>');
+      h += '<tr style="border-top:1px solid #e2e8f0;background:#f0fdf4"><td style="padding:6px 10px;font-family:monospace;font-weight:800">'+r.bet+'</td><td style="padding:6px 10px;color:#166534">✅ 中 '+r.hits.length+' 次<br><span style="font-size:11px;color:#475569">'+detail+'</span></td></tr>';
+    } else {
+      h += '<tr style="border-top:1px solid #e2e8f0"><td style="padding:6px 10px;font-family:monospace;font-weight:800;color:#94a3b8">'+r.bet+'</td><td style="padding:6px 10px;color:#94a3b8">❌ 没中</td></tr>';
+    }
+  });
+  h += '</table></div>';
+  out.innerHTML = h;
 }
 // ===== 🔱 罗汉版会员：按18罗汉选号（热罗汉 + 久违罗汉）=====
 let ZO_MEM_ROHAN = null;
