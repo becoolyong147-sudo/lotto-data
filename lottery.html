@@ -21205,6 +21205,9 @@ async function doExportExcel(){
       let lastMonth = null;
       // V27 化整为一：按「列」收集(F1F2F3 / B1B2B3 各一列)，之后找上下相邻同值的「链接」上色
       const colF = [[],[],[]], colB = [[],[],[]];
+      // V28 全栏「链接」标记：收集每个有色列(5..80，跳过空白)，之后给纵向相邻同值的格子加红框
+      const linkCols = {};
+      for(let c = 5; c <= HEADERS.length; c++){ if(!BLANK_COLS.has(c)) linkCols[c] = []; }
       for(const r of rows){
         const month = r.date.slice(0,7);
         if(lastMonth !== null && month !== lastMonth){
@@ -21471,50 +21474,57 @@ function zoBuildMarketTableHTML(market){
   var BLANK=' style="background:#1e293b;min-width:3px;width:3px;padding:0"';
   var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
   var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
+  // 保留每栏的意义色；另外把「同列上下相邻同值」的格子加红框标记(链接)。全栏统一。
+  function colorFor(type,v){
+    if(v==null||v==='') return null;
+    if(type==='label') return v25LabelColor(v);
+    if(type==='root')  return v25RootColor(v);
+    if(type==='band')  return v25BandColor(v);
+    if(type==='zone')  return v25ZoneColor(v);
+    if(type==='pts4'){ var n=pn(v);  return n!=null?v25Pts4DColor(n):null; }
+    if(type==='pts3'){ var n2=pn(v); return n2!=null?v25Pts3DColor(n2):null; }
+    return null;
+  }
+  var GROUPS=[
+    {f:'fParity',t:'label'},{f:'fRoot',t:'root'},{f:'fSize',t:'label'},{blank:1},
+    {f:'mParity',t:'label'},{f:'mRoot',t:'root'},{f:'mSize',t:'label'},{blank:1},
+    {f:'bParity',t:'label'},{f:'bRoot',t:'root'},{f:'bSize',t:'label'},{blank:1},
+    {f:'pts4D',t:'pts4'},{f:'zone4D',t:'zone'},{blank:1},
+    {f:'root4D',t:'root'},{f:'band4D',t:'band'},{blank:1},
+    {f:'f3Root',t:'root'},{f:'f3Pts',t:'pts3'},{f:'f3Zone',t:'zone'},{blank:1},
+    {f:'b3Band',t:'band'},{f:'b3Raw',t:'none'},{f:'b3Pts',t:'pts3'},{f:'b3Zone',t:'zone'},{f:'b3Root',t:'root'},{blank:1},
+    {huaz:'F'},{huaz:'B'}
+  ];
+  var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
+  // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
+  var colDefs=[];
+  GROUPS.forEach(function(g){
+    if(g.blank) return;
+    if(g.huaz){
+      var seqs=g.huaz==='F'?seqF:seqB, info=g.huaz==='F'?fInfo:bInfo;
+      for(var k=0;k<3;k++){ (function(k){ colDefs.push({ vals:seqs[k], colorAt:function(ri){ return info.linked[k][ri]?info.colorOf[seqs[k][ri]]:null; } }); })(k); }
+    } else {
+      for(var p=0;p<3;p++){ (function(p){
+        var vals=rd.map(function(x,ri){ var v=Ls[ri][p][g.f]; return (v==null?'':String(v)); });
+        colDefs.push({ vals:vals, colorAt:function(ri){ return colorFor(g.t, Ls[ri][p][g.f]); } });
+      })(p); }
+    }
+  });
+  // 链接检测：每列纵向相邻同值
+  colDefs.forEach(function(cd){ cd.linked=cd.vals.map(function(v,i){ if(v==='')return false; return (i>0&&cd.vals[i-1]===v)||(i<cd.vals.length-1&&cd.vals[i+1]===v); }); });
+  var LINKB=';box-shadow:inset 0 0 0 2px #dc2626';
   var body=''; var lastMonth=null;
   rd.forEach(function(x, ri){
     var mo=x.date.slice(0,7);
     if(lastMonth!==null && mo!==lastMonth){ body+='<tr><td colspan="'+HEADERS.length+'" style="height:4px;background:#f1f5f9;padding:0"></td></tr>'; }
     lastMonth=mo;
-    var L1=x.L1,L2=x.L2,L3=x.L3, tr='';
-    tr+='<td style="white-space:nowrap;background:#f8fafc;font-weight:700">'+x.date+'</td>';
+    var tr='<td style="white-space:nowrap;background:#f8fafc;font-weight:700">'+x.date+'</td>';
     tr+='<td style="font-weight:700">'+x.p1+'</td><td style="font-weight:700">'+x.p2+'</td><td style="font-weight:700">'+x.p3+'</td>';
-    // 前2D: parity/root/size
-    tr+=_v27cell(L1.fParity,v25LabelColor(L1.fParity))+_v27cell(L2.fParity,v25LabelColor(L2.fParity))+_v27cell(L3.fParity,v25LabelColor(L3.fParity));
-    tr+=_v27cell(L1.fRoot,v25RootColor(L1.fRoot))+_v27cell(L2.fRoot,v25RootColor(L2.fRoot))+_v27cell(L3.fRoot,v25RootColor(L3.fRoot));
-    tr+=_v27cell(L1.fSize,v25LabelColor(L1.fSize))+_v27cell(L2.fSize,v25LabelColor(L2.fSize))+_v27cell(L3.fSize,v25LabelColor(L3.fSize));
-    tr+='<td'+BLANK+'></td>';
-    tr+=_v27cell(L1.mParity,v25LabelColor(L1.mParity))+_v27cell(L2.mParity,v25LabelColor(L2.mParity))+_v27cell(L3.mParity,v25LabelColor(L3.mParity));
-    tr+=_v27cell(L1.mRoot,v25RootColor(L1.mRoot))+_v27cell(L2.mRoot,v25RootColor(L2.mRoot))+_v27cell(L3.mRoot,v25RootColor(L3.mRoot));
-    tr+=_v27cell(L1.mSize,v25LabelColor(L1.mSize))+_v27cell(L2.mSize,v25LabelColor(L2.mSize))+_v27cell(L3.mSize,v25LabelColor(L3.mSize));
-    tr+='<td'+BLANK+'></td>';
-    tr+=_v27cell(L1.bParity,v25LabelColor(L1.bParity))+_v27cell(L2.bParity,v25LabelColor(L2.bParity))+_v27cell(L3.bParity,v25LabelColor(L3.bParity));
-    tr+=_v27cell(L1.bRoot,v25RootColor(L1.bRoot))+_v27cell(L2.bRoot,v25RootColor(L2.bRoot))+_v27cell(L3.bRoot,v25RootColor(L3.bRoot));
-    tr+=_v27cell(L1.bSize,v25LabelColor(L1.bSize))+_v27cell(L2.bSize,v25LabelColor(L2.bSize))+_v27cell(L3.bSize,v25LabelColor(L3.bSize));
-    tr+='<td'+BLANK+'></td>';
-    // 4D PNT + zone
-    tr+=_v27cell(L1.pts4D,pn(L1.pts4D)!=null?v25Pts4DColor(pn(L1.pts4D)):null)+_v27cell(L2.pts4D,pn(L2.pts4D)!=null?v25Pts4DColor(pn(L2.pts4D)):null)+_v27cell(L3.pts4D,pn(L3.pts4D)!=null?v25Pts4DColor(pn(L3.pts4D)):null);
-    tr+=_v27cell(L1.zone4D,v25ZoneColor(L1.zone4D))+_v27cell(L2.zone4D,v25ZoneColor(L2.zone4D))+_v27cell(L3.zone4D,v25ZoneColor(L3.zone4D));
-    tr+='<td'+BLANK+'></td>';
-    // 4D root + band
-    tr+=_v27cell(L1.root4D,v25RootColor(L1.root4D))+_v27cell(L2.root4D,v25RootColor(L2.root4D))+_v27cell(L3.root4D,v25RootColor(L3.root4D));
-    tr+=_v27cell(L1.band4D,v25BandColor(L1.band4D))+_v27cell(L2.band4D,v25BandColor(L2.band4D))+_v27cell(L3.band4D,v25BandColor(L3.band4D));
-    tr+='<td'+BLANK+'></td>';
-    // 前3D root / pts / zone
-    tr+=_v27cell(L1.f3Root,v25RootColor(L1.f3Root))+_v27cell(L2.f3Root,v25RootColor(L2.f3Root))+_v27cell(L3.f3Root,v25RootColor(L3.f3Root));
-    tr+=_v27cell(L1.f3Pts,pn(L1.f3Pts)!=null?v25Pts3DColor(pn(L1.f3Pts)):null)+_v27cell(L2.f3Pts,pn(L2.f3Pts)!=null?v25Pts3DColor(pn(L2.f3Pts)):null)+_v27cell(L3.f3Pts,pn(L3.f3Pts)!=null?v25Pts3DColor(pn(L3.f3Pts)):null);
-    tr+=_v27cell(L1.f3Zone,v25ZoneColor(L1.f3Zone))+_v27cell(L2.f3Zone,v25ZoneColor(L2.f3Zone))+_v27cell(L3.f3Zone,v25ZoneColor(L3.f3Zone));
-    tr+='<td'+BLANK+'></td>';
-    // 后3D band / raw / pts / zone / root
-    tr+=_v27cell(L1.b3Band,v25BandColor(L1.b3Band))+_v27cell(L2.b3Band,v25BandColor(L2.b3Band))+_v27cell(L3.b3Band,v25BandColor(L3.b3Band));
-    tr+=_v27cell(L1.b3Raw,null)+_v27cell(L2.b3Raw,null)+_v27cell(L3.b3Raw,null);
-    tr+=_v27cell(L1.b3Pts,pn(L1.b3Pts)!=null?v25Pts3DColor(pn(L1.b3Pts)):null)+_v27cell(L2.b3Pts,pn(L2.b3Pts)!=null?v25Pts3DColor(pn(L2.b3Pts)):null)+_v27cell(L3.b3Pts,pn(L3.b3Pts)!=null?v25Pts3DColor(pn(L3.b3Pts)):null);
-    tr+=_v27cell(L1.b3Zone,v25ZoneColor(L1.b3Zone))+_v27cell(L2.b3Zone,v25ZoneColor(L2.b3Zone))+_v27cell(L3.b3Zone,v25ZoneColor(L3.b3Zone));
-    tr+=_v27cell(L1.b3Root,v25RootColor(L1.b3Root))+_v27cell(L2.b3Root,v25RootColor(L2.b3Root))+_v27cell(L3.b3Root,v25RootColor(L3.b3Root));
-    tr+='<td'+BLANK+'></td>';
-    // 化整为一 F1F2F3 / B1B2B3（链接上色：同列上下相邻同值才上色）
-    for(var k=0;k<3;k++){ var vF=seqF[k][ri]; tr+=_v27cell(vF, fInfo.linked[k][ri]?fInfo.colorOf[vF]:null); }
-    for(var k2=0;k2<3;k2++){ var vB=seqB[k2][ri]; tr+=_v27cell(vB, bInfo.linked[k2][ri]?bInfo.colorOf[vB]:null); }
+    var ci=0;
+    GROUPS.forEach(function(g){
+      if(g.blank){ tr+='<td'+BLANK+'></td>'; return; }
+      for(var q=0;q<3;q++){ var cd=colDefs[ci++]; tr+=_v27cell(cd.vals[ri], cd.colorAt(ri), cd.linked[ri]?LINKB:''); }
+    });
     body+='<tr>'+tr+'</tr>';
   });
   return '<table style="border-collapse:collapse;font-size:11px;text-align:center;white-space:nowrap">'+th+'<tbody>'+body+'</tbody></table>';
