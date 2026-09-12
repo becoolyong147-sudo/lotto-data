@@ -11466,7 +11466,9 @@ function zo2DRootBacktest(){
   <h3>🚀 一键导出</h3>
   <div style="font-size:12px;color:#475569;margin-bottom:8px">范围：2020-01-01 至今 · 5 个市场 · 全 80 列标签 · 每月分隔行</div>
   <button id="export-btn" class="btn-mega" onclick="doExportExcel()">📤 生成 Excel 文件</button>
+  <button id="screen-view-btn" class="btn-mega" style="background:#0f766e" onclick="zoScreenView()">📺 屏幕查看（不导出文件）</button>
   <div id="export-progress" class="export-progress"></div>
+  <div id="screen-view-result" style="margin-top:12px"></div>
 </div>
 </div>
 
@@ -21406,6 +21408,121 @@ async function doExportExcel(){
     btn.disabled = false;
     btn.textContent = '📤 生成 Excel 文件';
   }
+}
+
+// ===== 📺 屏幕查看：把导出的彩色表直接渲染进页面（不生成文件）=====
+function _v27css(argb){ return argb ? ('#'+String(argb).slice(-6)) : ''; }
+function _v27cell(val, colorObj, extra){
+  var v = (val==null||val==='') ? '' : val;
+  if(colorObj) return '<td style="background:'+_v27css(colorObj.bg)+';color:'+_v27css(colorObj.fg)+';font-weight:700'+(extra||'')+'">'+v+'</td>';
+  return '<td style="'+(extra?extra.replace(/^;/,''):'')+'">'+v+'</td>';
+}
+// 与 Excel 导出完全相同的列顺序与配色，返回单个市场的表格 HTML
+function zoBuildMarketTableHTML(market){
+  var rows = (DB[market]||[]).filter(function(r){return r.date>='2020-01-01';}).slice()
+    .sort(function(a,b){ return a.date.localeCompare(b.date) || (a.draw||'').localeCompare(b.draw||''); });
+  if(!rows.length) return '<div style="color:#94a3b8;padding:8px">无数据</div>';
+  // 预计算每行标签 + 化整值
+  var rd = rows.map(function(r){
+    var p1=pz(r.nums[0]), p2=pz(r.nums[1]), p3=pz(r.nums[2]);
+    var HZ=[ v26Huazheng(v24Front2(p1)), v26Huazheng(v24Back2(p1)),
+             v26Huazheng(v24Front2(p2)), v26Huazheng(v24Back2(p2)),
+             v26Huazheng(v24Front2(p3)), v26Huazheng(v24Back2(p3)) ];
+    return {date:r.date, p1:p1, p2:p2, p3:p3, L1:v24AllLabels(p1), L2:v24AllLabels(p2), L3:v24AllLabels(p3), HZ:HZ};
+  });
+  // 化整为一：整栏(全期)相同值 → 同色；不同值不同色；只出现一次留白（F/B 各自独立）
+  var HUAZ_PAL=[ {bg:'FFFDE68A',fg:'FF78350F'},{bg:'FFBBF7D0',fg:'FF14532D'},{bg:'FFBFDBFE',fg:'FF1E3A8A'},
+    {bg:'FFFBCFE8',fg:'FF831843'},{bg:'FFDDD6FE',fg:'FF4C1D95'},{bg:'FFFED7AA',fg:'FF7C2D12'},
+    {bg:'FFA7F3D0',fg:'FF065F46'},{bg:'FFE9D5FF',fg:'FF581C87'},{bg:'FFFECACA',fg:'FF7F1D1D'},
+    {bg:'FFC7D2FE',fg:'FF3730A3'},{bg:'FFFEF08A',fg:'FF713F12'},{bg:'FF99F6E4',fg:'FF134E4A'} ];
+  function buildColorMap(getVals){
+    var cnt={}; rd.forEach(function(x){ getVals(x).forEach(function(v){ if(v!=null&&v!==''){ v=String(v); cnt[v]=(cnt[v]||0)+1; } }); });
+    var map={}, idx=0; Object.keys(cnt).sort().forEach(function(v){ if(cnt[v]>=2){ map[v]=HUAZ_PAL[idx%HUAZ_PAL.length]; idx++; } }); return map;
+  }
+  var fMap=buildColorMap(function(x){return [x.HZ[0].value,x.HZ[2].value,x.HZ[4].value];});
+  var bMap=buildColorMap(function(x){return [x.HZ[1].value,x.HZ[3].value,x.HZ[5].value];});
+  var HEADERS=['Date','1','2','3','F1','F2','F3','F1-1','F1-2','F1-3','F1','F2','F3','',
+    'M1','M2','M3','M1-1','M1-2','M1-3','M1','M2','M3','',
+    'B1','B2','B3','B1-1','B1-2','B1-3','B1','B2','B3','',
+    'PNT','PNT','PNT','P1','P2','P3','','4D1','4D2','4D3','4DBS','4DBS','4DBS','',
+    'F3D','F3D2','F3D3','F3P1','F3P2','F3P3','F3P_1','F3P_2','F3P_3','',
+    '3DBS1','3DBS2','3DBS3','B3D1','B3D2','B3D3','3DP1','3DP2','3DP3','B3P_1','B3P_2','B3P_3','B3D1','B3D2','B3D3','',
+    'F1','F2','F3','B1','B2','B3'];
+  var BLANK=' style="background:#1e293b;min-width:3px;width:3px;padding:0"';
+  var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
+  var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
+  var body=''; var lastMonth=null;
+  rd.forEach(function(x){
+    var mo=x.date.slice(0,7);
+    if(lastMonth!==null && mo!==lastMonth){ body+='<tr><td colspan="'+HEADERS.length+'" style="height:4px;background:#f1f5f9;padding:0"></td></tr>'; }
+    lastMonth=mo;
+    var L1=x.L1,L2=x.L2,L3=x.L3, tr='';
+    tr+='<td style="white-space:nowrap;background:#f8fafc;font-weight:700">'+x.date+'</td>';
+    tr+='<td style="font-weight:700">'+x.p1+'</td><td style="font-weight:700">'+x.p2+'</td><td style="font-weight:700">'+x.p3+'</td>';
+    // 前2D: parity/root/size
+    tr+=_v27cell(L1.fParity,v25LabelColor(L1.fParity))+_v27cell(L2.fParity,v25LabelColor(L2.fParity))+_v27cell(L3.fParity,v25LabelColor(L3.fParity));
+    tr+=_v27cell(L1.fRoot,v25RootColor(L1.fRoot))+_v27cell(L2.fRoot,v25RootColor(L2.fRoot))+_v27cell(L3.fRoot,v25RootColor(L3.fRoot));
+    tr+=_v27cell(L1.fSize,v25LabelColor(L1.fSize))+_v27cell(L2.fSize,v25LabelColor(L2.fSize))+_v27cell(L3.fSize,v25LabelColor(L3.fSize));
+    tr+='<td'+BLANK+'></td>';
+    tr+=_v27cell(L1.mParity,v25LabelColor(L1.mParity))+_v27cell(L2.mParity,v25LabelColor(L2.mParity))+_v27cell(L3.mParity,v25LabelColor(L3.mParity));
+    tr+=_v27cell(L1.mRoot,v25RootColor(L1.mRoot))+_v27cell(L2.mRoot,v25RootColor(L2.mRoot))+_v27cell(L3.mRoot,v25RootColor(L3.mRoot));
+    tr+=_v27cell(L1.mSize,v25LabelColor(L1.mSize))+_v27cell(L2.mSize,v25LabelColor(L2.mSize))+_v27cell(L3.mSize,v25LabelColor(L3.mSize));
+    tr+='<td'+BLANK+'></td>';
+    tr+=_v27cell(L1.bParity,v25LabelColor(L1.bParity))+_v27cell(L2.bParity,v25LabelColor(L2.bParity))+_v27cell(L3.bParity,v25LabelColor(L3.bParity));
+    tr+=_v27cell(L1.bRoot,v25RootColor(L1.bRoot))+_v27cell(L2.bRoot,v25RootColor(L2.bRoot))+_v27cell(L3.bRoot,v25RootColor(L3.bRoot));
+    tr+=_v27cell(L1.bSize,v25LabelColor(L1.bSize))+_v27cell(L2.bSize,v25LabelColor(L2.bSize))+_v27cell(L3.bSize,v25LabelColor(L3.bSize));
+    tr+='<td'+BLANK+'></td>';
+    // 4D PNT + zone
+    tr+=_v27cell(L1.pts4D,pn(L1.pts4D)!=null?v25Pts4DColor(pn(L1.pts4D)):null)+_v27cell(L2.pts4D,pn(L2.pts4D)!=null?v25Pts4DColor(pn(L2.pts4D)):null)+_v27cell(L3.pts4D,pn(L3.pts4D)!=null?v25Pts4DColor(pn(L3.pts4D)):null);
+    tr+=_v27cell(L1.zone4D,v25ZoneColor(L1.zone4D))+_v27cell(L2.zone4D,v25ZoneColor(L2.zone4D))+_v27cell(L3.zone4D,v25ZoneColor(L3.zone4D));
+    tr+='<td'+BLANK+'></td>';
+    // 4D root + band
+    tr+=_v27cell(L1.root4D,v25RootColor(L1.root4D))+_v27cell(L2.root4D,v25RootColor(L2.root4D))+_v27cell(L3.root4D,v25RootColor(L3.root4D));
+    tr+=_v27cell(L1.band4D,v25BandColor(L1.band4D))+_v27cell(L2.band4D,v25BandColor(L2.band4D))+_v27cell(L3.band4D,v25BandColor(L3.band4D));
+    tr+='<td'+BLANK+'></td>';
+    // 前3D root / pts / zone
+    tr+=_v27cell(L1.f3Root,v25RootColor(L1.f3Root))+_v27cell(L2.f3Root,v25RootColor(L2.f3Root))+_v27cell(L3.f3Root,v25RootColor(L3.f3Root));
+    tr+=_v27cell(L1.f3Pts,pn(L1.f3Pts)!=null?v25Pts3DColor(pn(L1.f3Pts)):null)+_v27cell(L2.f3Pts,pn(L2.f3Pts)!=null?v25Pts3DColor(pn(L2.f3Pts)):null)+_v27cell(L3.f3Pts,pn(L3.f3Pts)!=null?v25Pts3DColor(pn(L3.f3Pts)):null);
+    tr+=_v27cell(L1.f3Zone,v25ZoneColor(L1.f3Zone))+_v27cell(L2.f3Zone,v25ZoneColor(L2.f3Zone))+_v27cell(L3.f3Zone,v25ZoneColor(L3.f3Zone));
+    tr+='<td'+BLANK+'></td>';
+    // 后3D band / raw / pts / zone / root
+    tr+=_v27cell(L1.b3Band,v25BandColor(L1.b3Band))+_v27cell(L2.b3Band,v25BandColor(L2.b3Band))+_v27cell(L3.b3Band,v25BandColor(L3.b3Band));
+    tr+=_v27cell(L1.b3Raw,null)+_v27cell(L2.b3Raw,null)+_v27cell(L3.b3Raw,null);
+    tr+=_v27cell(L1.b3Pts,pn(L1.b3Pts)!=null?v25Pts3DColor(pn(L1.b3Pts)):null)+_v27cell(L2.b3Pts,pn(L2.b3Pts)!=null?v25Pts3DColor(pn(L2.b3Pts)):null)+_v27cell(L3.b3Pts,pn(L3.b3Pts)!=null?v25Pts3DColor(pn(L3.b3Pts)):null);
+    tr+=_v27cell(L1.b3Zone,v25ZoneColor(L1.b3Zone))+_v27cell(L2.b3Zone,v25ZoneColor(L2.b3Zone))+_v27cell(L3.b3Zone,v25ZoneColor(L3.b3Zone));
+    tr+=_v27cell(L1.b3Root,v25RootColor(L1.b3Root))+_v27cell(L2.b3Root,v25RootColor(L2.b3Root))+_v27cell(L3.b3Root,v25RootColor(L3.b3Root));
+    tr+='<td'+BLANK+'></td>';
+    // 化整为一 F1F2F3 / B1B2B3（跨期同值同色）
+    var fv=[x.HZ[0].value,x.HZ[2].value,x.HZ[4].value], bv=[x.HZ[1].value,x.HZ[3].value,x.HZ[5].value];
+    fv.forEach(function(v){ tr+=_v27cell(v, (v!=null&&v!=='')?fMap[String(v)]:null); });
+    bv.forEach(function(v){ tr+=_v27cell(v, (v!=null&&v!=='')?bMap[String(v)]:null); });
+    body+='<tr>'+tr+'</tr>';
+  });
+  return '<table style="border-collapse:collapse;font-size:11px;text-align:center;white-space:nowrap">'+th+'<tbody>'+body+'</tbody></table>';
+}
+function zoScreenView(){
+  var out=document.getElementById('screen-view-result'); if(!out) return;
+  var markets=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var h='<div style="font-size:12px;color:#475569;margin-bottom:8px">📺 屏幕查看 · 全部公司全部历史(2020至今) · 完整表 · 化整6栏跨期同值同色。<b>点公司名展开</b>(全部一起渲染会卡,故按需展开)。</div>';
+  markets.forEach(function(mk){
+    var n=((DB[mk]||[]).filter(function(r){return r.date>='2020-01-01';})).length;
+    h+='<details style="margin:4px 0;border:1px solid #cbd5e1;border-radius:8px" data-mk="'+mk+'">'+
+       '<summary style="cursor:pointer;padding:8px 12px;font-weight:800;color:#0f766e;background:#f0fdfa;border-radius:8px">'+mk+' <span style="font-weight:500;color:#64748b;font-size:12px">（'+n+' 期）</span></summary>'+
+       '<div class="sv-body" style="overflow:auto;max-height:70vh;padding:6px"><span style="color:#94a3b8;font-size:12px">展开渲染中…</span></div></details>';
+  });
+  out.innerHTML=h;
+  // 懒渲染：首次展开才生成该市场的表
+  out.querySelectorAll('details').forEach(function(d){
+    d.addEventListener('toggle', function(){
+      if(!d.open) return;
+      var body=d.querySelector('.sv-body');
+      if(body.getAttribute('data-done')) return;
+      body.setAttribute('data-done','1');
+      body.innerHTML='<span style="color:#94a3b8;font-size:12px">渲染中，请稍候…</span>';
+      setTimeout(function(){ try{ body.innerHTML=zoBuildMarketTableHTML(d.getAttribute('data-mk')); }catch(e){ body.innerHTML='<span style="color:#dc2626">出错：'+e.message+'</span>'; } }, 30);
+    });
+  });
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ============================================================
