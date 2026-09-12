@@ -21203,7 +21203,8 @@ async function doExportExcel(){
       headerRow.height = 22;
 
       let lastMonth = null;
-      const huazF = [], huazB = []; // V27 化整为一：整栏收集(全期) → 之后按相同值统一上色
+      // V27 化整为一：按「列」收集(F1F2F3 / B1B2B3 各一列)，之后找上下相邻同值的「链接」上色
+      const colF = [[],[],[]], colB = [[],[],[]];
       for(const r of rows){
         const month = r.date.slice(0,7);
         if(lastMonth !== null && month !== lastMonth){
@@ -21266,11 +21267,11 @@ async function doExportExcel(){
         // 列顺序：COL_HUAZ[0..2]=F1F2F3(值 HZ[0],HZ[2],HZ[4])；COL_HUAZ[3..5]=B1B2B3(值 HZ[1],HZ[3],HZ[5])
         [HZ[0], HZ[2], HZ[4]].forEach(function(hz, i){
           const cell = xlRow.getCell(COL_HUAZ[i]); cell.numFmt = '@';
-          if(hz.value != null && hz.value !== '') huazF.push({cell:cell, val:String(hz.value)});
+          colF[i].push({cell:cell, val:(hz.value==null?'':String(hz.value))});
         });
         [HZ[1], HZ[3], HZ[5]].forEach(function(hz, i){
           const cell = xlRow.getCell(COL_HUAZ[3+i]); cell.numFmt = '@';
-          if(hz.value != null && hz.value !== '') huazB.push({cell:cell, val:String(hz.value)});
+          colB[i].push({cell:cell, val:(hz.value==null?'':String(hz.value))});
         });
         for(const c of COL_ZONE4D) v25PaintCell(xlRow.getCell(c), v25ZoneColor(xlRow.getCell(c).value));
         for(const c of COL_BAND4D) v25PaintCell(xlRow.getCell(c), v25BandColor(xlRow.getCell(c).value));
@@ -21294,9 +21295,8 @@ async function doExportExcel(){
         totalRecords++;
       }
 
-      // V27 化整为一：整栏(全期)里出现≥2次的相同值 → 统一上色(同值同色)，只出现一次的留白
-      // F 栏(F1F2F3)自成一组，B 栏(B1B2B3)自成一组，前后互不影响
-      // F 用暖色系、B 用冷色系（两套不重叠）→ F 和 B 就算同号也绝不同色，不会看起来有链接
+      // V28 化整为一「链接上色」：每列(F1/F2/F3、B1/B2/B3)里，上下相邻两期同值→该串上色；
+      // 只看同一列纵向相邻，横向/跨列不算；孤立(上下都不同值)留白。F 暖色、B 冷色，两套不重叠。
       const HUAZ_PAL_F = [
         {bg:'FFFDE68A',fg:'FF78350F'}, {bg:'FFBBF7D0',fg:'FF14532D'}, {bg:'FFFED7AA',fg:'FF7C2D12'},
         {bg:'FFA7F3D0',fg:'FF065F46'}, {bg:'FFFEF08A',fg:'FF713F12'}, {bg:'FF99F6E4',fg:'FF134E4A'},
@@ -21307,15 +21307,22 @@ async function doExportExcel(){
         {bg:'FFE9D5FF',fg:'FF581C87'}, {bg:'FFC7D2FE',fg:'FF3730A3'}, {bg:'FFA5F3FC',fg:'FF155E75'},
         {bg:'FFF5D0FE',fg:'FF701A75'}, {bg:'FFFECDD3',fg:'FF881337'}
       ];
-      function colorHuazDup(entries, pal){
-        const cnt = {};
-        entries.forEach(function(e){ cnt[e.val] = (cnt[e.val]||0) + 1; });
+      function colorHuazChain(cols, pal){
+        const linkedVals = {}, linkedCells = [];
+        cols.forEach(function(col){
+          for(let i = 0; i < col.length; i++){
+            const v = col[i].val; if(v === '') continue;
+            const up = i > 0 && col[i-1].val === v;
+            const dn = i < col.length-1 && col[i+1].val === v;
+            if(up || dn){ linkedCells.push(col[i]); linkedVals[v] = 1; }
+          }
+        });
         const colorOf = {}; let idx = 0;
-        Object.keys(cnt).sort().forEach(function(v){ if(cnt[v] >= 2){ colorOf[v] = pal[idx % pal.length]; idx++; } });
-        entries.forEach(function(e){ if(colorOf[e.val]) v25PaintCell(e.cell, colorOf[e.val]); });
+        Object.keys(linkedVals).sort().forEach(function(v){ colorOf[v] = pal[idx % pal.length]; idx++; });
+        linkedCells.forEach(function(e){ v25PaintCell(e.cell, colorOf[e.val]); });
       }
-      colorHuazDup(huazF, HUAZ_PAL_F);
-      colorHuazDup(huazB, HUAZ_PAL_B);
+      colorHuazChain(colF, HUAZ_PAL_F);
+      colorHuazChain(colB, HUAZ_PAL_B);
     }
 
     // ---- 说明 sheet ----
@@ -21436,19 +21443,24 @@ function zoBuildMarketTableHTML(market){
     return {date:r.date, p1:p1, p2:p2, p3:p3, L1:v24AllLabels(p1), L2:v24AllLabels(p2), L3:v24AllLabels(p3), HZ:HZ};
   });
   // 化整为一：整栏(全期)相同值 → 同色；不同值不同色；只出现一次留白（F/B 各自独立）
-  // F 暖色系、B 冷色系（两套不重叠）→ F 和 B 就算同号也绝不同色
+  // V28 链接上色：每列(F1/F2/F3、B1/B2/B3)上下相邻同值才上色；F 暖色、B 冷色，两套不重叠
   var HUAZ_PAL_F=[ {bg:'FFFDE68A',fg:'FF78350F'},{bg:'FFBBF7D0',fg:'FF14532D'},{bg:'FFFED7AA',fg:'FF7C2D12'},
     {bg:'FFA7F3D0',fg:'FF065F46'},{bg:'FFFEF08A',fg:'FF713F12'},{bg:'FF99F6E4',fg:'FF134E4A'},
     {bg:'FFD9F99D',fg:'FF365314'},{bg:'FFFDBA74',fg:'FF7C2D12'} ];
   var HUAZ_PAL_B=[ {bg:'FFBFDBFE',fg:'FF1E3A8A'},{bg:'FFFBCFE8',fg:'FF831843'},{bg:'FFDDD6FE',fg:'FF4C1D95'},
     {bg:'FFE9D5FF',fg:'FF581C87'},{bg:'FFC7D2FE',fg:'FF3730A3'},{bg:'FFA5F3FC',fg:'FF155E75'},
     {bg:'FFF5D0FE',fg:'FF701A75'},{bg:'FFFECDD3',fg:'FF881337'} ];
-  function buildColorMap(getVals, pal){
-    var cnt={}; rd.forEach(function(x){ getVals(x).forEach(function(v){ if(v!=null&&v!==''){ v=String(v); cnt[v]=(cnt[v]||0)+1; } }); });
-    var map={}, idx=0; Object.keys(cnt).sort().forEach(function(v){ if(cnt[v]>=2){ map[v]=pal[idx%pal.length]; idx++; } }); return map;
+  function str_(v){ return (v==null?'':String(v)); }
+  // seqs: 3 列的纵向值序列(按期)；返回 {linked:[列][行]bool, colorOf:{值→色}}
+  function chainInfo(seqs, pal){
+    var linkedVals={};
+    var linked=seqs.map(function(seq){ return seq.map(function(v,i){ if(v==='')return false; var up=i>0&&seq[i-1]===v, dn=i<seq.length-1&&seq[i+1]===v; if(up||dn){linkedVals[v]=1;return true;} return false; }); });
+    var colorOf={}, idx=0; Object.keys(linkedVals).sort().forEach(function(v){ colorOf[v]=pal[idx%pal.length]; idx++; });
+    return {linked:linked, colorOf:colorOf};
   }
-  var fMap=buildColorMap(function(x){return [x.HZ[0].value,x.HZ[2].value,x.HZ[4].value];}, HUAZ_PAL_F);
-  var bMap=buildColorMap(function(x){return [x.HZ[1].value,x.HZ[3].value,x.HZ[5].value];}, HUAZ_PAL_B);
+  var seqF=[ rd.map(function(x){return str_(x.HZ[0].value);}), rd.map(function(x){return str_(x.HZ[2].value);}), rd.map(function(x){return str_(x.HZ[4].value);}) ];
+  var seqB=[ rd.map(function(x){return str_(x.HZ[1].value);}), rd.map(function(x){return str_(x.HZ[3].value);}), rd.map(function(x){return str_(x.HZ[5].value);}) ];
+  var fInfo=chainInfo(seqF, HUAZ_PAL_F), bInfo=chainInfo(seqB, HUAZ_PAL_B);
   var HEADERS=['Date','1','2','3','F1','F2','F3','F1-1','F1-2','F1-3','F1','F2','F3','',
     'M1','M2','M3','M1-1','M1-2','M1-3','M1','M2','M3','',
     'B1','B2','B3','B1-1','B1-2','B1-3','B1','B2','B3','',
@@ -21460,7 +21472,7 @@ function zoBuildMarketTableHTML(market){
   var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
   var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
   var body=''; var lastMonth=null;
-  rd.forEach(function(x){
+  rd.forEach(function(x, ri){
     var mo=x.date.slice(0,7);
     if(lastMonth!==null && mo!==lastMonth){ body+='<tr><td colspan="'+HEADERS.length+'" style="height:4px;background:#f1f5f9;padding:0"></td></tr>'; }
     lastMonth=mo;
@@ -21500,10 +21512,9 @@ function zoBuildMarketTableHTML(market){
     tr+=_v27cell(L1.b3Zone,v25ZoneColor(L1.b3Zone))+_v27cell(L2.b3Zone,v25ZoneColor(L2.b3Zone))+_v27cell(L3.b3Zone,v25ZoneColor(L3.b3Zone));
     tr+=_v27cell(L1.b3Root,v25RootColor(L1.b3Root))+_v27cell(L2.b3Root,v25RootColor(L2.b3Root))+_v27cell(L3.b3Root,v25RootColor(L3.b3Root));
     tr+='<td'+BLANK+'></td>';
-    // 化整为一 F1F2F3 / B1B2B3（跨期同值同色）
-    var fv=[x.HZ[0].value,x.HZ[2].value,x.HZ[4].value], bv=[x.HZ[1].value,x.HZ[3].value,x.HZ[5].value];
-    fv.forEach(function(v){ tr+=_v27cell(v, (v!=null&&v!=='')?fMap[String(v)]:null); });
-    bv.forEach(function(v){ tr+=_v27cell(v, (v!=null&&v!=='')?bMap[String(v)]:null); });
+    // 化整为一 F1F2F3 / B1B2B3（链接上色：同列上下相邻同值才上色）
+    for(var k=0;k<3;k++){ var vF=seqF[k][ri]; tr+=_v27cell(vF, fInfo.linked[k][ri]?fInfo.colorOf[vF]:null); }
+    for(var k2=0;k2<3;k2++){ var vB=seqB[k2][ri]; tr+=_v27cell(vB, bInfo.linked[k2][ri]?bInfo.colorOf[vB]:null); }
     body+='<tr>'+tr+'</tr>';
   });
   return '<table style="border-collapse:collapse;font-size:11px;text-align:center;white-space:nowrap">'+th+'<tbody>'+body+'</tbody></table>';
