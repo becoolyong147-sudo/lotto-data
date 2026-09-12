@@ -21294,6 +21294,12 @@ async function doExportExcel(){
           const v = xlRow.getCell(c).value;
           if(typeof v === 'number') v25PaintCell(xlRow.getCell(c), v25Pts3DColor(v));
         }
+        // 收集每个有色列的值(供之后的「链接」红框标记)
+        for(const c in linkCols){
+          const cell = xlRow.getCell(+c);
+          const cv = cell.value;
+          linkCols[c].push({cell:cell, val:(cv==null||cv==='')?'':String(cv)});
+        }
 
         totalRecords++;
       }
@@ -21326,6 +21332,17 @@ async function doExportExcel(){
       }
       colorHuazChain(colF, HUAZ_PAL_F);
       colorHuazChain(colB, HUAZ_PAL_B);
+      // V28 全栏「链接」红框：每列纵向相邻同值 → 该格加红框(保留原有意义底色)
+      const LINK_BORD = {style:'medium', color:{argb:'FFDC2626'}};
+      function markLinkBorder(entries){
+        for(let i = 0; i < entries.length; i++){
+          const v = entries[i].val; if(v === '') continue;
+          const up = i > 0 && entries[i-1].val === v;
+          const dn = i < entries.length-1 && entries[i+1].val === v;
+          if(up || dn) entries[i].cell.border = {top:LINK_BORD, bottom:LINK_BORD, left:LINK_BORD, right:LINK_BORD};
+        }
+      }
+      Object.keys(linkCols).forEach(function(c){ markLinkBorder(linkCols[c]); });
     }
 
     // ---- 说明 sheet ----
