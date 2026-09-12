@@ -21120,7 +21120,7 @@ async function doExportExcel(){
       '4D1','4D2','4D3','4DBS','4DBS','4DBS', '',
       'F3D','F3D2','F3D3','F3P1','F3P2','F3P3','F3P_1','F3P_2','F3P_3', '',
       '3DBS1','3DBS2','3DBS3','B3D1','B3D2','B3D3','3DP1','3DP2','3DP3','B3P_1','B3P_2','B3P_3','B3D1','B3D2','B3D3', '',
-      'F1','B1','F2','B2','F3','B3'
+      'F1','F2','F3','B1','B2','B3'
     ];
     const markets = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
     let totalRecords = 0;
@@ -21243,10 +21243,9 @@ async function doExportExcel(){
           L1.b3Pts,  L2.b3Pts,  L3.b3Pts,
           L1.b3Zone, L2.b3Zone, L3.b3Zone,
           L1.b3Root, L2.b3Root, L3.b3Root, '',
-          // V27 化整为一 (F=前2位, B=后2位 → 各自化整)，移到表尾
-          HZ[0].value, HZ[1].value,
-          HZ[2].value, HZ[3].value,
-          HZ[4].value, HZ[5].value
+          // V27 化整为一：前三(F1F2F3)排一起、后三(B1B2B3)排一起，移到表尾
+          HZ[0].value, HZ[2].value, HZ[4].value,
+          HZ[1].value, HZ[3].value, HZ[5].value
         ];
         const xlRow = ws.addRow(dataRow);
 
@@ -21260,17 +21259,25 @@ async function doExportExcel(){
         for(const c of COL_PARITY) v25PaintCell(xlRow.getCell(c), v25LabelColor(xlRow.getCell(c).value));
         for(const c of COL_SIZE)   v25PaintCell(xlRow.getCell(c), v25LabelColor(xlRow.getCell(c).value));
         for(const c of COL_ROOT)   v25PaintCell(xlRow.getCell(c), v25RootColor(xlRow.getCell(c).value));
-        // V27 化整为一 6 列：只有同一奖的 前2化整 == 后2化整（号码相同）才上色，否则留白
-        for(let p = 0; p < 3; p++){
-          const fCell = xlRow.getCell(COL_HUAZ[p*2]);
-          const bCell = xlRow.getCell(COL_HUAZ[p*2+1]);
-          fCell.numFmt = '@'; bCell.numFmt = '@'; // text format — 保护前导 0
-          const fv = HZ[p*2].value, bv = HZ[p*2+1].value;
-          if(fv != null && fv !== '' && String(fv) === String(bv)){
-            v25PaintCell(fCell, v26HuazhengColor(HZ[p*2]));
-            v25PaintCell(bCell, v26HuazhengColor(HZ[p*2+1]));
+        // V27 化整为一 6 列：F1F2F3 之间有相同就上色；B1B2B3 之间有相同就上色（前后不互比）
+        // 列顺序：COL_HUAZ[0..2]=F1F2F3(值 HZ[0],HZ[2],HZ[4])；COL_HUAZ[3..5]=B1B2B3(值 HZ[1],HZ[3],HZ[5])
+        (function(){
+          const Ftrio = [HZ[0], HZ[2], HZ[4]];
+          const Btrio = [HZ[1], HZ[3], HZ[5]];
+          function paintTrio(trio, cols){
+            for(let i = 0; i < 3; i++){
+              const cell = xlRow.getCell(cols[i]);
+              cell.numFmt = '@'; // text format — 保护前导 0
+              const vi = trio[i].value;
+              if(vi == null || vi === '') continue;
+              let dup = false;
+              for(let j = 0; j < 3; j++){ if(j !== i && String(trio[j].value) === String(vi)){ dup = true; break; } }
+              if(dup) v25PaintCell(cell, v26HuazhengColor(trio[i]));
+            }
           }
-        }
+          paintTrio(Ftrio, [COL_HUAZ[0], COL_HUAZ[1], COL_HUAZ[2]]);
+          paintTrio(Btrio, [COL_HUAZ[3], COL_HUAZ[4], COL_HUAZ[5]]);
+        })();
         for(const c of COL_ZONE4D) v25PaintCell(xlRow.getCell(c), v25ZoneColor(xlRow.getCell(c).value));
         for(const c of COL_BAND4D) v25PaintCell(xlRow.getCell(c), v25BandColor(xlRow.getCell(c).value));
         for(const c of COL_BAND3D) v25PaintCell(xlRow.getCell(c), v25BandColor(xlRow.getCell(c).value));
