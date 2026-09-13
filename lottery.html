@@ -6275,7 +6275,8 @@ function doSeasonRank(){
   const _fullRecs=seaRecs(market);
   const _prizesCH=prize==='all'?[0,1,2]:[parseInt(prize,10)];
   let refYear=0; _fullRecs.forEach(r=>{const y=parseInt(String(r.date).slice(0,4),10); if(y>refYear)refYear=y;});
-  const curHit={}; // key -> [win.count] of {date,num,prize} 或 null（取最新一次）
+  const curHit={};    // key -> [win.count] of {date,num,prize} 或 null（该窗口最新一次）
+  const curHitAny={};  // key -> {date,num,prize} 今年任何月最新一次开出（用于「已开」标记）
   _fullRecs.slice().sort((a,b)=>String(b.date).localeCompare(String(a.date))).forEach(r=>{
     const y=parseInt(String(r.date).slice(0,4),10); if(y!==refYear) return;
     const m=seaMonth(r.date); if(!m||m<1||m>12) return;
@@ -6286,6 +6287,7 @@ function doSeasonRank(){
       const num=pz(raw); const key=level==='perm'?seaPermKey(num):num;
       if(!curHit[key]) curHit[key]=new Array(w.count).fill(null);
       if(!curHit[key][wi]) curHit[key][wi]={date:r.date,num:num,prize:pi}; // 新→旧，首次即最新
+      if(!curHitAny[key]) curHitAny[key]={date:r.date,num:num,prize:pi};    // 今年任何月最新一次
     });
   });
 
@@ -6338,7 +6340,7 @@ function doSeasonRank(){
     var pw=perWindow.find(function(p){return p.winIdx===pickWi;}) || perWindow.find(function(p){return p.winIdx===curWi;}) || perWindow[0];
     if(!pw) return;
     var hideHitRec=(document.getElementById('sea-rec-hidehit')||{}).checked;
-    var recs=pw.entries.filter(function(e){ var av=seaAuditVerdict(e.hitsInWin,e.distinctYears,e.maxYr); if(av.badge.indexOf('🟢')<0) return false; if(hideHitRec && curHit[e.key] && curHit[e.key][pw.winIdx]) return false; return true; })
+    var recs=pw.entries.filter(function(e){ var av=seaAuditVerdict(e.hitsInWin,e.distinctYears,e.maxYr); if(av.badge.indexOf('🟢')<0) return false; if(hideHitRec && curHitAny[e.key]) return false; return true; })
       .sort(function(a,b){ return b.conc-a.conc || b.hitsInWin-a.hitsInWin; }).slice(0,8);
     var winSel='<select id="sea-rec-win" onchange="doSeasonRank()" style="font-size:13px;padding:3px 8px;border:1px solid #86efac;border-radius:6px;color:#166534;font-weight:700">'+perWindow.map(function(p){return '<option value="'+p.winIdx+'"'+(p.winIdx===pw.winIdx?' selected':'')+'>'+p.label+'</option>';}).join('')+'</select>';
     html+='<div class="card" style="border:2px solid #16a34a;background:#f0fdf4">';
@@ -6346,7 +6348,7 @@ function doSeasonRank(){
     if(!recs.length){ html+='<div class="warn" style="margin-top:6px">'+pw.label+' 没有'+(hideHitRec?'(未开的)':'')+' 🟢真常客(多年分散)。换个月、放宽门槛'+(hideHitRec?'、或取消「已开不推荐」':'')+'。</div></div>'; return; }
     html+='<div class="warn" style="margin:6px 0">「'+pw.label+'」里自动挑出<b>多年都爱这个月(🟢分散)</b>的号,按集中度排。玩就 box(调字)。⚠️ 历史规律,不保证今年,当娱乐主题。</div>';
     html+='<div style="line-height:2.4">';
-    recs.forEach(function(e){ var _ch=curHit[e.key]&&curHit[e.key][pw.winIdx]; html+='<span title="集中度'+e.conc.toFixed(2)+'x · 该月中'+e.hitsInWin+'次 · 跨'+e.distinctYears+'年'+(_ch?(' · 今年已开 '+String(_ch.date).slice(5)):'')+'" style="display:inline-block;font-family:monospace;font-size:17px;font-weight:800;background:'+(_ch?'#fef9c3':'#dcfce7')+';color:#166534;border:1px solid '+(_ch?'#fde047':'#86efac')+';border-radius:6px;padding:2px 10px;margin:3px">*'+e.sample+'<span style="font-size:10px;font-weight:400;opacity:.7"> '+e.conc.toFixed(1)+'x</span>'+(_ch?'<span style="font-size:10px;font-weight:700;color:#ca8a04"> ✓开</span>':'')+'</span>'; });
+    recs.forEach(function(e){ var _ch=curHitAny[e.key]; html+='<span title="集中度'+e.conc.toFixed(2)+'x · 该月中'+e.hitsInWin+'次 · 跨'+e.distinctYears+'年'+(_ch?(' · 今年已开 '+String(_ch.date).slice(5)):'')+'" style="display:inline-block;font-family:monospace;font-size:17px;font-weight:800;background:'+(_ch?'#fef9c3':'#dcfce7')+';color:#166534;border:1px solid '+(_ch?'#fde047':'#86efac')+';border-radius:6px;padding:2px 10px;margin:3px">*'+e.sample+'<span style="font-size:10px;font-weight:400;opacity:.7"> '+e.conc.toFixed(1)+'x</span>'+(_ch?'<span style="font-size:10px;font-weight:700;color:#ca8a04"> ✓开</span>':'')+'</span>'; });
     html+='</div>';
     var starList=recs.map(function(e){return '*'+e.sample;}).join('\\n'), plainList=recs.map(function(e){return e.sample;}).join('\\n');
     html+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
