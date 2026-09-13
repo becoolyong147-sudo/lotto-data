@@ -6287,7 +6287,12 @@ function doSeasonRank(){
       const num=pz(raw); const key=level==='perm'?seaPermKey(num):num;
       if(!curHit[key]) curHit[key]=new Array(w.count).fill(null);
       if(!curHit[key][wi]) curHit[key][wi]={date:r.date,num:num,prize:pi}; // 新→旧，首次即最新
-      if(!curHitAny[key]) curHitAny[key]={date:r.date,num:num,prize:pi};    // 今年任何月最新一次
+    });
+    // 「已开」标记：不受排行奖位筛选限制，今年头/二/三任何一个开过就算
+    [0,1,2].forEach(pi=>{
+      const raw=r.nums[pi]; if(raw==null||raw==='') return;
+      const num=pz(raw); const key=level==='perm'?seaPermKey(num):num;
+      if(!curHitAny[key]) curHitAny[key]={date:r.date,num:num,prize:pi};
     });
   });
 
