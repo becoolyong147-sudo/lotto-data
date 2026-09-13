@@ -9063,7 +9063,7 @@ function zoNextMainShow(){
     var L=data[mk].latest, f2h=data[mk].f2hist||{};
     h+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;background:#fff">';
     h+='<div style="font-size:15px;font-weight:800;color:#1e3a5f;margin-bottom:6px">● '+mk+(L?' <span style="font-size:11px;font-weight:400;color:#94a3b8">源期 '+L.s+'</span>':'')+'</div>';
-    if(!L){ h+='<div style="color:#94a3b8;font-size:12px">无待开期</div></div>'; return; }
+    if(!L){ h+='<div style="color:#b45309;font-size:12px">⏳ 最新一期还没有特别奖数据，待补上再算（不拿旧期冒充）</div></div>'; return; }
     function line(nm,a1lbl,a1,ml,tgtlbl,tgt){
       return '<div style="margin-bottom:5px;font-size:12px"><span style="display:inline-block;background:'+COL[nm]+';color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">'+nm+'</span>'+
              a1lbl+' <b>'+a1+'</b>'+(ml!=null?' · 最多 <b>'+ml+'</b>':'')+' → '+tgtlbl+' <b style="color:'+COL[nm]+'">'+tgt+'</b></div>';
@@ -10384,7 +10384,7 @@ function zoSpMatchCompute(){
     (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
     ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
     merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
-    var rows=[], latest=null, stat={f2:[0,0,0,0],m2:[0,0,0,0],b2:[0,0,0,0],f1:[0,0,0,0],b1:[0,0,0,0]};
+    var rows=[], latest=null, fallbackLatest=null, stat={f2:[0,0,0,0],m2:[0,0,0,0],b2:[0,0,0,0],f1:[0,0,0,0],b1:[0,0,0,0]};
     for(var i=0;i<merged.length;i++){
       var d=merged[i]; if(!(d.sp&&d.sp.length)) continue;
       var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3) continue;
@@ -10393,6 +10393,11 @@ function zoSpMatchCompute(){
       var f2=an2(g,0,1),m2=an2(g,1,2),b2=an2(g,2,3),f1=an1(g,0),b1=an1(g,3);
       function h2(a,wa,wb,key){ var ts={}; a.tg.forEach(function(t){ts[t]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ var w=x.slice(wa,wb+1); if(ts[w]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.tg.length/100,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
       function h1(a,pos,key){ var st={}; a.set.forEach(function(x){st[x]=1;}); var hp='',hn=''; if(nn){ ['头','二','三'].forEach(function(pn,pi){ var x=nn[pi]; if(x){ if(st[x[pos]]&&!hp){hp=pn;hn=x;} } }); var s=stat[key]; s[1]++; if(hp)s[0]++; var pp=1-Math.pow(1-a.set.length/10,nn.length); s[2]+=pp; s[3]+=pp*(1-pp); } return [hp?1:0,hp,hn]; }
+      // 每个有特别奖的期都算一份「源期对象」，最后一个当兜底
+      var latObj={s:d.date, grp:g.slice(), f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
+        b2:{a2:b2.a2,t1:b2.t1,tg:b2.tg.join(' ')},
+        f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
+      fallbackLatest=latObj;
       if(next){
         rows.push({s:d.date,n:next.date,
           f2:[f2.a2,f2.t1,f2.tg.length].concat(h2(f2,0,1,'f2')),
@@ -10401,11 +10406,10 @@ function zoSpMatchCompute(){
           f1:[f1.a1,f1.most,f1.set.length].concat(h1(f1,0,'f1')),
           b1:[b1.a1,b1.most,b1.set.length].concat(h1(b1,3,'b1'))});
       } else {
-        latest={s:d.date, grp:g.slice(), f2:{a2:f2.a2,t1:f2.t1,tg:f2.tg.join(' ')}, m2:{a2:m2.a2,t1:m2.t1,tg:m2.tg.join(' ')},
-          b2:{a2:b2.a2,t1:b2.t1,tg:b2.tg.join(' ')},
-          f1:{a1:f1.a1,most:f1.most,set:f1.set.join(' ')}, b1:{a1:b1.a1,most:b1.most,set:b1.set.join(' ')}};
+        latest=latObj;
       }
     }
+    // 不兜底：最新一期没特别奖就是「等数据」，绝不拿旧期冒充待开期(会预测一个已开出的结果)
     var f2hist={}, b2hist={};
     merged.forEach(function(d){ [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n!=null&&n!==''){ var s=pad(n); f2hist[s.slice(0,2)]=(f2hist[s.slice(0,2)]||0)+1; b2hist[s.slice(2,4)]=(b2hist[s.slice(2,4)]||0)+1; } }); });
     res[mk]={rows:rows, latest:latest, stat:stat, f2hist:f2hist, b2hist:b2hist};
