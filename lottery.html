@@ -3945,11 +3945,13 @@ function ovRender(){
       function oddCount(s){ var c=0; for(var i=0;i<4;i++)if((+s[i])%2)c++; return c; }
       function ptSum(s){ return (+s[0])+(+s[1])+(+s[2])+(+s[3]); }
       function root4(s){ return dr((+s[0])+(+s[1])+(+s[2])+(+s[3])); }
-      // 数值维度方向：本期值之后，历史下一期的平均值 & 样本
-      function numDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nxts=[]; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur) nxts.push(seq[i+1]); } if(nxts.length<3) return {cur:cur,n:nxts.length,avg:null}; var avg=nxts.reduce(function(a,b){return a+b;},0)/nxts.length; return {cur:cur,n:nxts.length,avg:avg}; }
+      // 数值维度方向：本期值之后的下一期平均 + 整体平均/标准差(判断是否只是回归平均)
+      function numDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nxts=[]; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur) nxts.push(seq[i+1]); } var mean=seq.reduce(function(a,b){return a+b;},0)/seq.length; var sd=Math.sqrt(seq.reduce(function(a,b){return a+(b-mean)*(b-mean);},0)/seq.length); if(nxts.length<3) return {cur:cur,n:nxts.length,avg:null,mean:mean,sd:sd}; var avg=nxts.reduce(function(a,b){return a+b;},0)/nxts.length; return {cur:cur,n:nxts.length,avg:avg,mean:mean,sd:sd}; }
       // 类别维度(数根)：本期值之后最常接
-      function catDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nx={},tot=0; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur){ nx[seq[i+1]]=(nx[seq[i+1]]||0)+1; tot++; } } if(tot<3) return {cur:cur,n:tot,top:null}; var top=Object.keys(nx).map(function(k){return [k,nx[k]];}).sort(function(a,b){return b[1]-a[1];})[0]; return {cur:cur,n:tot,top:top[0],pct:Math.round(top[1]/tot*100)}; }
-      function arrow(d, hiLbl, loLbl){ if(!d||d.avg==null) return '<span style="color:#cbd5e1">样本少</span>'; var diff=d.avg-d.cur; var dir=Math.abs(diff)<0.3?'持平':(diff>0?(hiLbl+' ↑'):(loLbl+' ↓')); var col=Math.abs(diff)<0.3?'#64748b':(diff>0?'#dc2626':'#2563eb'); return '<span style="font-weight:800;color:'+col+'">'+dir+'</span><span style="font-size:10px;color:#94a3b8"> (本期'+d.cur+'→常接≈'+d.avg.toFixed(1)+'·'+d.n+'样本)</span>'; }
+      function catDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nx={},tot=0; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur){ nx[seq[i+1]]=(nx[seq[i+1]]||0)+1; tot++; } } if(tot<3) return {cur:cur,n:tot,top:null}; var top=Object.keys(nx).map(function(k){return [k,nx[k]];}).sort(function(a,b){return b[1]-a[1];})[0]; return {cur:cur,n:tot,top:top[0],pct:Math.round(top[1]/tot*100),cnt:top[1]}; }
+      // 真信号判定：只有「常接」明显偏离整体平均(超2×标准误)才算有料；否则只是回归平均
+      function tag(genuine){ return genuine ? '<span style="font-size:10px;font-weight:700;color:#16a34a;background:#dcfce7;border-radius:3px;padding:0 4px;margin-left:3px">🟢真偏离</span>' : '<span style="font-size:10px;font-weight:700;color:#94a3b8;background:#f1f5f9;border-radius:3px;padding:0 4px;margin-left:3px">⚪回归平均</span>'; }
+      function arrow(d, hiLbl, loLbl){ if(!d||d.avg==null) return '<span style="color:#cbd5e1">样本少</span>'; var diff=d.avg-d.cur; var dir=Math.abs(diff)<0.3?'持平':(diff>0?(hiLbl+' ↑'):(loLbl+' ↓')); var col=Math.abs(diff)<0.3?'#64748b':(diff>0?'#dc2626':'#2563eb'); var se=d.sd/Math.sqrt(d.n); var genuine=d.n>=10 && Math.abs(d.avg-d.mean)>2*se; return '<span style="font-weight:800;color:'+col+'">'+dir+'</span>'+tag(genuine)+'<span style="font-size:10px;color:#94a3b8"> (本期'+d.cur+'→常接≈'+d.avg.toFixed(1)+'·全场均'+d.mean.toFixed(1)+'·'+d.n+'样本)</span>'; }
       var h2='<div class="card" style="border:2px solid #0d9488"><h3 style="color:#0d9488">📍 头二三方向参考（据最新一期 · '+_rgLbl+'）</h3>';
       h2+='<div class="warn" style="margin:4px 0">把惯性翻成直白方向:本期这个奖是这样 → 历史上之后<b>更常偏哪边</b>。大小看几个大位、单双看几个单位、点数看总和、数根看4D根。⚠️ 回测≈随机,发群当参考,别当预测。</div>';
       h2+='<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px"><tr style="background:#f0fdfa;color:#0d9488"><th style="text-align:left;padding:5px 8px">奖</th><th style="text-align:left;padding:5px 8px">大小方向</th><th style="text-align:left;padding:5px 8px">单双方向</th><th style="text-align:left;padding:5px 8px">点数方向</th><th style="text-align:left;padding:5px 8px">数根常接</th></tr>';
@@ -3959,11 +3961,13 @@ function ovRender(){
         h2+='<td style="padding:5px 8px">'+arrow(db,'偏大','偏小')+'</td>';
         h2+='<td style="padding:5px 8px">'+arrow(doo,'偏单','偏双')+'</td>';
         h2+='<td style="padding:5px 8px">'+arrow(dp,'升','降')+'</td>';
-        h2+='<td style="padding:5px 8px">'+(drt&&drt.top!=null?('<span style="font-weight:800;color:#0d9488">根'+drt.top+'</span><span style="font-size:10px;color:#94a3b8"> ('+drt.pct+'%·本期根'+drt.cur+')</span>'):'<span style="color:#cbd5e1">样本少</span>')+'</td>';
+        var _rtTag=''; if(drt&&drt.top!=null){ var _p=drt.cnt/drt.n, _se=Math.sqrt((1/9)*(8/9)/drt.n); _rtTag=tag(drt.n>=10 && (_p-1/9)>2*_se); }
+        h2+='<td style="padding:5px 8px">'+(drt&&drt.top!=null?('<span style="font-weight:800;color:#0d9488">根'+drt.top+'</span>'+_rtTag+'<span style="font-size:10px;color:#94a3b8"> ('+drt.pct+'%·基准11%·本期根'+drt.cur+')</span>'):'<span style="color:#cbd5e1">样本少</span>')+'</td>';
         h2+='</tr>';
       });
       h2+='</table></div>';
-      h2+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">方向=历史上「本期这个值之后」下一期的平均走向(↑更多/↓更少/持平)。数根取最常接的那个根。⚠️ 接近随机,仅供发群谈资。</div></div>';
+      h2+='<div style="font-size:11px;color:#334155;background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:6px">🟢<b>真偏离</b>=「常接值」明显偏离全场平均(超2×标准误),本期这个值<b>真的</b>会把下期往一边带,值得看。<br>⚪<b>回归平均</b>=「常接」只是回到全场平均(点数≈18、大小/单双≈2位、数根≈11%),<b>没预测力</b>——本期极端,下期自然回中间,数学必然,不是脾气。</div>';
+      h2+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">⚠️ 多数格子会是 ⚪回归平均。只有 🟢 才勉强值得参考,且仍不保证。发群当谈资。</div></div>';
       html+=h2;
     })();
     // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
@@ -8381,6 +8385,7 @@ function doBacktest(){
     <div class="ig"><button class="btn btn-red" id="zo-mem-genall" onclick="zoMemberGenAll()">💎 生成会员版名单（本月）</button></div>
     <div class="ig"><button class="btn" id="zo-mem-pp" style="background:#0e7490;color:#fff" onclick="zoMemberPerPeriod()" title="每一期都不一样：按最近开奖的久违回补生成">🔄 逐期会员版（每期不同）</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberPPCopy()" id="zo-mem-pp-copy" style="display:none">📋 复制逐期话术</button></div>
+    <div class="ig"><button class="btn btn-green" onclick="zoMemberPPImage()" id="zo-mem-pp-img" style="display:none">📸 下载图（发群）</button></div>
     <div class="ig"><button class="btn" id="zo-mem-rohan" style="background:#b45309;color:#fff" onclick="zoMemberRohan()" title="按18罗汉选号：热罗汉+久违罗汉">🔱 罗汉版会员</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberRohanCopy()" id="zo-mem-rohan-copy" style="display:none">📋 复制罗汉话术</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
@@ -15685,8 +15690,68 @@ function zoMemberPerPeriod(){
   h += '</div>';
   out.innerHTML = h;
   const cp = document.getElementById('zo-mem-pp-copy'); if(cp) cp.style.display='';
+  const im = document.getElementById('zo-mem-pp-img'); if(im) im.style.display='';
   // 隐藏本月版的导出按钮组(避免混淆)
   ['zo-mem-copy','zo-mem-png-simple','zo-mem-png','zo-mem-vid'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; });
+}
+// 📸 逐期会员版 → 发群图（年月日 + 各市场各打数号码）
+function zoMemberPPImage(){
+  if(!ZO_MEM_PP || !ZO_MEM_PP.length){ alert('请先「逐期会员版」生成名单。'); return; }
+  var daLbl = {24:'24打',12:'12打',6:'6打',4:'4打'};
+  var t = new Date();
+  var dstr = t.getFullYear()+'年'+(t.getMonth()+1)+'月'+t.getDate()+'日';
+  // 预排版：算高度
+  var rows=[]; // {type, ...}
+  ZO_MEM_PP.forEach(function(r){
+    rows.push({type:'mk', text:r.market, sub:'最新 '+r.lastDate+' → 下一期'});
+    r.selDa.forEach(function(da){ var list=r.groups[da]||[]; rows.push({type:'da', label:daLbl[da], nums:list.map(function(c){return c.num;})}); });
+    rows.push({type:'gap'});
+  });
+  var SC=2, W=780;
+  var yTop=150, rowH=0;
+  var H = yTop;
+  rows.forEach(function(rw){ if(rw.type==='mk') H+=46; else if(rw.type==='da') H+=34; else H+=10; });
+  H += 70; // footer
+  var cv=document.createElement('canvas'); cv.width=W*SC; cv.height=H*SC;
+  var ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  // 背景
+  ctx.fillStyle='#f0fdfa'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0e7490'; ctx.fillRect(0,0,W,8);
+  // 标题
+  ctx.textBaseline='top';
+  ctx.fillStyle='#0e7490'; ctx.font='800 30px system-ui,"Microsoft YaHei",sans-serif';
+  ctx.fillText('🔄 逐期回补参考', 30, 30);
+  ctx.fillStyle='#155e75'; ctx.font='700 22px system-ui,"Microsoft YaHei",sans-serif';
+  ctx.fillText(dstr, 30, 72);
+  ctx.fillStyle='#64748b'; ctx.font='400 14px system-ui,"Microsoft YaHei",sans-serif';
+  ctx.fillText('按「历史常开但当前久违」挑号 · 每期不同 · 娱乐参考', 30, 104);
+  ctx.strokeStyle='#a5f3fc'; ctx.beginPath(); ctx.moveTo(30,134); ctx.lineTo(W-30,134); ctx.stroke();
+  var y=yTop;
+  rows.forEach(function(rw){
+    if(rw.type==='mk'){
+      ctx.fillStyle='#0e7490'; ctx.font='800 21px system-ui,"Microsoft YaHei",sans-serif';
+      ctx.fillText('● '+rw.text, 30, y);
+      ctx.fillStyle='#94a3b8'; ctx.font='400 13px system-ui,"Microsoft YaHei",sans-serif';
+      ctx.fillText(rw.sub, 200, y+5);
+      y+=46;
+    } else if(rw.type==='da'){
+      ctx.fillStyle='#155e75'; ctx.font='700 16px system-ui,"Microsoft YaHei",sans-serif';
+      ctx.fillText(rw.label, 40, y+4);
+      ctx.fillStyle='#0f172a'; ctx.font='800 18px ui-monospace,Menlo,Consolas,monospace';
+      ctx.fillText(rw.nums.length?rw.nums.join('   '):'—', 110, y+3);
+      y+=34;
+    } else { y+=10; }
+  });
+  // footer
+  ctx.fillStyle='#94a3b8'; ctx.font='400 13px system-ui,"Microsoft YaHei",sans-serif';
+  ctx.fillText('⚠️ 久违≠更会开，每期独立随机，纯回补参考，量力而为。', 30, H-46);
+  cv.toBlob(function(b){
+    var fn='逐期回补_'+t.getFullYear()+String(t.getMonth()+1).padStart(2,'0')+String(t.getDate()).padStart(2,'0')+'.png';
+    if(typeof zoSaveBlob==='function') zoSaveBlob(b, fn);
+    else if(typeof saveAs==='function') saveAs(b, fn);
+    else { var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=fn; a.click(); }
+    var btn=document.getElementById('zo-mem-pp-img'); if(btn){ var o=btn.textContent; btn.textContent='✅ 已下载'; setTimeout(function(){btn.textContent=o;},1500); }
+  });
 }
 function zoMemberPPCopy(){
   if(!ZO_MEM_PP){ alert('请先「逐期会员版」生成名单。'); return; }
