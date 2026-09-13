@@ -3931,6 +3931,41 @@ function ovRender(){
       html+='</div>';
       html+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">「本期→常接」= 历史上此奖位出现"本期这个值"之后、下一期最常出现的值(占比·次数)。⚠️ 样本越多越可信,但仍不构成预测。</div></div>';
     })();
+    // 📍 头二三方向参考：把惯性翻成直白方向(偏大/偏小·偏单/偏双·点数升降·数根常接)
+    (function(){
+      function pad4(n){ return String(n).padStart(4,'0'); }
+      function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+      var chrono=rows.slice().reverse(); // 旧→新
+      var _rg=(document.getElementById('ov-inertia-range')||{value:'all'}).value, _rgLbl='全部';
+      if(_rg&&_rg!=='all'){ if(_rg[0]==='y'){ var yrs=+_rg.slice(1); var cut=new Date(Date.now()-yrs*365.25*86400000).toISOString().slice(0,10); chrono=chrono.filter(function(r){return r.date>=cut;}); _rgLbl='近'+yrs+'年'; } else if(_rg[0]==='p'){ var pp=+_rg.slice(1); if(chrono.length>pp)chrono=chrono.slice(chrono.length-pp); _rgLbl='近'+pp+'期'; } }
+      var PN=[['头','#dc2626'],['二','#7c5a1e'],['三','#0f6e56']];
+      // 取某奖位的数值序列
+      function seqOf(pi, fn){ return chrono.map(function(r){ var x=r.nums&&r.nums[pi]; if(x==null||x==='')return null; var s=pad4(x); return /^\d{4}$/.test(s)?fn(s):null; }).filter(function(v){return v!=null;}); }
+      function bigCount(s){ var c=0; for(var i=0;i<4;i++)if(+s[i]>=5)c++; return c; }
+      function oddCount(s){ var c=0; for(var i=0;i<4;i++)if((+s[i])%2)c++; return c; }
+      function ptSum(s){ return (+s[0])+(+s[1])+(+s[2])+(+s[3]); }
+      function root4(s){ return dr((+s[0])+(+s[1])+(+s[2])+(+s[3])); }
+      // 数值维度方向：本期值之后，历史下一期的平均值 & 样本
+      function numDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nxts=[]; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur) nxts.push(seq[i+1]); } if(nxts.length<3) return {cur:cur,n:nxts.length,avg:null}; var avg=nxts.reduce(function(a,b){return a+b;},0)/nxts.length; return {cur:cur,n:nxts.length,avg:avg}; }
+      // 类别维度(数根)：本期值之后最常接
+      function catDir(seq){ if(seq.length<4) return null; var cur=seq[seq.length-1]; var nx={},tot=0; for(var i=0;i<seq.length-1;i++){ if(seq[i]===cur){ nx[seq[i+1]]=(nx[seq[i+1]]||0)+1; tot++; } } if(tot<3) return {cur:cur,n:tot,top:null}; var top=Object.keys(nx).map(function(k){return [k,nx[k]];}).sort(function(a,b){return b[1]-a[1];})[0]; return {cur:cur,n:tot,top:top[0],pct:Math.round(top[1]/tot*100)}; }
+      function arrow(d, hiLbl, loLbl){ if(!d||d.avg==null) return '<span style="color:#cbd5e1">样本少</span>'; var diff=d.avg-d.cur; var dir=Math.abs(diff)<0.3?'持平':(diff>0?(hiLbl+' ↑'):(loLbl+' ↓')); var col=Math.abs(diff)<0.3?'#64748b':(diff>0?'#dc2626':'#2563eb'); return '<span style="font-weight:800;color:'+col+'">'+dir+'</span><span style="font-size:10px;color:#94a3b8"> (本期'+d.cur+'→常接≈'+d.avg.toFixed(1)+'·'+d.n+'样本)</span>'; }
+      var h2='<div class="card" style="border:2px solid #0d9488"><h3 style="color:#0d9488">📍 头二三方向参考（据最新一期 · '+_rgLbl+'）</h3>';
+      h2+='<div class="warn" style="margin:4px 0">把惯性翻成直白方向:本期这个奖是这样 → 历史上之后<b>更常偏哪边</b>。大小看几个大位、单双看几个单位、点数看总和、数根看4D根。⚠️ 回测≈随机,发群当参考,别当预测。</div>';
+      h2+='<div style="overflow-x:auto"><table style="width:100%;font-size:12px;border-collapse:collapse;min-width:560px"><tr style="background:#f0fdfa;color:#0d9488"><th style="text-align:left;padding:5px 8px">奖</th><th style="text-align:left;padding:5px 8px">大小方向</th><th style="text-align:left;padding:5px 8px">单双方向</th><th style="text-align:left;padding:5px 8px">点数方向</th><th style="text-align:left;padding:5px 8px">数根常接</th></tr>';
+      PN.forEach(function(p,pi){
+        var db=numDir(seqOf(pi,bigCount)), doo=numDir(seqOf(pi,oddCount)), dp=numDir(seqOf(pi,ptSum)), drt=catDir(seqOf(pi,root4));
+        h2+='<tr style="border-top:1px solid #ccfbf1"><td style="padding:5px 8px;font-weight:800;color:'+p[1]+'">'+p[0]+'奖</td>';
+        h2+='<td style="padding:5px 8px">'+arrow(db,'偏大','偏小')+'</td>';
+        h2+='<td style="padding:5px 8px">'+arrow(doo,'偏单','偏双')+'</td>';
+        h2+='<td style="padding:5px 8px">'+arrow(dp,'升','降')+'</td>';
+        h2+='<td style="padding:5px 8px">'+(drt&&drt.top!=null?('<span style="font-weight:800;color:#0d9488">根'+drt.top+'</span><span style="font-size:10px;color:#94a3b8"> ('+drt.pct+'%·本期根'+drt.cur+')</span>'):'<span style="color:#cbd5e1">样本少</span>')+'</td>';
+        h2+='</tr>';
+      });
+      h2+='</table></div>';
+      h2+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">方向=历史上「本期这个值之后」下一期的平均走向(↑更多/↓更少/持平)。数根取最常接的那个根。⚠️ 接近随机,仅供发群谈资。</div></div>';
+      html+=h2;
+    })();
     // 三奖位统一联集（点数/数根去重合并，供统一带入按钮用）
     const uniChainPts=new Set(), uniInertiaPts=new Set(), uniRoots=new Set();
     prizes.forEach((p, pi) => {
