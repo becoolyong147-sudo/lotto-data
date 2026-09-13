@@ -8654,6 +8654,7 @@ function doBacktest(){
         <button class="btn" style="background:#1e40af;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→4D</button>
         <button class="btn" style="background:#0d9488;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneReview()">📋 融合逐期清单(看推荐号)</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
+        <button class="btn" style="background:#be185d;color:#fff;padding:7px 12px;font-size:12px" onclick="zoJackpotCalc()">💎 Jackpot配对计算</button>
       </div>
     </div>
   </div>
@@ -10902,6 +10903,82 @@ function zoAbsentZoneReview(){
     h+=r.cand.map(function(n){ var isE=r.exact.indexOf(n)>=0; return '<span style="'+(isE?'background:#16a34a;color:#fff;border-radius:3px;padding:0 3px;font-weight:700':'')+'">'+n+'</span>'; }).join(' ');
     h+='</div></div>';
   });
+  h+='</div>';
+  out.innerHTML=h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 💎 Jackpot 配对计算器 + 历史凑中回测（买2个号一对；任意2个同期开出=凑中）
+function zoJackpotCalc(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  // 号码来源：优先本工具自己的输入框(jp-nums)，其次主输入框(abs-input)
+  var raw='';
+  var jpIn=document.getElementById('jp-nums');
+  if(jpIn) raw=jpIn.value; else raw=(document.getElementById('abs-input')||{value:''}).value;
+  var N=parseInt((document.getElementById('jp-periods')||{}).value,10)||50;
+  function pad(n){return String(n).padStart(4,'0');}
+  var nums=(raw||'').split(/[\s,;，、]+/).map(function(s){return s.trim();}).filter(function(s){return /^\d{1,4}$/.test(s);}).map(pad);
+  nums=Array.from(new Set(nums));
+  var n=nums.length;
+  var pairs=n>=2?n*(n-1)/2:0, cost=pairs*2;
+  // 合并数据(新→旧)
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;merged.push(d);} });
+  merged.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}); // 新→旧
+  var win=merged.filter(function(d){return !String(d.date).endsWith('-00');}).slice(0,N);
+  // 回测：每期看输入号里有几个落在头三 / 特安
+  var jp1=[],jp2=[],oth=[],any=0;
+  var numSet={}; nums.forEach(function(s){numSet[s]=1;});
+  win.forEach(function(d){
+    var top3={},sc={};
+    if(d.nums){ [0,1,2].forEach(function(p){ if(d.nums[p]!=null&&d.nums[p]!=='') top3[pad(d.nums[p])]=1; }); }
+    if(Array.isArray(d.sp)) d.sp.forEach(function(x){ sc[pad(x)]=1; });
+    if(Array.isArray(d.cs)) d.cs.forEach(function(x){ sc[pad(x)]=1; });
+    var mT=[],mS=[];
+    nums.forEach(function(s){ if(top3[s]) mT.push(s); else if(sc[s]) mS.push(s); });
+    var tot=mT.length+mS.length;
+    if(tot>=1) any++;
+    if(tot>=2){
+      var rec={date:d.date, t:mT, s:mS};
+      if(mT.length>=2) jp1.push(rec);
+      else if(mT.length>=1&&mS.length>=1) jp2.push(rec);
+      else oth.push(rec);
+    }
+  });
+  var h='<div class="card" style="border:2px solid #be185d">';
+  h+='<h3 style="color:#be185d">💎 '+mk+' · Jackpot 配对计算 + 历史凑中回测</h3>';
+  // 输入
+  h+='<div class="ig" style="width:100%"><label>要博 Jackpot 的号码（空格/逗号/换行，可多个）</label>';
+  h+='<textarea id="jp-nums" style="width:100%;min-height:56px;font-family:monospace;font-size:15px;letter-spacing:2px;border:1px solid #fbcfe8;border-radius:6px;padding:8px" oninput="">'+nums.join(' ')+'</textarea></div>';
+  h+='<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:6px 0"><button class="btn" style="background:#be185d;color:#fff;padding:6px 14px" onclick="zoJackpotCalc()">🔄 计算</button>';
+  h+='<span style="font-size:13px">回测近 <select id="jp-periods" onchange="zoJackpotCalc()" style="padding:3px 6px;border:1px solid #fbcfe8;border-radius:5px"><option'+(N===50?' selected':'')+'>50</option><option'+(N===100?' selected':'')+'>100</option><option'+(N===200?' selected':'')+'>200</option><option'+(N===500?' selected':'')+'>500</option></select> 期</span></div>';
+  if(n<2){ h+='<div class="warn">请至少输入 2 个号码（Jackpot 是买「一对」两个号）。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // 费用
+  h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:10px 12px;margin-bottom:8px">';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px">';
+  function box(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:18px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  h+=box('号码数',n+' 个');
+  h+=box('全配对',pairs+' 对');
+  h+=box('每期成本',' RM'+cost.toFixed(0),'#be185d');
+  h+='</div>';
+  h+='<div style="font-size:11px;color:#9d174d;margin-top:6px">全配对＝任意 2 个号同期开出就凑中。1 对＝RM2。想省钱就少放几个号（配对是平方增长）。</div>';
+  h+='</div>';
+  // 回测结果
+  h+='<div class="warn" style="margin:6px 0">📊 近 '+win.length+' 期里,你这 '+n+' 个号:<br>';
+  h+='🟡 <b>JP1 凑中(两个都在头/二/三)</b>：<b style="color:#dc2626">'+jp1.length+'</b> 次<br>';
+  h+='🔵 <b>JP2 凑中(一个头三+一个特/安)</b>：<b style="color:#2563eb">'+jp2.length+'</b> 次<br>';
+  h+='⚪ 其他配对(两个都特/安)：'+oth.length+' 次 · 至少中1个的期数：'+any+' 期</div>';
+  function listBlk(title,arr,col){
+    if(!arr.length) return '';
+    var s='<div style="margin-top:6px"><div style="font-weight:700;color:'+col+';font-size:12px">'+title+'（'+arr.length+'）</div>';
+    s+=arr.map(function(r){ return '<div style="font-size:12px;padding:2px 0;border-bottom:1px solid #f1f5f9">📅 '+r.date+' — 头三:<b>'+(r.t.join('/')||'—')+'</b>'+(r.s.length?(' 特安:<b>'+r.s.join('/')+'</b>'):'')+'</div>'; }).join('');
+    return s+'</div>';
+  }
+  h+=listBlk('🟡 JP1 凑中明细',jp1,'#dc2626');
+  h+=listBlk('🔵 JP2 凑中明细',jp2,'#2563eb');
+  h+=listBlk('⚪ 其他配对明细',oth,'#64748b');
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ Jackpot 奖金是滚存池、金额不固定,这里只如实数「历史凑中次数」,不算 RM 中奖额。凑中≈百万分之一级,极稀少属正常。娱乐参考,量力而为。</div>';
   h+='</div>';
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
