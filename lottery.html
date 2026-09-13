@@ -11565,6 +11565,21 @@ function zo2DRootBacktest(){
   <div id="export-progress" class="export-progress"></div>
   <div id="screen-view-result" style="margin-top:12px"></div>
 </div>
+
+<div class="card" style="border:2px solid #9333ea;margin-top:12px">
+  <h3 style="color:#9333ea">🔢 2D数根 · 缺席回补回测（固定两期一组）</h3>
+  <div class="warn">每个 4D 拆「前2D数根 + 后2D数根」(各缩成1位)。<b>固定用连续两期</b>把头二三的这些根收集起来，1–9 里没出现的＝<b>缺席根</b>；再看<b>下一期</b>会不会补上其中一个。逐期滚动，算命中率 vs 随机。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig"><label>市场</label>
+      <select id="r2a-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
+    </div>
+    <div class="ig"><label>回测期数</label>
+      <select id="r2a-n"><option value="0">全部</option><option value="100">近100期</option><option value="200">近200期</option><option value="500">近500期</option></select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px" onclick="zoRoot2DAbsentBacktest()">🔬 开始回测</button></div>
+  </div>
+  <div id="r2a-out" style="margin-top:10px"></div>
+</div>
 </div>
 
 
@@ -21664,6 +21679,60 @@ function zoScreenView(){
     });
   });
   out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// 🔢 2D数根·缺席回补回测：固定两期一组算缺席根 → 看下一期是否补上
+function zoRoot2DAbsentBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){ x=x%9; return x===0?9:x; }        // 1-9 数根（0特殊：见下）
+  function root2(a,b){ var s=(+a)+(+b); return s===0?0:(s%9===0?9:s%9); } // 两位和的数根,00→0
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); // 旧→新
+  if(N>0 && m.length>N) m=m.slice(m.length-N);
+  if(m.length<10){ out.innerHTML='<div class="warn">'+mk+' 期数太少('+m.length+')，无法回测。</div>'; return; }
+  // 每期 → 头二三的 前2D根/后2D根 集合(去重)
+  function rootsOf(d){ var set={}; if(d.nums){ [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return; set[root2(s[0],s[1])]=1; set[root2(s[2],s[3])]=1; }); } return set; }
+  var per=m.map(function(d){ return {date:d.date, roots:rootsOf(d)}; });
+  // 滚动：窗口=第 i, i+1 期 → 缺席根；核对第 i+2 期
+  var tot=0, hit=0, baseSum=0, det=[];
+  for(var i=0;i+2<per.length;i++){
+    var appeared={};
+    [per[i].roots, per[i+1].roots].forEach(function(rs){ for(var k in rs) appeared[k]=1; });
+    var absent=[]; for(var r=1;r<=9;r++){ if(!appeared[r]) absent.push(r); }
+    if(!absent.length) continue;
+    var nextRoots=per[i+2].roots;
+    var got=absent.filter(function(r){ return nextRoots[r]; });
+    tot++; var isHit=got.length>0; if(isHit) hit++;
+    // 随机基准：下期6个根里，至少命中k个缺席根之一的机率 ≈ 1-((9-k)/9)^6
+    var k=absent.length; baseSum += 1-Math.pow((9-k)/9, 6);
+    det.push({date:per[i+2].date, absent:absent, got:got, hit:isHit});
+  }
+  if(!tot){ out.innerHTML='<div class="warn">没有可回测的窗口。</div>'; return; }
+  var hp=hit/tot*100, bp=baseSum/tot*100;
+  var se=Math.sqrt((bp/100)*(1-bp/100)/tot)*100, lead=hp-bp;
+  var vd=tot<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#d97706'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'}));
+  var h='<div class="card" style="border:2px solid #9333ea">';
+  h+='<h3 style="color:#9333ea">🔬 '+mk+' · 2D数根缺席回补回测（两期一组 · '+tot+' 个窗口）</h3>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:6px 0">';
+  function b(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:19px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  h+=b('缺席根下期回补率', hp.toFixed(1)+'%', '#9333ea');
+  h+=b('随机基准', bp.toFixed(1)+'%');
+  h+=b('判定', vd.t, vd.c);
+  h+='</div>';
+  h+='<div class="warn">每次固定用连续两期算缺席根(1–9没出现的),看下一期头二三的前/后2D根有没有补上其中一个。<b>要明显赢过随机基准才算有料。</b></div>';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'r2a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#9333ea;font-weight:700">逐期明细 ▾</span>';
+  h+='<div id="r2a-det" style="display:none;max-height:320px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9333ea"><th style="text-align:left;padding:3px 6px">下一期</th><th style="padding:3px 6px">缺席根</th><th style="padding:3px 6px">补上</th><th style="padding:3px 6px">中?</th></tr>';
+  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px;text-align:center">'+x.absent.join(' ')+'</td><td style="padding:3px 6px;text-align:center;font-weight:700;color:#16a34a">'+(x.got.join(' ')||'—')+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——缺席≠会补开。诚实验证用,不构成预测。判定用2×标准误。</div>';
+  h+='</div>';
+  out.innerHTML=h;
 }
 
 // ============================================================
