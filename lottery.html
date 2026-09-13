@@ -9086,6 +9086,8 @@ function zoNextMainShow(){
     // 🌟 季节常客 × 缺席目标：把当月季节常客调字，凑中 前/中/后2D 目标
     var seas=zoSeasonRegulars(mk);
     var sm=zoSeasonMatch(L, seas);
+    // 今年已开的调字组(标色提示,别重复) — 合并新期+DB，取当年头二三
+    var _openKeys={}; (function(){ var _yr=new Date().getFullYear(), _nd=(typeof getNewResults==='function')?getNewResults():{}, _sn={}; function scan(arr){ (arr||[]).forEach(function(d){ if(!d||!d.date||_sn[d.date])return; _sn[d.date]=1; if(parseInt(String(d.date).slice(0,4),10)!==_yr)return; if(d.nums)[0,1,2].forEach(function(p){ var v=d.nums[p]; if(v!=null&&v!=='') _openKeys[seaPermKey(v)]=1; }); }); } scan(_nd[mk]); scan((typeof DB!=='undefined'&&DB[mk])||[]); })();
     h+='<div style="margin-top:6px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 8px">';
     h+='<div style="font-size:11px;font-weight:700;color:#b45309">🌟 季节常客 × 缺席目标（'+(new Date().getMonth()+1)+'月常客调字凑中目标2D）</div>';
     if(!seas.length){
@@ -9097,9 +9099,10 @@ function zoNextMainShow(){
         var parts=[];
         function seg(hit,lbl,col){ var ks=Object.keys(hit); if(!ks.length) return; var s='<span style="color:'+col+';font-weight:700">'+lbl+'</span> '; s+=ks.map(function(p){ return '<span style="font-family:monospace;background:'+col+';color:#fff;border-radius:4px;padding:0 4px;margin:1px;font-weight:700" title="'+lbl+'='+hit[p]+'">'+p+'</span>'; }).join(''); parts.push(s); }
         seg(r.f,'前2D','#f59e0b'); seg(r.m,'中2D','#3b82f6'); seg(r.b,'后2D','#6366f1');
-        h+='<div style="font-size:11px;margin-top:3px;line-height:1.9"><span style="font-family:monospace;background:#fef3c7;color:#92400e;border-radius:4px;padding:0 5px;font-weight:700">'+r.orig+'</span> <span style="color:#cbd5e1">→</span> '+parts.join(' <span style="color:#e2e8f0">｜</span> ')+'</div>';
+        var _op=_openKeys[seaPermKey(r.orig)];
+        h+='<div style="font-size:11px;margin-top:3px;line-height:1.9"><span title="'+(_op?'今年已开过':'')+'" style="font-family:monospace;background:'+(_op?'#fca5a5':'#fef3c7')+';color:'+(_op?'#7f1d1d':'#92400e')+';border-radius:4px;padding:0 5px;font-weight:700">'+r.orig+(_op?' ✓开':'')+'</span> <span style="color:#cbd5e1">→</span> '+parts.join(' <span style="color:#e2e8f0">｜</span> ')+'</div>';
       });
-      h+='<div style="font-size:9px;color:#b45309;margin-top:3px">左=当月季节常客(全年份·集中度≥1.8x)，右=调字后落在缺席目标里的排列。⚠️ 历史统计，不构成预测。</div>';
+      h+='<div style="font-size:9px;color:#b45309;margin-top:3px">左=当月季节常客(全年份·集中度≥1.8x)，右=调字后落在缺席目标里的排列。<span style="background:#fca5a5;color:#7f1d1d;padding:0 4px;border-radius:3px">红=今年已开过</span>。⚠️ 历史统计，不构成预测。</div>';
     }
     h+='</div>';
     // 展开数根拆解
