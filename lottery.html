@@ -1386,6 +1386,14 @@ function renderPatternTrend(){
     <div class="warn" style="margin-top:6px">例：x1xx = 第二位必须是1；4xxx = 第一位必须是4。<b>可一次输入多组</b>（每组4位，用空格/逗号/斜杠分隔），任一组符合就算命中——如 <code>4xxx 1xxx 7xxx 8xxx 3xxx 5xxx</code> = 第一位是4/1/7/8/3/5都要。快捷按钮可叠加，再点一次取消该组。</div>
   </div>
 
+  <!-- Row 6c: 单双形态 -->
+  <div style="margin-top:8px;background:#f5f3ff;border-radius:7px;padding:10px;border:1px solid #ddd6fe">
+    <div style="font-size:11px;font-weight:700;color:#5b21b6;margin-bottom:8px">🔵 单双形态（4位里几单几双；多选任一，不选=不限）</div>
+    <div id="flt-oe-chips" style="display:flex;gap:6px;flex-wrap:wrap">
+      <script>[['0','4双'],['1','3双1单'],['2','2双2单'],['3','1双3单'],['4','4单']].forEach(function(o){document.write('<label style="cursor:pointer;display:flex;align-items:center;gap:3px;background:#ede9fe;border:2px solid transparent;border-radius:5px;padding:4px 9px;font-size:13px;font-weight:700;color:#5b21b6;transition:all .15s" id="oe-lbl-'+o[0]+'"><input type="checkbox" id="flt-oe-'+o[0]+'" value="'+o[0]+'" onchange="updateChipStyle(\'oe\','+o[0]+')" style="display:none">'+o[1]+'</label>');});</script>
+    </div>
+  </div>
+
   <!-- Row 7: Buttons + 预设 -->
   <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:8px">
     <button class="btn btn-green" onclick="runAdvancedFilter()" style="padding:8px 20px;font-size:14px">🔍 筛选</button>
@@ -4779,7 +4787,8 @@ function updateChipStyle(prefix,r){
     p4s:{on:'#2563eb',onBorder:'#1e40af',off:'#dbeafe',offColor:'#1e3a5f'},  // 4D指定点数
     mth:{on:'#0f766e',onBorder:'#115e59',off:'#ccfbf1',offColor:'#0f766e'},   // 指定月份
     grp:{on:'#db2777',onBorder:'#9d174d',off:'#fce7f3',offColor:'#9d174d'},    // 1-9-0 组合
-    rhn:{on:'#7c2d12',onBorder:'#431407',off:'#fed7aa',offColor:'#7c2d12'}     // 18罗汉
+    rhn:{on:'#7c2d12',onBorder:'#431407',off:'#fed7aa',offColor:'#7c2d12'},    // 18罗汉
+    oe:{on:'#7c3aed',onBorder:'#5b21b6',off:'#ede9fe',offColor:'#5b21b6'}      // 单双形态
   }[prefix]||{on:'#1e3a5f',onBorder:'#163050',off:'#e2e8f0',offColor:'#334155'};
   if(cb.checked){
     lbl.style.background=cfg.on;lbl.style.color='#fff';lbl.style.borderColor=cfg.onBorder;
@@ -4804,6 +4813,11 @@ function getSelectedRoots(prefix){
   if(prefix==='grp'){
     const sel=[];
     GRP_KEYS.forEach(v=>{const cb=document.getElementById('flt-grp-'+v);if(cb&&cb.checked)sel.push(v);});
+    return sel;
+  }
+  if(prefix==='oe'){                                       // 单双形态：单的个数 0-4
+    const sel=[];
+    [0,1,2,3,4].forEach(v=>{const cb=document.getElementById('flt-oe-'+v);if(cb&&cb.checked)sel.push(v);});
     return sel;
   }
   const sel=[];
@@ -5098,6 +5112,7 @@ function clearAdvancedFilter(){
   clearAllRoots('freq');  // 频率档
   clearAllRoots('p4s');   // 4D指定点数
   clearAllRoots('mth');   // 指定月份
+  [0,1,2,3,4].forEach(v=>{const cb=document.getElementById('flt-oe-'+v);if(cb){cb.checked=false;updateChipStyle('oe',v);}});  // 单双形态
   clearPts4();clearPts3b();clearPts3f();
   document.getElementById('filter-result').innerHTML='';
 }
@@ -5346,6 +5361,7 @@ function runAdvancedFilter(){
   const back2Roots=getSelectedRoots('b2r');    // V27 后2D 数根
   const root4Ds=getSelectedRoots('r4d');       // V27 4D 数根
   const permTypes=getSelectedRoots('perm');    // V48 号码打数
+  const oePicks=getSelectedRoots('oe');         // 单双形态（单的个数 0-4）
   const freqTiers=getSelectedRoots('freq');    // 频率档
   const pts4Picks=getSelectedRoots('p4s');     // 4D指定点数（勾选优先于范围）
   const monthPicks=getSelectedRoots('mth');    // 指定月份（跨年份）
@@ -5395,6 +5411,10 @@ function runAdvancedFilter(){
       if(permTypes.length){                                            // V48 号码打数
         const pt=getPermType(num);
         if(!permTypes.includes(pt))return;
+      }
+      if(oePicks.length){                                              // 单双形态：单的个数
+        const _s=pz(num); let _odd=0; for(let _i=0;_i<4;_i++){ if((+_s[_i])%2) _odd++; }
+        if(!oePicks.includes(_odd))return;
       }
       if(front3Roots.length&&!front3Roots.includes(front3Root))return;
       if(back3Roots.length&&!back3Roots.includes(back3Root))return;
@@ -21600,7 +21620,8 @@ function zoBuildMarketTableHTML(market){
     'PNT','PNT','PNT','P1','P2','P3','','4D1','4D2','4D3','4DBS','4DBS','4DBS','',
     'F3D','F3D2','F3D3','F3P1','F3P2','F3P3','F3P_1','F3P_2','F3P_3','',
     '3DBS1','3DBS2','3DBS3','B3D1','B3D2','B3D3','3DP1','3DP2','3DP3','B3P_1','B3P_2','B3P_3','B3D1','B3D2','B3D3','',
-    'F1','F2','F3','B1','B2','B3'];
+    'F1','F2','F3','B1','B2','B3','',
+    '单双1','单双2','单双3'];
   var BLANK=' style="background:#1e293b;min-width:3px;width:3px;padding:0"';
   var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
   var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
@@ -21623,14 +21644,21 @@ function zoBuildMarketTableHTML(market){
     {f:'root4D',t:'root'},{f:'band4D',t:'band'},{blank:1},
     {f:'f3Root',t:'root'},{f:'f3Pts',t:'pts3'},{f:'f3Zone',t:'zone'},{blank:1},
     {f:'b3Band',t:'band'},{f:'b3Raw',t:'none'},{f:'b3Pts',t:'pts3'},{f:'b3Zone',t:'zone'},{f:'b3Root',t:'root'},{blank:1},
-    {huaz:'F'},{huaz:'B'}
+    {huaz:'F'},{huaz:'B'},{blank:1},{oecat:1}
   ];
+  function oeCat(numStr){ var s=String(numStr).padStart(4,'0'); var odd=0; for(var i=0;i<4;i++){ if((+s[i])%2) odd++; } return odd+'单'+(4-odd)+'双'; }
   var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
   // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
   var colDefs=[];
+  var prizeKey=['p1','p2','p3'];
   GROUPS.forEach(function(g){
     if(g.blank) return;
-    if(g.huaz){
+    if(g.oecat){
+      for(var pc=0;pc<3;pc++){ (function(pc){
+        var vals=rd.map(function(x){ return oeCat(x[prizeKey[pc]]); });
+        colDefs.push({ vals:vals, colorAt:function(){ return null; } });
+      })(pc); }
+    } else if(g.huaz){
       var seqs=g.huaz==='F'?seqF:seqB, info=g.huaz==='F'?fInfo:bInfo;
       for(var k=0;k<3;k++){ (function(k){ colDefs.push({ vals:seqs[k], colorAt:function(ri){ return info.linked[k][ri]?info.colorOf[seqs[k][ri]]:null; } }); })(k); }
     } else {
