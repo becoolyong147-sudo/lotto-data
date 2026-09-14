@@ -9060,7 +9060,30 @@ function zoMRData(mk, yr, mo){
   var topKeys=Object.keys(keyCnt).map(function(k){return {num:keySample[k],cnt:keyCnt[k]};}).sort(function(a,b){return b.cnt-a.cnt;}).slice(0,5);
   var posTop=posCnt.map(function(c){ var a=Object.keys(c).map(function(d){return [d,c[d]];}).sort(function(x,y){return y[1]-x[1];}).slice(0,3); return a; });
   gapList.sort(function(a,b){return b.gap-a.gap;});
+  // 跨年同月：前2D/后2D 在「这个月(历年合并)」的频率 + 集中度 + 跨几年
+  var moStr=String(mo).padStart(2,'0');
+  var mF={}, mB={}, mFy={}, mBy={}, mTot=0, oF={}, oB={}, oTot=0;
+  merged.forEach(function(d){
+    var isMo=String(d.date).slice(5,7)===moStr, yy=String(d.date).slice(0,4);
+    (d.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
+      var f=s.slice(0,2), b=s.slice(2,4);
+      oF[f]=(oF[f]||0)+1; oB[b]=(oB[b]||0)+1; oTot++;
+      if(isMo){ mF[f]=(mF[f]||0)+1; mB[b]=(mB[b]||0)+1; mTot++; (mFy[f]=mFy[f]||{})[yy]=1; (mBy[b]=mBy[b]||{})[yy]=1; }
+    });
+  });
+  function rankXY(mCnt,oCnt,yrsMap){ return Object.keys(mCnt).map(function(k){ var conc=(mTot&&oTot&&oCnt[k])?((mCnt[k]/mTot)/(oCnt[k]/oTot)):0; return {v:k, cnt:mCnt[k], conc:conc, yrs:Object.keys(yrsMap[k]||{}).length}; }).sort(function(a,b){return b.cnt-a.cnt || b.conc-a.conc;}).slice(0,8); }
+  var xyFront=rankXY(mF,oF,mFy), xyBack=rankXY(mB,oB,mBy);
+  // 分奖位 · 逐年 · 明细：detail[pi][year]=[{date,num,f2,m2,b2}]；freqF/freqB[pi]=前/后2D频率
+  var detail=[{},{},{}], freqF=[{},{},{}], freqB=[{},{},{}];
+  merged.forEach(function(d){ if(String(d.date).slice(5,7)!==moStr) return; var yy=String(d.date).slice(0,4);
+    [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
+      var f=s.slice(0,2), m=s.slice(1,3), b=s.slice(2,4);
+      (detail[pi][yy]=detail[pi][yy]||[]).push({date:d.date, num:s, f2:f, m2:m, b2:b});
+      freqF[pi][f]=(freqF[pi][f]||0)+1; freqB[pi][b]=(freqB[pi][b]||0)+1;
+    });
+  });
   return {mk:mk, ym:ym, rows:rows, big:big, odd:odd, totNums:totNums, topKeys:topKeys, posTop:posTop, gapTop:gapList.slice(0,3),
+    xyFront:xyFront, xyBack:xyBack, xyMonthTotal:mTot, mo:mo, detail:detail, freqF:freqF, freqB:freqB,
     thisBigRatio: totNums? (big.reduce(function(a,b,i){return a+b*i;},0)/totNums) : 0,
     histBigAvg: histN? histBigSum/histN : null };
 }
@@ -9104,6 +9127,42 @@ function zoMonthlyReport(){
   else cmp='往年这个月数据太少，比不了。';
   h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">📊 跟往年同一个月比</div>';
   h+='<div style="font-size:12px">'+cmp+'</div>';
+  // 跨年同月：前2D/后2D 深度榜
+  function xyTable(title,arr){
+    var s='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">'+title+'</div>';
+    if(!arr.length){ return s+'<div style="font-size:12px;color:#94a3b8">数据不足</div>'; }
+    s+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#fdf2f8;color:#be185d"><th style="text-align:left;padding:3px 8px">号(2位)</th><th style="text-align:right;padding:3px 8px">这月开过</th><th style="text-align:right;padding:3px 8px">偏爱度</th><th style="text-align:left;padding:3px 8px">真假</th></tr>';
+    arr.forEach(function(x){ var real=x.yrs>=3 && x.conc>=1.3; var col=x.conc>=1.5?'#dc2626':(x.conc>=1.2?'#d97706':'#64748b');
+      s+='<tr style="border-top:1px solid #fce7f3"><td style="padding:3px 8px;font-family:monospace;font-weight:800">'+x.v+'</td><td style="padding:3px 8px;text-align:right">'+x.cnt+'次</td><td style="padding:3px 8px;text-align:right;font-weight:800;color:'+col+'">'+x.conc.toFixed(1)+'倍</td><td style="padding:3px 8px">'+(real?'<span style="color:#16a34a;font-weight:700">🟢'+x.yrs+'年都爱</span>':(x.yrs<=1?'<span style="color:#dc2626">🔴只1年·巧合</span>':'<span style="color:#94a3b8">'+x.yrs+'年·普通</span>'))+'</td></tr>'; });
+    return s+'</table></div>';
+  }
+  h+='<div style="margin-top:6px;padding:8px 10px;background:#fff7fb;border:1px dashed #fbcfe8;border-radius:8px">';
+  h+='<div style="font-size:12px;color:#9d174d;margin-bottom:2px">🔬 '+mo+'月 · 历年合并（前/后2D 谁最爱这个月）</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">「偏爱度」=这个2D在'+mo+'月的占比 ÷ 它平时的占比，超过1才算真偏爱这个月；「真假」看是不是很多年都这样(分散=真，扎堆1年=巧合)。</div>';
+  h+=xyTable('🔸 前2D（千百）'+(D.xyMonthTotal?'':'（无数据）'),D.xyFront);
+  h+=xyTable('🔹 后2D（十个）',D.xyBack);
+  h+='</div>';
+  // 🗂️ 分奖位 · 逐年 · 明细（越细越好）
+  var PNAME=['🥇 头奖','🥈 二奖','🥉 三奖'];
+  h+='<div style="font-weight:800;color:#be185d;margin:12px 0 3px">🗂️ 历年'+mo+'月 · 头/二/三 分开看（每期号 + 前中后2D）</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">每个奖分开、按年份列出那年'+mo+'月开的每一期,拆出前2D(千百)/中2D(百十)/后2D(十个)。下面还有该奖历年最常出的前/后2D。</div>';
+  [0,1,2].forEach(function(pi){
+    var years=Object.keys(D.detail[pi]).sort(function(a,b){return b.localeCompare(a);}); // 新年→旧年
+    h+='<div style="margin-top:8px;border:1px solid #fbcfe8;border-radius:8px;overflow:hidden">';
+    h+='<div style="background:#fdf2f8;color:#be185d;font-weight:800;padding:5px 10px">'+PNAME[pi]+' · 历年'+mo+'月</div>';
+    if(!years.length){ h+='<div style="padding:6px 10px;font-size:12px;color:#94a3b8">无数据</div></div>'; return; }
+    h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9d174d"><th style="text-align:left;padding:3px 8px">日期</th><th style="text-align:left;padding:3px 8px">号码</th><th style="text-align:center;padding:3px 8px">前2D</th><th style="text-align:center;padding:3px 8px">中2D</th><th style="text-align:center;padding:3px 8px">后2D</th></tr>';
+    years.forEach(function(yy){
+      var list=D.detail[pi][yy].slice().sort(function(a,b){return b.date.localeCompare(a.date);});
+      h+='<tr style="background:#fff7fb"><td colspan="5" style="padding:2px 8px;font-weight:800;color:#be185d">'+yy+'年（'+list.length+'期）</td></tr>';
+      list.forEach(function(x){ h+='<tr style="border-top:1px solid #fce7f3"><td style="padding:3px 8px">'+x.date.slice(5)+'</td><td style="padding:3px 8px;font-family:monospace;font-weight:700">'+x.num+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#0f766e;font-weight:700">'+x.f2+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#7c3aed;font-weight:700">'+x.m2+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#be185d;font-weight:700">'+x.b2+'</td></tr>'; });
+    });
+    h+='</table></div>';
+    var topF=Object.keys(D.freqF[pi]).map(function(k){return [k,D.freqF[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    var topB=Object.keys(D.freqB[pi]).map(function(k){return [k,D.freqB[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    h+='<div style="padding:5px 10px;font-size:11px;background:#fffbeb;color:#854d0e">该奖历年'+mo+'月最常出 — 前2D：'+(topF.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+' ｜ 后2D：'+(topB.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+'</div>';
+    h+='</div>';
+  });
   h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 一句话：这个月的号整体<b>'+lean+'</b>。这只是<b>回顾这个月开过什么</b> —— 每一期都是独立随机的，最热的号、很久才开的号都只是「刚好」，不代表下个月会怎样。当群里聊天、看热闹就好。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
