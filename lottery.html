@@ -9079,32 +9079,32 @@ function zoMonthlyReport(){
   h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:13px">市场跟上方「市场」下拉一致 · 年 <select id="mr-year" onchange="zoMonthlyReport()" style="padding:3px 6px;border:1px solid #fbcfe8;border-radius:5px">'+yrOpts+'</select> 月 <select id="mr-month" onchange="zoMonthlyReport()" style="padding:3px 6px;border:1px solid #fbcfe8;border-radius:5px">'+moOpts+'</select> <button class="btn btn-green" onclick="zoMonthlyReportImage()">📸 下载图（发群）</button></div>';
   if(!D.rows.length){ h+='<div class="warn">'+mk+' '+D.ym+' 没有开奖数据。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
   // 1 开奖回顾
-  h+='<div style="font-weight:800;color:#be185d;margin:6px 0 3px">📖 开奖回顾（'+D.rows.length+' 期）</div>';
+  h+='<div style="font-weight:800;color:#be185d;margin:6px 0 3px">📖 这个月开了什么（'+D.rows.length+' 期）</div>';
   h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#fdf2f8;color:#be185d"><th style="text-align:left;padding:3px 8px">日期</th><th style="text-align:left;padding:3px 8px">编号</th><th style="text-align:left;padding:3px 8px">头 / 二 / 三</th></tr>';
   D.rows.slice().reverse().forEach(function(r){ h+='<tr style="border-top:1px solid #fce7f3"><td style="padding:3px 8px">'+r.date+'</td><td style="padding:3px 8px;font-family:monospace;color:#64748b">'+r.draw+'</td><td style="padding:3px 8px;font-family:monospace;font-weight:700">'+r.trio.join(' / ')+'</td></tr>'; });
   h+='</table></div>';
   // 2 形态
-  function distBar(t,lbl){ var s=''; for(var k=4;k>=0;k--){ if(!t[k])continue; s+='<span style="display:inline-block;background:#fce7f3;color:#9d174d;border-radius:5px;padding:1px 7px;margin:2px;font-size:12px;font-weight:700">'+lbl(k)+'：'+t[k]+'</span>'; } return s; }
-  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🎨 形态分布（头二三合计 '+D.totNums+' 个号）</div>';
-  h+='<div><b style="font-size:12px;color:#9d174d">大小：</b>'+distBar(D.big,function(k){return k+'大'+(4-k)+'小';})+'</div>';
-  h+='<div style="margin-top:3px"><b style="font-size:12px;color:#9d174d">单双：</b>'+distBar(D.odd,function(j){return j+'单'+(4-j)+'双';})+'</div>';
+  function distBar(t,lbl){ var s=''; for(var k=4;k>=0;k--){ if(!t[k])continue; s+='<span style="display:inline-block;background:#fce7f3;color:#9d174d;border-radius:5px;padding:1px 8px;margin:3px;font-size:12px;font-weight:700">'+lbl(k)+' → '+t[k]+'次</span>'; } return s; }
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🎨 这个月的号偏大还偏小、偏单还偏双（'+D.totNums+' 个号一起看）</div>';
+  h+='<div><b style="font-size:12px;color:#9d174d">大小(4个位里几个大)：</b>'+distBar(D.big,function(k){return k+'大'+(4-k)+'小';})+'</div>';
+  h+='<div style="margin-top:3px"><b style="font-size:12px;color:#9d174d">单双(4个位里几个单)：</b>'+distBar(D.odd,function(j){return j+'单'+(4-j)+'双';})+'</div>';
   // 3 热号
-  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔥 本月热号 Top5（分身组·调字算）</div>';
-  h+='<div>'+(D.topKeys.length?D.topKeys.map(function(x){return '<span style="display:inline-block;background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:2px 9px;margin:2px;font-family:monospace;font-weight:800">'+x.num+'<span style="font-size:11px;color:#be185d"> '+x.cnt+'次</span></span>';}).join(''):'—')+'</div>';
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔥 这个月开最多次的号（同几个数字、不同排法算同一个）</div>';
+  h+='<div>'+(D.topKeys.length?D.topKeys.map(function(x){return '<span style="display:inline-block;background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:2px 9px;margin:2px;font-family:monospace;font-weight:800">'+x.num+'<span style="font-size:11px;color:#be185d"> 开'+x.cnt+'次</span></span>';}).join(''):'—')+'</div>';
   // 4 各位热门
-  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔢 各位热门数字</div>';
-  h+='<div style="font-size:12px">'+D.posTop.map(function(a,pi){ return '<b>'+posName[pi]+'</b>：'+(a.map(function(d){return d[0]+'('+d[1]+')';}).join(' ')||'—'); }).join(' ｜ ')+'</div>';
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔢 每个位置最爱出的数字（括号=出现几次）</div>';
+  h+='<div style="font-size:12px">'+D.posTop.map(function(a,pi){ return '<b>'+posName[pi]+'位</b>：'+(a.map(function(d){return d[0]+'('+d[1]+')';}).join(' ')||'—'); }).join(' ｜ ')+'</div>';
   // 5 久违看点
-  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">💤 久违回补看点</div>';
-  h+='<div style="font-size:12px">'+(D.gapTop.length?D.gapTop.map(function(g){return '<span style="display:inline-block;background:#fef9c3;color:#854d0e;border-radius:5px;padding:1px 8px;margin:2px">'+g.num+' 隔了 '+g.gap+' 期才回补（'+g.date.slice(5)+'）</span>';}).join(''):'本月没有明显久违回补')+'</div>';
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">💤 很久没出、这个月终于开的号</div>';
+  h+='<div style="font-size:12px">'+(D.gapTop.length?D.gapTop.map(function(g){return '<span style="display:inline-block;background:#fef9c3;color:#854d0e;border-radius:5px;padding:1px 8px;margin:2px">'+g.num+' — 上次开是 '+g.gap+' 期前，'+g.date.slice(5)+' 才又开</span>';}).join(''):'这个月没有特别久违才开的号')+'</div>';
   // 6 往年同月对比 + 结语
-  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'均衡');
+  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'一半一半');
   var cmp='';
-  if(D.histBigAvg!=null){ var diff=D.thisBigRatio-D.histBigAvg; cmp='往年'+mo+'月平均每号 '+D.histBigAvg.toFixed(2)+' 个大位，本月 '+D.thisBigRatio.toFixed(2)+' 个 → '+(Math.abs(diff)<0.15?'跟往年差不多':(diff>0?'比往年偏大':'比往年偏小')); }
-  else cmp='往年同月样本不足，无法对比';
-  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">📊 对比往年同月</div>';
+  if(D.histBigAvg!=null){ var diff=D.thisBigRatio-D.histBigAvg; cmp='往年'+mo+'月的号一般'+(D.histBigAvg>=2?'偏大':'偏小')+'一点，今年'+mo+'月'+(Math.abs(diff)<0.15?'差不多一样':(diff>0?'偏大一些':'偏小一些'))+'。'; }
+  else cmp='往年这个月数据太少，比不了。';
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">📊 跟往年同一个月比</div>';
   h+='<div style="font-size:12px">'+cmp+'</div>';
-  h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 结语：本月大小整体<b>'+lean+'</b>。⚠️ 这是<b>回顾</b>——每期独立随机，热号/久违只是记录，不预示下月。当群内容与娱乐参考。</div>';
+  h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 一句话：这个月的号整体<b>'+lean+'</b>。这只是<b>回顾这个月开过什么</b> —— 每一期都是独立随机的，最热的号、很久才开的号都只是「刚好」，不代表下个月会怎样。当群里聊天、看热闹就好。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -9112,21 +9112,21 @@ function zoMonthlyReportImage(){
   if(!ZO_MR||!ZO_MR.rows.length){ alert('请先生成月度报告(要有数据)。'); return; }
   var D=ZO_MR, posName=['千','百','十','个'];
   var lines=[];
-  lines.push({t:'title', s:D.mk+' · '+D.ym.replace('-','年')+'月度报告'});
-  lines.push({t:'sub', s:'共 '+D.rows.length+' 期 · 回顾参考 · 娱乐'});
-  lines.push({t:'h', s:'🎨 形态（'+D.totNums+'个号）'});
-  var bs=''; for(var k=4;k>=0;k--){ if(D.big[k]) bs+=k+'大'+(4-k)+'小:'+D.big[k]+'  '; } lines.push({t:'b', s:'大小 '+bs});
-  var os=''; for(var j=4;j>=0;j--){ if(D.odd[j]) os+=j+'单'+(4-j)+'双:'+D.odd[j]+'  '; } lines.push({t:'b', s:'单双 '+os});
-  lines.push({t:'h', s:'🔥 热号 Top5(调字)'});
-  lines.push({t:'b', s:D.topKeys.map(function(x){return x.num+'('+x.cnt+')';}).join('   ')||'—'});
-  lines.push({t:'h', s:'🔢 各位热门'});
-  lines.push({t:'b', s:D.posTop.map(function(a,pi){return posName[pi]+':'+a.map(function(d){return d[0];}).join('');}).join('  ')});
-  lines.push({t:'h', s:'💤 久违回补看点'});
-  if(D.gapTop.length) D.gapTop.forEach(function(g){ lines.push({t:'b', s:g.num+' 隔'+g.gap+'期回补 ('+g.date.slice(5)+')'}); });
-  else lines.push({t:'b', s:'本月无明显久违回补'});
-  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'均衡');
-  lines.push({t:'h', s:'📝 结语'});
-  lines.push({t:'b', s:'本月大小整体'+lean+'。热号/久违只是记录，每期独立随机，不预示下月。'});
+  lines.push({t:'title', s:D.mk+' · '+D.ym.replace('-','年')+'月 开奖回顾'});
+  lines.push({t:'sub', s:'这个月开了 '+D.rows.length+' 期 · 看热闹用'});
+  lines.push({t:'h', s:'🎨 偏大还偏小、偏单还偏双（'+D.totNums+'个号）'});
+  var bs=''; for(var k=4;k>=0;k--){ if(D.big[k]) bs+=k+'大'+(4-k)+'小:'+D.big[k]+'次  '; } lines.push({t:'b', s:bs});
+  var os=''; for(var j=4;j>=0;j--){ if(D.odd[j]) os+=j+'单'+(4-j)+'双:'+D.odd[j]+'次  '; } lines.push({t:'b', s:os});
+  lines.push({t:'h', s:'🔥 这个月开最多次的号'});
+  lines.push({t:'b', s:D.topKeys.map(function(x){return x.num+'(开'+x.cnt+'次)';}).join('   ')||'—'});
+  lines.push({t:'h', s:'🔢 每个位置最爱出的数字'});
+  lines.push({t:'b', s:D.posTop.map(function(a,pi){return posName[pi]+'位:'+a.map(function(d){return d[0];}).join('');}).join('   ')});
+  lines.push({t:'h', s:'💤 很久没出、这个月终于开的号'});
+  if(D.gapTop.length) D.gapTop.forEach(function(g){ lines.push({t:'b', s:g.num+' — 上次开是'+g.gap+'期前 ('+g.date.slice(5)+')'}); });
+  else lines.push({t:'b', s:'这个月没有特别久违才开的号'});
+  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'一半一半');
+  lines.push({t:'h', s:'📝 一句话'});
+  lines.push({t:'b', s:'这个月整体'+lean+'。只是回顾，每期都是随机，不代表下个月。'});
   var SC=2, W=760, pad=28, y=pad, H=pad;
   lines.forEach(function(l){ H += l.t==='title'?44:(l.t==='sub'?26:(l.t==='h'?30:24)); });
   H += 20;
