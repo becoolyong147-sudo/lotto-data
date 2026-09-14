@@ -9064,17 +9064,24 @@ function zoMRData(mk, yr, mo, rangeYears){
   // 跨年同月：前2D/后2D 在「这个月(历年合并)」的频率 + 集中度 + 跨几年
   var moStr=String(mo).padStart(2,'0');
   var mF={}, mB={}, mFy={}, mBy={}, mTot=0, oF={}, oB={}, oTot=0;
+  // 按奖位分开：p[pi] 各一份
+  var pmF=[{},{},{}], pmB=[{},{},{}], pmFy=[{},{},{}], pmBy=[{},{},{}], pmTot=[0,0,0], poF=[{},{},{}], poB=[{},{},{}], poTot=[0,0,0];
   merged.forEach(function(d){
     var isMo=String(d.date).slice(5,7)===moStr, yy=String(d.date).slice(0,4);
     if(_cutoffY && +yy < _cutoffY) return;
-    (d.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
+    (d.nums||[]).forEach(function(n,pi){ if(n==null||n==='')return; if(pi>2)return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
       var f=s.slice(0,2), b=s.slice(2,4);
       oF[f]=(oF[f]||0)+1; oB[b]=(oB[b]||0)+1; oTot++;
-      if(isMo){ mF[f]=(mF[f]||0)+1; mB[b]=(mB[b]||0)+1; mTot++; (mFy[f]=mFy[f]||{})[yy]=1; (mBy[b]=mBy[b]||{})[yy]=1; }
+      poF[pi][f]=(poF[pi][f]||0)+1; poB[pi][b]=(poB[pi][b]||0)+1; poTot[pi]++;
+      if(isMo){ mF[f]=(mF[f]||0)+1; mB[b]=(mB[b]||0)+1; mTot++; (mFy[f]=mFy[f]||{})[yy]=1; (mBy[b]=mBy[b]||{})[yy]=1;
+        pmF[pi][f]=(pmF[pi][f]||0)+1; pmB[pi][b]=(pmB[pi][b]||0)+1; pmTot[pi]++; (pmFy[pi][f]=pmFy[pi][f]||{})[yy]=1; (pmBy[pi][b]=pmBy[pi][b]||{})[yy]=1; }
     });
   });
-  function rankXY(mCnt,oCnt,yrsMap){ return Object.keys(mCnt).map(function(k){ var conc=(mTot&&oTot&&oCnt[k])?((mCnt[k]/mTot)/(oCnt[k]/oTot)):0; return {v:k, cnt:mCnt[k], conc:conc, yrs:Object.keys(yrsMap[k]||{}).length}; }).sort(function(a,b){return b.cnt-a.cnt || b.conc-a.conc;}).slice(0,8); }
+  function rankXYg(mCnt,oCnt,yrsMap,mT,oT){ return Object.keys(mCnt).map(function(k){ var conc=(mT&&oT&&oCnt[k])?((mCnt[k]/mT)/(oCnt[k]/oT)):0; return {v:k, cnt:mCnt[k], conc:conc, yrs:Object.keys(yrsMap[k]||{}).length}; }).sort(function(a,b){return b.cnt-a.cnt || b.conc-a.conc;}).slice(0,8); }
+  function rankXY(mCnt,oCnt,yrsMap){ return rankXYg(mCnt,oCnt,yrsMap,mTot,oTot); }
   var xyFront=rankXY(mF,oF,mFy), xyBack=rankXY(mB,oB,mBy);
+  var xyFrontP=[0,1,2].map(function(pi){return rankXYg(pmF[pi],poF[pi],pmFy[pi],pmTot[pi],poTot[pi]);});
+  var xyBackP=[0,1,2].map(function(pi){return rankXYg(pmB[pi],poB[pi],pmBy[pi],pmTot[pi],poTot[pi]);});
   // 分奖位 · 逐年 · 明细：detail[pi][year]=[{date,num,f2,m2,b2}]；freqF/freqB[pi]=前/后2D频率
   var detail=[{},{},{}], freqF=[{},{},{}], freqB=[{},{},{}];
   merged.forEach(function(d){ if(String(d.date).slice(5,7)!==moStr) return; var yy=String(d.date).slice(0,4);
@@ -9086,7 +9093,7 @@ function zoMRData(mk, yr, mo, rangeYears){
     });
   });
   return {mk:mk, ym:ym, rows:rows, big:big, odd:odd, totNums:totNums, topKeys:topKeys, posTop:posTop, gapTop:gapList.slice(0,3),
-    xyFront:xyFront, xyBack:xyBack, xyMonthTotal:mTot, mo:mo, detail:detail, freqF:freqF, freqB:freqB,
+    xyFront:xyFront, xyBack:xyBack, xyFrontP:xyFrontP, xyBackP:xyBackP, xyMonthTotal:mTot, mo:mo, detail:detail, freqF:freqF, freqB:freqB,
     thisBigRatio: totNums? (big.reduce(function(a,b,i){return a+b*i;},0)/totNums) : 0,
     histBigAvg: histN? histBigSum/histN : null };
 }
@@ -9168,6 +9175,8 @@ function zoMonthlyReport(){
     var topF=Object.keys(D.freqF[pi]).map(function(k){return [k,D.freqF[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     var topB=Object.keys(D.freqB[pi]).map(function(k){return [k,D.freqB[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
     h+='<div style="padding:5px 10px;font-size:11px;background:#fffbeb;color:#854d0e">该奖历年'+mo+'月最常出 — 前2D：'+(topF.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+' ｜ 后2D：'+(topB.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+'</div>';
+    // 该奖单独的「偏爱度榜」(前/后2D)
+    h+='<div style="padding:6px 10px">'+xyTable('　🔸'+PNAME[pi].replace(/^.. /,'')+' 前2D 偏爱榜',D.xyFrontP[pi])+xyTable('　🔹'+PNAME[pi].replace(/^.. /,'')+' 后2D 偏爱榜',D.xyBackP[pi])+'</div>';
     h+='</div>';
   });
   h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 一句话：这个月的号整体<b>'+lean+'</b>。这只是<b>回顾这个月开过什么</b> —— 每一期都是独立随机的，最热的号、很久才开的号都只是「刚好」，不代表下个月会怎样。当群里聊天、看热闹就好。</div>';
