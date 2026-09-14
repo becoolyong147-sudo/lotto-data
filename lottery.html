@@ -9163,21 +9163,24 @@ function zoMonthlyReport(){
     var totP=years.reduce(function(a,y){return a+D.detail[pi][y].length;},0);
     var did='mr-det-'+pi;
     h+='<div style="margin-top:8px;border:1px solid #fbcfe8;border-radius:8px;overflow:hidden">';
-    h+='<div style="background:#fdf2f8;color:#be185d;font-weight:800;padding:5px 10px;display:flex;justify-content:space-between;align-items:center"><span>'+PNAME[pi]+' · 历年'+mo+'月（'+years.length+'年·共'+totP+'期）</span><span onclick="var e=document.getElementById(\''+did+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;font-size:12px;color:#9333ea;font-weight:700">展开逐期 ▾</span></div>';
+    h+='<div style="background:#fdf2f8;color:#be185d;font-weight:800;padding:5px 10px;display:flex;justify-content:space-between;align-items:center"><span>'+PNAME[pi]+' · 历年'+mo+'月（'+years.length+'年·共'+totP+'期）</span><span onclick="var e=document.getElementById(\''+did+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;font-size:12px;color:#9333ea;font-weight:700">展开明细+偏爱榜 ▾</span></div>';
     if(!years.length){ h+='<div style="padding:6px 10px;font-size:12px;color:#94a3b8">无数据</div></div>'; return; }
-    h+='<div id="'+did+'" style="display:none"><div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9d174d"><th style="text-align:left;padding:3px 8px">日期</th><th style="text-align:left;padding:3px 8px">号码</th><th style="text-align:center;padding:3px 8px">前2D</th><th style="text-align:center;padding:3px 8px">中2D</th><th style="text-align:center;padding:3px 8px">后2D</th></tr>';
+    var topF=Object.keys(D.freqF[pi]).map(function(k){return [k,D.freqF[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    var topB=Object.keys(D.freqB[pi]).map(function(k){return [k,D.freqB[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
+    // 一行结论(常显)
+    h+='<div style="padding:5px 10px;font-size:11px;background:#fffbeb;color:#854d0e">该奖历年'+mo+'月最常出 — 前2D：'+(topF.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+' ｜ 后2D：'+(topB.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+'</div>';
+    // 折叠：逐期明细 + 偏爱榜
+    h+='<div id="'+did+'" style="display:none">';
+    h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9d174d"><th style="text-align:left;padding:3px 8px">日期</th><th style="text-align:left;padding:3px 8px">号码</th><th style="text-align:center;padding:3px 8px">前2D</th><th style="text-align:center;padding:3px 8px">中2D</th><th style="text-align:center;padding:3px 8px">后2D</th></tr>';
     years.forEach(function(yy){
       var list=D.detail[pi][yy].slice().sort(function(a,b){return b.date.localeCompare(a.date);});
       h+='<tr style="background:#fff7fb"><td colspan="5" style="padding:2px 8px;font-weight:800;color:#be185d">'+yy+'年（'+list.length+'期）</td></tr>';
       list.forEach(function(x){ h+='<tr style="border-top:1px solid #fce7f3"><td style="padding:3px 8px">'+x.date.slice(5)+'</td><td style="padding:3px 8px;font-family:monospace;font-weight:700">'+x.num+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#0f766e;font-weight:700">'+x.f2+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#7c3aed;font-weight:700">'+x.m2+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;color:#be185d;font-weight:700">'+x.b2+'</td></tr>'; });
     });
-    h+='</table></div></div>';
-    var topF=Object.keys(D.freqF[pi]).map(function(k){return [k,D.freqF[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
-    var topB=Object.keys(D.freqB[pi]).map(function(k){return [k,D.freqB[pi][k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
-    h+='<div style="padding:5px 10px;font-size:11px;background:#fffbeb;color:#854d0e">该奖历年'+mo+'月最常出 — 前2D：'+(topF.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+' ｜ 后2D：'+(topB.map(function(x){return x[0]+'('+x[1]+')';}).join(' ')||'—')+'</div>';
-    // 该奖单独的「偏爱度榜」(前/后2D)
-    h+='<div style="padding:6px 10px">'+xyTable('　🔸'+PNAME[pi].replace(/^.. /,'')+' 前2D 偏爱榜',D.xyFrontP[pi])+xyTable('　🔹'+PNAME[pi].replace(/^.. /,'')+' 后2D 偏爱榜',D.xyBackP[pi])+'</div>';
-    h+='</div>';
+    h+='</table></div>';
+    h+='<div style="padding:6px 10px">'+xyTable('　🔸 前2D 偏爱榜',D.xyFrontP[pi])+xyTable('　🔹 后2D 偏爱榜',D.xyBackP[pi])+'</div>';
+    h+='</div>';   // close collapse
+    h+='</div>';   // close block card
   });
   h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 一句话：这个月的号整体<b>'+lean+'</b>。这只是<b>回顾这个月开过什么</b> —— 每一期都是独立随机的，最热的号、很久才开的号都只是「刚好」，不代表下个月会怎样。当群里聊天、看热闹就好。</div>';
   h+='</div>';
