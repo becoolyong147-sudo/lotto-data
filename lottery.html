@@ -8988,11 +8988,10 @@ function zoSpHistoryShow(){
     h+=row('前1D',r.f1.a1+'(最多'+r.f1.most+')',r.f1.set.join(' '),hit1(r.f1.set,0,r.nn));
     h+=row('后1D',r.b1.a1+'(最多'+r.b1.most+')',r.b1.set.join(' '),hit1(r.b1.set,3,r.nn));
     // 🔢 缺席数根·纯命中：下一期各号该窗口2D的数根是否落在缺席根里
+    function rtCell(nm,a2,wa,wb){ var v=r.nn?rtHit(a2,wa,wb,r.nn):'<span style="color:#94a3b8">待开</span>'; return '<span style="color:#6b7280">'+nm+'['+a2+']</span> <b>'+v+'</b>'; }
     h+='<div style="font-size:11px;margin-top:4px;padding-top:4px;border-top:1px dashed #e2e8f0">'+
        '<span style="display:inline-block;background:#9333ea;color:#fff;border-radius:4px;padding:0 6px;font-weight:700;margin-right:4px">🔢缺根命中</span>'+
-       '前['+r.f2.a2+'] <b>'+(rtHit(r.f2.a2,0,1,r.nn)||'-')+'</b><br>'+
-       '<span style="visibility:hidden">🔢缺根命中 </span>中['+r.m2.a2+'] <b>'+(rtHit(r.m2.a2,1,2,r.nn)||'-')+'</b><br>'+
-       '<span style="visibility:hidden">🔢缺根命中 </span>后['+r.b2.a2+'] <b>'+(rtHit(r.b2.a2,2,3,r.nn)||'-')+'</b></div>';
+       rtCell('前',r.f2.a2,0,1)+' <span style="color:#e2e8f0">｜</span> '+rtCell('中',r.m2.a2,1,2)+' <span style="color:#e2e8f0">｜</span> '+rtCell('后',r.b2.a2,2,3)+'</div>';
     // 🔗 链接命中：前3D/后3D/完整4D 对照下一期实际
     var lk=zoLinkCompute(r.f2.tg, r.m2.tg, r.b2.tg);
     function hitSet(setArr, wa, wb){ if(!r.nn)return '-'; var st={}; setArr.forEach(function(x){st[x]=1;}); var res=''; ['头','二','三'].forEach(function(pn,pi){ var x=r.nn[pi]; if(x&&!res){ var w=(wb==null)?x:x.slice(wa,wb+1); if(st[w]) res='✅'+pn+'('+x+')'; } }); return res||'❌'; }
