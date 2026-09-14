@@ -10350,6 +10350,27 @@ function zoNumLookup(){
   });
   h+='</table></div>';
   h+='<div style="font-size:11px;color:#64748b;margin-top:6px">「正字」=这4位原样开过;「调字整组」=它的所有排列(box)合计开过多少次;「几年没来」红=超12年、橙=超6年;「命中本期目标」=该号(或调字)落在这个市场「下一期主打」的缺席目标2D里。全是历史统计,不构成预测。</div>';
+  // === 新增:整组(iBox)实际开过哪些排列 + 上/下半年活跃 ===
+  var qkey=(typeof seaPermKey==='function')?seaPermKey(num):num.split('').sort().join('');
+  var permCnt={}, monthCnt=new Array(13).fill(0), totOcc=0, byMkt={};
+  var _nd=(typeof getNewResults==='function')?getNewResults():{};
+  mkts.forEach(function(mk){ var seen={},mg=[]; (_nd[mk]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}}); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}});
+    mg.forEach(function(d){ if(String(d.date).endsWith('-00'))return; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=String(n).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; if(seaPermKey(s)!==qkey)return; permCnt[s]=(permCnt[s]||0)+1; var mo=+d.date.slice(5,7); if(mo>=1&&mo<=12)monthCnt[mo]++; totOcc++; byMkt[mk]=(byMkt[mk]||0)+1; }); });
+  });
+  var permList=Object.keys(permCnt).sort(function(a,b){return permCnt[b]-permCnt[a];});
+  h+='<div style="margin-top:12px;padding:10px 12px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#6b21a8;margin-bottom:4px">🎲 这个组(iBox)历史上实际开过哪些排列(9市场合计 '+totOcc+' 次)</div>';
+  if(permList.length){ h+='<div>'+permList.map(function(p){ var mine=p===num; return '<span style="display:inline-block;font-family:monospace;font-weight:800;border-radius:6px;padding:2px 9px;margin:3px;background:'+(mine?'#6b21a8':'#fff')+';color:'+(mine?'#fff':'#6b21a8')+';border:1px solid #c084fc">'+p+'<span style="font-size:11px;font-weight:500"> '+permCnt[p]+'次</span></span>'; }).join('')+'</div>'; h+='<div style="font-size:11px;color:#94a3b8;margin-top:3px">紫底=你查的这个号。其余是同组不同排列、历史上真开过的。iBox买整组=这些全包。</div>'; }
+  else h+='<div style="font-size:12px;color:#94a3b8">这个组历史上一次都没开过。</div>';
+  // 上/下半年
+  if(totOcc>0){
+    var h1=0,h2=0; for(var mm=1;mm<=6;mm++)h1+=monthCnt[mm]; for(var mm2=7;mm2<=12;mm2++)h2+=monthCnt[mm2];
+    var topMo=1; for(var mm3=2;mm3<=12;mm3++) if(monthCnt[mm3]>monthCnt[topMo]) topMo=mm3;
+    var lean = h1>h2*1.2?'上半年(1-6月)更活跃':(h2>h1*1.2?'下半年(7-12月)更活跃':'上下半年差不多');
+    h+='<div style="margin-top:8px;font-size:12px;color:#6b21a8"><b>📅 季节活跃：</b>上半年 '+h1+' 次 · 下半年 '+h2+' 次 → <b>'+lean+'</b>；最常开在 <b>'+topMo+'月</b>('+monthCnt[topMo]+'次)</div>';
+    h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 这是历史落点,样本少时(几次)只是巧合,别当规律。</div>';
+  }
+  h+='</div>';
   out.innerHTML=h;
 }
 // 🔬 诚实审计：对每市场4位数字跑卡方拟合优度，查是否偏离均匀随机
@@ -11835,7 +11856,9 @@ function zo2DRootBacktest(){
   <div style="font-size:12px;color:#475569;margin-bottom:8px">范围：2020-01-01 至今 · 5 个市场 · 全 80 列标签 · 每月分隔行</div>
   <button id="export-btn" class="btn-mega" onclick="doExportExcel()">📤 生成 Excel 文件</button>
   <button id="screen-view-btn" class="btn-mega" style="background:#0f766e" onclick="zoScreenView()">📺 屏幕查看（不导出文件）</button>
+  <button class="btn-mega" style="background:#0891b2" onclick="zoDataHealth()">🩺 数据体检（扫9家）</button>
   <div id="export-progress" class="export-progress"></div>
+  <div id="data-health-out" style="margin-top:12px"></div>
   <div id="screen-view-result" style="margin-top:12px"></div>
 </div>
 
@@ -22108,6 +22131,48 @@ function zoRoot2DAbsentBacktest(){
   out.innerHTML=h;
 }
 
+// 🩺 数据体检：扫9家，看最新期/编号/特别奖/断期/数据量是否健康
+function zoDataHealth(){
+  var out=document.getElementById('data-health-out'); if(!out) return;
+  var markets=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var daily={'豪龙':1,'9龙':1,'沙巴':1,'砂拉越':1,'山打根':1}; // 天天开;其余周三六日
+  var today=new Date(); function daysBetween(d){ return Math.round((today - new Date(d+'T00:00:00'))/86400000); }
+  var nd=(typeof getNewResults==='function')?getNewResults():{};
+  function rowsOf(mk){ var seen={},m=[]; (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} }); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} }); m=m.filter(function(d){return !String(d.date).endsWith('-00');}); m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');}); return m; }
+  var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🩺 数据体检 · 9家</h3>';
+  h+='<div class="warn">扫每家:最新一期日期、有没有编号/特别奖、有没有断期、总期数。🟢健康 🟡小问题 🔴要处理。⚠️ 这只是数据完整度检查,跟号码分析无关。</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#ecfeff;color:#0891b2"><th style="text-align:left;padding:4px 8px">市场</th><th style="text-align:left;padding:4px 8px">最新一期</th><th style="text-align:right;padding:4px 8px">距今</th><th style="text-align:center;padding:4px 8px">编号</th><th style="text-align:center;padding:4px 8px">特别奖</th><th style="text-align:center;padding:4px 8px">近断期</th><th style="text-align:right;padding:4px 8px">总期数</th><th style="text-align:left;padding:4px 8px">状态</th></tr>';
+  markets.forEach(function(mk){
+    var m=rowsOf(mk);
+    if(!m.length){ h+='<tr style="border-top:1px solid #cffafe"><td style="padding:4px 8px;font-weight:700">'+mk+'</td><td colspan="7" style="padding:4px 8px;color:#dc2626">无数据 🔴</td></tr>'; return; }
+    var last=m[m.length-1], lastDate=last.date, ds=daysBetween(lastDate);
+    var hasDraw=!!(last.draw&&String(last.draw).trim());
+    var hasSp=!!(last.sp&&last.sp.length>=3);
+    var isDaily=!!daily[mk], staleLim=isDaily?3:5, gapLim=isDaily?2:5;
+    // 近断期:最近40期里,相邻日期间隔超过阈值
+    var tail=m.slice(-40), gaps=[];
+    for(var i=1;i<tail.length;i++){ var g=daysBetween(tail[i-1].date)-daysBetween(tail[i].date); if(g>gapLim) gaps.push(tail[i-1].date+'→'+tail[i].date+'('+g+'天)'); }
+    var problems=[];
+    if(ds>staleLim) problems.push('最新期已过'+ds+'天(可能没更新)');
+    if(!hasSp) problems.push('最新期缺特别奖');
+    if(!hasDraw) problems.push('最新期缺编号');
+    if(gaps.length) problems.push('近期有'+gaps.length+'处断期');
+    var st = (!hasSp||ds>staleLim||m.length<50) ? {t:'🔴 要处理',c:'#dc2626'} : ((gaps.length||!hasDraw) ? {t:'🟡 小问题',c:'#d97706'} : {t:'🟢 健康',c:'#16a34a'});
+    h+='<tr style="border-top:1px solid #cffafe" title="'+(problems.join(' · ')||'一切正常')+'">'+
+       '<td style="padding:4px 8px;font-weight:700">'+mk+(isDaily?'<span style="font-size:9px;color:#94a3b8"> 天天</span>':'')+'</td>'+
+       '<td style="padding:4px 8px">'+lastDate+'</td>'+
+       '<td style="padding:4px 8px;text-align:right;color:'+(ds>staleLim?'#dc2626':'#64748b')+'">'+ds+'天</td>'+
+       '<td style="padding:4px 8px;text-align:center">'+(hasDraw?'✅':'<span style="color:#dc2626">✗</span>')+'</td>'+
+       '<td style="padding:4px 8px;text-align:center">'+(hasSp?'✅':'<span style="color:#dc2626">✗</span>')+'</td>'+
+       '<td style="padding:4px 8px;text-align:center">'+(gaps.length?('<span style="color:#d97706" title="'+gaps.slice(0,3).join(' / ')+'">'+gaps.length+'处</span>'):'—')+'</td>'+
+       '<td style="padding:4px 8px;text-align:right">'+m.length+'</td>'+
+       '<td style="padding:4px 8px;font-weight:700;color:'+st.c+'">'+st.t+'</td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">💡 缺特别奖=🎯下一期主打会显示「等数据」;断期=中间少了日期(可能源头没开或没抓到)。看到🔴🟡先跑抓取/拉GitHub最新,或查 auto_fetch。鼠标停在行上看具体问题。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 // ============================================================
 // V30 Title bump
 // ===== V46: CANDIDATE POOL (persistent) =====
