@@ -21744,7 +21744,8 @@ function zoBuildMarketTableHTML(market){
     '3DBS1','3DBS2','3DBS3','B3D1','B3D2','B3D3','3DP1','3DP2','3DP3','B3P_1','B3P_2','B3P_3','B3D1','B3D2','B3D3','',
     'F1','F2','F3','B1','B2','B3','',
     '单双1','单双2','单双3','',
-    '点属1','点属2','点属3'];
+    '点单双1','点单双2','点单双3','',
+    '点大小1','点大小2','点大小3'];
   var BLANK=' style="background:#1e293b;min-width:3px;width:3px;padding:0"';
   var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
   var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
@@ -21767,11 +21768,12 @@ function zoBuildMarketTableHTML(market){
     {f:'root4D',t:'root'},{f:'band4D',t:'band'},{blank:1},
     {f:'f3Root',t:'root'},{f:'f3Pts',t:'pts3'},{f:'f3Zone',t:'zone'},{blank:1},
     {f:'b3Band',t:'band'},{f:'b3Raw',t:'none'},{f:'b3Pts',t:'pts3'},{f:'b3Zone',t:'zone'},{f:'b3Root',t:'root'},{blank:1},
-    {huaz:'F'},{huaz:'B'},{blank:1},{oecat:1},{blank:1},{ptattr:1}
+    {huaz:'F'},{huaz:'B'},{blank:1},{oecat:1},{blank:1},{ptoe:1},{blank:1},{ptbs:1}
   ];
   function oeCat(numStr){ var s=String(numStr).padStart(4,'0'); var odd=0; for(var i=0;i<4;i++){ if((+s[i])%2) odd++; } return odd+'单'+(4-odd)+'双'; }
-  // 4D 相加 → 单/双 + 大/小（和≤18小，≥19大）
-  function ptAttr(numStr){ var s=String(numStr).padStart(4,'0'); var sum=0; for(var i=0;i<4;i++) sum+=(+s[i]); return sum+(sum%2?'单':'双')+(sum<=18?'小':'大'); }
+  function ptSum(numStr){ var s=String(numStr).padStart(4,'0'); var sum=0; for(var i=0;i<4;i++) sum+=(+s[i]); return sum; }
+  function ptOE(numStr){ var sum=ptSum(numStr); return sum+(sum%2?'单':'双'); }      // 4D相加→单双
+  function ptBS(numStr){ var sum=ptSum(numStr); return sum+(sum<=17?'小':'大'); }     // 4D相加→大小（≤17小，≥18大；18归大，大机率更高）
   var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
   // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
   var colDefs=[];
@@ -21783,11 +21785,16 @@ function zoBuildMarketTableHTML(market){
         var vals=rd.map(function(x){ return oeCat(x[prizeKey[pc]]); });
         colDefs.push({ vals:vals, colorAt:function(){ return null; } });
       })(pc); }
-    } else if(g.ptattr){
-      for(var pa=0;pa<3;pa++){ (function(pa){
-        var vals=rd.map(function(x){ return ptAttr(x[prizeKey[pa]]); });
+    } else if(g.ptoe){
+      for(var po=0;po<3;po++){ (function(po){
+        var vals=rd.map(function(x){ return ptOE(x[prizeKey[po]]); });
         colDefs.push({ vals:vals, colorAt:function(){ return null; } });
-      })(pa); }
+      })(po); }
+    } else if(g.ptbs){
+      for(var pb=0;pb<3;pb++){ (function(pb){
+        var vals=rd.map(function(x){ return ptBS(x[prizeKey[pb]]); });
+        colDefs.push({ vals:vals, colorAt:function(){ return null; } });
+      })(pb); }
     } else if(g.huaz){
       var seqs=g.huaz==='F'?seqF:seqB, info=g.huaz==='F'?fInfo:bInfo;
       for(var k=0;k<3;k++){ (function(k){ colDefs.push({ vals:seqs[k], colorAt:function(ri){ return info.linked[k][ri]?info.colorOf[seqs[k][ri]]:null; } }); })(k); }
