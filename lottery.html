@@ -8707,6 +8707,7 @@ function doBacktest(){
         <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">📅 逐期缺席表</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
+        <button class="btn" style="background:#be185d;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMonthlyReport()">📅 月度报告</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
         <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
       </div>
@@ -9027,6 +9028,118 @@ function zoSpHistoryShow(){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
+// 📅 月度报告：回顾型(形态/热号/各位热门/久违看点/往年同月对比/诚实结语) + 下载图
+var ZO_MR=null;
+function zoMRData(mk, yr, mo){
+  function pad(n){return String(n).padStart(4,'0');}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, merged=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;merged.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;merged.push(d);} });
+  merged=merged.filter(function(d){return !String(d.date).endsWith('-00');});
+  merged.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var ym=yr+'-'+String(mo).padStart(2,'0');
+  // 全历史 组 出现的期索引(算久违)
+  var idxByKey={};
+  merged.forEach(function(d,i){ var s={}; (d.nums||[]).forEach(function(n){ if(n!=null&&n!==''){ var k=seaPermKey(n); if(!s[k]){s[k]=1;(idxByKey[k]=idxByKey[k]||[]).push(i);} } }); });
+  var rows=[], big=[0,0,0,0,0], odd=[0,0,0,0,0], keyCnt={}, keySample={}, posCnt=[{},{},{},{}], gapList=[];
+  merged.forEach(function(d,i){
+    if(String(d.date).slice(0,7)!==ym) return;
+    var trio=[];
+    (d.nums||[]).forEach(function(n,pi){ if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; trio.push(s);
+      var b=0,o=0; for(var j=0;j<4;j++){ if(+s[j]>=5)b++; if((+s[j])%2)o++; posCnt[j][s[j]]=(posCnt[j][s[j]]||0)+1; }
+      big[b]++; odd[o]++;
+      var k=seaPermKey(s); keyCnt[k]=(keyCnt[k]||0)+1; keySample[k]=keySample[k]||s;
+      var arr=idxByKey[k]||[]; var p=arr.indexOf(i); if(p>0){ gapList.push({num:s, gap:i-arr[p-1], date:d.date}); }
+    });
+    if(trio.length) rows.push({date:d.date, draw:(d.draw||''), trio:trio});
+  });
+  var totNums=big.reduce(function(a,b){return a+b;},0);
+  // 往年同月：大位占比对比
+  var histBigSum=0,histN=0;
+  merged.forEach(function(d){ if(String(d.date).slice(0,7)===ym)return; if(String(d.date).slice(5,7)!==String(mo).padStart(2,'0'))return; (d.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; var b=0; for(var j=0;j<4;j++)if(+s[j]>=5)b++; histBigSum+=b; histN++; }); });
+  var topKeys=Object.keys(keyCnt).map(function(k){return {num:keySample[k],cnt:keyCnt[k]};}).sort(function(a,b){return b.cnt-a.cnt;}).slice(0,5);
+  var posTop=posCnt.map(function(c){ var a=Object.keys(c).map(function(d){return [d,c[d]];}).sort(function(x,y){return y[1]-x[1];}).slice(0,3); return a; });
+  gapList.sort(function(a,b){return b.gap-a.gap;});
+  return {mk:mk, ym:ym, rows:rows, big:big, odd:odd, totNums:totNums, topKeys:topKeys, posTop:posTop, gapTop:gapList.slice(0,3),
+    thisBigRatio: totNums? (big.reduce(function(a,b,i){return a+b*i;},0)/totNums) : 0,
+    histBigAvg: histN? histBigSum/histN : null };
+}
+function zoMonthlyReport(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var now=new Date();
+  var yr=parseInt((document.getElementById('mr-year')||{}).value,10)||now.getFullYear();
+  var mo=parseInt((document.getElementById('mr-month')||{}).value,10)||(now.getMonth()+1);
+  var D=zoMRData(mk, yr, mo); ZO_MR=D;
+  var posName=['千','百','十','个'];
+  var yrOpts=''; for(var y=now.getFullYear();y>=2020;y--) yrOpts+='<option'+(y===yr?' selected':'')+'>'+y+'</option>';
+  var moOpts=''; for(var m=1;m<=12;m++) moOpts+='<option value="'+m+'"'+(m===mo?' selected':'')+'>'+m+'月</option>';
+  var h='<div class="card" style="border:2px solid #be185d">';
+  h+='<h3 style="color:#be185d">📅 月度报告 · '+mk+' · '+yr+'年'+mo+'月</h3>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;font-size:13px">市场跟上方「市场」下拉一致 · 年 <select id="mr-year" onchange="zoMonthlyReport()" style="padding:3px 6px;border:1px solid #fbcfe8;border-radius:5px">'+yrOpts+'</select> 月 <select id="mr-month" onchange="zoMonthlyReport()" style="padding:3px 6px;border:1px solid #fbcfe8;border-radius:5px">'+moOpts+'</select> <button class="btn btn-green" onclick="zoMonthlyReportImage()">📸 下载图（发群）</button></div>';
+  if(!D.rows.length){ h+='<div class="warn">'+mk+' '+D.ym+' 没有开奖数据。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // 1 开奖回顾
+  h+='<div style="font-weight:800;color:#be185d;margin:6px 0 3px">📖 开奖回顾（'+D.rows.length+' 期）</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#fdf2f8;color:#be185d"><th style="text-align:left;padding:3px 8px">日期</th><th style="text-align:left;padding:3px 8px">编号</th><th style="text-align:left;padding:3px 8px">头 / 二 / 三</th></tr>';
+  D.rows.slice().reverse().forEach(function(r){ h+='<tr style="border-top:1px solid #fce7f3"><td style="padding:3px 8px">'+r.date+'</td><td style="padding:3px 8px;font-family:monospace;color:#64748b">'+r.draw+'</td><td style="padding:3px 8px;font-family:monospace;font-weight:700">'+r.trio.join(' / ')+'</td></tr>'; });
+  h+='</table></div>';
+  // 2 形态
+  function distBar(t,lbl){ var s=''; for(var k=4;k>=0;k--){ if(!t[k])continue; s+='<span style="display:inline-block;background:#fce7f3;color:#9d174d;border-radius:5px;padding:1px 7px;margin:2px;font-size:12px;font-weight:700">'+lbl(k)+'：'+t[k]+'</span>'; } return s; }
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🎨 形态分布（头二三合计 '+D.totNums+' 个号）</div>';
+  h+='<div><b style="font-size:12px;color:#9d174d">大小：</b>'+distBar(D.big,function(k){return k+'大'+(4-k)+'小';})+'</div>';
+  h+='<div style="margin-top:3px"><b style="font-size:12px;color:#9d174d">单双：</b>'+distBar(D.odd,function(j){return j+'单'+(4-j)+'双';})+'</div>';
+  // 3 热号
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔥 本月热号 Top5（分身组·调字算）</div>';
+  h+='<div>'+(D.topKeys.length?D.topKeys.map(function(x){return '<span style="display:inline-block;background:#fff;border:1px solid #fbcfe8;border-radius:6px;padding:2px 9px;margin:2px;font-family:monospace;font-weight:800">'+x.num+'<span style="font-size:11px;color:#be185d"> '+x.cnt+'次</span></span>';}).join(''):'—')+'</div>';
+  // 4 各位热门
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">🔢 各位热门数字</div>';
+  h+='<div style="font-size:12px">'+D.posTop.map(function(a,pi){ return '<b>'+posName[pi]+'</b>：'+(a.map(function(d){return d[0]+'('+d[1]+')';}).join(' ')||'—'); }).join(' ｜ ')+'</div>';
+  // 5 久违看点
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">💤 久违回补看点</div>';
+  h+='<div style="font-size:12px">'+(D.gapTop.length?D.gapTop.map(function(g){return '<span style="display:inline-block;background:#fef9c3;color:#854d0e;border-radius:5px;padding:1px 8px;margin:2px">'+g.num+' 隔了 '+g.gap+' 期才回补（'+g.date.slice(5)+'）</span>';}).join(''):'本月没有明显久违回补')+'</div>';
+  // 6 往年同月对比 + 结语
+  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'均衡');
+  var cmp='';
+  if(D.histBigAvg!=null){ var diff=D.thisBigRatio-D.histBigAvg; cmp='往年'+mo+'月平均每号 '+D.histBigAvg.toFixed(2)+' 个大位，本月 '+D.thisBigRatio.toFixed(2)+' 个 → '+(Math.abs(diff)<0.15?'跟往年差不多':(diff>0?'比往年偏大':'比往年偏小')); }
+  else cmp='往年同月样本不足，无法对比';
+  h+='<div style="font-weight:800;color:#be185d;margin:10px 0 3px">📊 对比往年同月</div>';
+  h+='<div style="font-size:12px">'+cmp+'</div>';
+  h+='<div style="background:#fdf2f8;border:1px solid #fbcfe8;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#9d174d">📝 结语：本月大小整体<b>'+lean+'</b>。⚠️ 这是<b>回顾</b>——每期独立随机，热号/久违只是记录，不预示下月。当群内容与娱乐参考。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zoMonthlyReportImage(){
+  if(!ZO_MR||!ZO_MR.rows.length){ alert('请先生成月度报告(要有数据)。'); return; }
+  var D=ZO_MR, posName=['千','百','十','个'];
+  var lines=[];
+  lines.push({t:'title', s:D.mk+' · '+D.ym.replace('-','年')+'月度报告'});
+  lines.push({t:'sub', s:'共 '+D.rows.length+' 期 · 回顾参考 · 娱乐'});
+  lines.push({t:'h', s:'🎨 形态（'+D.totNums+'个号）'});
+  var bs=''; for(var k=4;k>=0;k--){ if(D.big[k]) bs+=k+'大'+(4-k)+'小:'+D.big[k]+'  '; } lines.push({t:'b', s:'大小 '+bs});
+  var os=''; for(var j=4;j>=0;j--){ if(D.odd[j]) os+=j+'单'+(4-j)+'双:'+D.odd[j]+'  '; } lines.push({t:'b', s:'单双 '+os});
+  lines.push({t:'h', s:'🔥 热号 Top5(调字)'});
+  lines.push({t:'b', s:D.topKeys.map(function(x){return x.num+'('+x.cnt+')';}).join('   ')||'—'});
+  lines.push({t:'h', s:'🔢 各位热门'});
+  lines.push({t:'b', s:D.posTop.map(function(a,pi){return posName[pi]+':'+a.map(function(d){return d[0];}).join('');}).join('  ')});
+  lines.push({t:'h', s:'💤 久违回补看点'});
+  if(D.gapTop.length) D.gapTop.forEach(function(g){ lines.push({t:'b', s:g.num+' 隔'+g.gap+'期回补 ('+g.date.slice(5)+')'}); });
+  else lines.push({t:'b', s:'本月无明显久违回补'});
+  var lean=D.thisBigRatio>2.05?'偏大':(D.thisBigRatio<1.95?'偏小':'均衡');
+  lines.push({t:'h', s:'📝 结语'});
+  lines.push({t:'b', s:'本月大小整体'+lean+'。热号/久违只是记录，每期独立随机，不预示下月。'});
+  var SC=2, W=760, pad=28, y=pad, H=pad;
+  lines.forEach(function(l){ H += l.t==='title'?44:(l.t==='sub'?26:(l.t==='h'?30:24)); });
+  H += 20;
+  var cv=document.createElement('canvas'); cv.width=W*SC; cv.height=H*SC; var ctx=cv.getContext('2d'); ctx.scale(SC,SC);
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#be185d'; ctx.fillRect(0,0,W,7); ctx.textBaseline='top';
+  lines.forEach(function(l){
+    if(l.t==='title'){ ctx.fillStyle='#be185d'; ctx.font='800 26px system-ui,"Microsoft YaHei",sans-serif'; ctx.fillText(l.s,pad,y); y+=44; }
+    else if(l.t==='sub'){ ctx.fillStyle='#9d174d'; ctx.font='400 14px system-ui,"Microsoft YaHei",sans-serif'; ctx.fillText(l.s,pad,y); y+=26; }
+    else if(l.t==='h'){ ctx.fillStyle='#be185d'; ctx.font='800 16px system-ui,"Microsoft YaHei",sans-serif'; ctx.fillText(l.s,pad,y); y+=30; }
+    else { ctx.fillStyle='#1f2937'; ctx.font='400 14px system-ui,"Microsoft YaHei",sans-serif'; ctx.fillText(l.s,pad,y); y+=24; }
+  });
+  cv.toBlob(function(b){ var fn='月报_'+D.mk+'_'+D.ym+'.png'; if(typeof zoSaveBlob==='function') zoSaveBlob(b,fn); else if(typeof saveAs==='function') saveAs(b,fn); else { var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=fn; a.click(); } });
+}
 // 🌟 当月季节常客（分身组）：全年份·该月≥2次·集中度≥1.8x·不含本月，按集中度排
 function zoSeasonRegulars(mk){
   if(typeof seaCollect!=='function' || typeof DB==='undefined' || !DB[mk]) return [];
