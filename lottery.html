@@ -9067,28 +9067,58 @@ function zoSpecialScan(){
   m=m.filter(function(d){return !String(d.date).endsWith('-00');}).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   var WD=['周日','周一','周二','周三','周四','周五','周六'];
   var PNn=['头','二','三'];
-  var hits=[], wdCnt=[0,0,0,0,0,0,0], typeCnt={}, totNums=0;
-  m.forEach(function(d){
+  var hits=[], wdCnt=[0,0,0,0,0,0,0], wdTot=[0,0,0,0,0,0,0], typeCnt={}, totNums=0, lastAgo={}, numCnt={};
+  m.forEach(function(d,i){   // i=0 是最新一期
     var wd=new Date(d.date+'T00:00:00').getDay();
-    [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; totNums++;
-      var tg=tags(s); if(tg.length){ hits.push({date:d.date,wd:wd,prize:PNn[pi],num:s,tags:tg}); wdCnt[wd]++; tg.forEach(function(t){typeCnt[t]=(typeCnt[t]||0)+1;}); }
+    [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; totNums++; wdTot[wd]++;
+      var tg=tags(s); if(tg.length){ hits.push({date:d.date,wd:wd,prize:PNn[pi],num:s,tags:tg}); wdCnt[wd]++; numCnt[s]=(numCnt[s]||0)+1; tg.forEach(function(t){typeCnt[t]=(typeCnt[t]||0)+1; if(lastAgo[t]==null)lastAgo[t]=i;}); }
     });
   });
+  // 理论上每类有多少个号(枚举0000-9999)
+  var uni={}; for(var _u=0;_u<10000;_u++){ var us=pad(_u); tags(us).forEach(function(t){uni[t]=(uni[t]||0)+1;}); }
+  var periods=m.length;
   var h='<div class="card" style="border:2px solid #7c3aed">';
   h+='<h3 style="color:#7c3aed">🎰 '+mk+' · 特殊号扫描（历史 '+totNums+' 个开奖号里找）</h3>';
   h+='<div class="warn">乘法(A×B=CD)/顺子(1234)/顺子组(4连续任意排)/豹子(AAAA)/镜像(ABBA)。看它们出现在星期几,有没有偏某天。⚠️ 号是随机的,理论上应平均散开。</div>';
   if(!hits.length){ h+='<div style="color:#94a3b8">没找到特殊号。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
   // 类型统计
   h+='<div style="margin:6px 0;font-size:13px"><b>各类型共出现:</b> '+Object.keys(typeCnt).map(function(t){return '<span style="display:inline-block;background:#ede9fe;color:#5b21b6;border-radius:5px;padding:1px 8px;margin:2px;font-weight:700">'+t+' '+typeCnt[t]+'次</span>';}).join('')+'</div>';
-  // 星期分布
-  var maxW=Math.max.apply(null,wdCnt), totW=wdCnt.reduce(function(a,b){return a+b;},0);
-  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">📅 出现在星期几(共 '+totW+' 次)</div>';
-  h+='<div style="display:flex;gap:6px;align-items:flex-end;height:90px;padding:4px 0">';
-  wdCnt.forEach(function(c,i){ var pctW=totW?(c/totW*100):0; var barH=maxW?Math.round(c/maxW*70):0; h+='<div style="flex:1;text-align:center"><div style="font-size:10px;color:#64748b">'+c+'</div><div style="background:#a78bfa;border-radius:3px 3px 0 0;height:'+barH+'px;margin:2px auto 0;width:70%"></div><div style="font-size:11px;color:#475569;margin-top:2px">'+WD[i]+'</div><div style="font-size:9px;color:#94a3b8">'+pctW.toFixed(0)+'%</div></div>'; });
+  // 稀有度 vs 理论 + 平均间隔
+  var ALLT=['乘法','顺子','顺子组','豹子','镜像'];
+  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">🔬 稀有度对比 + 平均间隔</div>';
+  h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:3px 8px">类型</th><th style="text-align:right;padding:3px 8px">理论占比</th><th style="text-align:right;padding:3px 8px">实际占比</th><th style="text-align:left;padding:3px 8px">判定</th><th style="text-align:right;padding:3px 8px">平均几期一次</th><th style="text-align:right;padding:3px 8px">上次几期前</th></tr>';
+  ALLT.forEach(function(t){
+    var uc=uni[t]||0; if(!uc) return;
+    var theo=uc/10000, cnt=typeCnt[t]||0, act=totNums?cnt/totNums:0;
+    var se=Math.sqrt(theo*(1-theo)/Math.max(totNums,1)); var vd = totNums<200?{t:'样本少',c:'#64748b'}:(Math.abs(act-theo)<2*se?{t:'🟢≈理论(随机)',c:'#16a34a'}:(act>theo?{t:'🟡偏多',c:'#d97706'}:{t:'🔵偏少',c:'#2563eb'}));
+    var everyN = cnt? (periods/cnt) : null;   // 平均几期出一次(粗略)
+    h+='<tr style="border-top:1px solid #f3e8ff"><td style="padding:3px 8px;font-weight:700">'+t+'<span style="font-size:10px;color:#94a3b8"> ('+uc+'个)</span></td>'+
+       '<td style="padding:3px 8px;text-align:right">'+(theo*100).toFixed(2)+'%</td>'+
+       '<td style="padding:3px 8px;text-align:right;font-weight:700">'+(act*100).toFixed(2)+'%</td>'+
+       '<td style="padding:3px 8px;color:'+vd.c+';font-weight:700">'+vd.t+'</td>'+
+       '<td style="padding:3px 8px;text-align:right">'+(everyN?('约'+everyN.toFixed(0)+'期'):'—')+'</td>'+
+       '<td style="padding:3px 8px;text-align:right">'+(lastAgo[t]!=null?lastAgo[t]+'期前':'从未')+'</td></tr>';
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:3px">「理论占比」=该类号占全部1万个号的比例;实际≈理论(🟢)就说明随机、没被特别关照。「平均几期一次」=大概多久开一个(粗估);「上次几期前」=距最新一期多少期没出。</div>';
+  // 最常开的特殊号 Top
+  var topNums=Object.keys(numCnt).map(function(k){return [k,numCnt[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,10);
+  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">🏆 最常开的特殊号 Top10</div>';
+  h+='<div>'+topNums.map(function(x){return '<span style="display:inline-block;background:#fff;border:1px solid #ddd6fe;border-radius:6px;padding:2px 9px;margin:2px;font-family:monospace;font-weight:800">'+x[0]+'<span style="font-size:11px;color:#7c3aed"> '+x[1]+'次</span></span>';}).join('')+'</div>';
+  // 星期分布(改成「特殊号占该天总开奖的比例」，除掉开奖日多寡影响)
+  var totW=wdCnt.reduce(function(a,b){return a+b;},0);
+  var rate=wdCnt.map(function(c,i){ return wdTot[i]?(c/wdTot[i]*100):null; });
+  var maxR=Math.max.apply(null,rate.map(function(r){return r==null?0:r;}));
+  var baseRate=totNums?(totW/totNums*100):0;
+  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">📅 特殊号在各星期几的「命中率」（特殊号 ÷ 该天总开奖）</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-bottom:3px">这样已除掉「开奖日多寡」的影响。全场平均命中率 '+baseRate.toFixed(2)+'%,各天贴近它=没有特别日子。灰色=该天不开奖。</div>';
+  h+='<div style="display:flex;gap:6px;align-items:flex-end;height:100px;padding:4px 0">';
+  rate.forEach(function(r,i){ if(r==null){ h+='<div style="flex:1;text-align:center"><div style="font-size:9px;color:#cbd5e1">不开</div><div style="background:#f1f5f9;border-radius:3px 3px 0 0;height:3px;margin:2px auto 0;width:70%"></div><div style="font-size:11px;color:#cbd5e1;margin-top:2px">'+WD[i]+'</div></div>'; return; } var barH=maxR?Math.round(r/maxR*72):0; var hi=r>baseRate*1.5&&wdTot[i]>=30; h+='<div style="flex:1;text-align:center"><div style="font-size:10px;color:#64748b">'+r.toFixed(1)+'%</div><div style="background:'+(hi?'#f59e0b':'#a78bfa')+';border-radius:3px 3px 0 0;height:'+barH+'px;margin:2px auto 0;width:70%"></div><div style="font-size:11px;color:#475569;margin-top:2px">'+WD[i]+'</div><div style="font-size:9px;color:#94a3b8">'+wdCnt[i]+'/'+wdTot[i]+'</div></div>'; });
   h+='</div>';
-  var expect=totW/7, maxDev=Math.max.apply(null,wdCnt.map(function(c){return Math.abs(c-expect);}));
-  var flat = expect>0 && maxDev < 2*Math.sqrt(expect); // 2×泊松SE内=算平均
-  h+='<div style="font-size:12px;color:'+(flat?'#16a34a':'#d97706')+';font-weight:700;margin-bottom:6px">'+(flat?'🟢 大致平均散开 —— 没有特别偏爱某天(符合随机)':'🟡 某天看起来偏多,但很可能是巧合/开奖日多寡不同(不同市场每周开的天数不一样)')+'</div>';
+  var openDays=rate.filter(function(r){return r!=null;});
+  var mx=Math.max.apply(null,openDays), mn=Math.min.apply(null,openDays);
+  var flat = (mx-mn) < baseRate*0.8; // 各开奖日命中率差不多
+  h+='<div style="font-size:12px;color:'+(flat?'#16a34a':'#d97706')+';font-weight:700;margin-bottom:6px">'+(flat?'🟢 各开奖日命中率差不多 —— 没有特别日子(符合随机)':'🟡 有某天命中率偏高(橙柱),但样本少时是巧合居多,别当规律')+'</div>';
   // 明细(最近60条)
   h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">明细（最近 '+Math.min(hits.length,60)+' 条 / 共 '+hits.length+'）</div>';
   h+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:3px 8px">日期</th><th style="padding:3px 8px">星期</th><th style="padding:3px 8px">奖</th><th style="padding:3px 8px">号</th><th style="text-align:left;padding:3px 8px">类型</th></tr>';
