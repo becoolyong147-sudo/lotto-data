@@ -22088,6 +22088,24 @@ function zoRoot2DAbsentBacktest(){
   var modeLbl={mix:'混合(不分位)',split:'分前后',pair:'前配后(整对)'}[mode];
   var h='<div class="card" style="border:2px solid #9333ea">';
   h+='<h3 style="color:#9333ea">🔬 '+mk+' · 2D数根缺席回补回测 · '+modeLbl+'（两期一组）</h3>';
+  // 🎯 本期缺席（用最新两期算，给下一期参考）
+  if(per.length>=2){
+    var L1=per[per.length-1], L2=per[per.length-2];
+    var poolF={}; [L1.f,L2.f].forEach(function(s){for(var k in s)poolF[k]=1;}); var abF=absentOf(poolF);
+    var poolB={}; [L1.b,L2.b].forEach(function(s){for(var k in s)poolB[k]=1;}); var abB=absentOf(poolB);
+    var poolAll={}; [L1.f,L1.b,L2.f,L2.b].forEach(function(s){for(var k in s)poolAll[k]=1;}); var abAll=absentOf(poolAll);
+    h+='<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    h+='<div style="font-size:13px;font-weight:800;color:#6d28d9">🎯 本期缺席（最新两期 '+L2.date+' + '+L1.date+' → 下一期盯这些根）</div>';
+    if(mode==='split'){
+      h+='<div style="font-size:14px;margin-top:4px">前2D根缺：<b style="color:#0f766e">'+(abF.join(' ')||'无')+'</b><br>后2D根缺：<b style="color:#be185d">'+(abB.join(' ')||'无')+'</b></div>';
+    } else if(mode==='pair'){
+      h+='<div style="font-size:14px;margin-top:4px">前根缺 <b style="color:#0f766e">['+(abF.join(' ')||'无')+']</b> × 后根缺 <b style="color:#be185d">['+(abB.join(' ')||'无')+']</b><br><span style="font-size:11px;color:#64748b">= 盯下一期有没有号「前根∈前缺 且 后根∈后缺」凑成一对</span></div>';
+    } else {
+      h+='<div style="font-size:14px;margin-top:4px">缺席根(前后合并)：<b style="color:#6d28d9">'+(abAll.join(' ')||'无')+'</b></div>';
+    }
+    h+='<div style="font-size:11px;color:#94a3b8;margin-top:3px">⚠️ 只是「最近两期没出现的根」，缺席≠会补，下一期照样独立随机。参考用。</div>';
+    h+='</div>';
+  }
   var det=[];
   if(mode==='mix'){
     var tot=0,hit=0,bs=0;
