@@ -8708,6 +8708,7 @@ function doBacktest(){
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#be185d;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMonthlyReport()">📅 月度报告</button>
+        <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpecialScan()">🎰 特殊号扫描</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
         <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
       </div>
@@ -9048,6 +9049,55 @@ function zoSpHistoryShow(){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
+// 🎰 特殊号扫描：乘法号/顺子/顺子组/豹子/镜像 → 历史出现日期 + 星期分布(看有没有特别的日子)
+function zoSpecialScan(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  function pad(n){return String(n).padStart(4,'0');}
+  // 各类型判定
+  function isMul(s){ return (+s[0])*(+s[1]) === +(s.slice(2,4)); }        // 乘法号 A×B=CD
+  function isStraight(s){ return (+s[1]===+s[0]+1)&&(+s[2]===+s[1]+1)&&(+s[3]===+s[2]+1); } // 严格顺 1234
+  function isStraightSet(s){ var a=s.split('').map(Number).sort(function(x,y){return x-y;}); return a[1]===a[0]+1&&a[2]===a[1]+1&&a[3]===a[2]+1; } // 顺子组(任意排列)
+  function isQuad(s){ return s[0]===s[1]&&s[1]===s[2]&&s[2]===s[3]; }     // 豹子 AAAA
+  function isMirror(s){ return s[0]===s[3]&&s[1]===s[2]; }                // 镜像 ABBA
+  function tags(s){ var t=[]; if(isMul(s))t.push('乘法'); if(isStraight(s))t.push('顺子'); else if(isStraightSet(s))t.push('顺子组'); if(isQuad(s))t.push('豹子'); if(isMirror(s))t.push('镜像'); return t; }
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);}});
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);}});
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');}).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  var WD=['周日','周一','周二','周三','周四','周五','周六'];
+  var PNn=['头','二','三'];
+  var hits=[], wdCnt=[0,0,0,0,0,0,0], typeCnt={}, totNums=0;
+  m.forEach(function(d){
+    var wd=new Date(d.date+'T00:00:00').getDay();
+    [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; totNums++;
+      var tg=tags(s); if(tg.length){ hits.push({date:d.date,wd:wd,prize:PNn[pi],num:s,tags:tg}); wdCnt[wd]++; tg.forEach(function(t){typeCnt[t]=(typeCnt[t]||0)+1;}); }
+    });
+  });
+  var h='<div class="card" style="border:2px solid #7c3aed">';
+  h+='<h3 style="color:#7c3aed">🎰 '+mk+' · 特殊号扫描（历史 '+totNums+' 个开奖号里找）</h3>';
+  h+='<div class="warn">乘法(A×B=CD)/顺子(1234)/顺子组(4连续任意排)/豹子(AAAA)/镜像(ABBA)。看它们出现在星期几,有没有偏某天。⚠️ 号是随机的,理论上应平均散开。</div>';
+  if(!hits.length){ h+='<div style="color:#94a3b8">没找到特殊号。</div></div>'; out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // 类型统计
+  h+='<div style="margin:6px 0;font-size:13px"><b>各类型共出现:</b> '+Object.keys(typeCnt).map(function(t){return '<span style="display:inline-block;background:#ede9fe;color:#5b21b6;border-radius:5px;padding:1px 8px;margin:2px;font-weight:700">'+t+' '+typeCnt[t]+'次</span>';}).join('')+'</div>';
+  // 星期分布
+  var maxW=Math.max.apply(null,wdCnt), totW=wdCnt.reduce(function(a,b){return a+b;},0);
+  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">📅 出现在星期几(共 '+totW+' 次)</div>';
+  h+='<div style="display:flex;gap:6px;align-items:flex-end;height:90px;padding:4px 0">';
+  wdCnt.forEach(function(c,i){ var pctW=totW?(c/totW*100):0; var barH=maxW?Math.round(c/maxW*70):0; h+='<div style="flex:1;text-align:center"><div style="font-size:10px;color:#64748b">'+c+'</div><div style="background:#a78bfa;border-radius:3px 3px 0 0;height:'+barH+'px;margin:2px auto 0;width:70%"></div><div style="font-size:11px;color:#475569;margin-top:2px">'+WD[i]+'</div><div style="font-size:9px;color:#94a3b8">'+pctW.toFixed(0)+'%</div></div>'; });
+  h+='</div>';
+  var expect=totW/7, maxDev=Math.max.apply(null,wdCnt.map(function(c){return Math.abs(c-expect);}));
+  var flat = expect>0 && maxDev < 2*Math.sqrt(expect); // 2×泊松SE内=算平均
+  h+='<div style="font-size:12px;color:'+(flat?'#16a34a':'#d97706')+';font-weight:700;margin-bottom:6px">'+(flat?'🟢 大致平均散开 —— 没有特别偏爱某天(符合随机)':'🟡 某天看起来偏多,但很可能是巧合/开奖日多寡不同(不同市场每周开的天数不一样)')+'</div>';
+  // 明细(最近60条)
+  h+='<div style="font-weight:800;color:#7c3aed;margin:8px 0 3px">明细（最近 '+Math.min(hits.length,60)+' 条 / 共 '+hits.length+'）</div>';
+  h+='<div class="ot" style="max-height:340px;overflow:auto"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:3px 8px">日期</th><th style="padding:3px 8px">星期</th><th style="padding:3px 8px">奖</th><th style="padding:3px 8px">号</th><th style="text-align:left;padding:3px 8px">类型</th></tr>';
+  hits.slice(0,60).forEach(function(x){ h+='<tr style="border-top:1px solid #f3e8ff"><td style="padding:3px 8px">'+x.date+'</td><td style="padding:3px 8px;text-align:center">'+WD[x.wd]+'</td><td style="padding:3px 8px;text-align:center">'+x.prize+'</td><td style="padding:3px 8px;text-align:center;font-family:monospace;font-weight:800">'+x.num+'</td><td style="padding:3px 8px;color:#5b21b6;font-weight:700">'+x.tags.join('·')+'</td></tr>'; });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 提醒:天天开的市场当然每天都有机会、周开的只在开奖日出现,所以星期分布本身受「这市场每周开几天」影响。真要看「特别日子」得跟该市场的开奖日一起看,别直接下结论。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
 // 📅 月度报告：回顾型(形态/热号/各位热门/久违看点/往年同月对比/诚实结语) + 下载图
 var ZO_MR=null;
 function zoMRData(mk, yr, mo, rangeYears){
