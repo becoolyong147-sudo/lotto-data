@@ -9280,8 +9280,9 @@ function zoNextMainShow(){
       _mg=_mg.filter(function(d){return !String(d.date).endsWith('-00');}).sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
       if(_mg.length<2) return;
       function r2(a,b){var s=(+a)+(+b);return s===0?0:(s%9===0?9:s%9);}
+      var _pad=function(n){return String(n).padStart(4,'0');};
       var pf={},pb={};
-      _mg.slice(0,2).forEach(function(d){ (d.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; pf[r2(s[0],s[1])]=1; pb[r2(s[2],s[3])]=1; }); });
+      _mg.slice(0,2).forEach(function(d){ (d.nums||[]).forEach(function(n){ if(n==null||n==='')return; var s=_pad(n); if(!/^\d{4}$/.test(s))return; pf[r2(s[0],s[1])]=1; pb[r2(s[2],s[3])]=1; }); });
       var aF=[],aB=[]; for(var r=1;r<=9;r++){ if(!pf[r])aF.push(r); if(!pb[r])aB.push(r); }
       h+='<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0;font-size:12px"><span style="display:inline-block;background:#9333ea;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">2D根缺</span>近两期('+_mg[1].date.slice(5)+'+'+_mg[0].date.slice(5)+')：前根缺 <b style="color:#0f766e">'+(aF.join(' ')||'无')+'</b> · 后根缺 <b style="color:#be185d">'+(aB.join(' ')||'无')+'</b></div>';
     })();
