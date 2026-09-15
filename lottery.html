@@ -22101,7 +22101,8 @@ function zoRoot2DAbsentBacktest(){
       var poolB={}; [per[i2].b,per[i2+1].b].forEach(function(s){for(var k in s)poolB[k]=1;}); var abB=absentOf(poolB);
       if(abF.length){ var gF=abF.filter(function(r){return per[i2+2].f[r];}); tF++; var hhF=gF.length>0; if(hhF)hF++; bF+=1-Math.pow((9-abF.length)/9,3); }
       if(abB.length){ var gB=abB.filter(function(r){return per[i2+2].b[r];}); tB++; var hhB=gB.length>0; if(hhB)hB++; bB+=1-Math.pow((9-abB.length)/9,3); }
-      det.push({date:per[i2+2].date,absent:'前['+abF.join(' ')+'] 后['+abB.join(' ')+']',got:'前:'+(abF.filter(function(r){return per[i2+2].f[r];}).join(' ')||'—')+' 后:'+(abB.filter(function(r){return per[i2+2].b[r];}).join(' ')||'—'),hit:null});
+      var _gF=abF.filter(function(r){return per[i2+2].f[r];}), _gB=abB.filter(function(r){return per[i2+2].b[r];});
+      det.push({date:per[i2+2].date,absent:'前['+abF.join(' ')+'] 后['+abB.join(' ')+']',got:'前:'+(_gF.join(' ')||'—')+' 后:'+(_gB.join(' ')||'—'),hitStr:'前'+(abF.length?(_gF.length?'✅':'❌'):'—')+' 后'+(abB.length?(_gB.length?'✅':'❌'):'—')});
     }
     h+=mcard('前2D根(缺→下期前根补)',tF,hF,bF);
     h+=mcard('后2D根(缺→下期后根补)',tB,hB,bB);
@@ -22124,7 +22125,7 @@ function zoRoot2DAbsentBacktest(){
   // 逐期明细
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'r2a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#9333ea;font-weight:700">逐期明细 ▾</span>';
   h+='<div id="r2a-det" style="display:none;max-height:320px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9333ea"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席</th><th style="text-align:left;padding:3px 6px">补上</th><th style="padding:3px 6px">中?</th></tr>';
-  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px">'+x.absent+'</td><td style="padding:3px 6px;font-weight:700;color:#16a34a">'+x.got+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit==null?'':(x.hit?'✅':'❌'))+'</td></tr>'; });
+  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px">'+x.absent+'</td><td style="padding:3px 6px;font-weight:700;color:#16a34a">'+x.got+'</td><td style="padding:3px 6px;text-align:center;white-space:nowrap">'+(x.hitStr!=null?x.hitStr:(x.hit==null?'':(x.hit?'✅':'❌')))+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——缺席≠会补开。诚实验证用,不构成预测。判定用2×标准误。</div>';
   h+='</div>';
