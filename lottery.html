@@ -11061,7 +11061,11 @@ function zoAbsentPeriodReport(){
   // 累计
   h+='<div class="g2" style="margin:8px 0"><div class="sc"><div class="val">'+hitCount+'/'+pairs+'</div><div class="lbl">期命中（'+(hitRate*100).toFixed(0)+'%）</div></div>';
   h+='<div class="sc"><div class="val">'+(expRate*100).toFixed(0)+'%</div><div class="lbl">随机期望命中率</div></div></div>';
-  h+='<div style="font-size:11px;color:'+(hitRate>expRate+0.03?'#16a34a':hitRate<expRate-0.03?'#dc2626':'#64748b')+';margin-bottom:8px">实际 '+(hitRate*100).toFixed(0)+'% vs 随机 '+(expRate*100).toFixed(0)+'% → '+(Math.abs(hitRate-expRate)<0.03?'基本等于随机':(hitRate>expRate?'略高于随机':'略低于随机'))+'（缺席只用单期算，组合很大，命中天生就高——看差距而非绝对值）</div>';
+  var _z = varSum>0 ? (hitCount-expSum)/Math.sqrt(varSum) : 0;
+  var _vd = pairs<20?{t:'🔵样本太少(建议期数选50/100)',c:'#64748b'}:(Math.abs(_z)<1.96?{t:'🟢 落在随机范围 — 没有真优势(跟运气一样)',c:'#16a34a'}:(_z>0?{t:'🟡 显著高于随机(z='+_z.toFixed(1)+') — 可能有料,但小心过拟合',c:'#d97706'}:{t:'🔴 显著低于随机(z='+_z.toFixed(1)+')',c:'#dc2626'}));
+  h+='<div style="font-size:12px;margin-bottom:4px">实际 '+(hitRate*100).toFixed(0)+'% vs 随机 '+(expRate*100).toFixed(0)+'%（差 '+((hitRate-expRate)*100).toFixed(0)+'%）· z='+_z.toFixed(2)+'</div>';
+  h+='<div style="font-size:12px;font-weight:800;color:'+_vd.c+';margin-bottom:8px">'+_vd.t+'</div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-bottom:6px">z 是「实际比随机高多少个标准差」。|z|&lt;1.96=落在随机范围(≈没差别);要 |z|&gt;1.96 才算真偏离。1~2期的高低都是噪音,期数拉到 50/100 才看得准。</div>';
   // 逐期（新→旧）
   reports.forEach(function(r){
     h+='<div style="border:1px solid '+(r.hit?'#16a34a':'#e2e8f0')+';border-left:4px solid '+(r.hit?'#16a34a':'#cbd5e1')+';border-radius:8px;padding:8px 10px;margin-bottom:6px;background:'+(r.hit?'#f0fdf4':'#fff')+'">';
