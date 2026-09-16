@@ -8985,7 +8985,10 @@ function zoSpHistoryShow(){
   h+='<div style="font-size:11px;color:#6b21a8;margin-top:4px">👉 位数越少越容易中(1D覆盖半数数字、几乎必中但赔少)；3D/4D/补链命中率低=重注易亏。<b>命中率高≠赚钱</b>,配 EV 看成本。</div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 上表「缺根(特别奖源)」= 用每期<b>特别奖</b>算缺席根。下面另一套是用<b>头二三·连续两期</b>算,来源不同,分开看。</div>';
   // 🧪 排除法 第1步 说明 + 省号统计
-  h+='<div style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px dashed #ddd6fe;border-radius:6px;padding:6px 8px;margin-top:4px"><b>🧪 排除法·第1步(十位)已上线</b> —— 上表里「<b>补链前3D·排十位</b>」= 把「十位(补前3D的第3位)= 源期特别奖号码十位」的候选<b>剔除</b>后再回测。<br>对比原「补链前3D」的命中率,就知道排掉这些十位有没有<b>省号又不太掉命中</b>。累计候选:原 <b>'+CTN.rf3+'</b> 个 → 排十位后 <b>'+CTN.rf3x+'</b> 个'+(CTN.rf3?'（省了 '+(CTN.rf3-CTN.rf3x)+' 个，'+Math.round((CTN.rf3-CTN.rf3x)/CTN.rf3*100)+'%）':'')+'。<br>👉 看两行命中率:排十位那行若命中率<b>没掉多少但号少很多</b>=排除法有用;若命中率掉一堆=排错了,下一步换规则。</div>';
+  var _hR=CT.rf3[0]||0, _hRx=CT.rf3x[0]||0;
+  var _effR=_hR?(CTN.rf3/_hR):0, _effRx=_hRx?(CTN.rf3x/_hRx):0;   // 平均几个号换一次命中(越小越省)
+  var _effVerdict = (!_hR||!_hRx)?'样本不足':(Math.abs(_effRx-_effR)/_effR<0.1?'🟢 效率几乎一样 —— 排十位没带来真优势(符合随机)':(_effRx<_effR?'🟡 排十位效率略高(每号更省)—— 但很可能是巧合,别当真本事':'🔴 排十位效率反而差'));
+  h+='<div style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px dashed #ddd6fe;border-radius:6px;padding:6px 8px;margin-top:4px"><b>🧪 排除法·第1步(十位)· 公平裁判</b><br>规则:把「十位=源期特别奖号码十位」的补前3D候选剔除。累计候选 原 <b>'+CTN.rf3+'</b> → 排后 <b>'+CTN.rf3x+'</b>'+(CTN.rf3?'（省'+Math.round((CTN.rf3-CTN.rf3x)/CTN.rf3*100)+'%）':'')+'。<br><b>⚖️ 效率(平均几个号换1次命中,越小越省):</b> 原补链前3D <b>'+(_effR?_effR.toFixed(1):'—')+'</b> 号/命中 · 排十位 <b>'+(_effRx?_effRx.toFixed(1):'—')+'</b> 号/命中<br><b style="color:#5b21b6">'+_effVerdict+'</b></div>';
   h+='</div>';
   // 🔢 另一套:头二三·连续两期 → 缺席根,看下一期头二三补没补(跟上面特别奖那套不同源)
   (function(){
