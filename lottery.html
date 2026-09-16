@@ -9051,8 +9051,9 @@ function zoSpHistoryShow(){
         var _srcT={}; (r.grp||[]).forEach(function(n){ var s=String(n); if(s.length>=3) _srcT[s.charAt(2)]=1; });
         var _rfx=_rf.filter(function(c){ return !_srcT[c.charAt(2)]; });
         var _cut=_rf.filter(function(c){ return _srcT[c.charAt(2)]; });
+        var _keep=[]; for(var _kd=0;_kd<=9;_kd++){ if(!_srcT[''+_kd])_keep.push(_kd); }
         h+='<div style="font-size:11px;margin-top:3px;padding-top:3px;border-top:1px dotted #e9d5ff"><span style="display:inline-block;background:#7c3aed;color:#fff;border-radius:4px;padding:0 6px;font-weight:700;margin-right:4px">🧪排十位</span>'+
-           '剔除十位['+(Object.keys(_srcT).sort().join(',')||'无')+'] → 剩 <b>'+_rfx.length+'</b>/'+_rf.length+' 个 · 命中 <b>'+hitSet(_rfx,0,2)+'</b></div>';
+           '剔除十位[<span style="color:#dc2626">'+(Object.keys(_srcT).sort().join(',')||'无')+'</span>] → 保留十位[<span style="color:#16a34a">'+_keep.join(',')+'</span>] · 剩 <b>'+_rfx.length+'</b>/'+_rf.length+' 个 · 命中 <b>'+hitSet(_rfx,0,2)+'</b></div>';
         h+='<div style="font-size:9px;color:#7c3aed;margin-top:1px;font-family:monospace;word-break:break-all">排后补前3D：'+(_rfx.map(function(x){return x+'X';}).join(' ')||'无')+(_cut.length?'<br><span style="color:#cbd5e1">被剔除：'+_cut.map(function(x){return x+'X';}).join(' ')+'</span>':'')+'</div>';
       }
     }
