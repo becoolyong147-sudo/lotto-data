@@ -8995,12 +8995,7 @@ function zoSpHistoryShow(){
   var LBL={rtf2:'缺根·前2D(特别奖源)',rtm2:'缺根·中2D(特别奖源)',rtb2:'缺根·后2D(特别奖源)',f2:'前2D',m2:'中2D',b2:'后2D',f1:'前1D',b1:'后1D',lf3:'链接前3D',lb3:'链接后3D',l4:'完整4D',rf3:'补链前3D',rf3x:'补链前3D·排十位(排除法)',rb3:'补链后3D'};
   var arr=Object.keys(CT).map(function(k){ var c=CT[k]; return {k:k,hit:c[0],tot:c[1],pct:c[1]?c[0]/c[1]*100:0}; }).filter(function(x){return x.tot>0;}).sort(function(a,b){return b.pct-a.pct;});
   h+='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin:8px 0">';
-  h+='<div style="font-size:13px;font-weight:800;color:#6b21a8;margin-bottom:4px">📊 各打法长期命中率（'+recs.length+' 期 · 命中率高→低）</div>';
-  h+='<div class="ot"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#6b21a8"><th style="text-align:left;padding:3px 8px">打法</th><th style="text-align:right;padding:3px 8px">命中/期数</th><th style="text-align:right;padding:3px 8px">命中率</th><th style="text-align:left;padding:3px 8px">条</th></tr>';
-  arr.forEach(function(x){ var col=x.pct>=50?'#16a34a':(x.pct>=15?'#d97706':'#dc2626'); var bar=Math.round(x.pct); h+='<tr style="border-top:1px solid #f3e8ff"><td style="padding:3px 8px;font-weight:700">'+LBL[x.k]+'</td><td style="padding:3px 8px;text-align:right">'+x.hit+'/'+x.tot+'</td><td style="padding:3px 8px;text-align:right;font-weight:800;color:'+col+'">'+x.pct.toFixed(0)+'%</td><td style="padding:3px 8px"><div style="background:#f3e8ff;border-radius:3px;height:8px;width:100px"><div style="height:100%;width:'+bar+'%;background:'+col+';border-radius:3px"></div></div></td></tr>'; });
-  h+='</table></div>';
-  h+='<div style="font-size:11px;color:#6b21a8;margin-top:4px">👉 位数越少越容易中(1D覆盖半数数字、几乎必中但赔少)；3D/4D/补链命中率低=重注易亏。<b>命中率高≠赚钱</b>,配 EV 看成本。</div>';
-  h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 上表「缺根(特别奖源)」= 用每期<b>特别奖</b>算缺席根。下面另一套是用<b>头二三·连续两期</b>算,来源不同,分开看。</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️「缺根(特别奖源)」= 用每期<b>特别奖</b>算缺席根。下面另一套是用<b>头二三·连续两期</b>算,来源不同,分开看。</div>';
   // 🧪 排除法 第1步 说明 + 省号统计
   var _hR=CT.rf3[0]||0, _hRx=CT.rf3x[0]||0;
   var _effR=_hR?(CTN.rf3/_hR):0, _effRx=_hRx?(CTN.rf3x/_hRx):0;   // 平均几个号换一次命中(越小越省)
