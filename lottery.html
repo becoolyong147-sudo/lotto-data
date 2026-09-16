@@ -8926,7 +8926,7 @@ function zoSpHistoryShow(){
     var g=d.sp.map(pad).filter(function(s){return /^\d{4}$/.test(s);}); if(g.length<3) continue;
     var next=(i+1<merged.length)?merged[i+1]:null;
     var nn=next?[next.nums&&next.nums[0],next.nums&&next.nums[1],next.nums&&next.nums[2]].filter(function(x){return x!=null&&x!=='';}).map(pad):null;
-    recs.push({src:d.date, nextDate:next?next.date:'(待开)', nn:nn,
+    recs.push({src:d.date, nextDate:next?next.date:'(待开)', nn:nn, grp:g.slice(),
       f2:an2(g,0,1), m2:an2(g,1,2), b2:an2(g,2,3), f1:an1(g,0), b1:an1(g,3)});
   }
   if(!recs.length){ out.innerHTML='<div class="warn">'+mk+' 没有含特别奖的期数,无法查回。</div>'; return; }
@@ -8950,7 +8950,8 @@ function zoSpHistoryShow(){
   h+='<h3 style="color:#7c3aed">📜 '+mk+' · 主打历史记录（'+recs.length+' 期 · 新→旧）</h3>';
   h+='<div class="warn">每期：用该期特别奖算的目标 → 下一期头二三是否命中。✅=中(标奖项+号)，❌=没中。⚠️ 历史统计，不构成预测。</div>';
   // 📊 各打法长期命中率（独立统计一遍，不影响下面逐期）
-  var CT={rtf2:[0,0],rtm2:[0,0],rtb2:[0,0],f2:[0,0],m2:[0,0],b2:[0,0],f1:[0,0],b1:[0,0],lf3:[0,0],lb3:[0,0],l4:[0,0],rf3:[0,0],rb3:[0,0]};
+  var CT={rtf2:[0,0],rtm2:[0,0],rtb2:[0,0],f2:[0,0],m2:[0,0],b2:[0,0],f1:[0,0],b1:[0,0],lf3:[0,0],lb3:[0,0],l4:[0,0],rf3:[0,0],rf3x:[0,0],rb3:[0,0]};
+  var CTN={rf3:0,rf3x:0}; // 累计候选号数量:补前3D原始 vs 排十位后(看排除法省了多少号)
   function _isHit(v){ return v && v.indexOf('✅')===0; }
   function _hs(setArr,wa,wb,nn){ if(!nn)return null; var st={}; setArr.forEach(function(x){st[x]=1;}); for(var pi=0;pi<3;pi++){ var x=nn[pi]; if(x){ var w=(wb==null)?x:x.slice(wa,wb+1); if(st[w])return '✅'; } } return '❌'; }
   function _dr2(x,y){ var s=(+x)+(+y); return s===0?0:(s%9===0?9:s%9); }
@@ -8969,8 +8970,12 @@ function zoSpHistoryShow(){
     lk.uB2.forEach(function(bb){for(var b=0;b<=9;b++){if(_mr.indexOf(_dr2(b,bb[0]))>=0)_rb3[''+b+bb]=1;}});
     var _rf=Object.keys(_rf3),_rb=Object.keys(_rb3);
     if(_rf.length) T('rf3',_hs(_rf,0,2,r.nn)); if(_rb.length) T('rb3',_hs(_rb,1,3,r.nn));
+    // 🧪 排除法·第1步(十位)：把「十位=源期特别奖号码的十位」的补前3D候选剔除
+    var _srcTens={}; (r.grp||[]).forEach(function(n){ var s=String(n); if(s.length>=3) _srcTens[s.charAt(2)]=1; });
+    var _rfx=_rf.filter(function(c){ return !_srcTens[c.charAt(2)]; });   // c 是3位补前3D,charAt(2)=十位
+    if(_rfx.length){ T('rf3x',_hs(_rfx,0,2,r.nn)); CTN.rf3+=_rf.length; CTN.rf3x+=_rfx.length; }
   });
-  var LBL={rtf2:'缺根·前2D(特别奖源)',rtm2:'缺根·中2D(特别奖源)',rtb2:'缺根·后2D(特别奖源)',f2:'前2D',m2:'中2D',b2:'后2D',f1:'前1D',b1:'后1D',lf3:'链接前3D',lb3:'链接后3D',l4:'完整4D',rf3:'补链前3D',rb3:'补链后3D'};
+  var LBL={rtf2:'缺根·前2D(特别奖源)',rtm2:'缺根·中2D(特别奖源)',rtb2:'缺根·后2D(特别奖源)',f2:'前2D',m2:'中2D',b2:'后2D',f1:'前1D',b1:'后1D',lf3:'链接前3D',lb3:'链接后3D',l4:'完整4D',rf3:'补链前3D',rf3x:'补链前3D·排十位(排除法)',rb3:'补链后3D'};
   var arr=Object.keys(CT).map(function(k){ var c=CT[k]; return {k:k,hit:c[0],tot:c[1],pct:c[1]?c[0]/c[1]*100:0}; }).filter(function(x){return x.tot>0;}).sort(function(a,b){return b.pct-a.pct;});
   h+='<div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:10px 12px;margin:8px 0">';
   h+='<div style="font-size:13px;font-weight:800;color:#6b21a8;margin-bottom:4px">📊 各打法长期命中率（'+recs.length+' 期 · 命中率高→低）</div>';
@@ -8979,6 +8984,8 @@ function zoSpHistoryShow(){
   h+='</table></div>';
   h+='<div style="font-size:11px;color:#6b21a8;margin-top:4px">👉 位数越少越容易中(1D覆盖半数数字、几乎必中但赔少)；3D/4D/补链命中率低=重注易亏。<b>命中率高≠赚钱</b>,配 EV 看成本。</div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 上表「缺根(特别奖源)」= 用每期<b>特别奖</b>算缺席根。下面另一套是用<b>头二三·连续两期</b>算,来源不同,分开看。</div>';
+  // 🧪 排除法 第1步 说明 + 省号统计
+  h+='<div style="font-size:11px;color:#7c3aed;background:#faf5ff;border:1px dashed #ddd6fe;border-radius:6px;padding:6px 8px;margin-top:4px"><b>🧪 排除法·第1步(十位)已上线</b> —— 上表里「<b>补链前3D·排十位</b>」= 把「十位(补前3D的第3位)= 源期特别奖号码十位」的候选<b>剔除</b>后再回测。<br>对比原「补链前3D」的命中率,就知道排掉这些十位有没有<b>省号又不太掉命中</b>。累计候选:原 <b>'+CTN.rf3+'</b> 个 → 排十位后 <b>'+CTN.rf3x+'</b> 个'+(CTN.rf3?'（省了 '+(CTN.rf3-CTN.rf3x)+' 个，'+Math.round((CTN.rf3-CTN.rf3x)/CTN.rf3*100)+'%）':'')+'。<br>👉 看两行命中率:排十位那行若命中率<b>没掉多少但号少很多</b>=排除法有用;若命中率掉一堆=排错了,下一步换规则。</div>';
   h+='</div>';
   // 🔢 另一套:头二三·连续两期 → 缺席根,看下一期头二三补没补(跟上面特别奖那套不同源)
   (function(){
