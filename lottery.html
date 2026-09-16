@@ -8707,6 +8707,7 @@ function doBacktest(){
         <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">📅 逐期缺席表</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
+        <button class="btn" style="background:#9333ea;color:#fff;padding:9px 14px;font-size:14px" onclick="zoR2DHist()">🔢 2D数根回测(完整)</button>
         <button class="btn" style="background:#be185d;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMonthlyReport()">📅 月度报告</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpecialScan()">🎰 特殊号扫描</button>
         <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
@@ -9067,6 +9068,29 @@ function zoSpHistoryShow(){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 window.zoNextMainToggle=function(id){ var e=document.getElementById(id); if(e) e.style.display=(e.style.display==='none'?'block':'none'); };
+// 🔢 在查回历史区(abs-out)运行完整的2D数根回测：自带控件,复用 zoRoot2DAbsentBacktest 核心
+function zoR2DHist(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
+  var mkOpts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('');
+  var h='<div class="card" style="border:2px solid #9333ea"><h3 style="color:#9333ea">🔢 2D数根 · 缺席回补回测（完整版 · 头二三·两期源）</h3>';
+  h+='<div class="warn">用头二三连续两期算缺席根,看下一期补没补。跟「查回历史·缺根命中(特别奖源)」不同源。这里是完整逐期✅❌ + 随机基准 + 判定。</div>';
+  h+='<div class="row" style="margin:6px 0">'+
+     '<div class="ig"><label>市场</label><select id="r2ah-market" onchange="zoR2DHistRun()">'+mkOpts+'</select></div>'+
+     '<div class="ig"><label>回测期数</label><select id="r2ah-n" onchange="zoR2DHistRun()"><option value="0">全部</option><option value="100">近100期</option><option value="200">近200期</option><option value="500">近500期</option></select></div>'+
+     '<div class="ig"><label>粒度</label><select id="r2ah-mode" onchange="zoR2DHistRun()"><option value="mix">混合(不分位)</option><option value="split">分前后(各自算)</option><option value="pair">前配后(整对)</option></select></div>'+
+     '</div><div id="r2ah-out"></div></div>';
+  out.innerHTML=h;
+  zoR2DHistRun();
+  out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function zoR2DHistRun(){
+  var mk=(document.getElementById('r2ah-market')||{}).value;
+  var N=parseInt((document.getElementById('r2ah-n')||{value:'0'}).value,10)||0;
+  var mode=(document.getElementById('r2ah-mode')||{value:'mix'}).value;
+  var el=document.getElementById('r2ah-out'); if(!el) return;
+  zoRoot2DAbsentBacktest(mk, N, mode, el);
+}
 // 🎰 特殊号扫描：乘法号/顺子/顺子组/豹子/镜像 → 历史出现日期 + 星期分布(看有没有特别的日子)
 function zoSpecialScan(){
   var out=document.getElementById('abs-out'); if(!out) return;
@@ -22208,11 +22232,11 @@ function zoScreenView(){
 }
 
 // 🔢 2D数根·缺席回补回测：固定两期一组算缺席根 → 看下一期是否补上（三种粒度）
-function zoRoot2DAbsentBacktest(){
-  var out=document.getElementById('r2a-out'); if(!out) return;
-  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
-  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
-  var mode=(document.getElementById('r2a-mode')||{value:'mix'}).value;
+function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
+  var out=optOut||document.getElementById('r2a-out'); if(!out) return;
+  var mk=optMk||(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=(optN!=null)?optN:(parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0);
+  var mode=optMode||(document.getElementById('r2a-mode')||{value:'mix'}).value;
   function pad(n){return String(n).padStart(4,'0');}
   function root2(a,b){ var s=(+a)+(+b); return s===0?0:(s%9===0?9:s%9); }
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
