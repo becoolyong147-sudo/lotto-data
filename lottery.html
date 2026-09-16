@@ -5726,13 +5726,17 @@ function fltRecommendBack2D(){
   const front2List = [...front2Set].sort();
 
   // 2. 扫描全市场历史，统计「匹配前2D → 后2D出现次数」
-  const back2Count = {};   // back2D string -> total count
+  const back2Count = {};   // back2D string -> count (只在匹配前2D时)
   const pairCount  = {};   // "AB|CD" -> count (for 4D assembly)
+  const allB2Count = {};   // back2D -> 全体计数(不管前2D,当热号基准)
+  let allB2Total = 0;
   const allRecs = DB[market] || [];
   allRecs.forEach(r => {
     r.nums.forEach(raw => {
       if(!raw || raw === '0000') return;
       const s = String(pz(raw)).padStart(4,'0');
+      const b2all = s.slice(2,4);
+      allB2Count[b2all] = (allB2Count[b2all] || 0) + 1; allB2Total++;   // 基准:全体后2D
       const f2 = s.slice(0,2);
       if(!front2Set.has(f2)) return;
       const b2 = s.slice(2,4);
@@ -5770,11 +5774,17 @@ function fltRecommendBack2D(){
     const b2rSel = getSelectedRoots('b2r');
     const b2Fail = b2rSel.length && !b2rSel.includes(b2Root);
     h += '<div style="background:'+(b2Fail?'#f1f5f9':bg)+';border:2px solid '+(b2Fail?'#cbd5e1':col)+';border-radius:8px;padding:6px 10px;min-width:72px;text-align:center;opacity:'+(b2Fail?'.55':'1')+'" title="'+(b2Fail?'后2D数根不符当前筛选':'')+'">';
+    // 真配对 vs 只是热号:条件占比 ÷ 全体占比(lift)
+    var condShare = cnt/totalPairs, baseShare = allB2Total? (allB2Count[b2]||0)/allB2Total : 0;
+    var lift = baseShare>0 ? condShare/baseShare : 0;
+    var liftTag = lift>=1.3 ? '<span style="color:#16a34a;font-weight:700">🟢真配对'+lift.toFixed(1)+'倍</span>' : (lift>=0.85 ? '<span style="color:#94a3b8">⚪只是热号'+lift.toFixed(1)+'倍</span>' : '<span style="color:#2563eb">🔵偏少'+lift.toFixed(1)+'倍</span>');
     h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+(b2Fail?'#94a3b8':col)+'">xx'+b2+'</div>';
     h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次'+(b2rSel.length?(b2Fail?' <span style="color:#94a3b8">✗根</span>':' <span style="color:#16a34a">✓根</span>'):'')+'</div>';
     h += '<div style="font-size:11px;font-weight:700;color:'+(b2Fail?'#94a3b8':col)+'">'+pct+'%</div>';
+    h += '<div style="font-size:9px;margin-top:1px">'+liftTag+'</div>';
     h += '</div>';
   });
+  h += '<div style="font-size:11px;color:#64748b;margin:0 0 10px">🟢<b>真配对</b>=这个后2D在「你的前2D」后面,比它平时出现更频繁(倍数≥1.3)→ 可能真跟你的前2D有关;⚪<b>只是热号</b>=它本来就常开,跟你的前2D没特别关系(≈1倍)。<b>优先看🟢</b>,别被⚪的高频骗。</div>';
   h += '</div></div>';
 
   // 4D组合表：前2D × 后2D（Top 5后2D）
