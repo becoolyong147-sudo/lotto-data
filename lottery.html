@@ -5774,17 +5774,19 @@ function fltRecommendBack2D(){
     const b2rSel = getSelectedRoots('b2r');
     const b2Fail = b2rSel.length && !b2rSel.includes(b2Root);
     h += '<div style="background:'+(b2Fail?'#f1f5f9':bg)+';border:2px solid '+(b2Fail?'#cbd5e1':col)+';border-radius:8px;padding:6px 10px;min-width:72px;text-align:center;opacity:'+(b2Fail?'.55':'1')+'" title="'+(b2Fail?'后2D数根不符当前筛选':'')+'">';
-    // 真配对 vs 只是热号:条件占比 ÷ 全体占比(lift)
+    // 真配对 vs 只是热号:用统计显著性(z),不只看倍数——小样本的高倍数多半是噪音
     var condShare = cnt/totalPairs, baseShare = allB2Total? (allB2Count[b2]||0)/allB2Total : 0;
     var lift = baseShare>0 ? condShare/baseShare : 0;
-    var liftTag = lift>=1.3 ? '<span style="color:#16a34a;font-weight:700">🟢真配对'+lift.toFixed(1)+'倍</span>' : (lift>=0.85 ? '<span style="color:#94a3b8">⚪只是热号'+lift.toFixed(1)+'倍</span>' : '<span style="color:#2563eb">🔵偏少'+lift.toFixed(1)+'倍</span>');
+    var expc = totalPairs*baseShare, sec = Math.sqrt(totalPairs*baseShare*(1-baseShare));
+    var zc = sec>0 ? (cnt-expc)/sec : 0;
+    var liftTag = zc>=1.96 ? '<span style="color:#16a34a;font-weight:700">🟢真配对'+lift.toFixed(1)+'倍·z'+zc.toFixed(1)+'</span>' : (zc<=-1.96 ? '<span style="color:#2563eb">🔵显著偏少·z'+zc.toFixed(1)+'</span>' : '<span style="color:#94a3b8">⚪≈随机'+lift.toFixed(1)+'倍</span>');
     h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+(b2Fail?'#94a3b8':col)+'">xx'+b2+'</div>';
     h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次'+(b2rSel.length?(b2Fail?' <span style="color:#94a3b8">✗根</span>':' <span style="color:#16a34a">✓根</span>'):'')+'</div>';
     h += '<div style="font-size:11px;font-weight:700;color:'+(b2Fail?'#94a3b8':col)+'">'+pct+'%</div>';
     h += '<div style="font-size:9px;margin-top:1px">'+liftTag+'</div>';
     h += '</div>';
   });
-  h += '<div style="font-size:11px;color:#64748b;margin:0 0 10px">🟢<b>真配对</b>=这个后2D在「你的前2D」后面,比它平时出现更频繁(倍数≥1.3)→ 可能真跟你的前2D有关;⚪<b>只是热号</b>=它本来就常开,跟你的前2D没特别关系(≈1倍)。<b>优先看🟢</b>,别被⚪的高频骗。</div>';
+  h += '<div style="font-size:11px;color:#64748b;margin:0 0 10px">🟢<b>真配对</b>=这个后2D在「你的前2D」后面出现,<b>显著</b>高于它平时(z≥1.96,超出随机波动)→ 真的经得起考验;⚪<b>≈随机</b>=倍数看起来高但样本撑不起(z没过关),多半是巧合;🔵=显著偏少。<b>只信🟢</b>——它才是真信号,别被⚪的高倍数骗。</div>';
   h += '</div></div>';
 
   // 4D组合表：前2D × 后2D（Top 5后2D）
