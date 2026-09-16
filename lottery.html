@@ -5766,6 +5766,7 @@ function fltRecommendBack2D(){
   // 后2D频率表
   h += '<div style="margin-top:10px"><div style="font-size:12px;font-weight:700;color:#1e3a5f;margin-bottom:6px">📊 后2D出现频率（Top 20）</div>';
   h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+  var _greenN=0, _testN=b2Ranked.length;
   b2Ranked.forEach(([b2, cnt], i) => {
     const pct = (cnt/totalPairs*100).toFixed(1);
     const col = i < 3 ? '#dc2626' : i < 7 ? '#f59e0b' : '#64748b';
@@ -5779,6 +5780,7 @@ function fltRecommendBack2D(){
     var lift = baseShare>0 ? condShare/baseShare : 0;
     var expc = totalPairs*baseShare, sec = Math.sqrt(totalPairs*baseShare*(1-baseShare));
     var zc = sec>0 ? (cnt-expc)/sec : 0;
+    if(zc>=1.96)_greenN++;
     var liftTag = zc>=1.96 ? '<span style="color:#16a34a;font-weight:700">🟢真配对'+lift.toFixed(1)+'倍·z'+zc.toFixed(1)+'</span>' : (zc<=-1.96 ? '<span style="color:#2563eb">🔵显著偏少·z'+zc.toFixed(1)+'</span>' : '<span style="color:#94a3b8">⚪≈随机'+lift.toFixed(1)+'倍</span>');
     h += '<div style="font-family:monospace;font-size:20px;font-weight:900;color:'+(b2Fail?'#94a3b8':col)+'">xx'+b2+'</div>';
     h += '<div style="font-size:10px;color:#64748b">根'+b2Root+' · '+cnt+'次'+(b2rSel.length?(b2Fail?' <span style="color:#94a3b8">✗根</span>':' <span style="color:#16a34a">✓根</span>'):'')+'</div>';
@@ -5786,7 +5788,9 @@ function fltRecommendBack2D(){
     h += '<div style="font-size:9px;margin-top:1px">'+liftTag+'</div>';
     h += '</div>';
   });
-  h += '<div style="font-size:11px;color:#64748b;margin:0 0 10px">🟢<b>真配对</b>=这个后2D在「你的前2D」后面出现,<b>显著</b>高于它平时(z≥1.96,超出随机波动)→ 真的经得起考验;⚪<b>≈随机</b>=倍数看起来高但样本撑不起(z没过关),多半是巧合;🔵=显著偏少。<b>只信🟢</b>——它才是真信号,别被⚪的高倍数骗。</div>';
+  h += '<div style="font-size:11px;color:#64748b;margin:0 0 6px">🟢<b>真配对</b>=这个后2D在「你的前2D」后面出现,<b>显著</b>高于它平时(z≥1.96,超出随机波动)→ 真的经得起考验;⚪<b>≈随机</b>=倍数看起来高但样本撑不起(z没过关),多半是巧合;🔵=显著偏少。<b>只信🟢</b>——它才是真信号,别被⚪的高倍数骗。</div>';
+  var _expFalse=(_testN*0.05).toFixed(1);
+  h += '<div style="font-size:11px;color:#b45309;background:#fffbeb;border:1px dashed #fde68a;border-radius:6px;padding:6px 8px;margin:0 0 10px">⚠️ <b>注意(多重比较)</b>:这次测了 <b>'+_testN+'</b> 个后2D,出现 <b>'+_greenN+'</b> 个🟢。就算全是随机,平均也会有约 <b>'+_expFalse+'</b> 个纯靠运气过 z1.96。所以:🟢 里 z 越高越可信(z≥3 才算强),<b>只勉强过关(z2左右)的很可能是那个「运气假阳性」,别当真</b>。</div>';
   h += '</div></div>';
 
   // 4D组合表：前2D × 后2D（Top 5后2D）
