@@ -22567,18 +22567,22 @@ function zoRootDigitComboBacktest(){
         var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q)wins.push(v); return q?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>':'<span style="color:#94a3b8">'+v+'</span>'; }).join('·'); });
         return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+wins.length+'双缺)</span></div>', wins:wins};
       }
-      function block(rootArr,col,lbl,s1,s2){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); allWins=allWins.concat(o.wins); s+=o.html; }); allWins.sort();
-        if(allWins.length){ s+='<button class="btn" style="padding:2px 9px;font-size:10px;background:'+col+';color:#fff;margin-top:3px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allWins.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📤复制双缺('+allWins.length+')\',1200)})">📤复制双缺('+allWins.length+') → 贴去高级筛选</button>'; }
+      function block(rootArr,col,lbl,s1,s2,wi){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); allWins=allWins.concat(o.wins); s+=o.html; }); allWins.sort();
+        if(allWins.length){ var lst=allWins.join(' ');
+          s+='<div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">'+
+             '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend2DToFilter(\''+lst+'\',\''+mk+'\','+wi+')">📤 一键送进高级筛选('+allWins.length+')</button>'+
+             '<button class="btn" style="padding:3px 10px;font-size:11px;background:#fff;color:'+col+';border:1px solid '+col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制('+allWins.length+')\',1200)})">📋复制('+allWins.length+')</button>'+
+             '</div>'; }
         return s; }
       var cid='rdc-combo', A=Dc.A;
       h+='<div style="margin-top:5px"><span onclick="var e=document.getElementById(\''+cid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700;font-size:12px">▾ 展开缺根的2D组合（高亮=两位都在缺席1D里）</span>';
       h+='<div id="'+cid+'" style="display:none;margin-top:4px;background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:6px 10px">';
       if(mode==='mix'){
-        h+=block(Object.keys(Rc.M),'#0f766e','混合缺根 · 当前2D(千百)看',A[0],A[1]);
-        h+=block(Object.keys(Rc.M),'#be185d','混合缺根 · 当后2D(十个)看',A[2],A[3]);
+        h+=block(Object.keys(Rc.M),'#0f766e','混合缺根 · 当前2D(千百)看',A[0],A[1],0);
+        h+=block(Object.keys(Rc.M),'#be185d','混合缺根 · 当后2D(十个)看',A[2],A[3],2);
       } else {
-        h+=block(Object.keys(Rc.F),'#0f766e','前2D缺根(千百)',A[0],A[1]);
-        h+=block(Object.keys(Rc.B),'#be185d','后2D缺根(十个)',A[2],A[3]);
+        h+=block(Object.keys(Rc.F),'#0f766e','前2D缺根(千百)',A[0],A[1],0);
+        h+=block(Object.keys(Rc.B),'#be185d','后2D缺根(十个)',A[2],A[3],2);
       }
       h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">同两个数字(调字组，如 29·92)并在一起；<b>高亮色块</b>=该2D两位都落在缺席1D里(千位∈千缺 且 百位∈百缺)＝数根+1D双缺，才是打法真正的目标号。灰色=只中数根、位不缺。参考用，不构成预测。</div>';
       h+='</div></div>';
