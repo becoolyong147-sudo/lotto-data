@@ -12076,7 +12076,9 @@ function zo2DRootBacktest(){
       <select id="r2a-mode"><option value="mix">混合(不分位)</option><option value="split">分前后(各自算)</option><option value="pair">前配后(整对)</option></select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px" onclick="zoRoot2DAbsentBacktest()">🔬 开始回测</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoDigit1LinkBacktest()">🔗 缺席1D·链接回测</button></div>
   </div>
+  <div class="warn" style="background:#ecfeff;border-color:#a5f3fc;color:#155e75">🔗 缺席1D：用<b>真实数字(0–9)本身</b>算。前缺=最近两期「千/百」没出现的数字，后缺=「十/个」没出现的数字。看下一期有没有号<b>前半用到前缺 且 后半用到后缺</b>＝两者连接上，回测命中率 vs 随机。</div>
   <div id="r2a-out" style="margin-top:10px"></div>
 </div>
 </div>
@@ -22344,6 +22346,67 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'r2a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#9333ea;font-weight:700">逐期明细 ▾</span>';
   h+='<div id="r2a-det" style="display:none;max-height:320px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9333ea"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席</th><th style="text-align:left;padding:3px 6px">补上</th><th style="padding:3px 6px">中?</th></tr>';
   det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px">'+x.absent+'</td><td style="padding:3px 6px;font-weight:700;color:#16a34a">'+x.got+'</td><td style="padding:3px 6px;text-align:center;white-space:nowrap">'+(x.hitStr!=null?x.hitStr:(x.hit==null?'':(x.hit?'✅':'❌')))+'</td></tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——缺席≠会补开。诚实验证用,不构成预测。判定用2×标准误。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+}
+
+// 🔗 缺席1D·链接回测：用真实数字(0-9)本身。前缺=最近两期「千/百」没出现的数字，后缺=「十/个」没出现的数字。
+// 看下一期有没有某个号「前半(千百)用到前缺 且 后半(十个)用到后缺」＝两者连接上。逐期滚动，命中率 vs 随机。
+function zoDigit1LinkBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  function pad(n){return String(n).padStart(4,'0');}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0 && m.length>N) m=m.slice(m.length-N);
+  if(m.length<10){ out.innerHTML='<div class="warn">'+mk+' 期数太少('+m.length+')，无法回测。</div>'; return; }
+  // 每期 → 前半数字集合(千百) / 后半数字集合(十个) + 每个号的4位
+  function info(d){ var f={},b={},nums=[]; if(d.nums){ [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return; f[+s[0]]=1; f[+s[1]]=1; b[+s[2]]=1; b[+s[3]]=1; nums.push(s); }); } return {date:d.date,f:f,b:b,nums:nums}; }
+  var per=m.map(info);
+  function absentOf(pool){ var a=[]; for(var dgt=0;dgt<=9;dgt++){ if(!pool[dgt]) a.push(dgt); } return a; }
+  var det=[], tot=0, hit=0, bs=0;
+  for(var i=0;i+2<per.length;i++){
+    var pF={}; [per[i].f,per[i+1].f].forEach(function(s){for(var k in s)pF[+k]=1;}); var aF=absentOf(pF);
+    var pB={}; [per[i].b,per[i+1].b].forEach(function(s){for(var k in s)pB[+k]=1;}); var aB=absentOf(pB);
+    if(!aF.length||!aB.length) continue;
+    var aFs={}; aF.forEach(function(x){aFs[x]=1;}); var aBs={}; aB.forEach(function(x){aBs[x]=1;});
+    var conn=per[i+2].nums.filter(function(s){ var fh=(aFs[+s[0]]||aFs[+s[1]]); var bh=(aBs[+s[2]]||aBs[+s[3]]); return fh&&bh; });
+    tot++; var hh=conn.length>0; if(hh)hit++;
+    var pf=1-Math.pow((10-aF.length)/10,2), pb=1-Math.pow((10-aB.length)/10,2); bs+=1-Math.pow(1-pf*pb,3);
+    det.push({date:per[i+2].date,absent:'前['+aF.join('')+'] 后['+aB.join('')+']',got:conn.join(' ')||'—',hit:hh});
+  }
+  function verdict(t,hp,bp){ var se=Math.sqrt((bp/100)*(1-bp/100)/Math.max(t,1))*100, lead=hp-bp; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#0e7490'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
+  var hp=tot?hit/tot*100:0, bp=tot?bs/tot*100:0, vd=verdict(tot,hp,bp);
+  var h='<div class="card" style="border:2px solid #0891b2">';
+  h+='<h3 style="color:#0891b2">🔗 '+mk+' · 缺席1D 链接回测（真实数字·两期一组）</h3>';
+  // 🎯 本期缺席(最新两期) → 给下一期参考
+  if(per.length>=2){
+    var L1=per[per.length-1], L2=per[per.length-2];
+    var poolF={}; [L1.f,L2.f].forEach(function(s){for(var k in s)poolF[+k]=1;}); var cF=absentOf(poolF);
+    var poolB={}; [L1.b,L2.b].forEach(function(s){for(var k in s)poolB[+k]=1;}); var cB=absentOf(poolB);
+    h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+    h+='<div style="font-size:13px;font-weight:800;color:#0e7490">🎯 本期缺席（最新两期 '+L2.date+' + '+L1.date+' → 下一期盯这些数字）</div>';
+    h+='<div style="font-size:14px;margin-top:4px">前缺(千/百没出现)：<b style="color:#0f766e">'+(cF.join(' ')||'无')+'</b><br>后缺(十/个没出现)：<b style="color:#be185d">'+(cB.join(' ')||'无')+'</b></div>';
+    h+='<div style="font-size:11px;color:#64748b;margin-top:3px">= 盯下一期有没有号「前半(千百)用到前缺数字 且 后半(十个)用到后缺数字」＝两者连接上。</div>';
+    h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 只是「最近两期没出现的数字」，缺席≠会补，下一期照样独立随机。参考用。</div>';
+    h+='</div>';
+  }
+  var s='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:6px 0">';
+  function b(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:19px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+  s+='<div style="grid-column:1/-1;font-weight:800;color:#0891b2;font-size:13px">前缺×后缺 连接成功（'+tot+' 窗口）</div>';
+  s+=b('连接率', hp.toFixed(1)+'%', '#0891b2')+b('随机基准', bp.toFixed(1)+'%')+b('判定', vd.t, vd.c);
+  h+=s+'</div>';
+  h+='<div class="warn">每窗口：最近两期算前缺/后缺数字，看下一期头二三里有没有<b>同一个号</b>「前半用到前缺 且 后半用到后缺」。</div>';
+  // 逐期明细
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'d1l-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细 ▾</span>';
+  h+='<div id="d1l-det" style="display:none;max-height:320px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0891b2"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席(前/后)</th><th style="text-align:left;padding:3px 6px">连接上的号</th><th style="padding:3px 6px">中?</th></tr>';
+  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#ecfeff':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace">'+x.absent+'</td><td style="padding:3px 6px;font-weight:700;color:#0e7490;font-family:monospace">'+x.got+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——缺席≠会补开。诚实验证用,不构成预测。判定用2×标准误。</div>';
   h+='</div>';
