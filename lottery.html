@@ -22508,27 +22508,27 @@ function zoRootDigitComboBacktest(){
   // 评估一个奖号在给定缺席集下是否命中(按模式)，返回 {hit, why}
   function evalNum(s, R, D){
     var fr=dr((+s[0])+(+s[1])), br=dr((+s[2])+(+s[3]));
-    var pf=(D.A[0][+s[0]]||D.A[1][+s[1]]), pb=(D.A[2][+s[2]]||D.A[3][+s[3]]);
-    var pfPos=(D.A[0][+s[0]]?'千':'')+(D.A[1][+s[1]]?'百':''), pbPos=(D.A[2][+s[2]]?'十':'')+(D.A[3][+s[3]]?'个':'');
+    // 「双缺」：该2D两位都在缺席1D里(AND)，与展开图高亮一致
+    var pf=(D.A[0][+s[0]]&&D.A[1][+s[1]]), pb=(D.A[2][+s[2]]&&D.A[3][+s[3]]);
     if(mode==='mix'){
-      var rootHit=(R.M[fr]||R.M[br]); var anyPos=(pf||pb);
-      if(rootHit&&anyPos){ var rp=R.M[fr]?('前'+String(s[0])+s[1]+'→根'+fr):('后'+String(s[2])+s[3]+'→根'+br); return {hit:true,why:s+'('+rp+'·'+(pfPos+pbPos)+'位)'}; }
+      var frontOK=(R.M[fr]&&pf), backOK=(R.M[br]&&pb);
+      if(frontOK||backOK){ var rp=frontOK?('前'+String(s[0])+s[1]+'→根'+fr+'·千百双缺'):('后'+String(s[2])+s[3]+'→根'+br+'·十个双缺'); return {hit:true,why:s+'('+rp+')'}; }
       return {hit:false};
     } else if(mode==='split'){
       var fH=(R.F[fr]&&pf), bH=(R.B[br]&&pb);
-      if(fH||bH){ var w=[]; if(fH)w.push('前'+s[0]+s[1]+'→根'+fr+'·'+pfPos); if(bH)w.push('后'+s[2]+s[3]+'→根'+br+'·'+pbPos); return {hit:true,fH:fH,bH:bH,why:s+'('+w.join('|')+')'}; }
+      if(fH||bH){ var w=[]; if(fH)w.push('前'+s[0]+s[1]+'→根'+fr+'·千百双缺'); if(bH)w.push('后'+s[2]+s[3]+'→根'+br+'·十个双缺'); return {hit:true,fH:fH,bH:bH,why:s+'('+w.join('|')+')'}; }
       return {hit:false,fH:false,bH:false};
     } else { // pair
-      if(R.F[fr]&&R.B[br]&&pf&&pb){ return {hit:true,why:s+'(前'+s[0]+s[1]+'→根'+fr+'·'+pfPos+' & 后'+s[2]+s[3]+'→根'+br+'·'+pbPos+')'}; }
+      if(R.F[fr]&&R.B[br]&&pf&&pb){ return {hit:true,why:s+'(前'+s[0]+s[1]+'→根'+fr+'·千百双缺 & 后'+s[2]+s[3]+'→根'+br+'·十个双缺)'}; }
       return {hit:false};
     }
   }
-  // 随机基准：根prob(1-9各0.11)，位prob=|缺|/10
+  // 随机基准：根prob(1-9各0.11)，位prob=|缺|/10；双缺=两位都缺=pd相乘
   function baseNumProb(R,D){
     var Pf=0.11*R.nF, Pb=0.11*R.nB, Pm=0.11*R.nM;
     var pd=[D.n[0]/10,D.n[1]/10,D.n[2]/10,D.n[3]/10];
-    var pdF=1-(1-pd[0])*(1-pd[1]), pdB=1-(1-pd[2])*(1-pd[3]);
-    if(mode==='mix'){ var pRoot=1-(1-Pm)*(1-Pm); var pdAny=1-(1-pd[0])*(1-pd[1])*(1-pd[2])*(1-pd[3]); return {all:pRoot*pdAny}; }
+    var pdF=pd[0]*pd[1], pdB=pd[2]*pd[3];  // 双缺=两位都缺
+    if(mode==='mix'){ var pF0=Pm*pdF, pB0=Pm*pdB; return {all:1-(1-pF0)*(1-pB0)}; }
     if(mode==='split'){ var pF=Pf*pdF, pB=Pb*pdB; return {all:1-(1-pF)*(1-pB), front:pF, back:pB}; }
     return {all:Pf*Pb*pdF*pdB};
   }
