@@ -12079,6 +12079,9 @@ function zo2DRootBacktest(){
     <div class="ig"><label>1D回看窗口</label>
       <select id="d1-win"><option value="2">近2期</option><option value="3" selected>近3期</option><option value="5">近5期</option><option value="10">近10期</option></select>
     </div>
+    <div class="ig"><label>1D数据源</label>
+      <select id="d1-src"><option value="nums">头二三</option><option value="sp">特别奖(10个)</option></select>
+    </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoDigit1AbsentBacktest()">🔢 缺席1D·逐位回测</button></div>
   </div>
   <div class="warn" style="background:#ecfeff;border-color:#a5f3fc;color:#155e75">🔢 缺席1D：<b>千/百/十/个 每个位置各自</b>算。回看窗口内那一位出现过的数字集齐后，0–9 里没出现的＝该位<b>缺席1D</b>；再看<b>下一期</b>头二三里，该位有没有补上其中一个缺席数字。逐位统计命中率 vs 随机 + 全部逐期细节。</div>
@@ -22362,6 +22365,8 @@ function zoDigit1AbsentBacktest(){
   var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
   var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
   var W=parseInt((document.getElementById('d1-win')||{value:'3'}).value,10)||3;
+  var SRC=(document.getElementById('d1-src')||{value:'nums'}).value;
+  var srcLbl=(SRC==='sp')?'特别奖':'头二三';
   function pad(n){return String(n).padStart(4,'0');}
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
   (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
@@ -22369,10 +22374,10 @@ function zoDigit1AbsentBacktest(){
   m=m.filter(function(d){return !String(d.date).endsWith('-00');});
   m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
   if(N>0 && m.length>N) m=m.slice(m.length-N);
-  if(m.length<W+3){ out.innerHTML='<div class="warn">'+mk+' 期数太少('+m.length+')，回看'+W+'期无法回测。</div>'; return; }
-  // 每期 → 头二三的4位数字号列表
-  function info(d){ var nums=[]; if(d.nums){ [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); } return {date:d.date,nums:nums}; }
+  // 每期 → 选定数据源(头二三 / 特别奖)的4位数字号列表
+  function info(d){ var nums=[], raw=(SRC==='sp')?(d.sp||[]):[d.nums&&d.nums[0],d.nums&&d.nums[1],d.nums&&d.nums[2]]; raw.forEach(function(v){ if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); return {date:d.date,nums:nums}; }
   var per=m.map(info).filter(function(x){return x.nums.length>0;});
+  if(per.length<W+3){ out.innerHTML='<div class="warn">'+mk+' 有'+srcLbl+'的期数太少('+per.length+')，回看'+W+'期无法回测。'+(SRC==='sp'?'（特别奖只在近期有，选「头二三」或缩短窗口）':'')+'</div>'; return; }
   var POS=['千','百','十','个'];
   // 某窗口(期数组) → 每位present集合
   function presentAt(win){ var pr=[{},{},{},{}]; win.forEach(function(pp){ pp.nums.forEach(function(s){ for(var q=0;q<4;q++) pr[q][+s[q]]=1; }); }); return pr; }
@@ -22398,7 +22403,7 @@ function zoDigit1AbsentBacktest(){
   }
   function verdict(t,hp,bp){ var se=Math.sqrt((bp/100)*(1-bp/100)/Math.max(t,1))*100, lead=hp-bp; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#0e7490'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
   var h='<div class="card" style="border:2px solid #0891b2">';
-  h+='<h3 style="color:#0891b2">🔢 '+mk+' · 缺席1D 逐位回补回测（回看近'+W+'期 · 共'+(per.length)+'期数据）</h3>';
+  h+='<h3 style="color:#0891b2">🔢 '+mk+' · 缺席1D 逐位回补回测 · 源['+srcLbl+']（回看近'+W+'期 · 共'+(per.length)+'期数据）</h3>';
   // 🎯 本期缺席(最新W期) → 给下一期参考
   if(per.length>=W){
     var lastWin=per.slice(per.length-W); var lpr=presentAt(lastWin);
