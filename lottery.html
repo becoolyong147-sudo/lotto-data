@@ -22592,6 +22592,12 @@ function zoRootDigitComboBacktest(){
   s+='<div style="grid-column:1/-1;font-weight:800;color:#7c3aed;font-size:13px">'+modeLbl+' 组合命中（'+tot+' 期）</div>';
   s+=b('命中率', hp.toFixed(1)+'%', '#7c3aed')+b('随机基准', bp.toFixed(1)+'%')+b('判定', vd.t, vd.c);
   h+=s+'</div>';
+  // 🧠 白话结论：亮色(双缺目标)到底稳不稳
+  var stableTxt = tot<20 ? ('样本太少（'+tot+'期），还看不准，先别当结论。')
+    : (vd.t.indexOf('🟢')>=0 ? ('亮色目标号命中 <b>'+hp.toFixed(1)+'%</b> ≈ 随机 <b>'+bp.toFixed(1)+'%</b>，跟随便挑没差别 —— <b>并不更稳</b>，别因为它亮就多下注。')
+    : (vd.t.indexOf('🟡')>=0 ? ('亮色目标号 <b>'+hp.toFixed(1)+'%</b> 比随机 <b>'+bp.toFixed(1)+'%</b> 略高，<b>看起来稍稳</b>，但很可能是这段期数的巧合 —— 换市场/换期数再验一次，别急着重注。')
+    : ('亮色目标号 <b>'+hp.toFixed(1)+'%</b> 反而比随机 <b>'+bp.toFixed(1)+'%</b> 低，<b>不稳</b>，这套条件在此市场没帮上忙。')));
+  h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:4px 0;font-size:12px;color:#78350f;line-height:1.7">🧠 <b>亮色稳不稳？</b> '+stableTxt+'<br><span style="color:#a16207">提醒：亮色只是「符合规则」，不是「下期一定开」。工具用来缩范围、控成本，不是预测。</span></div>';
   if(mode==='split'){
     var hpF=tF?hF/tF*100:0,bpF=tF?bF/tF*100:0,vF=verdict(tF,hpF,bpF), hpB=tB?hB/tB*100:0,bpB=tB?bB/tB*100:0,vB=verdict(tB,hpB,bpB);
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:6px 0">';
