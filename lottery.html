@@ -12085,6 +12085,13 @@ function zo2DRootBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoDigit1AbsentBacktest()">🔢 缺席1D·逐位回测</button></div>
   </div>
   <div class="warn" style="background:#ecfeff;border-color:#a5f3fc;color:#155e75">🔢 缺席1D：<b>千/百/十/个 每个位置各自</b>算。回看窗口内那一位出现过的数字集齐后，0–9 里没出现的＝该位<b>缺席1D</b>；再看<b>下一期</b>头二三里，该位有没有补上其中一个缺席数字。逐位统计命中率 vs 随机 + 全部逐期细节。</div>
+  <div class="row" style="margin-top:8px;border-top:1px dashed #ddd6fe;padding-top:8px">
+    <div class="ig"><label>数根×1D 组合模式</label>
+      <select id="rd-mode"><option value="mix">混合数根</option><option value="split">数根分前后</option><option value="pair">前后数根匹配</option></select>
+    </div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
+  </div>
+  <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
   <div id="r2a-out" style="margin-top:10px"></div>
 </div>
 </div>
