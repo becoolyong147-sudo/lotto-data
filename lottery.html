@@ -21863,7 +21863,7 @@ async function doExportExcel(){
     const oeCatX=(numStr)=>{const s=String(numStr).padStart(4,'0');let odd=0;for(let i=0;i<4;i++)if((+s[i])%2)odd++;return odd+'单'+(4-odd)+'双';};
     const ptOEX=(numStr)=>{const s=String(numStr).padStart(4,'0');let sum=0;for(let i=0;i<4;i++)sum+=(+s[i]);return sum+(sum%2?'单':'双');};
     const PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'};
-    const OE_CAT_COL={ '4单0双':{bg:'FFFEE2E2',fg:'FF991B1B'}, '3单1双':{bg:'FFFFEDD5',fg:'FF9A3412'}, '2单2双':{bg:'FFFEF9C3',fg:'FF854D0E'}, '1单3双':{bg:'FFCCFBF1',fg:'FF115E59'}, '0单4双':{bg:'FFDBEAFE',fg:'FF1E3A8A'} };
+    const OE_CAT_COL={ '4单0双':{bg:'FFF87171',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFDBA74',fg:'FF7C2D12'}, '2单2双':{bg:'FFFDE047',fg:'FF713F12'}, '1单3双':{bg:'FF5EEAD4',fg:'FF134E4A'}, '0单4双':{bg:'FF93C5FD',fg:'FF1E3A8A'} };
 
     for(const market of markets){
       prog.innerHTML = `处理 ${market}…`;
@@ -22224,7 +22224,7 @@ function zoBuildMarketTableHTML(market){
   function ptOE(numStr){ var sum=ptSum(numStr); return sum+(sum%2?'单':'双'); }      // 4D相加→单双
   var PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'}; // 单=蓝 双=红
   // 单双形态配色：4单/3单1双/2单2双/1单3双/4双 各一色
-  var OE_CAT_COL={ '4单0双':{bg:'FFFEE2E2',fg:'FF991B1B'}, '3单1双':{bg:'FFFFEDD5',fg:'FF9A3412'}, '2单2双':{bg:'FFFEF9C3',fg:'FF854D0E'}, '1单3双':{bg:'FFCCFBF1',fg:'FF115E59'}, '0单4双':{bg:'FFDBEAFE',fg:'FF1E3A8A'} };
+  var OE_CAT_COL={ '4单0双':{bg:'FFF87171',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFDBA74',fg:'FF7C2D12'}, '2单2双':{bg:'FFFDE047',fg:'FF713F12'}, '1单3双':{bg:'FF5EEAD4',fg:'FF134E4A'}, '0单4双':{bg:'FF93C5FD',fg:'FF1E3A8A'} };
   function oeCatColor(v){ return OE_CAT_COL[v]||null; }
   var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
   // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
