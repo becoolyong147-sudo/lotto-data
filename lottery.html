@@ -21863,7 +21863,7 @@ async function doExportExcel(){
     const oeCatX=(numStr)=>{const s=String(numStr).padStart(4,'0');let odd=0;for(let i=0;i<4;i++)if((+s[i])%2)odd++;return odd+'单'+(4-odd)+'双';};
     const ptOEX=(numStr)=>{const s=String(numStr).padStart(4,'0');let sum=0;for(let i=0;i<4;i++)sum+=(+s[i]);return sum+(sum%2?'单':'双');};
     const PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'};
-    const OE_CAT_COL={ '4单0双':{bg:'FFF87171',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFDBA74',fg:'FF7C2D12'}, '2单2双':{bg:'FFFDE047',fg:'FF713F12'}, '1单3双':{bg:'FF5EEAD4',fg:'FF134E4A'}, '0单4双':{bg:'FF93C5FD',fg:'FF1E3A8A'} };
+    const OE_CAT_COL={ '4单0双':{bg:'FFFCA5A5',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFED7AA',fg:'FF7C2D12'}, '2单2双':{bg:'FFFEF08A',fg:'FF713F12'}, '1单3双':{bg:'FF99F6E4',fg:'FF115E59'}, '0单4双':{bg:'FFBFDBFE',fg:'FF1E3A8A'} };
 
     for(const market of markets){
       prog.innerHTML = `处理 ${market}…`;
@@ -21878,11 +21878,13 @@ async function doExportExcel(){
         views: [{state:'frozen', xSplit:5, ySplit:1}]
       });
 
-      // Column widths
+      // Column widths（放宽，别挤）
       ws.columns = [
-        {width:12}, {width:8}, {width:8}, {width:8}, {width:8}, // date + 编号 + 3 prizes
-        ...Array(84).fill(0).map(() => ({width:6}))
+        {width:13}, {width:9}, {width:8}, {width:8}, {width:8}, // date + 编号 + 3 prizes
+        ...Array(84).fill(0).map(() => ({width:7.5}))
       ];
+      // 单双/点单双是中文标签，给宽一点
+      [...COL_OECAT, ...COL_PTOE].forEach(c => { ws.getColumn(c).width = 9.5; });
 
       // Header row
       const headerRow = ws.addRow(HEADERS);
@@ -21952,6 +21954,7 @@ async function doExportExcel(){
           ptOEX(p1), ptOEX(p2), ptOEX(p3)
         ];
         const xlRow = ws.addRow(dataRow);
+        xlRow.height = 19; // 行高放宽，别挤
 
         // Center-align everything in this row by default
         xlRow.eachCell({includeEmpty:false}, (cell) => {
@@ -22151,8 +22154,9 @@ async function doExportExcel(){
 function _v27css(argb){ return argb ? ('#'+String(argb).slice(-6)) : ''; }
 function _v27cell(val, colorObj, extra){
   var v = (val==null||val==='') ? '' : val;
-  if(colorObj) return '<td style="background:'+_v27css(colorObj.bg)+';color:'+_v27css(colorObj.fg)+';font-weight:700'+(extra||'')+'">'+v+'</td>';
-  return '<td style="'+(extra?extra.replace(/^;/,''):'')+'">'+v+'</td>';
+  var pad='padding:3px 8px;white-space:nowrap';
+  if(colorObj) return '<td style="'+pad+';background:'+_v27css(colorObj.bg)+';color:'+_v27css(colorObj.fg)+';font-weight:700'+(extra||'')+'">'+v+'</td>';
+  return '<td style="'+pad+(extra||'')+'">'+v+'</td>';
 }
 // 与 Excel 导出完全相同的列顺序与配色，返回单个市场的表格 HTML
 function zoBuildMarketTableHTML(market){
@@ -22196,7 +22200,7 @@ function zoBuildMarketTableHTML(market){
     '单双1','单双2','单双3','',
     '点单双1','点单双2','点单双3'];
   var BLANK=' style="background:#1e293b;min-width:3px;width:3px;padding:0"';
-  var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:2px 4px">'+h+'</th>'; }).join('')+'</tr></thead>';
+  var th='<thead><tr>'+HEADERS.map(function(h,i){ if(h==='') return '<th'+BLANK+'></th>'; return '<th style="background:#1e3a5f;color:#fff;position:sticky;top:0;padding:4px 8px;white-space:nowrap">'+h+'</th>'; }).join('')+'</tr></thead>';
   var pn=function(v){ return typeof v==='number'?v:(/^\d+$/.test(v)?parseInt(v,10):null); };
   // 保留每栏的意义色；另外把「同列上下相邻同值」的格子加红框标记(链接)。全栏统一。
   function colorFor(type,v){
@@ -22224,7 +22228,7 @@ function zoBuildMarketTableHTML(market){
   function ptOE(numStr){ var sum=ptSum(numStr); return sum+(sum%2?'单':'双'); }      // 4D相加→单双
   var PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'}; // 单=蓝 双=红
   // 单双形态配色：4单/3单1双/2单2双/1单3双/4双 各一色
-  var OE_CAT_COL={ '4单0双':{bg:'FFF87171',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFDBA74',fg:'FF7C2D12'}, '2单2双':{bg:'FFFDE047',fg:'FF713F12'}, '1单3双':{bg:'FF5EEAD4',fg:'FF134E4A'}, '0单4双':{bg:'FF93C5FD',fg:'FF1E3A8A'} };
+  var OE_CAT_COL={ '4单0双':{bg:'FFFCA5A5',fg:'FF7F1D1D'}, '3单1双':{bg:'FFFED7AA',fg:'FF7C2D12'}, '2单2双':{bg:'FFFEF08A',fg:'FF713F12'}, '1单3双':{bg:'FF99F6E4',fg:'FF115E59'}, '0单4双':{bg:'FFBFDBFE',fg:'FF1E3A8A'} };
   function oeCatColor(v){ return OE_CAT_COL[v]||null; }
   var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
   // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
@@ -22260,9 +22264,9 @@ function zoBuildMarketTableHTML(market){
     var mo=x.date.slice(0,7);
     if(lastMonth!==null && mo!==lastMonth){ body+='<tr><td colspan="'+HEADERS.length+'" style="height:4px;background:#f1f5f9;padding:0"></td></tr>'; }
     lastMonth=mo;
-    var tr='<td style="white-space:nowrap;background:#f8fafc;font-weight:700">'+x.date+'</td>';
-    tr+='<td style="white-space:nowrap;color:#64748b;font-family:monospace">'+x.draw+'</td>';
-    tr+='<td style="font-weight:700">'+x.p1+'</td><td style="font-weight:700">'+x.p2+'</td><td style="font-weight:700">'+x.p3+'</td>';
+    var tr='<td style="padding:3px 8px;white-space:nowrap;background:#f8fafc;font-weight:700">'+x.date+'</td>';
+    tr+='<td style="padding:3px 8px;white-space:nowrap;color:#64748b;font-family:monospace">'+x.draw+'</td>';
+    tr+='<td style="padding:3px 8px;font-weight:700">'+x.p1+'</td><td style="padding:3px 8px;font-weight:700">'+x.p2+'</td><td style="padding:3px 8px;font-weight:700">'+x.p3+'</td>';
     var ci=0;
     GROUPS.forEach(function(g){
       if(g.blank){ tr+='<td'+BLANK+'></td>'; return; }
