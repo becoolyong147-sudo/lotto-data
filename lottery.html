@@ -22527,16 +22527,28 @@ function zoRootDigitComboBacktest(){
     if(mode==='mix'){ h+='<div style="font-size:13px;margin-top:4px">缺席根(前后合并)：<b style="color:#6d28d9">'+(Object.keys(Rc.M).join(' ')||'无')+'</b></div>'; }
     else { h+='<div style="font-size:13px;margin-top:4px">前2D缺根：<b style="color:#0f766e">'+(Object.keys(Rc.F).join(' ')||'无')+'</b> · 后2D缺根：<b style="color:#be185d">'+(Object.keys(Rc.B).join(' ')||'无')+'</b></div>'; }
     h+='<div style="font-size:13px;margin-top:2px;font-family:monospace">缺席1D：'+POS.map(function(p,q){return p+'<b style="color:#5b21b6">'+(Object.keys(Dc.A[q]).join('')||'无')+'</b>';}).join(' ')+'</div>';
-    // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）
+    // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）；两位都在缺席1D里的高亮（数根+1D双缺=打法目标）
     (function(){
-      function combosOfRoot(r){ var groups={}; for(var a=0;a<=9;a++)for(var bb=0;bb<=9;bb++){ if(dr(a+bb)===+r){ var k=(a<bb?(''+a+bb):(''+bb+a)); (groups[k]=groups[k]||{})[''+a+bb]=1; } } return Object.keys(groups).sort().map(function(k){ return Object.keys(groups[k]).sort().join('·'); }); }
-      function rootLines(rootArr,col,lbl){ if(!rootArr.length) return ''; var s='<div style="margin-top:3px"><b style="color:'+col+'">'+lbl+'</b></div>'; rootArr.forEach(function(r){ s+='<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+combosOfRoot(r).join(' ｜ ')+'</div>'; }); return s; }
-      var cid='rdc-combo';
-      h+='<div style="margin-top:5px"><span onclick="var e=document.getElementById(\''+cid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700;font-size:12px">▾ 展开缺根的2D组合（同数字排一起）</span>';
+      // s1=第一位(千/十)缺席集, s2=第二位(百/个)缺席集
+      function rootLine(r,col,s1,s2){
+        var groups={};
+        for(var a=0;a<=9;a++)for(var bb=0;bb<=9;bb++){ if(dr(a+bb)===+r){ var k=(a<bb?(''+a+bb):(''+bb+a)); (groups[k]=groups[k]||[]).push(''+a+bb); } }
+        var keys=Object.keys(groups).sort(), win=0;
+        var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q)win++; return q?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>':'<span style="color:#94a3b8">'+v+'</span>'; }).join('·'); });
+        return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+win+'双缺)</span></div>', win:win};
+      }
+      function block(rootArr,col,lbl,s1,s2){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', tot=0; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); tot+=o.win; s+=o.html; }); return s; }
+      var cid='rdc-combo', A=Dc.A;
+      h+='<div style="margin-top:5px"><span onclick="var e=document.getElementById(\''+cid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700;font-size:12px">▾ 展开缺根的2D组合（高亮=两位都在缺席1D里）</span>';
       h+='<div id="'+cid+'" style="display:none;margin-top:4px;background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:6px 10px">';
-      if(mode==='mix'){ h+=rootLines(Object.keys(Rc.M),'#6d28d9','混合缺根的2D'); }
-      else { h+=rootLines(Object.keys(Rc.F),'#0f766e','前2D缺根(千百)'); h+=rootLines(Object.keys(Rc.B),'#be185d','后2D缺根(十个)'); }
-      h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">每个缺根列出全部2D组合；同两个数字(调字组，如 29·92)并在一起。参考用，不构成预测。</div>';
+      if(mode==='mix'){
+        h+=block(Object.keys(Rc.M),'#0f766e','混合缺根 · 当前2D(千百)看',A[0],A[1]);
+        h+=block(Object.keys(Rc.M),'#be185d','混合缺根 · 当后2D(十个)看',A[2],A[3]);
+      } else {
+        h+=block(Object.keys(Rc.F),'#0f766e','前2D缺根(千百)',A[0],A[1]);
+        h+=block(Object.keys(Rc.B),'#be185d','后2D缺根(十个)',A[2],A[3]);
+      }
+      h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">同两个数字(调字组，如 29·92)并在一起；<b>高亮色块</b>=该2D两位都落在缺席1D里(千位∈千缺 且 百位∈百缺)＝数根+1D双缺，才是打法真正的目标号。灰色=只中数根、位不缺。参考用，不构成预测。</div>';
       h+='</div></div>';
     })();
     h+='<div style="font-size:11px;color:#94a3b8;margin-top:3px">⚠️ 盯下一期奖号「数根∈缺根 且 该位∈缺席1D」。缺席≠会补，下期独立随机。参考用。</div>';
