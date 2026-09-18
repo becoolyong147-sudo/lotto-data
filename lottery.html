@@ -12077,7 +12077,7 @@ function zo2DRootBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px" onclick="zoRoot2DAbsentBacktest()">🔬 开始回测</button></div>
     <div class="ig"><label>1D回看窗口</label>
-      <select id="d1-win"><option value="2">近2期</option><option value="3" selected>近3期</option><option value="5">近5期</option><option value="10">近10期</option></select>
+      <select id="d1-win"><option value="1" selected>近1期</option><option value="2">近2期</option><option value="3">近3期</option><option value="5">近5期</option><option value="10">近10期</option></select>
     </div>
     <div class="ig"><label>1D数据源</label>
       <select id="d1-src"><option value="nums">头二三</option><option value="sp">特别奖(10个)</option></select>
@@ -22364,7 +22364,7 @@ function zoDigit1AbsentBacktest(){
   var out=document.getElementById('r2a-out'); if(!out) return;
   var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
   var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
-  var W=parseInt((document.getElementById('d1-win')||{value:'3'}).value,10)||3;
+  var W=parseInt((document.getElementById('d1-win')||{value:'1'}).value,10)||1;
   var SRC=(document.getElementById('d1-src')||{value:'nums'}).value;
   var srcLbl=(SRC==='sp')?'特别奖':'头二三';
   function pad(n){return String(n).padStart(4,'0');}
