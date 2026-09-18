@@ -22463,8 +22463,8 @@ function zoDigit1AbsentBacktest(){
   h+='</div>';
   h+='<div class="warn">「回补」＝下一期头二三里，该位至少有一个号补上了缺席数字。回补率＝命中窗口/总窗口；随机基准＝纯随机下该位补上的概率(2×标准误判定)。</div>';
   // 逐期明细(全部细节)
-  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'d1a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细（全部）▾</span>';
-  h+='<div id="d1a-det" style="display:none;max-height:420px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse">';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'d1a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细（全部，点可收起）▾</span>';
+  h+='<div id="d1a-det" style="display:block;max-height:420px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse">';
   h+='<tr style="color:#0891b2;background:#ecfeff"><th style="text-align:left;padding:3px 6px">下一期</th>';
   POS.forEach(function(p){ h+='<th style="text-align:left;padding:3px 6px">'+p+'缺→补</th>'; });
   h+='</tr>';
@@ -22590,7 +22590,7 @@ function zoRootDigitComboBacktest(){
   var s='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:6px 0">';
   function b(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:19px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
   s+='<div style="grid-column:1/-1;font-weight:800;color:#7c3aed;font-size:13px">'+modeLbl+' 组合命中（'+tot+' 期）</div>';
-  s+=b('命中率', hp.toFixed(1)+'%', '#7c3aed')+b('随机基准', bp.toFixed(1)+'%')+b('判定', vd.t, vd.c);
+  s+=b('命中/期数', hit+'/'+tot, '#7c3aed')+b('命中率', hp.toFixed(1)+'%', '#7c3aed')+b('随机基准', bp.toFixed(1)+'%')+b('判定', vd.t, vd.c);
   h+=s+'</div>';
   // 🧠 白话结论：亮色(双缺目标)到底稳不稳
   var stableTxt = tot<20 ? ('样本太少（'+tot+'期），还看不准，先别当结论。')
@@ -22607,8 +22607,8 @@ function zoRootDigitComboBacktest(){
   }
   h+='<div class="warn">命中＝该期下一期头二三里，<b>至少一个奖号</b>同时满足数根缺席+对应位1D缺席。随机基准为理论近似(根各11%、位=缺数/10)，2×标准误判定。</div>';
   // 逐期明细
-  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rdc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700">逐期明细（全部）▾</span>';
-  h+='<div id="rdc-det" style="display:none;max-height:440px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#7c3aed;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席集(根/1D)</th><th style="text-align:left;padding:3px 6px">命中奖号(原因)</th><th style="padding:3px 6px">中?</th></tr>';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rdc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700">逐期明细（全部 '+tot+' 期，点可收起）▾</span>';
+  h+='<div id="rdc-det" style="display:block;max-height:440px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#7c3aed;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席集(根/1D)</th><th style="text-align:left;padding:3px 6px">命中奖号(原因)</th><th style="padding:3px 6px">中?</th></tr>';
   det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+x.abs+'</td><td style="padding:3px 6px;font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——两个缺席条件叠加会让命中率变低(更难中)，但不代表能预测。诚实验证用。</div>';
