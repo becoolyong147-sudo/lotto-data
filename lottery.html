@@ -21798,7 +21798,7 @@ async function doExportExcel(){
     wb.created = new Date();
 
     const HEADERS = [
-      'Date', '1', '2', '3',
+      'Date', '编号', '1', '2', '3',
       'F1','F2','F3','F1-1','F1-2','F1-3','F1','F2','F3', '',
       'M1','M2','M3','M1-1','M1-2','M1-3','M1','M2','M3', '',
       'B1','B2','B3','B1-1','B1-2','B1-3','B1','B2','B3', '',
@@ -21806,7 +21806,9 @@ async function doExportExcel(){
       '4D1','4D2','4D3','4DBS','4DBS','4DBS', '',
       'F3D','F3D2','F3D3','F3P1','F3P2','F3P3','F3P_1','F3P_2','F3P_3', '',
       '3DBS1','3DBS2','3DBS3','B3D1','B3D2','B3D3','3DP1','3DP2','3DP3','B3P_1','B3P_2','B3P_3','B3D1','B3D2','B3D3', '',
-      'F1','F2','F3','B1','B2','B3'
+      'F1','F2','F3','B1','B2','B3', '',
+      '单双1','单双2','单双3', '',
+      '点单双1','点单双2','点单双3'
     ];
     const markets = ['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
     let totalRecords = 0;
@@ -21842,19 +21844,26 @@ async function doExportExcel(){
     //   cols 75-77: B3 zone
     //   cols 78-80: B3 root
     // V27: 化整为一 6 列移到表尾(75-80)，其余整体左移 7 列
-    const COL_PARITY = [5,6,7, 15,16,17, 25,26,27];
-    const COL_ROOT   = [8,9,10, 18,19,20, 28,29,30, 42,43,44, 49,50,51, 71,72,73];
-    const COL_SIZE   = [11,12,13, 21,22,23, 31,32,33];
-    const COL_PTS4D  = [35,36,37];
-    const COL_ZONE4D = [38,39,40];
-    const COL_BAND4D = [45,46,47];
-    const COL_PTS3DF = [52,53,54];
-    const COL_ZONE3DF= [55,56,57];
-    const COL_BAND3D = [59,60,61];
-    const COL_PTS3DB = [65,66,67];
-    const COL_ZONE3DB= [68,69,70];
-    const COL_HUAZ   = [75,76,77,78,79,80]; // V27 化整为一 6 列(移到表尾)
-    const BLANK_COLS = new Set([14,24,34,41,48,58,74]);
+    // V29: 新增「编号」列插在 Date 后(col 2)，其后全部 +1；表尾再加「单双」「点单双」与 📺屏幕查看一致
+    const COL_PARITY = [6,7,8, 16,17,18, 26,27,28];
+    const COL_ROOT   = [9,10,11, 19,20,21, 29,30,31, 43,44,45, 50,51,52, 72,73,74];
+    const COL_SIZE   = [12,13,14, 22,23,24, 32,33,34];
+    const COL_PTS4D  = [36,37,38];
+    const COL_ZONE4D = [39,40,41];
+    const COL_BAND4D = [46,47,48];
+    const COL_PTS3DF = [53,54,55];
+    const COL_ZONE3DF= [56,57,58];
+    const COL_BAND3D = [60,61,62];
+    const COL_PTS3DB = [66,67,68];
+    const COL_ZONE3DB= [69,70,71];
+    const COL_HUAZ   = [76,77,78,79,80,81]; // V27 化整为一 6 列(移到表尾)
+    const COL_OECAT  = [83,84,85];           // 单双(X单Y双) — 不上底色,只跟屏幕一样纵向链接红框
+    const COL_PTOE   = [87,88,89];           // 点单双(4D相加→单双) — 单=蓝 双=红
+    const BLANK_COLS = new Set([15,25,35,42,49,59,75,82,86]);
+    const oeCatX=(numStr)=>{const s=String(numStr).padStart(4,'0');let odd=0;for(let i=0;i<4;i++)if((+s[i])%2)odd++;return odd+'单'+(4-odd)+'双';};
+    const ptOEX=(numStr)=>{const s=String(numStr).padStart(4,'0');let sum=0;for(let i=0;i<4;i++)sum+=(+s[i]);return sum+(sum%2?'单':'双');};
+    const PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'};
+    const OE_CAT_COL={ '4单0双':{bg:'FFFEE2E2',fg:'FF991B1B'}, '3单1双':{bg:'FFFFEDD5',fg:'FF9A3412'}, '2单2双':{bg:'FFFEF9C3',fg:'FF854D0E'}, '1单3双':{bg:'FFCCFBF1',fg:'FF115E59'}, '0单4双':{bg:'FFDBEAFE',fg:'FF1E3A8A'} };
 
     for(const market of markets){
       prog.innerHTML = `处理 ${market}…`;
@@ -21866,13 +21875,13 @@ async function doExportExcel(){
         .sort((a,b) => a.date.localeCompare(b.date) || (a.draw||'').localeCompare(b.draw||''));
 
       const ws = wb.addWorksheet(market, {
-        views: [{state:'frozen', xSplit:4, ySplit:1}]
+        views: [{state:'frozen', xSplit:5, ySplit:1}]
       });
 
       // Column widths
       ws.columns = [
-        {width:12}, {width:8}, {width:8}, {width:8}, // date + 3 prizes
-        ...Array(76).fill(0).map(() => ({width:6}))
+        {width:12}, {width:8}, {width:8}, {width:8}, {width:8}, // date + 编号 + 3 prizes
+        ...Array(84).fill(0).map(() => ({width:6}))
       ];
 
       // Header row
@@ -21891,7 +21900,7 @@ async function doExportExcel(){
       const colF = [[],[],[]], colB = [[],[],[]];
       // V28 全栏「链接」标记：收集每个有色列(5..80，跳过空白)，之后给纵向相邻同值的格子加红框
       const linkCols = {};
-      for(let c = 5; c <= HEADERS.length; c++){ if(!BLANK_COLS.has(c)) linkCols[c] = []; }
+      for(let c = 6; c <= HEADERS.length; c++){ if(!BLANK_COLS.has(c)) linkCols[c] = []; }
       for(const r of rows){
         const month = r.date.slice(0,7);
         if(lastMonth !== null && month !== lastMonth){
@@ -21908,7 +21917,7 @@ async function doExportExcel(){
           v26Huazheng(v24Front2(p3)), v26Huazheng(v24Back2(p3)),
         ];
         const dataRow = [
-          r.date, p1, p2, p3,
+          r.date, (r.draw||''), p1, p2, p3,
           L1.fParity, L2.fParity, L3.fParity,
           L1.fRoot,   L2.fRoot,   L3.fRoot,
           L1.fSize,   L2.fSize,   L3.fSize, '',
@@ -21936,7 +21945,10 @@ async function doExportExcel(){
           L1.b3Root, L2.b3Root, L3.b3Root, '',
           // V27 化整为一：前三(F1F2F3)排一起、后三(B1B2B3)排一起，移到表尾
           HZ[0].value, HZ[2].value, HZ[4].value,
-          HZ[1].value, HZ[3].value, HZ[5].value
+          HZ[1].value, HZ[3].value, HZ[5].value, '',
+          // V29 单双(X单Y双) + 点单双(4D相加→单双)，与 📺屏幕查看一致
+          oeCatX(p1), oeCatX(p2), oeCatX(p3), '',
+          ptOEX(p1), ptOEX(p2), ptOEX(p3)
         ];
         const xlRow = ws.addRow(dataRow);
 
@@ -21977,6 +21989,14 @@ async function doExportExcel(){
         for(const c of COL_PTS3DB){
           const v = xlRow.getCell(c).value;
           if(typeof v === 'number') v25PaintCell(xlRow.getCell(c), v25Pts3DColor(v));
+        }
+        // V29 单双形态：4单/3单1双/2单2双/1单3双/4双 各一色
+        for(const c of COL_OECAT){ const col=OE_CAT_COL[String(xlRow.getCell(c).value||'')]; if(col) v25PaintCell(xlRow.getCell(c), col); }
+        // V29 点单双：单=蓝 双=红
+        for(const c of COL_PTOE){
+          const v = String(xlRow.getCell(c).value||'');
+          if(v.indexOf('单')>=0) v25PaintCell(xlRow.getCell(c), PT_OE_BLUE);
+          else if(v.indexOf('双')>=0) v25PaintCell(xlRow.getCell(c), PT_OE_RED);
         }
         // 收集每个有色列的值(供之后的「链接」红框标记)
         for(const c in linkCols){
@@ -22202,6 +22222,9 @@ function zoBuildMarketTableHTML(market){
   function ptSum(numStr){ var s=String(numStr).padStart(4,'0'); var sum=0; for(var i=0;i<4;i++) sum+=(+s[i]); return sum; }
   function ptOE(numStr){ var sum=ptSum(numStr); return sum+(sum%2?'单':'双'); }      // 4D相加→单双
   var PT_OE_BLUE={bg:'FFDBEAFE',fg:'FF1E3A8A'}, PT_OE_RED={bg:'FFFEE2E2',fg:'FF991B1B'}; // 单=蓝 双=红
+  // 单双形态配色：4单/3单1双/2单2双/1单3双/4双 各一色
+  var OE_CAT_COL={ '4单0双':{bg:'FFFEE2E2',fg:'FF991B1B'}, '3单1双':{bg:'FFFFEDD5',fg:'FF9A3412'}, '2单2双':{bg:'FFFEF9C3',fg:'FF854D0E'}, '1单3双':{bg:'FFCCFBF1',fg:'FF115E59'}, '0单4双':{bg:'FFDBEAFE',fg:'FF1E3A8A'} };
+  function oeCatColor(v){ return OE_CAT_COL[v]||null; }
   var Ls=rd.map(function(x){ return [x.L1,x.L2,x.L3]; });
   // 展开成单元格级列定义(顺序与 GROUPS 一致)：每列存 值序列 + 取色函数
   var colDefs=[];
@@ -22211,7 +22234,7 @@ function zoBuildMarketTableHTML(market){
     if(g.oecat){
       for(var pc=0;pc<3;pc++){ (function(pc){
         var vals=rd.map(function(x){ return oeCat(x[prizeKey[pc]]); });
-        colDefs.push({ vals:vals, colorAt:function(){ return null; } });
+        colDefs.push({ vals:vals, colorAt:function(ri){ return oeCatColor(vals[ri]); } });
       })(pc); }
     } else if(g.ptoe){
       for(var po=0;po<3;po++){ (function(po){
