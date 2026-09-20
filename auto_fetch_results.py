@@ -10,6 +10,10 @@ auto_fetch_results.py — 自动抓取九市场 4D 开奖成绩 → auto_results
 输出: auto_results.json {updated_at, source, draws:[{market,date,draw,nums,sp,cs}]}
 用法: python auto_fetch_results.py                 # 抓最新 + 补漏最近7天
       python auto_fetch_results.py --backfill 30   # 补漏最近30天
+      python auto_fetch_results.py --sp-only       # 只补「最新一期缺特别奖」的市场, 自动重试
+                 --retries N (默认5) --retry-wait S (默认300秒)
+                 # 数据源常先放头二三、稍后才放特别奖(下一期主打靠特别奖算); 本模式反复补 sp/cs
+                 # 直到补齐。退出码: 0=已补齐, 2=仍有市场缺(待下轮), 1=致命错误
 lottery.html 打开时会自动读取 auto_results.json 并合并(只增不覆盖)。
 """
 import requests, re, json, sys, time, os, io
@@ -103,7 +107,116 @@ def load_existing():
     except (OSError, ValueError):
         return []
 
+def fill_huat5(sess, by_key, markets):
+    """对 markets 跑一遍 huat5: 新增缺失期 + 只补已有条目缺失的 sp/cs(不动 nums)。
+    返回 (added, spcs_filled)。markets 为 [(市场名, rins代号), ...]。"""
+    added, spcs_filled = 0, 0
+    for market, code in markets:
+        try:
+            for x in fetch_huat5(sess, market, code):
+                k = (x["market"], x["date"])
+                if k not in by_key:
+                    by_key[k] = x; added += 1
+                else:
+                    old = by_key[k]
+                    for f in ("sp", "cs"):
+                        if f in x and not old.get(f):
+                            old[f] = x[f]; spcs_filled += 1
+            time.sleep(1.5)
+        except Exception as e:
+            log(f"huat5 {market} 失败: {type(e).__name__}: {e}")
+    return added, spcs_filled
+
+def markets_missing_sp(by_key):
+    """找出「最新一期还缺特别奖」的市场 → [(市场名, rins代号), ...]。
+    只看每个市场日期最大的那期(下一期主打就靠它算)；缺 sp 即视为待补。"""
+    latest_date = {}
+    for (m, d) in by_key:
+        if m not in latest_date or d > latest_date[m]:
+            latest_date[m] = d
+    pending = []
+    for market, code in MARKETS:
+        d = latest_date.get(market)
+        if d and not by_key.get((market, d), {}).get("sp"):
+            pending.append((market, code))
+    return pending
+
+def write_out(by_key, added, spcs_filled):
+    # 合并写出: 按市场保留最近 120 期, 日期新→旧
+    by_market = {}
+    for x in by_key.values():
+        by_market.setdefault(x["market"], []).append(x)
+    final = []
+    for mk, arr in by_market.items():
+        arr.sort(key=lambda x: x["date"], reverse=True)
+        final.extend(arr[:120])
+    final.sort(key=lambda x: (x["date"], x["market"]), reverse=True)
+
+    tmp = OUT_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"updated_at": datetime.now().isoformat(timespec="seconds"),
+                   "source": "rins.my", "draws": final}, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, OUT_FILE)
+    log(f"写出 {OUT_FILE}: 共 {len(final)} 条 (新增 {added}, 补sp/cs {spcs_filled})")
+
+def sp_only(retries, retry_wait):
+    """只补特别奖模式: 反复只对「最新一期缺 sp」的市场跑 huat5, 直到补齐或用尽重试。
+    数据源常常先放头二三、稍后才放特别奖; 本模式让本地定时任务能自动多轮补齐。
+    退出码: 0=全部补齐(或本就无缺), 2=仍有市场缺特别奖(待下轮再补), 1=致命错误。"""
+    sess = requests.Session()
+    sess.headers.update(UA)
+
+    existing = load_existing()
+    if not existing:
+        log("sp-only: auto_results.json 为空, 请先跑一次完整抓取")
+        sys.exit(2)
+    by_key = {(x["market"], x["date"]): x for x in existing}
+
+    pending = markets_missing_sp(by_key)
+    if not pending:
+        log("sp-only: 所有市场最新一期都已有特别奖, 无需补")
+        sys.exit(0)
+    log(f"sp-only: 待补特别奖的市场({len(pending)}): {', '.join(m for m, _ in pending)}")
+
+    total_filled = 0
+    for attempt in range(1, retries + 2):  # 首轮 + retries 次重试
+        _, filled = fill_huat5(sess, by_key, pending)
+        total_filled += filled
+        pending = markets_missing_sp(by_key)
+        log(f"sp-only: 第 {attempt} 轮 补 {filled} 处, 仍缺 {len(pending)} 个市场"
+            + (": " + ", ".join(m for m, _ in pending) if pending else ""))
+        if not pending:
+            break
+        if attempt <= retries:
+            log(f"sp-only: 等 {retry_wait}s 后重试…")
+            time.sleep(retry_wait)
+
+    if total_filled:
+        write_out(by_key, 0, total_filled)
+    else:
+        log("sp-only: 本轮未补到任何特别奖, 文件保持不变")
+
+    if pending:
+        log(f"sp-only: 用尽重试后仍缺 {len(pending)} 个市场(数据源可能还没放特别奖), 退出码 2")
+        sys.exit(2)
+    log("sp-only: 特别奖已全部补齐, 退出码 0")
+    sys.exit(0)
+
 def main():
+    # 只补特别奖 + 自动重试模式(不新增日期/不补头二三, 供本地定时任务多轮补齐用)
+    if "--sp-only" in sys.argv:
+        retries, retry_wait = 5, 300
+        if "--retries" in sys.argv:
+            i = sys.argv.index("--retries")
+            if i + 1 < len(sys.argv):
+                retries = max(0, min(50, int(sys.argv[i + 1])))
+        if "--retry-wait" in sys.argv:
+            i = sys.argv.index("--retry-wait")
+            if i + 1 < len(sys.argv):
+                retry_wait = max(5, min(3600, int(sys.argv[i + 1])))
+        sp_only(retries, retry_wait)
+        return
+
     backfill_days = 7
     if "--backfill" in sys.argv:
         i = sys.argv.index("--backfill")
@@ -118,20 +231,8 @@ def main():
     added, spcs_filled = 0, 0
 
     # 1) huat5: 每市场最近3期(含 sp/cs); 已有条目只补缺失的 sp/cs 不动 nums
-    for market, code in MARKETS:
-        try:
-            for x in fetch_huat5(sess, market, code):
-                k = (x["market"], x["date"])
-                if k not in by_key:
-                    by_key[k] = x; added += 1
-                else:
-                    old = by_key[k]
-                    for f in ("sp", "cs"):
-                        if f in x and not old.get(f):
-                            old[f] = x[f]; spcs_filled += 1
-            time.sleep(1.5)
-        except Exception as e:
-            log(f"huat5 {market} 失败: {type(e).__name__}: {e}")
+    a, f = fill_huat5(sess, by_key, MARKETS)
+    added += a; spcs_filled += f
     log(f"huat5 最新抓取 OK: 新增 {added} 条, 补 sp/cs {spcs_filled} 处")
 
     # 2) huat3 补漏: 一次拉整段历史, 补最近 N 天缺的日期(仅头二三)
@@ -155,22 +256,8 @@ def main():
         log("无新数据, 文件保持不变")
         return
 
-    # 3) 合并写出: 按市场保留最近 120 期, 日期新→旧
-    by_market = {}
-    for x in by_key.values():
-        by_market.setdefault(x["market"], []).append(x)
-    final = []
-    for mk, arr in by_market.items():
-        arr.sort(key=lambda x: x["date"], reverse=True)
-        final.extend(arr[:120])
-    final.sort(key=lambda x: (x["date"], x["market"]), reverse=True)
-
-    tmp = OUT_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"updated_at": datetime.now().isoformat(timespec="seconds"),
-                   "source": "rins.my", "draws": final}, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, OUT_FILE)
-    log(f"写出 {OUT_FILE}: 共 {len(final)} 条 (新增 {added}, 补sp/cs {spcs_filled})")
+    # 3) 合并写出
+    write_out(by_key, added, spcs_filled)
 
 if __name__ == "__main__":
     _force_utf8_stdout()

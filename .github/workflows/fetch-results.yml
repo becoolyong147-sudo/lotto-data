@@ -47,6 +47,9 @@ jobs:
       - name: Fetch results
         run: python auto_fetch_results.py
 
+      - name: Backfill special prizes (下一期主打靠它算; 补不到不报错)
+        run: python auto_fetch_results.py --sp-only --retries 2 --retry-wait 60 || true
+
       - name: Commit & push if changed
         run: |
           git config user.name "github-actions[bot]"

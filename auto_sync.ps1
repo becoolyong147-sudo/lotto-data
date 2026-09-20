@@ -1,5 +1,10 @@
 # Auto-sync: commit and push all changes in the Lottery repo
 Set-Location "C:\Users\DELL\OneDrive\Desktop\Lottery"
+
+# 0) 先抓最新成绩，再自动补「最新一期缺的特别奖」（补齐了下一期主打才会更新）
+python auto_fetch_results.py
+python auto_fetch_results.py --sp-only
+
 git add -A
 $status = git status --porcelain
 if ($status) {

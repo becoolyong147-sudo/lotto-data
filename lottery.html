@@ -12090,8 +12090,10 @@ function zo2DRootBacktest(){
       <select id="rd-mode"><option value="mix">混合数根</option><option value="split">数根分前后</option><option value="pair">前后数根匹配</option></select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff;padding:9px 16px" onclick="zoComboMainBacktest()">🎯 主打2D × 数根1D 双推荐回测</button></div>
   </div>
   <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
+  <div class="warn" style="background:#fffbeb;border-color:#fde68a;color:#78350f">🎯 <b>双推荐回测</b>：只看「下一期主打」(源特别奖)算出的目标2D，跟「数根×缺席1D」(源头二三)算出的双缺目标2D，<b>两边都点到同一个2D</b>时，下一期实际头二三里有没有真的开出——前2D只对千百、后2D只对十个(分前后)。逐期列出实际结果 ✅/❌，不只给百分比。</div>
   <div id="r2a-out" style="margin-top:10px"></div>
 </div>
 </div>
@@ -22616,6 +22618,121 @@ function zoRootDigitComboBacktest(){
   det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+x.abs+'</td><td style="padding:3px 6px;font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——两个缺席条件叠加会让命中率变低(更难中)，但不代表能预测。诚实验证用。</div>';
+  h+='</div>';
+  out.innerHTML=h;
+}
+
+// 🎯 主打2D × 数根1D 双推荐回测：
+//   工具A=下一期主打(源特别奖) → 前2D目标 / 后2D目标 (an2)
+//   工具B=数根×缺席1D(源头二三·分前后) → 前双缺2D / 后双缺2D
+//   两边都点到「同一个2D」= 双推荐；看下一期头二三里 前2D对千百、后2D对十个 有没有真的开出。
+//   两工具都用「该期之前」的数据预测该期(A用前一期特别奖, B用前两期数根+前一期1D), 无未来数据。
+function zoComboMainBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+  // 合并 头二三 + 特别奖, 旧→新
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0 && m.length>N) m=m.slice(m.length-N);
+  var per=m.map(function(d){
+    var nums=[]; [d.nums&&d.nums[0],d.nums&&d.nums[1],d.nums&&d.nums[2]].forEach(function(v){ if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); });
+    var sp=[]; (d.sp||[]).forEach(function(v){ if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))sp.push(s); });
+    return {date:d.date, nums:nums, sp:sp};
+  }).filter(function(x){return x.nums.length>0;});
+  // 工具A: 主打目标2D (an2) —— 复刻 zoSpMatchCompute 的算法
+  function an2(g,wa,wb){
+    var roots={},first={};
+    g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
+    var a2=[]; for(var r=1;r<=9;r++) if(!roots[r]) a2.push(r);
+    var a1=[]; for(var dd=0;dd<=9;dd++) if(!first[''+dd]) a1.push(''+dd);
+    var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} });
+    var t1=a1.concat(most!=null?[most]:[]);
+    var ts={}; t1.forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1; } });
+    return Object.keys(ts);
+  }
+  // 工具B: 数根缺席(两期) —— 复刻 rootAbsent2 (分前后)
+  function rootAbsent2(a){ var pf={},pb={}; [per[a],per[a+1]].forEach(function(pp){ pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},B={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pb[r])B[r]=1; } return {F:F,B:B}; }
+  // 工具B: 1D缺席(一期·每位) —— 复刻 d1Absent1
+  function d1Absent1(a){ var pr=[{},{},{},{}]; per[a].nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}]; for(var q=0;q<4;q++){ for(var dg=0;dg<=9;dg++){ if(!pr[q][dg])A[q][dg]=1; } } return A; }
+  // 工具B: 双缺目标2D —— 数根∈缺根 且 两位都∈对应位缺席1D
+  function comboTargets(R,A,rootSet,pos1,pos2){ var t=[]; for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(rootSet[dr(a+b)] && A[pos1][a] && A[pos2][b]) t.push(''+a+b); } return t; }
+  function inter(arr,setObj){ var o=[]; arr.forEach(function(x){ if(setObj[x])o.push(x); }); return o; }
+  function toSet(arr){ var s={}; arr.forEach(function(x){s[x]=1;}); return s; }
+
+  if(per.length<4){ out.innerHTML='<div class="warn">'+mk+' 可用期数太少('+per.length+')，无法回测。</div>'; return; }
+
+  var det=[], tF=0,hF=0,bF=0, tB=0,hB=0,bB=0;
+  // 预测 per[j]: A用 per[j-1] 特别奖; B用 per[j-2],per[j-1] 数根 + per[j-1] 1D
+  for(var j=2;j<per.length;j++){
+    var srcP=per[j-1];
+    if(!(srcP.sp&&srcP.sp.length>=3)) continue; // A 缺特别奖, 无法双推荐
+    var g=srcP.sp;
+    var frontA=an2(g,0,1), backA=an2(g,2,3);
+    var R=rootAbsent2(j-2), A=d1Absent1(j-1);
+    var frontB=comboTargets(R,A,R.F,0,1), backB=comboTargets(R,A,R.B,2,3);
+    var frontInt=inter(frontA, toSet(frontB)), backInt=inter(backA, toSet(backB));
+    if(!frontInt.length && !backInt.length) continue; // 两边没有共同2D, 这期没双推荐
+    var tgt=per[j], fset=toSet(frontInt), bset=toSet(backInt);
+    // 命中: 前2D对千百 slice(0,2), 后2D对十个 slice(2,4), 看头二三任一
+    var fHit='', bHit='';
+    tgt.nums.forEach(function(s,pi){ var pn=['头','二','三'][pi]||('第'+(pi+1)); if(fset[s.slice(0,2)]&&!fHit)fHit=pn+s; if(bset[s.slice(2,4)]&&!bHit)bHit=pn+s; });
+    var fp=frontInt.length?(1-Math.pow(1-frontInt.length/100,tgt.nums.length)):0;
+    var bp=backInt.length?(1-Math.pow(1-backInt.length/100,tgt.nums.length)):0;
+    if(frontInt.length){ tF++; if(fHit)hF++; bF+=fp; }
+    if(backInt.length){ tB++; if(bHit)hB++; bB+=bp; }
+    det.push({date:tgt.date, f:frontInt, b:backInt, nums:tgt.nums, fHit:fHit, bHit:bHit,
+      hasF:!!frontInt.length, hasB:!!backInt.length});
+  }
+
+  var hpF=tF?hF/tF*100:0, bpF=tF?bF/tF*100:0, hpB=tB?hB/tB*100:0, bpB=tB?bB/tB*100:0;
+  var h='<div class="card" style="border:2px solid #b45309">';
+  h+='<h3 style="color:#b45309">🎯 '+mk+' · 主打2D × 数根1D 双推荐回测（分前后）</h3>';
+  h+='<div class="warn" style="background:#fffbeb;border-color:#fde68a;color:#78350f">只统计<b>两边都点到同一个2D</b>的期。前2D对千百、后2D对十个。✅=下一期头二三真的开出了那个2D。</div>';
+
+  // 🎯 本期(最新)双推荐 → 下一期该盯
+  var last=per[per.length-1];
+  h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin:8px 0">';
+  h+='<div style="font-size:13px;font-weight:800;color:#b45309">🎯 下一期该盯（两边都推荐的2D）</div>';
+  if(!(last.sp&&last.sp.length>=3)){
+    h+='<div style="font-size:12px;color:#b45309;margin-top:4px">⏳ 最新一期('+last.date+')还没有特别奖数据，主打算不出来，等补上再看。</div>';
+  } else {
+    var gL=last.sp, fAL=an2(gL,0,1), bAL=an2(gL,2,3);
+    var RL=rootAbsent2(per.length-2), AL=d1Absent1(per.length-1);
+    var fBL=comboTargets(RL,AL,RL.F,0,1), bBL=comboTargets(RL,AL,RL.B,2,3);
+    var fIL=inter(fAL,toSet(fBL)), bIL=inter(bAL,toSet(bBL));
+    h+='<div style="font-size:13px;margin-top:4px">前2D(千百)：<b style="color:#0f766e;font-family:monospace">'+(fIL.join(' ')||'无')+'</b></div>';
+    h+='<div style="font-size:13px;margin-top:2px">后2D(十个)：<b style="color:#be185d;font-family:monospace">'+(bIL.join(' ')||'无')+'</b></div>';
+    h+='<div style="font-size:10px;color:#a16207;margin-top:3px">源：主打特别奖('+last.date+') × 数根头二三(近两期)+1D('+last.date+')。⚠️ 参考用，不构成预测。</div>';
+  }
+  h+='</div>';
+
+  // 汇总卡
+  function card(lbl,col,t,hp,bp,hh,tt){ return '<div style="border:1px solid #fde68a;border-radius:8px;padding:8px;background:#fffbeb"><b style="color:'+col+'">'+lbl+'</b><br>有双推荐 <b>'+tt+'</b> 期 · 中 <b style="font-size:16px;color:#b45309">'+hh+'</b> 期<br>成功率 <b style="font-size:16px;color:#b45309">'+hp.toFixed(1)+'%</b> · 随机 '+bp.toFixed(1)+'%</div>'; }
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin:6px 0">';
+  h+=card('前2D(千百)','#0f766e',tF,hpF,bpF,hF,tF);
+  h+=card('后2D(十个)','#be185d',tB,hpB,bpB,hB,tB);
+  h+='</div>';
+
+  // 逐期明细
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'cmb-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#b45309;font-weight:700">逐期实际结果（有双推荐的 '+det.length+' 期，点可收起）▾</span>';
+  h+='<div id="cmb-det" style="display:block;max-height:460px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#b45309;background:#fffbeb"><th style="text-align:left;padding:3px 6px">这一期</th><th style="text-align:left;padding:3px 6px">前2D双推荐</th><th style="text-align:left;padding:3px 6px">后2D双推荐</th><th style="text-align:left;padding:3px 6px">实际头二三</th><th style="padding:3px 6px">前中?</th><th style="padding:3px 6px">后中?</th></tr>';
+  det.slice().reverse().forEach(function(x){
+    h+='<tr style="background:'+((x.fHit||x.bHit)?'#fffbeb':'#fff')+';border-top:1px solid #fde68a">'+
+       '<td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td>'+
+       '<td style="padding:3px 6px;font-family:monospace;color:#0f766e">'+(x.f.join(' ')||'—')+'</td>'+
+       '<td style="padding:3px 6px;font-family:monospace;color:#be185d">'+(x.b.join(' ')||'—')+'</td>'+
+       '<td style="padding:3px 6px;font-family:monospace;color:#334155">'+x.nums.join(' ')+'</td>'+
+       '<td style="padding:3px 6px;text-align:center">'+(!x.hasF?'·':(x.fHit?'✅':'❌'))+'</td>'+
+       '<td style="padding:3px 6px;text-align:center">'+(!x.hasB?'·':(x.bHit?'✅':'❌'))+'</td></tr>';
+  });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">「·」=那一侧当期没有双推荐。随机基准=理论近似(每个候选2D在单期约1/100，按候选个数×头二三算)。⚠️ 历史统计，不构成预测。</div>';
   h+='</div>';
   out.innerHTML=h;
 }
