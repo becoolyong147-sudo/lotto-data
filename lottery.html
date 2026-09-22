@@ -8416,7 +8416,6 @@ function doBacktest(){
     <div class="ig"><button class="btn" onclick="zoMemberPNG('full')" id="zo-mem-png" style="display:none;background:#475569;color:#fff">📸 详细图·自己看（带证据）</button></div>
     <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
-    <div class="ig"><label>视频配乐</label><select id="zo-bgm-sel-mem"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
   </div>
   <div class="row" style="margin-top:8px;padding-top:8px;border-top:1px dashed #4338ca">
     <div class="ig"><label>🎯 会员命中回顾 · 对照期</label>
@@ -8523,13 +8522,9 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitPNG()" id="zo-hit-png" style="display:none">📊 公开复盘图</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoHitVideo()" id="zo-hit-vid" style="display:none">🎬 公开复盘视频</button></div>
     <div class="ig" id="zo-hit-opts" style="display:none"><label>复盘记录 / 语言 / 配乐 / 话术</label><div style="display:flex;gap:6px;flex-wrap:wrap">
       <select id="zo-hit-hero"><option value="latest">🆕 记录=最新对应</option><option value="auto">🏆 记录=最高奖位</option></select>
       <select id="zo-hit-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select>
-      <select id="zo-hit-bgm"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select>
-      <button class="btn" onclick="zoMusicPick()" title="加入你自己的音乐文件（mp3/m4a/wav），加完三个视频的音乐菜单都能选" style="background:#0f766e;color:#fff">＋🎵 加音乐</button>
-      <button class="btn" onclick="zoMusicDel()" title="删除当前选中的自定义音乐" style="background:#7f1d1d;color:#fff">🗑</button>
       <button class="btn" onclick="zoHitCopy(zoHitLang(),this)">📋 复制复盘说明</button>
     </div></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-mem-backtest" style="background:#0f172a;color:#fbbf24;border:1px solid #fbbf24" onclick="zoMemberBacktest()">💎 会员版历史回测</button></div>
