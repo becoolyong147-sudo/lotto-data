@@ -12066,7 +12066,7 @@ function zo2DRootBacktest(){
         <select id="hlb-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
       </div>
       <div class="ig"><label>看最近几期</label>
-        <select id="hlb-n"><option value="8">8期</option><option value="12" selected>12期</option><option value="15">15期</option><option value="24">24期</option><option value="40">40期</option></select>
+        <select id="hlb-n"><option value="15">15期</option><option value="24" selected>24期</option><option value="40">40期</option><option value="60">60期</option></select>
       </div>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoHuazLinkBoard()">🔗 化整链接看板</button>
     </div>
@@ -22187,23 +22187,22 @@ function zoHuazLinkBoard(){
   var COLS=['F1','F2','F3','B1','B2','B3'], NR=rd.length;
   function rev(v){ return v.length===2?(v[1]+v[0]):v; }
   var mark=rd.map(function(){return [{},{},{},{},{},{}];});
-  // 组内(F1F2F3 一组、B1B2B3 一组，F 不跟 B)：同值重复→红框；镜像成对→紫底
-  [[0,1,2],[3,4,5]].forEach(function(grp){
-    var pos={}; grp.forEach(function(cc){ for(var ii=0;ii<NR;ii++){ var vv=rd[ii].cells[cc]; if(!vv)continue; (pos[vv]=pos[vv]||[]).push([ii,cc]); } });
-    Object.keys(pos).forEach(function(v){
-      if(pos[v].length>=2) pos[v].forEach(function(p){ mark[p[0]][p[1]].same=1; });          // 同值(任意栏)重复
-      var r=rev(v); if(r!==v && pos[r]) pos[v].forEach(function(p){ mark[p[0]][p[1]].mir=1; }); // 镜像成对
-    });
-  });
+  // 1) 红：同栏上下相邻同值
+  for(var c=0;c<6;c++){ for(var i=0;i<NR;i++){ var v=rd[i].cells[c]; if(!v)continue; if((i>0&&rd[i-1].cells[c]===v)||(i<NR-1&&rd[i+1].cells[c]===v)) mark[i][c].red=1; } }
+  // 2) 青：同一期不同栏同值
+  for(var i2=0;i2<NR;i2++){ var seen={}; for(var c2=0;c2<6;c2++){ var v2=rd[i2].cells[c2]; if(!v2)continue; (seen[v2]=seen[v2]||[]).push(c2); } Object.keys(seen).forEach(function(v){ if(seen[v].length>=2) seen[v].forEach(function(c){ mark[i2][c].cyan=1; }); }); }
+  // 3) 绿：镜像反转成对
+  var pos={}; for(var i3=0;i3<NR;i3++)for(var c3=0;c3<6;c3++){ var v3=rd[i3].cells[c3]; if(!v3)continue; (pos[v3]=pos[v3]||[]).push([i3,c3]); }
+  Object.keys(pos).forEach(function(v){ var r=rev(v); if(r!==v && pos[r]){ pos[v].forEach(function(p){ mark[p[0]][p[1]].green=1; }); } });
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔗 '+mk+' · 化整链接看板（最近'+NR+'期，新→旧）</h3>';
-  h+='<div class="warn"><span style="background:#fecaca;color:#7f1d1d;padding:0 6px;border-radius:3px">红底</span> 同组内同值重复(任意栏，如15↔15、18↔18) ｜ <span style="background:#ddd6fe;color:#4c1d95;padding:0 6px;border-radius:3px">紫底</span> 同组内镜像成对(15↔51)。F组(F1F2F3)/B组(B1B2B3)各自算，不跨组。⚠️ 只是标记规律，开奖独立随机，不构成预测。</div>';
+  h+='<div class="warn"><span style="box-shadow:inset 0 0 0 2px #dc2626;padding:0 5px;border-radius:3px">🔴</span> 同栏上下相邻同值 ｜ <span style="box-shadow:inset 0 0 0 2px #16a34a;padding:0 5px;border-radius:3px">🟢</span> 镜像反转成对(15↔51) ｜ <span style="box-shadow:inset 0 0 0 2px #06b6d4;padding:0 5px;border-radius:3px">🔵</span> 同一期不同栏同值 ｜ 黄底=同格多种。⚠️ 只是标记规律，开奖独立随机，不构成预测。</div>';
   h+='<div style="overflow:auto;max-height:70vh"><table style="border-collapse:collapse;font-size:12px;text-align:center;white-space:nowrap"><thead><tr>';
   h+='<th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">日期</th><th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">编号</th>';
   COLS.forEach(function(c,ci){ h+='<th style="background:'+(ci<3?'#b45309':'#1e40af')+';color:#fff;padding:4px 8px;position:sticky;top:0">'+c+'</th>'; });
   h+='</tr></thead><tbody>';
   for(var ri=NR-1;ri>=0;ri--){ var x=rd[ri];
     h+='<tr><td style="padding:3px 8px;background:#f8fafc;font-weight:700;white-space:nowrap">'+x.date+'</td><td style="padding:3px 8px;color:#64748b;font-family:monospace">'+x.draw+'</td>';
-    for(var c4=0;c4<6;c4++){ var val=x.cells[c4]||'', m=mark[ri][c4]; var bg=m.same?'background:#fecaca;color:#7f1d1d;':(m.mir?'background:#ddd6fe;color:#4c1d95;':''); h+='<td style="padding:3px 8px;font-family:monospace;font-weight:700;'+bg+'">'+val+'</td>'; }
+    for(var c4=0;c4<6;c4++){ var val=x.cells[c4]||'', m=mark[ri][c4]; var box=m.red?'box-shadow:inset 0 0 0 2px #dc2626;':(m.green?'box-shadow:inset 0 0 0 2px #16a34a;':(m.cyan?'box-shadow:inset 0 0 0 2px #06b6d4;':'')); var bg=((m.red?1:0)+(m.green?1:0)+(m.cyan?1:0)>1)?'background:#fef9c3;':''; h+='<td style="padding:3px 8px;font-family:monospace;font-weight:700;'+bg+box+'">'+val+'</td>'; }
     h+='</tr>';
   }
   h+='</tbody></table></div></div>';
