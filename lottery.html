@@ -8338,7 +8338,7 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doZodiacChart()">🐲 生成海报</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button> <button class="btn btn-green" onclick="zoDownloadVideo()" id="zo-vid-btn" style="display:none">🎬 下载视频</button> <select id="zo-bgm-sel" title="视频配乐"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select> <select id="zo-vid-ratio" title="视频尺寸（public）"><option value="story" selected>📱 竖屏 9:16 (1080×1920)</option><option value="feed">🖼️ 方形 4:5 (1080×1350)</option></select></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" onclick="zoDownloadPNG()" id="zo-png-btn" style="display:none">📸 下载图片</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoCopyText()" id="zo-copy-btn" style="display:none">📋 复制月报文字</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="zoPrintPDF()" id="zo-pdf-btn" style="display:none">🖨️ 打印/PDF</button></div>
   </div>
@@ -8414,7 +8414,6 @@ function doBacktest(){
     <div class="ig"><button class="btn" onclick="zoMemberCopy()" id="zo-mem-copy" style="display:none">📋 复制会员话术</button></div>
     <div class="ig"><button class="btn btn-green" onclick="zoMemberPNG('simple')" id="zo-mem-png-simple" style="display:none">📸 会员图·简洁（号码+星）</button></div>
     <div class="ig"><button class="btn" onclick="zoMemberPNG('full')" id="zo-mem-png" style="display:none;background:#475569;color:#fff">📸 详细图·自己看（带证据）</button></div>
-    <div class="ig"><button class="btn btn-green" onclick="zoMemberVideo()" id="zo-mem-vid" style="display:none">🎬 下载会员视频</button></div>
     <div class="ig"><label>图/视频导出哪家</label><select id="zo-mem-export-mk" onchange="zoMemSetExportMarket()"></select></div>
     <div class="ig"><label>图/视频语言</label><select id="zo-mem-lang"><option value="zh">中文</option><option value="en">English</option><option value="ms">Melayu</option></select></div>
     <div class="ig"><label>视频配乐</label><select id="zo-bgm-sel-mem"><option value="mystery">🌌 神秘星空</option><option value="fire">🔥 热血上扬</option><option value="space">🛸 太空氛围</option><option value="none">🔇 无音乐</option></select></div>
@@ -8433,7 +8432,6 @@ function doBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-png" onclick="zoMemHitPNG()">📊 命中回顾图</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff" id="zo-monthscore" onclick="zoMonthScorePNG()">🏆 月尾成绩单</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn btn-green" id="zo-memhit-vid" onclick="zoMemHitVideo()">🎬 命中回顾视频</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" id="zo-memhit-copy" onclick="zoMemHitCopy()">📋 复制命中说明</button></div>
     <div class="ig"><label>📖 名词解释（发给会员）</label><div style="display:flex;gap:6px">
       <button class="btn" onclick="zoMemGlossCopy('zh',this)">中文</button>
