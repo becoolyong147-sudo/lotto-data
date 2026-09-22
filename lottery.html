@@ -5583,6 +5583,7 @@ function runAdvancedFilter(){
       <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyFilterNums('newline')">📋 复制（换行）</button>
       <button class="btn" style="padding:5px 12px;font-size:11px" onclick="copyFilterNums('comma')">📋 复制（逗号）</button>
       <button class="btn btn-green" style="padding:5px 12px;font-size:11px" onclick="fltRecommendBack2D()">🔗 推荐后2D → 组合4D</button>
+      <button class="btn" style="padding:5px 12px;font-size:11px;background:#b45309;color:#fff" onclick="fltRecommendBack3D()">🎯 推荐后3D（会员+1D）</button>
     </div>` : '';
 
   html+=`<div class="card">
@@ -5708,6 +5709,43 @@ function fltNumberIntrinsicCheck(num){
   c=getSelectedRoots('grp'); if(c.length&&!c.includes(flt1990Group(num))) return {pass:false,reason:'1-9-0组不符'};
   c=getSelectedRoots('rhn'); if(c.length&&!(window.LH_MATCH?window.LH_MATCH(num):[]).some(function(h){return c.includes(h.index);})) return {pass:false,reason:'罗汉不符'};
   return {pass:true,reason:''};
+}
+
+// ===== 推荐后3D（会员自己配前1位=完成4D）=====
+function fltRecommendBack3D(){
+  const rows = window._fltLastRows;
+  const market = window._fltLastMarket;
+  const out = document.getElementById('flt-b2d-result');
+  if(!rows || rows.length===0){ out.innerHTML='<div class="warn">请先执行筛选，再点此按钮。</div>'; return; }
+  // 提取筛选结果里的「后3D」(后三位) 去重
+  const set = {};
+  rows.forEach(r => { const s = String(r.num).padStart(4,'0'); set[s.slice(1)] = 1; });
+  const list = Object.keys(set);
+  // 全市场历史：每个后3D开过几次（含调字前的原样）
+  const cnt = {};
+  (DB[market]||[]).forEach(r => { r.nums.forEach(raw => { if(!raw||raw==='0000') return; const s=String(pz(raw)).padStart(4,'0'); const b3=s.slice(1); cnt[b3]=(cnt[b3]||0)+1; }); });
+  const ranked = list.map(b3 => ({b3, c: cnt[b3]||0})).sort((a,b)=> b.c-a.c || a.b3.localeCompare(b.b3));
+  const opened = ranked.filter(x=>x.c>0).length;
+  let h = '<div class="card" style="border:2px solid #b45309">';
+  h += '<h3 style="color:#92400e">🎯 推荐后3D — 会员自己配前1位(0–9)= 完成4D</h3>';
+  h += '<div class="warn">从筛选结果取出<b>'+ranked.length+'</b>个不重复<b>后3D</b>（后三位）。玩法：<b>工具出后3D、会员自己在前面加1位</b>(千位0–9任选)拼成完整4D，或直接下「3D」。深色=在「'+market+'」历史开过。⚠️ 纯历史统计，不构成预测。</div>';
+  h += '<div style="font-size:12px;margin:6px 0;color:#475569">其中历史开过 <b style="color:#b45309">'+opened+'</b> 个（每个后3D前面可配 0–9 共 10 个4D，或当 3D 直接买）。</div>';
+  h += '<div style="line-height:2.2;max-height:340px;overflow-y:auto;border:1px solid #fde68a;border-radius:8px;padding:8px;background:#fffbeb">';
+  ranked.forEach(x => {
+    if(x.c>0) h += '<span title="'+market+'开过'+x.c+'次" style="display:inline-block;font-family:monospace;font-size:15px;font-weight:700;background:#b45309;color:#fff;border-radius:6px;padding:1px 7px;margin:2px">x'+x.b3+'<span style="font-size:10px;opacity:.85">·'+x.c+'</span></span>';
+    else h += '<span style="display:inline-block;font-family:monospace;font-size:15px;background:#fef3c7;color:#a16207;border-radius:6px;padding:1px 7px;margin:2px">x'+x.b3+'○</span>';
+  });
+  h += '</div>';
+  const allList = ranked.map(x=>x.b3);
+  const openedList = ranked.filter(x=>x.c>0).map(x=>x.b3);
+  h += '<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">';
+  h += '<button class="btn" style="padding:4px 10px;font-size:11px" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋全部后3D('+allList.length+')\',1200)})">📋全部后3D('+allList.length+')</button>';
+  if(openedList.length) h += '<button class="btn" style="padding:4px 10px;font-size:11px;background:#b45309;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+openedList.join(' ')+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋开过的('+openedList.length+')\',1200)})">📋开过的('+openedList.length+')</button>';
+  h += '</div>';
+  h += '<div style="font-size:10px;color:#94a3b8;margin-top:4px">深棕=在「'+market+'」开过（带次数）；○=没开过。想更少号就先在上面「后3D数根/点数范围」收紧再筛。</div>';
+  h += '</div>';
+  out.innerHTML = h;
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 // ===== 前2D已定 → 推荐后2D → 组合4D =====
