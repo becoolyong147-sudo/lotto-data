@@ -9979,6 +9979,20 @@ function zoSend2DToFilter(list2d, mk, wi){
     alert('已把 '+arr.length+' 个 '+wn+' 按位置锁进「条件筛选 → 位数条件」。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n现在再叠加 点数/打数/数根 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
 }
+// 🔗 3D 送进筛选：pos='front'→前3D(千百十)=t+'x'；pos='back'→后3D(百十个)='x'+t
+function zoSend3DToFilter(list3d, mk, pos){
+  try{
+    var arr=list3d.split(' ').filter(Boolean);
+    var wrap=(pos==='front')?function(t){return t+'x';}:function(t){return 'x'+t;};
+    var pats=arr.map(wrap).join(' ');
+    var wn=(pos==='front')?'前3D(千百十)':'后3D(百十个)';
+    var fm=document.getElementById('flt-market'); if(fm&&mk) fm.value=mk;
+    var pp=document.getElementById('flt-pos-pattern'); if(pp) pp.value=pats;
+    if(typeof switchTab==='function') switchTab('filter'); else if(typeof showTabPanel==='function') showTabPanel('filter');
+    setTimeout(function(){ var el=document.getElementById('flt-pos-pattern'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
+    alert('已把 '+arr.length+' 个 '+wn+' 锁进「条件筛选 → 位数条件」（另一位是 x 任意）。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n再叠加条件 → 点🔍筛选，或直接拿去下 3D。');
+  }catch(e){ console.warn(e); }
+}
 // 🔍 回查历史：四位数字集合 posStr，找历史头/二/三里四位全在集合内的号
 function zoInterCheckHistory(posStr, mk){
   var out=document.getElementById('inter-check-out'); if(!out) return;
@@ -22220,10 +22234,13 @@ function zoRootDigitComboBacktest(){
           f2.forEach(function(f){ m2.forEach(function(m){ if(f[1]===m[0]) f3[f+m[1]]=1; }); });
           m2.forEach(function(m){ b2.forEach(function(b){ if(m[1]===b[0]) b3[m[0]+m[1]+b[1]]=1; }); });
           var f3l=Object.keys(f3).sort(), b3l=Object.keys(b3).sort();
-          function cbtn(lst,col,lbl){ return lst.length? '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff;margin:2px 0" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\''+lbl+'('+lst.length+')\',1200)})">'+lbl+'('+lst.length+')</button>' : ''; }
+          function row3d(lst,col,pos,lbl){ if(!lst.length) return ''; var lj=lst.join(' '); return '<div style="margin:2px 0;display:flex;gap:5px;flex-wrap:wrap">'+
+            '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend3DToFilter(\''+lj+'\',\''+mk+'\',\''+pos+'\')">📤 一键送进高级筛选('+lst.length+')</button>'+
+            '<button class="btn" style="padding:3px 10px;font-size:11px;background:#fff;color:'+col+';border:1px solid '+col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lj+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\''+lbl+'('+lst.length+')\',1200)})">'+lbl+'('+lst.length+')</button>'+
+            '</div>'; }
           h+='<div style="margin-top:8px;border-top:1px dashed #ddd6fe;padding-top:6px"><b style="color:#7c3aed">🔗 链接3D（双缺件拼接）</b></div>';
-          h+='<div style="font-size:12px;font-family:monospace;margin-top:3px;word-break:break-all"><b style="color:#0f766e">前3D(千百十)·'+f3l.length+'：</b>'+(f3l.map(function(x){return x+'x';}).join(' ')||'无')+'</div>'+cbtn(f3l,'#0f766e','📋复制前3D');
-          h+='<div style="font-size:12px;font-family:monospace;margin-top:3px;word-break:break-all"><b style="color:#be185d">后3D(百十个)·'+b3l.length+'：</b>'+(b3l.map(function(x){return 'x'+x;}).join(' ')||'无')+'</div>'+cbtn(b3l,'#be185d','📋复制后3D');
+          h+='<div style="font-size:12px;font-family:monospace;margin-top:3px;word-break:break-all"><b style="color:#0f766e">前3D(千百十)·'+f3l.length+'：</b>'+(f3l.map(function(x){return x+'x';}).join(' ')||'无')+'</div>'+row3d(f3l,'#0f766e','front','📋复制前3D');
+          h+='<div style="font-size:12px;font-family:monospace;margin-top:3px;word-break:break-all"><b style="color:#be185d">后3D(百十个)·'+b3l.length+'：</b>'+(b3l.map(function(x){return 'x'+x;}).join(' ')||'无')+'</div>'+row3d(b3l,'#be185d','back','📋复制后3D');
           h+='<div style="font-size:10px;color:#94a3b8;margin-top:3px">前3D=前2D与中2D<b>共用「百」</b>拼成千百十；后3D=中2D与后2D<b>共用「十」</b>拼成百十个。都是双缺件拼的 → 会员前/后自己补1位=4D，或直接下3D。参考用，不预测。</div>';
         })();
       }
