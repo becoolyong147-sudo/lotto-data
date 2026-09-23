@@ -21756,10 +21756,11 @@ function zoHuazLinkBoard(){
   var rows=(DB[mk]||[]).filter(function(r){return r.date>='2020-01-01';}).slice()
     .sort(function(a,b){return a.date.localeCompare(b.date)||(a.draw||'').localeCompare(b.draw||'');});
   if(!rows.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
+  var allRows=rows.slice();          // 全量(供诚实回测)
   rows=rows.slice(-N);
   function hz(v){ var o=v26Huazheng(v); return (o&&o.value!=null)?String(o.value):''; }
-  var rd=rows.map(function(r){ var p1=pz(r.nums[0]),p2=pz(r.nums[1]),p3=pz(r.nums[2]);
-    return {date:r.date, draw:(r.draw||''), cells:[hz(v24Front2(p1)),hz(v24Front2(p2)),hz(v24Front2(p3)),hz(v24Back2(p1)),hz(v24Back2(p2)),hz(v24Back2(p3))]}; });
+  function cellsOf(r){ var p1=pz(r.nums[0]),p2=pz(r.nums[1]),p3=pz(r.nums[2]); return [hz(v24Front2(p1)),hz(v24Front2(p2)),hz(v24Front2(p3)),hz(v24Back2(p1)),hz(v24Back2(p2)),hz(v24Back2(p3))]; }
+  var rd=rows.map(function(r){ return {date:r.date, draw:(r.draw||''), cells:cellsOf(r)}; });
   var COLS=['F1','F2','F3','B1','B2','B3'], NR=rd.length;
   function rev(v){ return v.length===2?(v[1]+v[0]):v; }
   var mark=rd.map(function(){return [{},{},{},{},{},{}];});
@@ -21778,12 +21779,26 @@ function zoHuazLinkBoard(){
   });
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔗 '+mk+' · 化整链接看板（最近'+NR+'期，旧→新·最新在最下）</h3>';
   h+='<div class="warn"><span style="box-shadow:inset 0 0 0 2px #dc2626;padding:0 5px;border-radius:3px">红框</span> 同一栏·相邻两期·同值 ｜ <span style="background:#fef9c3;padding:0 6px;border-radius:3px">黄底</span> 同组·相邻两期·同值(跨栏) ｜ <span style="background:#dbeafe;padding:0 6px;border-radius:3px">蓝底</span> 同组·相邻两期·镜像反转(同数根,如18↔81)。F组/B组各自算，不跨组。⚠️ 只是标记规律，开奖独立随机，不构成预测。</div>';
+  // 🔬 诚实回测：同组内某化整值「相邻两期都出现(链接)」后，下一期还出现吗？vs 随机基准
+  (function(){
+    var allCells=allRows.map(cellsOf), NP=allCells.length, GRP2=[[0,1,2],[3,4,5]];
+    var freq=[{},{}];
+    allCells.forEach(function(cs){ GRP2.forEach(function(grp,gi){ var seen={}; grp.forEach(function(c){ if(cs[c])seen[cs[c]]=1; }); Object.keys(seen).forEach(function(v){ freq[gi][v]=(freq[gi][v]||0)+1; }); }); });
+    function inG(cs,grp,v){ for(var j=0;j<grp.length;j++){ if(cs[grp[j]]===v) return true; } return false; }
+    var ev=0,cont=0,expSum=0;
+    for(var gi=0;gi<2;gi++){ var grp=GRP2[gi]; for(var i=0;i+2<NP;i++){ var vs={}; grp.forEach(function(c){ if(allCells[i][c])vs[allCells[i][c]]=1; }); Object.keys(vs).forEach(function(v){ if(inG(allCells[i+1],grp,v)){ ev++; if(inG(allCells[i+2],grp,v))cont++; expSum+=(freq[gi][v]||0)/NP; } }); } }
+    var cr=ev?cont/ev*100:0, br=ev?expSum/ev*100:0;
+    var se=Math.sqrt((br/100)*(1-br/100)/Math.max(ev,1))*100, lead=cr-br;
+    var vd= ev<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#d97706'}:(lead<-2*se?{t:'🔴比随机低',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'}));
+    h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:12px">🔬 <b>诚实回测</b>（全 '+NP+' 期）：某化整值「相邻两期都出现＝链接」后，下一期<b>还出现</b>的比例 <b style="color:#7c3aed">'+cr.toFixed(1)+'%</b> vs 随机基准 <b>'+br.toFixed(1)+'%</b> → <b style="color:'+vd.c+'">'+vd.t+'</b>（'+ev+' 次链接）<br><span style="color:#94a3b8">🟢=链接后延续跟随机没差别 → 接龙没有「续命」效果，看板当内容/参考用，别当预测。</span></div>';
+  })();
   h+='<div style="overflow:auto;max-height:70vh"><table style="border-collapse:collapse;font-size:12px;text-align:center;white-space:nowrap"><thead><tr>';
   h+='<th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">日期</th><th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">编号</th>';
   COLS.forEach(function(c,ci){ h+='<th style="background:'+(ci<3?'#b45309':'#1e40af')+';color:#fff;padding:4px 8px;position:sticky;top:0">'+c+'</th>'; });
   h+='</tr></thead><tbody>';
   for(var ri=0;ri<NR;ri++){ var x=rd[ri];
-    h+='<tr><td style="padding:3px 8px;background:#f8fafc;font-weight:700;white-space:nowrap">'+x.date+'</td><td style="padding:3px 8px;color:#64748b;font-family:monospace">'+x.draw+'</td>';
+    var op=(NR<=1)?1:(0.5+0.5*(ri/(NR-1)));   // 越新越清晰(最下=1)，历史淡化
+    h+='<tr style="opacity:'+op.toFixed(2)+'"><td style="padding:3px 8px;background:#f8fafc;font-weight:700;white-space:nowrap">'+x.date+'</td><td style="padding:3px 8px;color:#64748b;font-family:monospace">'+x.draw+'</td>';
     for(var c4=0;c4<6;c4++){ var val=x.cells[c4]||'', m=mark[ri][c4]; var box=m.red?'box-shadow:inset 0 0 0 2px #dc2626;':''; var bg=m.red?'':(m.same?'background:#fef9c3;':(m.mir?'background:#dbeafe;':'')); h+='<td style="padding:3px 8px;font-family:monospace;font-weight:700;'+bg+box+'">'+val+'</td>'; }
     h+='</tr>';
   }
