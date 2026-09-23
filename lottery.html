@@ -21763,17 +21763,28 @@ function zoHuazLinkBoard(){
   var COLS=['F1','F2','F3','B1','B2','B3'], NR=rd.length;
   function rev(v){ return v.length===2?(v[1]+v[0]):v; }
   var mark=rd.map(function(){return [{},{},{},{},{},{}];});
-  // 只标：同一栏、上下相邻两期、同值（旧→新连续）。不跨栏、不跨组、不镜像。
+  // 红框：同一栏、上下相邻两期、同值（最紧）
   for(var c=0;c<6;c++){ for(var i=0;i<NR;i++){ var v=rd[i].cells[c]; if(!v)continue; if((i>0&&rd[i-1].cells[c]===v)||(i<NR-1&&rd[i+1].cells[c]===v)) mark[i][c].red=1; } }
-  var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔗 '+mk+' · 化整链接看板（最近'+NR+'期，新→旧）</h3>';
-  h+='<div class="warn"><span style="box-shadow:inset 0 0 0 2px #dc2626;padding:0 5px;border-radius:3px">红框</span> = 同一栏、上下相邻两期、值一样（如 F3 连续两期都 12）。<b>只标这一种</b>：不跨栏、F 不跟 B、不看镜像。⚠️ 只是标记规律，开奖独立随机，不构成预测。</div>';
+  // 同组内(F1F2F3 一组、B1B2B3 一组，F 不跟 B)、相邻两期：同值(跨栏也算)→same；镜像反转(同数根)→mir
+  [[0,1,2],[3,4,5]].forEach(function(grp){
+    for(var i=0;i<NR-1;i++){
+      var A={}, B={};
+      grp.forEach(function(c){ var va=rd[i].cells[c]; if(va){(A[va]=A[va]||[]).push(c);} var vb=rd[i+1].cells[c]; if(vb){(B[vb]=B[vb]||[]).push(c);} });
+      Object.keys(A).forEach(function(v){
+        if(B[v]){ A[v].forEach(function(c){mark[i][c].same=1;}); B[v].forEach(function(c){mark[i+1][c].same=1;}); }
+        var r=rev(v); if(r!==v && B[r]){ A[v].forEach(function(c){mark[i][c].mir=1;}); B[r].forEach(function(c){mark[i+1][c].mir=1;}); }
+      });
+    }
+  });
+  var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔗 '+mk+' · 化整链接看板（最近'+NR+'期，旧→新·最新在最下）</h3>';
+  h+='<div class="warn"><span style="box-shadow:inset 0 0 0 2px #dc2626;padding:0 5px;border-radius:3px">红框</span> 同一栏·相邻两期·同值 ｜ <span style="background:#fef9c3;padding:0 6px;border-radius:3px">黄底</span> 同组·相邻两期·同值(跨栏) ｜ <span style="background:#dbeafe;padding:0 6px;border-radius:3px">蓝底</span> 同组·相邻两期·镜像反转(同数根,如18↔81)。F组/B组各自算，不跨组。⚠️ 只是标记规律，开奖独立随机，不构成预测。</div>';
   h+='<div style="overflow:auto;max-height:70vh"><table style="border-collapse:collapse;font-size:12px;text-align:center;white-space:nowrap"><thead><tr>';
   h+='<th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">日期</th><th style="background:#1e3a5f;color:#fff;padding:4px 8px;position:sticky;top:0">编号</th>';
   COLS.forEach(function(c,ci){ h+='<th style="background:'+(ci<3?'#b45309':'#1e40af')+';color:#fff;padding:4px 8px;position:sticky;top:0">'+c+'</th>'; });
   h+='</tr></thead><tbody>';
-  for(var ri=NR-1;ri>=0;ri--){ var x=rd[ri];
+  for(var ri=0;ri<NR;ri++){ var x=rd[ri];
     h+='<tr><td style="padding:3px 8px;background:#f8fafc;font-weight:700;white-space:nowrap">'+x.date+'</td><td style="padding:3px 8px;color:#64748b;font-family:monospace">'+x.draw+'</td>';
-    for(var c4=0;c4<6;c4++){ var val=x.cells[c4]||'', m=mark[ri][c4]; var box=m.red?'box-shadow:inset 0 0 0 2px #dc2626;':''; h+='<td style="padding:3px 8px;font-family:monospace;font-weight:700;'+box+'">'+val+'</td>'; }
+    for(var c4=0;c4<6;c4++){ var val=x.cells[c4]||'', m=mark[ri][c4]; var box=m.red?'box-shadow:inset 0 0 0 2px #dc2626;':''; var bg=m.red?'':(m.same?'background:#fef9c3;':(m.mir?'background:#dbeafe;':'')); h+='<td style="padding:3px 8px;font-family:monospace;font-weight:700;'+bg+box+'">'+val+'</td>'; }
     h+='</tr>';
   }
   h+='</tbody></table></div></div>';
