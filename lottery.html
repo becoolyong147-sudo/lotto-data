@@ -21992,7 +21992,7 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
     } else if(mode==='pair'){
       h+='<div style="font-size:14px;margin-top:4px">前根缺 <b style="color:#0f766e">['+(abF.join(' ')||'无')+']</b> × 后根缺 <b style="color:#be185d">['+(abB.join(' ')||'无')+']</b><br><span style="font-size:11px;color:#64748b">= 盯下一期有没有号「前根∈前缺 且 后根∈后缺」凑成一对</span></div>';
     } else {
-      h+='<div style="font-size:14px;margin-top:4px">缺席根(前后合并)：<b style="color:#6d28d9">'+(abAll.join(' ')||'无')+'</b></div>';
+      h+='<div style="font-size:14px;margin-top:4px">缺席根(前中后合并)：<b style="color:#6d28d9">'+(abAll.join(' ')||'无')+'</b></div>';
     }
     h+='<div style="font-size:11px;color:#94a3b8;margin-top:3px">⚠️ 只是「最近两期没出现的根」，缺席≠会补，下一期照样独立随机。参考用。</div>';
     h+='</div>';
@@ -22000,9 +22000,9 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
   var det=[];
   if(mode==='mix'){
     var tot=0,hit=0,bs=0;
-    for(var i=0;i+2<per.length;i++){ var pool={}; [per[i].f,per[i].b,per[i+1].f,per[i+1].b].forEach(function(s){for(var k in s)pool[k]=1;}); var ab=absentOf(pool); if(!ab.length)continue; var nx={}; for(var k1 in per[i+2].f)nx[k1]=1; for(var k2 in per[i+2].b)nx[k2]=1; var got=ab.filter(function(r){return nx[r];}); tot++; var hh=got.length>0; if(hh)hit++; bs+=1-Math.pow((9-ab.length)/9,6); det.push({date:per[i+2].date,absent:ab.join(' '),got:got.join(' ')||'—',hit:hh}); }
-    h+=mcard('前后合并',tot,hit,bs);
-    h+='<div class="warn">两期的前+后2D根合在一起算缺席,看下期前/后根有没有补上任一个。</div>';
+    for(var i=0;i+2<per.length;i++){ var pool={}; [per[i].f,per[i].m,per[i].b,per[i+1].f,per[i+1].m,per[i+1].b].forEach(function(s){for(var k in s)pool[k]=1;}); var ab=absentOf(pool); if(!ab.length)continue; var nx={}; for(var k1 in per[i+2].f)nx[k1]=1; for(var km in per[i+2].m)nx[km]=1; for(var k2 in per[i+2].b)nx[k2]=1; var got=ab.filter(function(r){return nx[r];}); tot++; var hh=got.length>0; if(hh)hit++; bs+=1-Math.pow((9-ab.length)/9,9); det.push({date:per[i+2].date,absent:ab.join(' '),got:got.join(' ')||'—',hit:hh}); }
+    h+=mcard('前中后合并',tot,hit,bs);
+    h+='<div class="warn">两期的前+中+后2D根合在一起算缺席,看下期前/中/后根有没有补上任一个。</div>';
   } else if(mode==='split'){
     var tF=0,hF=0,bF=0, tM=0,hM=0,bM=0, tB=0,hB=0,bB=0;
     for(var i2=0;i2+2<per.length;i2++){
