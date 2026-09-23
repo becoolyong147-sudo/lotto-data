@@ -12002,7 +12002,7 @@ function zo2DRootBacktest(){
         <select id="hlb-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
       </div>
       <div class="ig"><label>看最近几期</label>
-        <select id="hlb-n"><option value="15">15期</option><option value="24" selected>24期</option><option value="40">40期</option><option value="60">60期</option></select>
+        <select id="hlb-n"><option value="3">3期</option><option value="5">5期</option><option value="8" selected>8期</option><option value="10">10期</option></select>
       </div>
       <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoHuazLinkBoard()">🔗 化整链接看板</button>
     </div>
@@ -21752,7 +21752,7 @@ function _v27cell(val, colorObj, extra){
 function zoHuazLinkBoard(){
   var out=document.getElementById('hlb-out'); if(!out) return;
   var mk=(document.getElementById('hlb-market')||{value:'万能'}).value;
-  var N=parseInt((document.getElementById('hlb-n')||{value:'24'}).value,10)||24;
+  var N=parseInt((document.getElementById('hlb-n')||{value:'8'}).value,10)||8;
   var rows=(DB[mk]||[]).filter(function(r){return r.date>='2020-01-01';}).slice()
     .sort(function(a,b){return a.date.localeCompare(b.date)||(a.draw||'').localeCompare(b.draw||'');});
   if(!rows.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
