@@ -22129,7 +22129,7 @@ function zoRootDigitComboBacktest(){
   if(per.length<4){ out.innerHTML='<div class="warn">'+mk+' 有'+srcLbl+'的期数太少('+per.length+')，无法组合回测。'+(SRC==='sp'?'（特别奖只在近期有，选「头二三」）':'')+'</div>'; return; }
   var POS=['千','百','十','个'];
   // 两期数根缺席：给起点idx（用 per[idx],per[idx+1]）→ {front,back,mix} 缺席根集合(1-9)
-  function rootAbsent2(a){ var pf={},pb={}; [per[a],per[a+1]].forEach(function(pp){ pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; } return {F:F,B:B,M:M,nF:Object.keys(F).length,nB:Object.keys(B).length,nM:Object.keys(M).length}; }
+  function rootAbsent2(a){ var pf={},pm={},pb={}; [per[a],per[a+1]].forEach(function(pp){ pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},Mid={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pm[r])Mid[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; } return {F:F,Mid:Mid,B:B,M:M,nF:Object.keys(F).length,nMid:Object.keys(Mid).length,nB:Object.keys(B).length,nM:Object.keys(M).length}; }
   // 一期1D缺席：给期idx → 每位缺席数字集合(0-9)
   function d1Absent1(a){ var pr=[{},{},{},{}]; per[a].nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}], n=[0,0,0,0]; for(var q=0;q<4;q++){ for(var dg=0;dg<=9;dg++){ if(!pr[q][dg]){A[q][dg]=1;n[q]++;} } } return {A:A,n:n}; }
   // 评估一个奖号在给定缺席集下是否命中(按模式)，返回 {hit, why}
@@ -22142,9 +22142,10 @@ function zoRootDigitComboBacktest(){
       if(frontOK||backOK){ var rp=frontOK?('前'+String(s[0])+s[1]+'→根'+fr+'·千百双缺'):('后'+String(s[2])+s[3]+'→根'+br+'·十个双缺'); return {hit:true,why:s+'('+rp+')'}; }
       return {hit:false};
     } else if(mode==='split'){
-      var fH=(R.F[fr]&&pf), bH=(R.B[br]&&pb);
-      if(fH||bH){ var w=[]; if(fH)w.push('前'+s[0]+s[1]+'→根'+fr+'·千百双缺'); if(bH)w.push('后'+s[2]+s[3]+'→根'+br+'·十个双缺'); return {hit:true,fH:fH,bH:bH,why:s+'('+w.join('|')+')'}; }
-      return {hit:false,fH:false,bH:false};
+      var mr=dr((+s[1])+(+s[2])), pm=(D.A[1][+s[1]]&&D.A[2][+s[2]]);
+      var fH=(R.F[fr]&&pf), mH=(R.Mid[mr]&&pm), bH=(R.B[br]&&pb);
+      if(fH||mH||bH){ var w=[]; if(fH)w.push('前'+s[0]+s[1]+'→根'+fr+'·千百双缺'); if(mH)w.push('中'+s[1]+s[2]+'→根'+mr+'·百十双缺'); if(bH)w.push('后'+s[2]+s[3]+'→根'+br+'·十个双缺'); return {hit:true,fH:fH,mH:mH,bH:bH,why:s+'('+w.join('|')+')'}; }
+      return {hit:false,fH:false,mH:false,bH:false};
     } else { // pair
       if(R.F[fr]&&R.B[br]&&pf&&pb){ return {hit:true,why:s+'(前'+s[0]+s[1]+'→根'+fr+'·千百双缺 & 后'+s[2]+s[3]+'→根'+br+'·十个双缺)'}; }
       return {hit:false};
@@ -22154,22 +22155,22 @@ function zoRootDigitComboBacktest(){
   function baseNumProb(R,D){
     var Pf=0.11*R.nF, Pb=0.11*R.nB, Pm=0.11*R.nM;
     var pd=[D.n[0]/10,D.n[1]/10,D.n[2]/10,D.n[3]/10];
-    var pdF=pd[0]*pd[1], pdB=pd[2]*pd[3];  // 双缺=两位都缺
+    var pdF=pd[0]*pd[1], pdMid=pd[1]*pd[2], pdB=pd[2]*pd[3];  // 双缺=两位都缺
     if(mode==='mix'){ var pF0=Pm*pdF, pB0=Pm*pdB; return {all:1-(1-pF0)*(1-pB0)}; }
-    if(mode==='split'){ var pF=Pf*pdF, pB=Pb*pdB; return {all:1-(1-pF)*(1-pB), front:pF, back:pB}; }
+    if(mode==='split'){ var Pmid=0.11*R.nMid; var pF=Pf*pdF, pM=Pmid*pdMid, pB=Pb*pdB; return {all:1-(1-pF)*(1-pM)*(1-pB), front:pF, mid:pM, back:pB}; }
     return {all:Pf*Pb*pdF*pdB};
   }
-  var det=[], tot=0, hit=0, bs=0, tF=0,hF=0,bF=0, tB=0,hB=0,bB=0;
+  var det=[], tot=0, hit=0, bs=0, tF=0,hF=0,bF=0, tMid=0,hMid=0,bMid=0, tB=0,hB=0,bB=0;
   for(var i=0;i+2<per.length;i++){
     var R=rootAbsent2(i);              // 数根用 per[i],per[i+1]
     var D=d1Absent1(i+1);              // 1D用 per[i+1]（最新一期）
     var tgt=per[i+2], nc=tgt.nums.length;
-    var marks=[], wHit=false, wF=false, wB=false;
-    tgt.nums.forEach(function(s){ var e=evalNum(s,R,D); if(e.hit){ marks.push(e.why); wHit=true; if(e.fH)wF=true; if(e.bH)wB=true; } });
+    var marks=[], wHit=false, wF=false, wM=false, wB=false;
+    tgt.nums.forEach(function(s){ var e=evalNum(s,R,D); if(e.hit){ marks.push(e.why); wHit=true; if(e.fH)wF=true; if(e.mH)wM=true; if(e.bH)wB=true; } });
     var bp=baseNumProb(R,D);
     tot++; if(wHit)hit++; bs+=1-Math.pow(1-bp.all,nc);
-    if(mode==='split'){ tF++; if(wF)hF++; bF+=1-Math.pow(1-bp.front,nc); tB++; if(wB)hB++; bB+=1-Math.pow(1-bp.back,nc); }
-    var absStr='根['+(mode==='mix'?('混'+Object.keys(R.M).join('')):('前'+Object.keys(R.F).join('')+' 后'+Object.keys(R.B).join('')))+'] 1D['+POS.map(function(p,q){return p+Object.keys(D.A[q]).join('');}).join(' ')+']';
+    if(mode==='split'){ tF++; if(wF)hF++; bF+=1-Math.pow(1-bp.front,nc); tMid++; if(wM)hMid++; bMid+=1-Math.pow(1-bp.mid,nc); tB++; if(wB)hB++; bB+=1-Math.pow(1-bp.back,nc); }
+    var absStr='根['+(mode==='mix'?('混'+Object.keys(R.M).join('')):('前'+Object.keys(R.F).join('')+' 中'+Object.keys(R.Mid).join('')+' 后'+Object.keys(R.B).join('')))+'] 1D['+POS.map(function(p,q){return p+Object.keys(D.A[q]).join('');}).join(' ')+']';
     det.push({date:tgt.date, abs:absStr, marks:marks, hit:wHit});
   }
   function verdict(t,hp,bp2){ var se=Math.sqrt((bp2/100)*(1-bp2/100)/Math.max(t,1))*100, lead=hp-bp2; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#7c3aed'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
@@ -22182,7 +22183,7 @@ function zoRootDigitComboBacktest(){
     h+='<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
     h+='<div style="font-size:13px;font-weight:800;color:#5b21b6">🎯 本期缺席 · 源【'+srcLbl+'】（数根用最近两期 '+per[per.length-2].date+'+'+per[per.length-1].date+'，1D用最新一期 '+per[per.length-1].date+'）</div>';
     if(mode==='mix'){ h+='<div style="font-size:13px;margin-top:4px">缺席根(前后合并)：<b style="color:#6d28d9">'+(Object.keys(Rc.M).join(' ')||'无')+'</b></div>'; }
-    else { h+='<div style="font-size:13px;margin-top:4px">前2D缺根：<b style="color:#0f766e">'+(Object.keys(Rc.F).join(' ')||'无')+'</b> · 后2D缺根：<b style="color:#be185d">'+(Object.keys(Rc.B).join(' ')||'无')+'</b></div>'; }
+    else { h+='<div style="font-size:13px;margin-top:4px">前2D缺根：<b style="color:#0f766e">'+(Object.keys(Rc.F).join(' ')||'无')+'</b> · 中2D缺根：<b style="color:#b45309">'+(Object.keys(Rc.Mid).join(' ')||'无')+'</b> · 后2D缺根：<b style="color:#be185d">'+(Object.keys(Rc.B).join(' ')||'无')+'</b></div>'; }
     h+='<div style="font-size:13px;margin-top:2px;font-family:monospace">缺席1D：'+POS.map(function(p,q){return p+'<b style="color:#5b21b6">'+(Object.keys(Dc.A[q]).join('')||'无')+'</b>';}).join(' ')+'</div>';
     // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）；两位都在缺席1D里的高亮（数根+1D双缺=打法目标）
     (function(){
@@ -22209,6 +22210,7 @@ function zoRootDigitComboBacktest(){
         h+=block(Object.keys(Rc.M),'#be185d','混合缺根 · 当后2D(十个)看',A[2],A[3],2);
       } else {
         h+=block(Object.keys(Rc.F),'#0f766e','前2D缺根(千百)',A[0],A[1],0);
+        h+=block(Object.keys(Rc.Mid),'#b45309','中2D缺根(百十)',A[1],A[2],1);
         h+=block(Object.keys(Rc.B),'#be185d','后2D缺根(十个)',A[2],A[3],2);
       }
       h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">同两个数字(调字组，如 29·92)并在一起；<b>高亮色块</b>=该2D两位都落在缺席1D里(千位∈千缺 且 百位∈百缺)＝数根+1D双缺，才是打法真正的目标号。灰色=只中数根、位不缺。参考用，不构成预测。</div>';
@@ -22230,9 +22232,10 @@ function zoRootDigitComboBacktest(){
     : ('亮色目标号 <b>'+hp.toFixed(1)+'%</b> 反而比随机 <b>'+bp.toFixed(1)+'%</b> 低，<b>不稳</b>，这套条件在此市场没帮上忙。')));
   h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:4px 0;font-size:12px;color:#78350f;line-height:1.7">🧠 <b>亮色稳不稳？</b> '+stableTxt+'<br><span style="color:#a16207">提醒：亮色只是「符合规则」，不是「下期一定开」。工具用来缩范围、控成本，不是预测。</span></div>';
   if(mode==='split'){
-    var hpF=tF?hF/tF*100:0,bpF=tF?bF/tF*100:0,vF=verdict(tF,hpF,bpF), hpB=tB?hB/tB*100:0,bpB=tB?bB/tB*100:0,vB=verdict(tB,hpB,bpB);
+    var hpF=tF?hF/tF*100:0,bpF=tF?bF/tF*100:0,vF=verdict(tF,hpF,bpF), hpMid=tMid?hMid/tMid*100:0,bpMid=tMid?bMid/tMid*100:0,vMid=verdict(tMid,hpMid,bpMid), hpB=tB?hB/tB*100:0,bpB=tB?bB/tB*100:0,vB=verdict(tB,hpB,bpB);
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:6px 0">';
     h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><b style="color:#0f766e">前(根+千/百)</b><br>命中 <b style="font-size:16px;color:#7c3aed">'+hpF.toFixed(1)+'%</b> · 随机 '+bpF.toFixed(1)+'% · <b style="color:'+vF.c+'">'+vF.t+'</b></div>';
+    h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><b style="color:#b45309">中(根+百/十)</b><br>命中 <b style="font-size:16px;color:#7c3aed">'+hpMid.toFixed(1)+'%</b> · 随机 '+bpMid.toFixed(1)+'% · <b style="color:'+vMid.c+'">'+vMid.t+'</b></div>';
     h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><b style="color:#be185d">后(根+十/个)</b><br>命中 <b style="font-size:16px;color:#7c3aed">'+hpB.toFixed(1)+'%</b> · 随机 '+bpB.toFixed(1)+'% · <b style="color:'+vB.c+'">'+vB.t+'</b></div>';
     h+='</div>';
   }
