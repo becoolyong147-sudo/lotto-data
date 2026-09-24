@@ -9909,6 +9909,9 @@ function zoNGto4DBacktest(){
   // 点数收窄(可选,和🎯出4D同一套)
   var ptF=parseInt((document.getElementById('ng4dbt-ptf')||{value:''}).value,10); if(isNaN(ptF))ptF=null;
   var ptT=parseInt((document.getElementById('ng4dbt-ptt')||{value:''}).value,10); if(isNaN(ptT))ptT=null;
+  var onlyOpen=(document.getElementById('ng4dbt-open')||{checked:false}).checked;
+  var das={},anyDa=false; [24,12,6,4,1].forEach(function(dd){var e=document.getElementById('ng4dbt-da-'+dd);if(e&&e.checked){das[dd]=1;anyDa=true;}});
+  var H4bt=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
   var per=m.map(function(d){ var nums=[],rs=[],pos=[{},{},{},{}]; [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s)){ nums.push(s); var r=dr((+s[0])+(+s[1])+(+s[2])+(+s[3])); if(r>=1&&rs.indexOf(r)<0)rs.push(r); for(var q=0;q<4;q++)pos[q][+s[q]]=1; } });
     var abs=[[],[],[],[]]; for(var q=0;q<4;q++)for(var dgt=0;dgt<=9;dgt++)if(!pos[q][dgt])abs[q].push(dgt);
     return {date:d.date,nums:nums,roots:rs,abs:abs}; }).filter(function(x){return x.nums.length;});
@@ -9920,7 +9923,7 @@ function zoNGto4DBacktest(){
     function rowS(){var s={};for(var r=1;r<=9;r++)if(rh[grow(r)])s[r]=1;return s;}
     return {门:colS(),大小:rowS(),全镜:ps};
   }
-  function ptOk(n){ if(ptF==null&&ptT==null)return true; var s=(+n[0])+(+n[1])+(+n[2])+(+n[3]); if(ptF!=null&&s<ptF)return false; if(ptT!=null&&s>ptT)return false; return true; }
+  function ptOk(n){ var s=(+n[0])+(+n[1])+(+n[2])+(+n[3]); if(ptF!=null&&s<ptF)return false; if(ptT!=null&&s>ptT)return false; if(onlyOpen&&!(H4bt.cnt[n]>0))return false; if(anyDa&&!das[(typeof zoDaCount==='function'?zoDaCount(n):24)])return false; return true; }
   var DK=['门','大小','全镜'], DC={门:'#0369a1',大小:'#0f766e',全镜:'#be185d'};
   var tot={},hitc={},baseE={},candSum={}; DK.forEach(function(k){tot[k]=0;hitc[k]=0;baseE[k]=0;candSum[k]=0;});
   var det=[];
@@ -9942,8 +9945,14 @@ function zoNGto4DBacktest(){
   }
   function vd(t,hp,bp){ if(t<10)return {t:'🔵少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高',c:'#d97706'}:(lead<-2*se?{t:'🔴低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}); }
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔬 '+mk+' · 方向×缺席前2D×后2D→4D · 回测（'+per.length+'期 · 位缺席B版）</h3>';
-  h+='<div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">市场 <select id="ng-mk-sel" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px;color:#7c3aed;font-weight:700">'+['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 期数 <select id="ng4dbt-n" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[100,150,300,500].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select> <span style="border-left:1px solid #ddd6fe;padding-left:8px">🔽点数收窄 <input type="number" id="ng4dbt-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4dbt-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"></span></div>';
-  h+='<div class="warn">每期:用源期头二三算方向 + <b>各位缺席</b>(千百十个没出现的数字)拼前2D×后2D→4D,看下期头二三<b>正字命中</b>没,跟随机撒同样多号比。<b>点数收窄</b>可把候选往下压(看命中率会不会掉/保住)。⚠️ 历史,不预测。</div>';
+  h+='<div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">市场 <select id="ng-mk-sel" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px;color:#7c3aed;font-weight:700">'+['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 期数 <select id="ng4dbt-n" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[100,150,300,500].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select> <span style="border-left:1px solid #ddd6fe;padding-left:8px">🔽点数 <input type="number" id="ng4dbt-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4dbt-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"></span> <label style="cursor:pointer"><input type="checkbox" id="ng4dbt-open" '+(onlyOpen?'checked':'')+' onchange="zoNGto4DBacktest()"> 只历史开过</label> <span style="border-left:1px solid #ddd6fe;padding-left:8px">打数 '+[24,12,6,4,1].map(function(dd){return '<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="ng4dbt-da-'+dd+'" '+(das[dd]?'checked':'')+' onchange="zoNGto4DBacktest()">'+dd+'</label>';}).join('')+'</span></div>';
+  // 📋 当前生效的条件
+  var conds=['<b>①方向数根</b>(逐方向:门/大小/全镜)','<b>②各位缺席</b>前2D×后2D(千百×十个没出现的数字)'];
+  conds.push('<b>③点数</b>:'+((ptF!=null||ptT!=null)?((ptF!=null?ptF:0)+'–'+(ptT!=null?ptT:36)):'不限'));
+  conds.push('<b>④只历史开过</b>:'+(onlyOpen?'是':'否'));
+  conds.push('<b>⑤打数</b>:'+(anyDa?Object.keys(das).join('/')+'打':'不限'));
+  h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 10px;margin:6px 0;font-size:12px;color:#1e40af">📋 <b>当前生效条件</b>（改上面控件加/减）:<br>'+conds.join(' ｜ ')+'</div>';
+  h+='<div class="warn">每期:用源期头二三算方向 + 各位缺席拼前2D×后2D→4D(再叠上面③④⑤条件),看下期头二三<b>正字命中</b>没,跟随机撒同样多号比。一边收窄看候选变少、一边看命中率有没有掉。⚠️ 历史,不预测。</div>';
   DK.forEach(function(k){ var t=tot[k],hh=hitc[k],be=Math.round(baseE[k]),avg=t?Math.round(candSum[k]/t):0,hp=t?hh/t*100:0,bp=t?baseE[k]/t*100:0,v=vd(t,hp,bp);
     h+='<div style="font-size:13px;padding:5px 0;border-top:1px dashed #ede9fe"><span style="display:inline-block;min-width:52px;background:'+DC[k]+';color:#fff;border-radius:4px;padding:1px 8px;font-weight:700;text-align:center">'+k+'</span> '+t+'期里中 <b>'+hh+'</b> 期,随机撒同样多也中约 <b>'+be+'</b> 期 → <b style="color:'+v.c+'">'+v.t+'</b> <span style="font-size:11px;color:#94a3b8">· 平均每期 '+avg+' 个候选4D</span></div>';
   });
