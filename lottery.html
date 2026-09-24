@@ -9141,6 +9141,27 @@ function zoNextMainShow(){
       var aF=[],aB=[]; for(var r=1;r<=9;r++){ if(!pf[r])aF.push(r); if(!pb[r])aB.push(r); }
       h+='<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0;font-size:12px"><span style="display:inline-block;background:#9333ea;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">2D根缺</span>近两期('+_mg[1].date.slice(5)+'+'+_mg[0].date.slice(5)+')：前根缺 <b style="color:#0f766e">'+(aF.join(' ')||'无')+'</b> · 后根缺 <b style="color:#be185d">'+(aB.join(' ')||'无')+'</b></div>';
     })();
+    // 🎲 九宫格方向：源期头二三的4D数根 → 门/大小/斜/全镜（跟报告同风格一行）
+    (function(){
+      function drf(x){return x===0?0:(x%9===0?9:x%9);} function pad(n){return String(n).padStart(4,'0');}
+      var _nd=(typeof getNewResults==='function')?getNewResults():{}, _sn={}, _mm=[];
+      (_nd[mk]||[]).forEach(function(d){if(d&&d.date&&!_sn[d.date]){_sn[d.date]=1;_mm.push(d);}});
+      ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!_sn[d.date]){_sn[d.date]=1;_mm.push(d);}});
+      _mm=_mm.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
+      _mm.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+      var _ld=_mm[_mm.length-1]; if(!_ld)return;
+      var uq=[]; [0,1,2].forEach(function(p){var v=_ld.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s)){var r=drf((+s[0])+(+s[1])+(+s[2])+(+s[3])); if(r>=1&&uq.indexOf(r)<0)uq.push(r);}});
+      if(!uq.length)return;
+      function grow(r){return Math.ceil(r/3);} function gcol(r){return ((r-1)%3)+1;}
+      var COLG={1:'147',2:'258',3:'369'}, ROWG={1:'123',2:'456',3:'789'}, d1=[1,5,9],d2=[3,5,7];
+      var ch={},rh={},ps={};
+      uq.forEach(function(r){ rh[grow(r)]=1; if(r!==5)ch[gcol(r)]=1; ps[10-r]=1; });
+      var doorD=Object.keys(ch).sort().map(function(c){return COLG[c];}).join(' ')||'无';
+      var sizeD=Object.keys(rh).sort().map(function(x){return ROWG[x];}).join(' ')||'无';
+      var diagD=[]; if(uq.some(function(r){return d1.indexOf(r)>=0;}))diagD.push('159'); if(uq.some(function(r){return d2.indexOf(r)>=0;}))diagD.push('357'); diagD=diagD.join(' ')||'无';
+      var ptD=Object.keys(ps).map(Number).sort(function(a,b){return a-b;}).join('')||'无';
+      h+='<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0;font-size:12px"><span style="display:inline-block;background:#7c3aed;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">🎲九宫</span>头二三根 <b style="color:#7c3aed">'+uq.join('')+'</b> → 门 <b style="color:#0369a1">'+doorD+'</b> ｜ 大小 <b style="color:#0f766e">'+sizeD+'</b> ｜ 斜 <b style="color:#b45309">'+diagD+'</b> ｜ 全镜 <b style="color:#be185d">'+ptD+'</b></div>';
+    })();
     // 📤 各2D 单独送去条件筛选(归位锁定)
     h+='<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">';
     [['前2D',L.f2.tg,0],['中2D',L.m2.tg,1],['后2D',L.b2.tg,2]].forEach(function(w){ var t=(w[1]||'').trim(); if(!t)return; h+='<button class="btn" style="padding:2px 8px;font-size:10px;background:#166534;color:#fff" onclick="zoSend2DToFilter(\''+t+'\',\''+mk+'\','+w[2]+')">📤'+w[0]+'</button>'; });
@@ -9808,10 +9829,10 @@ function zoNineGridDir(){
   var colDisp=Object.keys(colsHit).sort().map(function(c){return COLG[c];}).join(' ');
   var rowDisp=Object.keys(rowsHit).sort().map(function(rw){return ROWG[rw];}).join(' ');
   var diagDisp=[]; if(uniq.some(function(r){return d1.indexOf(r)>=0;}))diagDisp.push('159'); if(uniq.some(function(r){return d2.indexOf(r)>=0;}))diagDisp.push('357'); diagDisp=diagDisp.join(' ');
-  h+=dirRow('直列·门','换门(147/258/369)=主干',colSet,colDisp,'#0369a1');
-  h+=dirRow('横行·大小','同门换大小(123小/456中/789大)',rowSet,rowDisp,'#0f766e');
-  h+=dirRow('斜线','159/357 过中心',diag,diagDisp,'#b45309');
-  h+=dirRow('点对称·全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,fmt(pt),'#be185d');
+  h+=dirRow('门·左右','147/258/369三门=主干,左右换门',colSet,colDisp,'#0369a1');
+  h+=dirRow('大小·上下','123小/456中/789大,上下换大小',rowSet,rowDisp,'#0f766e');
+  h+=dirRow('斜','159/357 过中心',diag,diagDisp,'#b45309');
+  h+=dirRow('全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,fmt(pt),'#be185d');
   h+='<div style="margin-top:8px"><button class="btn" style="background:#7c3aed;color:#fff;padding:8px 16px;font-size:13px" onclick="zoNineGridBacktest()">🔬 回测：哪个方向值得跟（周/月/半年）</button></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 主干=147/258/369三门数根。这些方向只是把号缩到某几组数根,再配前中后2D/点数等一起筛。历史随机,不构成预测。</div>';
   h+='</div>';
@@ -9855,7 +9876,7 @@ function zoNineGridBacktest(){
   if(per.length<10){ out.innerHTML='<div class="warn">'+mk+' 期数太少,无法回测。</div>'; return; }
   var latestT=new Date(per[per.length-1].date+'T00:00:00').getTime();
   var WINS=[['近1周',7],['近1月',30],['近半年',182]];
-  var DIRS=[['直列·门','col','#0369a1'],['横行·大小','row','#0f766e'],['斜线','diag','#b45309'],['点对称','pt','#be185d']];
+  var DIRS=[['门·左右(147/258/369)','col','#0369a1'],['大小·上下(123/456/789)','row','#0f766e'],['斜(159/357)','diag','#b45309'],['全镜(1↔9)','pt','#be185d']];
   // acc[dirKey][winIdx] = {tot,hit,base}
   var acc={}; DIRS.forEach(function(D){ acc[D[1]]=WINS.map(function(){return {tot:0,hit:0,base:0};}); });
   for(var i=0;i+1<per.length;i++){
@@ -9865,24 +9886,24 @@ function zoNineGridBacktest(){
       WINS.forEach(function(W,wi){ if(daysAgo<=W[1]){ var a=acc[D[1]][wi]; a.tot++; if(hitOne)a.hit++; a.base+=baseP; } });
     });
   }
-  function verdict(t,hp,bp){ if(t<10)return {t:'🔵少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡高',c:'#d97706'}:(lead<-2*se?{t:'🔴低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}); }
+  function verdict(t,hp,bp){ if(t<10)return {t:'🔵样本少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高·再看',c:'#d97706'}:(lead<-2*se?{t:'🔴偏低·避开',c:'#dc2626'}:{t:'🟢一样·别特意跟',c:'#16a34a'}); }
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔬 '+mk+' · 九宫格方向回测（哪个方向值得跟 · 周/月/半年）</h3>';
-  h+='<div class="warn">逐期用当期头二三数根算方向,看<b>下一期</b>4D数根有没有落在方向里(命中)。跟<b>随机取同样多组数根</b>比。🟡=真的比随机高(值得留意) · 🟢=跟随机没差别 · 🔴=更差。⚠️ 历史随机,不构成预测。</div>';
+  h+='<div class="warn" style="background:#fffbeb;border-color:#fde68a">👀 <b>先看懂这个</b>:每个方向都盖了<b>6~7成的号</b>,撒这么大网 → <b>几乎每期都会「中」</b>,所以命中率都90%+。这不是准,是网大。<br>真正的问题:跟「<b>随便撒同样大的网</b>」比,有没有更准?下面每格 = <b>实际中X/共Y期</b> + <b>随机也会中约几期</b> + 判定。<b>数字差不多=没优势。</b></div>';
   h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:5px 8px">方向</th>';
-  WINS.forEach(function(W){ h+='<th style="text-align:center;padding:5px 8px">'+W[0]+'<br><span style="font-weight:400;font-size:10px;color:#94a3b8">命中 vs 随机</span></th>'; });
+  WINS.forEach(function(W){ h+='<th style="text-align:center;padding:5px 8px">'+W[0]+'</th>'; });
   h+='</tr>';
   var best={lead:-1,txt:''};
   DIRS.forEach(function(D){
     h+='<tr style="border-top:1px solid #ede9fe"><td style="padding:5px 8px;font-weight:800;color:'+D[2]+'">'+D[0]+'</td>';
     WINS.forEach(function(W,wi){ var a=acc[D[1]][wi]; var hp=a.tot?a.hit/a.tot*100:0, bp=a.tot?a.base/a.tot*100:0, vd=verdict(a.tot,hp,bp);
       if(a.tot>=10 && (hp-bp)>best.lead){ best.lead=hp-bp; best.txt=D[0]+'·'+W[0]; }
-      h+='<td style="text-align:center;padding:5px 8px"><div style="font-weight:800;color:'+D[2]+'">'+hp.toFixed(0)+'% <span style="color:#94a3b8;font-weight:400">/ '+bp.toFixed(0)+'%</span></div><div style="font-size:11px;color:'+vd.c+';font-weight:700">'+vd.t+'</div><div style="font-size:9px;color:#cbd5e1">'+a.tot+'期</div></td>';
+      h+='<td style="text-align:center;padding:5px 8px"><div style="font-weight:800;color:#1e293b">中 '+a.hit+'/'+a.tot+' 期</div><div style="font-size:10px;color:#94a3b8">随机也中约 '+Math.round(a.base)+' 期</div><div style="font-size:11px;color:'+vd.c+';font-weight:700;margin-top:1px">'+vd.t+'</div></td>';
     });
     h+='</tr>';
   });
   h+='</table></div>';
-  h+='<div style="background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#5b21b6">🧠 <b>值得跟哪个?</b> '+(best.lead>0?('这段数据里领先随机最多的是 <b>'+best.txt+'</b>(高随机 '+best.lead.toFixed(1)+'%)。'+(best.lead<3?' 但差距很小,很可能是巧合,换市场/多跑几次再看能不能稳定复现。':' 幅度还行,值得盯几期验证是否稳定。')):'四个方向<b>都没赢过随机</b> —— 这套「看数根定方向」只是把号缩到某几组,不比随便挑准。当收窄/控成本用可以,别当预测。')+'</div>';
-  h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">⚠️ 命中率高是因为方向覆盖了半数以上数根(必然)——重点看「比随机高不高」。判定用2×标准误。</div>';
+  h+='<div style="background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px;color:#5b21b6">🧠 <b>一句话结论</b>:'+(best.lead>2?('这段里 <b>'+best.txt+'</b> 比随机多中一点(约领先 '+best.lead.toFixed(1)+'%)。'+(best.lead<4?'但差距小,<b>八成是巧合</b> —— 别急着重注,盯几期看会不会稳定。':'幅度还行,<b>值得盯几期</b>验证稳不稳。')):'四个方向 <b>基本都跟随机一样</b>(中的期数跟随机差不多)。也就是说:<b>没有哪个方向真的更准</b>。它们的用处是「把号收窄、控成本」,不是「更容易中」。')+'</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">⚠️ 判定用2×标准误。🟢=跟随机没差别 · 🟡=略高(多半噪音) · 🔴=更差 · 🔵=期数太少看不准。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
