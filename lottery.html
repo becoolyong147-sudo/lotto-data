@@ -9160,7 +9160,13 @@ function zoNextMainShow(){
       var sizeD=Object.keys(rh).sort().map(function(x){return ROWG[x];}).join(' ')||'无';
       var diagD=[]; if(uq.some(function(r){return d1.indexOf(r)>=0;}))diagD.push('159'); if(uq.some(function(r){return d2.indexOf(r)>=0;}))diagD.push('357'); diagD=diagD.join(' ')||'无';
       var ptD=Object.keys(ps).map(Number).sort(function(a,b){return a-b;}).join('')||'无';
-      h+='<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0;font-size:12px"><span style="display:inline-block;background:#7c3aed;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">🎲九宫</span>头二三根 <b style="color:#7c3aed">'+uq.join('')+'</b> → 门 <b style="color:#0369a1">'+doorD+'</b> ｜ 大小 <b style="color:#0f766e">'+sizeD+'</b> ｜ 斜 <b style="color:#b45309">'+diagD+'</b> ｜ 全镜 <b style="color:#be185d">'+ptD+'</b></div>';
+      // 各方向的原始数根(送筛选用)
+      var doorRaw=''; for(var _r=1;_r<=9;_r++)if(ch[gcol(_r)])doorRaw+=_r;
+      var sizeRaw=''; for(var _r2=1;_r2<=9;_r2++)if(rh[grow(_r2)])sizeRaw+=_r2;
+      var _dg={}; if(uq.some(function(r){return d1.indexOf(r)>=0;}))d1.forEach(function(x){_dg[x]=1;}); if(uq.some(function(r){return d2.indexOf(r)>=0;}))d2.forEach(function(x){_dg[x]=1;}); var diagRaw=Object.keys(_dg).join('');
+      var ptRaw=Object.keys(ps).map(Number).sort(function(a,b){return a-b;}).join('');
+      function _cl(disp,raw,col){ if(!raw)return '<b style="color:'+col+'">'+disp+'</b>'; return '<b style="color:'+col+';cursor:pointer;text-decoration:underline dotted" title="点→勾进高级筛选4D数根" onclick="zoNGSend(\''+raw+'\',\''+mk+'\')">'+disp+'</b>'; }
+      h+='<div style="margin-top:5px;padding-top:5px;border-top:1px dashed #e2e8f0;font-size:12px"><span style="display:inline-block;background:#7c3aed;color:#fff;border-radius:4px;padding:1px 7px;font-weight:700;margin-right:5px">🎲九宫</span>头二三根 <b style="color:#7c3aed">'+uq.join('')+'</b> → 门 '+_cl(doorD,doorRaw,'#0369a1')+' ｜ 大小 '+_cl(sizeD,sizeRaw,'#0f766e')+' ｜ 斜 '+_cl(diagD,diagRaw,'#b45309')+' ｜ 全镜 '+_cl(ptD,ptRaw,'#be185d')+' <span style="font-size:10px;color:#94a3b8">(点方向→勾筛选)</span></div>';
     })();
     // 📤 各2D 单独送去条件筛选(归位锁定)
     h+='<div style="margin-top:4px;display:flex;gap:5px;flex-wrap:wrap">';
@@ -9811,18 +9817,13 @@ function zoNineGridDir(){
   var diag=Object.keys(diagSet).map(Number);
   // 点对称(全镜) 1↔9 2↔8 3↔7 4↔6 5↔5
   var ptSet={}; uniq.forEach(function(r){ if(r>=1&&r<=9)ptSet[10-r]=1; }); var pt=Object.keys(ptSet).map(Number);
-  // 展示九宫格(点亮开出的数根)
-  var gridRows=[[7,8,9],[4,5,6],[1,2,3]];
-  h+='<div class="warn">刚开头二三的 4D数根：<b style="color:#7c3aed;font-size:15px">'+uniq.join(' ')+'</b>（在九宫格点亮）。下面各方向的数根，点「📤」直接勾进高级筛选的 <b>4D数根</b>。</div>';
-  h+='<table style="border-collapse:collapse;margin:6px 0;font-family:monospace">';
-  gridRows.forEach(function(rw){ h+='<tr>'; rw.forEach(function(c){ var on=uniq.indexOf(c)>=0; h+='<td style="width:38px;height:34px;text-align:center;border:1px solid #ddd6fe;font-weight:800;font-size:16px;'+(on?'background:#7c3aed;color:#fff':'color:#94a3b8')+'">'+c+'</td>'; }); h+='</tr>'; });
-  h+='</table>';
+  // 报告风格：源期头 + 带色标签行
+  h+='<div class="warn">源期 <b>'+last.date+'</b> · 头二三 4D数根 <b style="color:#7c3aed;font-size:15px">'+uniq.join(' ')+'</b> → 下面各方向数根,<b>点数字</b>直接勾进高级筛选的 4D数根,再叠前中后2D/点数就🔍。</div>';
   function dirRow(lbl,desc,set,disp,col){ if(!set.length) return ''; var s=fmt(set);
-    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;padding:6px 8px;background:#faf5ff;border:1px solid #ede9fe;border-radius:8px">'+
-      '<span style="min-width:120px;font-weight:800;color:'+col+'">'+lbl+'</span>'+
-      '<span style="font-family:monospace;font-size:16px;font-weight:800;color:'+col+'">'+disp+'</span>'+
-      '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoNGSend(\''+s+'\',\''+mk+'\')">📤 勾进4D数根筛选</button>'+
-      '<span style="font-size:10px;color:#94a3b8">'+desc+'</span></div>';
+    return '<div style="margin:5px 0;font-size:13px;padding-top:4px;border-top:1px dashed #ede9fe">'+
+      '<span style="display:inline-block;background:'+col+';color:#fff;border-radius:4px;padding:1px 8px;font-weight:700;margin-right:6px">'+lbl+'</span>'+
+      '<b style="font-family:monospace;font-size:16px;color:'+col+';cursor:pointer;text-decoration:underline dotted" title="点→勾进高级筛选4D数根" onclick="zoNGSend(\''+s+'\',\''+mk+'\')">'+disp+'</b>'+
+      ' <span style="font-size:10px;color:#94a3b8">'+desc+'</span></div>';
   }
   // 分组显示(按门/行读，别把147+369挤成134679)
   var COLG={1:'147',2:'258',3:'369'}, ROWG={1:'123',2:'456',3:'789'};
@@ -9833,7 +9834,7 @@ function zoNineGridDir(){
   h+=dirRow('大小·上下','123小/456中/789大,上下换大小',rowSet,rowDisp,'#0f766e');
   h+=dirRow('斜','159/357 过中心',diag,diagDisp,'#b45309');
   h+=dirRow('全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,fmt(pt),'#be185d');
-  h+='<div style="margin-top:8px"><button class="btn" style="background:#7c3aed;color:#fff;padding:8px 16px;font-size:13px" onclick="zoNineGridBacktest()">🔬 回测：哪个方向值得跟（周/月/半年）</button></div>';
+  h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="background:#7c3aed;color:#fff;padding:8px 16px;font-size:13px" onclick="zoNineGridReportShow()">📜 逐期报告（✅❌）</button><button class="btn" style="background:#5b21b6;color:#fff;padding:8px 16px;font-size:13px" onclick="zoNineGridBacktest()">🔬 回测：哪个方向值得跟（周/月/半年）</button></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 主干=147/258/369三门数根。这些方向只是把号缩到某几组数根,再配前中后2D/点数等一起筛。历史随机,不构成预测。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
@@ -9889,21 +9890,62 @@ function zoNineGridBacktest(){
   function verdict(t,hp,bp){ if(t<10)return {t:'🔵样本少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高·再看',c:'#d97706'}:(lead<-2*se?{t:'🔴偏低·避开',c:'#dc2626'}:{t:'🟢一样·别特意跟',c:'#16a34a'}); }
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔬 '+mk+' · 九宫格方向回测（哪个方向值得跟 · 周/月/半年）</h3>';
   h+='<div class="warn" style="background:#fffbeb;border-color:#fde68a">👀 <b>先看懂这个</b>:每个方向都盖了<b>6~7成的号</b>,撒这么大网 → <b>几乎每期都会「中」</b>,所以命中率都90%+。这不是准,是网大。<br>真正的问题:跟「<b>随便撒同样大的网</b>」比,有没有更准?下面每格 = <b>实际中X/共Y期</b> + <b>随机也会中约几期</b> + 判定。<b>数字差不多=没优势。</b></div>';
-  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:5px 8px">方向</th>';
-  WINS.forEach(function(W){ h+='<th style="text-align:center;padding:5px 8px">'+W[0]+'</th>'; });
-  h+='</tr>';
   var best={lead:-1,txt:''};
   DIRS.forEach(function(D){
-    h+='<tr style="border-top:1px solid #ede9fe"><td style="padding:5px 8px;font-weight:800;color:'+D[2]+'">'+D[0]+'</td>';
+    h+='<div style="margin:6px 0;padding-top:5px;border-top:1px dashed #ede9fe;font-size:12px">';
+    h+='<span style="display:inline-block;background:'+D[2]+';color:#fff;border-radius:4px;padding:1px 8px;font-weight:700;margin-right:6px">'+D[0]+'</span>';
+    var parts=[];
     WINS.forEach(function(W,wi){ var a=acc[D[1]][wi]; var hp=a.tot?a.hit/a.tot*100:0, bp=a.tot?a.base/a.tot*100:0, vd=verdict(a.tot,hp,bp);
       if(a.tot>=10 && (hp-bp)>best.lead){ best.lead=hp-bp; best.txt=D[0]+'·'+W[0]; }
-      h+='<td style="text-align:center;padding:5px 8px"><div style="font-weight:800;color:#1e293b">中 '+a.hit+'/'+a.tot+' 期</div><div style="font-size:10px;color:#94a3b8">随机也中约 '+Math.round(a.base)+' 期</div><div style="font-size:11px;color:'+vd.c+';font-weight:700;margin-top:1px">'+vd.t+'</div></td>';
+      parts.push('<b>'+W[0]+'</b> 中'+a.hit+'/'+a.tot+'(随机~'+Math.round(a.base)+') <b style="color:'+vd.c+'">'+vd.t+'</b>');
     });
-    h+='</tr>';
+    h+=parts.join(' <span style="color:#e2e8f0">｜</span> ');
+    h+='</div>';
   });
-  h+='</table></div>';
   h+='<div style="background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:13px;color:#5b21b6">🧠 <b>一句话结论</b>:'+(best.lead>2?('这段里 <b>'+best.txt+'</b> 比随机多中一点(约领先 '+best.lead.toFixed(1)+'%)。'+(best.lead<4?'但差距小,<b>八成是巧合</b> —— 别急着重注,盯几期看会不会稳定。':'幅度还行,<b>值得盯几期</b>验证稳不稳。')):'四个方向 <b>基本都跟随机一样</b>(中的期数跟随机差不多)。也就是说:<b>没有哪个方向真的更准</b>。它们的用处是「把号收窄、控成本」,不是「更容易中」。')+'</div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">⚠️ 判定用2×标准误。🟢=跟随机没差别 · 🟡=略高(多半噪音) · 🔴=更差 · 🔵=期数太少看不准。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 📜 九宫格方向 · 逐期报告(✅❌)：每期源期→下期，列出门/大小/斜/全镜方向 + 下期4D数根中没中
+function zoNineGridReportShow(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('ng-mk-sel')||document.getElementById('abs-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('ng-rpt-n')||{value:'20'}).value,10)||20;
+  function drf(x){ return x===0?0:(x%9===0?9:x%9); } function pad(n){ return String(n).padStart(4,'0'); }
+  function grow(r){ return Math.ceil(r/3); } function gcol(r){ return ((r-1)%3)+1; }
+  var d1=[1,5,9], d2=[3,5,7], COLG={1:'147',2:'258',3:'369'}, ROWG={1:'123',2:'456',3:'789'};
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, sn={}, m=[];
+  (nd[mk]||[]).forEach(function(d){if(d&&d.date&&!sn[d.date]){sn[d.date]=1;m.push(d);}});
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!sn[d.date]){sn[d.date]=1;m.push(d);}});
+  m=m.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var per=m.map(function(d){ var nums=[],rs=[]; [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s)){ nums.push(s); var r=drf((+s[0])+(+s[1])+(+s[2])+(+s[3])); if(r>=1)rs.push(r); } }); var u=[]; rs.forEach(function(r){if(u.indexOf(r)<0)u.push(r);}); return {date:d.date,nums:nums,roots:rs,uniq:u}; }).filter(function(x){return x.roots.length;});
+  if(per.length<3){ out.innerHTML='<div class="warn">'+mk+' 期数太少。</div>'; return; }
+  function dirsFull(uq){
+    var ch={},rh={},ds={},ps={}; uq.forEach(function(r){ rh[grow(r)]=1; if(r!==5)ch[gcol(r)]=1; if(d1.indexOf(r)>=0)d1.forEach(function(x){ds[x]=1;}); if(d2.indexOf(r)>=0)d2.forEach(function(x){ds[x]=1;}); ps[10-r]=1; });
+    function colSet(){var s={};for(var r=1;r<=9;r++)if(ch[gcol(r)])s[r]=1;return s;}
+    function rowSet(){var s={};for(var r=1;r<=9;r++)if(rh[grow(r)])s[r]=1;return s;}
+    var doorD=Object.keys(ch).sort().map(function(c){return COLG[c];}).join(' ')||'无';
+    var sizeD=Object.keys(rh).sort().map(function(x){return ROWG[x];}).join(' ')||'无';
+    var diagD=[]; if(uq.some(function(r){return d1.indexOf(r)>=0;}))diagD.push('159'); if(uq.some(function(r){return d2.indexOf(r)>=0;}))diagD.push('357'); diagD=diagD.join(' ')||'无';
+    var ptD=Object.keys(ps).map(Number).sort(function(a,b){return a-b;}).join('')||'无';
+    return [['门',colSet(),doorD,'#0369a1'],['大小',rowSet(),sizeD,'#0f766e'],['斜',ds,diagD,'#b45309'],['全镜',ps,ptD,'#be185d']];
+  }
+  var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">📜 '+mk+' · 九宫格方向 逐期报告（'+Math.min(N,per.length-1)+'期 · 新→旧）</h3>';
+  h+='<div style="margin-bottom:6px">市场 <select id="ng-mk-sel" onchange="zoNineGridReportShow()" style="font-size:12px;padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px;color:#7c3aed;font-weight:700">'+['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 期数 <select id="ng-rpt-n" onchange="zoNineGridReportShow()" style="font-size:12px;padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[10,20,40,80].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select></div>';
+  h+='<div class="warn">每期用当期头二三的4D数根算方向,看<b>下一期</b>头二三的4D数根有没有落在方向里。✅=中 ❌=没中。⚠️ 历史,不构成预测。</div>';
+  var start=per.length-2, end=Math.max(0,per.length-1-N);
+  for(var i=start;i>=end;i--){
+    var src=per[i], tgt=per[i+1];
+    var tR={}; tgt.roots.forEach(function(r){tR[r]=1;});
+    h+='<div style="border:1px solid #ede9fe;border-radius:8px;padding:7px 10px;margin-top:6px">';
+    h+='<div style="font-size:12px;font-weight:700;color:#5b21b6">📅 源期 '+src.date+'（头二三根 '+src.uniq.join('')+'）→ 下期 '+tgt.date+' 开 '+tgt.nums.join('/')+'（根 '+tgt.roots.join('')+'）</div>';
+    dirsFull(src.uniq).forEach(function(D){ var lbl=D[0],set=D[1],disp=D[2],col=D[3]; var hit=tgt.roots.some(function(r){return set[r];});
+      h+='<div style="font-size:12px;margin-top:3px"><span style="display:inline-block;background:'+col+';color:#fff;border-radius:4px;padding:0 7px;font-weight:700;margin-right:5px">'+lbl+'</span><b style="font-family:monospace;color:'+col+'">'+disp+'</b> → '+(hit?'<span style="color:#16a34a;font-weight:700">✅ 中</span>':'<span style="color:#dc2626;font-weight:700">❌</span>')+'</div>';
+    });
+    h+='</div>';
+  }
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
