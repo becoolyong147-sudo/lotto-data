@@ -9782,8 +9782,8 @@ function zoNineGridDir(){
   // 横行：取占到的整行
   var rowsHit={}; uniq.forEach(function(r){ if(r>=1)rowsHit[grow(r)]=1; });
   var rowSet=[]; for(var r=1;r<=9;r++){ if(rowsHit[grow(r)])rowSet.push(r); }
-  // 直列(门)：取占到的整列
-  var colsHit={}; uniq.forEach(function(r){ if(r>=1)colsHit[gcol(r)]=1; });
+  // 直列(门)：取占到的整列。中心5是中宫枢纽，不选门
+  var colsHit={}; uniq.forEach(function(r){ if(r>=1&&r!==5)colsHit[gcol(r)]=1; });
   var colSet=[]; for(var r2=1;r2<=9;r2++){ if(colsHit[gcol(r2)])colSet.push(r2); }
   // 斜线 159 / 357
   var d1=[1,5,9], d2=[3,5,7]; var diagSet={}; uniq.forEach(function(r){ if(d1.indexOf(r)>=0)d1.forEach(function(x){diagSet[x]=1;}); if(d2.indexOf(r)>=0)d2.forEach(function(x){diagSet[x]=1;}); });
@@ -9796,17 +9796,22 @@ function zoNineGridDir(){
   h+='<table style="border-collapse:collapse;margin:6px 0;font-family:monospace">';
   gridRows.forEach(function(rw){ h+='<tr>'; rw.forEach(function(c){ var on=uniq.indexOf(c)>=0; h+='<td style="width:38px;height:34px;text-align:center;border:1px solid #ddd6fe;font-weight:800;font-size:16px;'+(on?'background:#7c3aed;color:#fff':'color:#94a3b8')+'">'+c+'</td>'; }); h+='</tr>'; });
   h+='</table>';
-  function dirRow(lbl,desc,set,col){ if(!set.length) return ''; var s=fmt(set);
+  function dirRow(lbl,desc,set,disp,col){ if(!set.length) return ''; var s=fmt(set);
     return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;padding:6px 8px;background:#faf5ff;border:1px solid #ede9fe;border-radius:8px">'+
       '<span style="min-width:120px;font-weight:800;color:'+col+'">'+lbl+'</span>'+
-      '<span style="font-family:monospace;font-size:16px;font-weight:800;color:'+col+'">'+s+'</span>'+
+      '<span style="font-family:monospace;font-size:16px;font-weight:800;color:'+col+'">'+disp+'</span>'+
       '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoNGSend(\''+s+'\',\''+mk+'\')">📤 勾进4D数根筛选</button>'+
       '<span style="font-size:10px;color:#94a3b8">'+desc+'</span></div>';
   }
-  h+=dirRow('直列·门','换门(147/258/369)=主干',colSet,'#0369a1');
-  h+=dirRow('横行·大小','同门换大小(123小/456中/789大)',rowSet,'#0f766e');
-  h+=dirRow('斜线','159/357 过中心',diag,'#b45309');
-  h+=dirRow('点对称·全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,'#be185d');
+  // 分组显示(按门/行读，别把147+369挤成134679)
+  var COLG={1:'147',2:'258',3:'369'}, ROWG={1:'123',2:'456',3:'789'};
+  var colDisp=Object.keys(colsHit).sort().map(function(c){return COLG[c];}).join(' ');
+  var rowDisp=Object.keys(rowsHit).sort().map(function(rw){return ROWG[rw];}).join(' ');
+  var diagDisp=[]; if(uniq.some(function(r){return d1.indexOf(r)>=0;}))diagDisp.push('159'); if(uniq.some(function(r){return d2.indexOf(r)>=0;}))diagDisp.push('357'); diagDisp=diagDisp.join(' ');
+  h+=dirRow('直列·门','换门(147/258/369)=主干',colSet,colDisp,'#0369a1');
+  h+=dirRow('横行·大小','同门换大小(123小/456中/789大)',rowSet,rowDisp,'#0f766e');
+  h+=dirRow('斜线','159/357 过中心',diag,diagDisp,'#b45309');
+  h+=dirRow('点对称·全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,fmt(pt),'#be185d');
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 主干=147/258/369三门数根。这些方向只是把号缩到某几组数根,再配前中后2D/点数等一起筛。历史随机,不构成预测。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
