@@ -247,9 +247,6 @@ tr:hover td{background:#fafaf5}
     <div class="scene active" onclick="switchScene('decision',this)"><span class="icon">🎯</span>决策中心</div>
     <div class="scene" onclick="switchScene('analysis',this)"><span class="icon">📈</span>行为分析</div>
     <div class="scene" onclick="switchScene('data',this)"><span class="icon">📥</span>数据管理</div>
-    <div class="scene" onclick="switchScene('dranalysis',this)"><span class="icon">🔢</span>走势分析</div>
-    <div class="scene" onclick="switchScene('honest',this)"><span class="icon">🧮</span>诚实工具</div>
-    <div class="scene" onclick="switchScene('hub',this)"><span class="icon">🏭</span>工作台</div>
   </div>
 </div>
 
@@ -279,99 +276,13 @@ tr:hover td{background:#fafaf5}
 <div id="scene-data" class="scene-panel">
   <div class="subtabs">
     <div class="subtab active" data-tab="add" onclick="switchSubtab(this)">➕ 输入新成绩</div>
-    <div class="subtab" data-tab="paste" onclick="switchSubtab(this)">📋 贴入解析</div>
     <div class="subtab" data-tab="dataexport" onclick="switchSubtab(this)">💾 数据导出</div>
   </div>
 </div>
 
 
-<!-- Scene: 走势分析 -->
-<div id="scene-dranalysis" class="scene-panel">
-  <div class="subtabs">
-    <div class="subtab active" data-tab="recommend-hub" onclick="switchSubtab(this)">🎯 推荐中心</div>
-  </div>
-</div>
 
-<!-- Scene: 诚实工具 -->
-<div id="scene-honest" class="scene-panel">
-  <div style="padding:14px">
-    <div class="card" style="border:2px solid #7e22ce;background:#faf5ff">
-      <h3 style="color:#7e22ce">🧮 诚实工具 · 守住底线（不预测号码）</h3>
-      <div class="warn" style="margin:6px 0">这三个工具是全套里唯一"真能算、站得住脚"的：算成本、查公平、看周期。用来管本、复盘、对会员讲道理。</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
-        <button class="btn" style="background:#9333ea;color:#fff;padding:10px 16px;font-size:14px" onclick="zoEVShow()">🧮 EV计算器（成本×赔率）</button>
-        <button class="btn" style="background:#334155;color:#fff;padding:10px 16px;font-size:14px" onclick="zoHonestyAudit()">🔬 诚实审计（公不公平）</button>
-        <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoMktCycleReport()">📊 市场周期报告（几年轮一次）</button>
-        <button class="btn" style="background:#be123c;color:#fff;padding:10px 16px;font-size:14px" onclick="zoBetLogShow()">📓 下注账本（记录+复盘）</button>
-        <button class="btn" style="background:#9d174d;color:#fff;padding:10px 16px;font-size:14px" onclick="zoCrossPrizeShow()">🔁 跨奖位重复（头↔二↔三）</button>
-        <button class="btn" style="background:#4338ca;color:#fff;padding:10px 16px;font-size:14px" onclick="zoIdeaReport()">📑 想法验证报告（奖位轮回+间隔）</button>
-        <button class="btn" style="background:#a21caf;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLinkReview()">🔢 缺席数根链接·回测</button>
-        <button class="btn" style="background:#7e22ce;color:#fff;padding:10px 16px;font-size:14px" onclick="zoRootLink4DReview()">🔢 数根链接·完整4D回测</button>
-        <button class="btn" style="background:#0369a1;color:#fff;padding:10px 16px;font-size:14px" onclick="zoAll1DReview()">🔢 四位1D(千百十个)·回测</button>
-      </div>
-      <div style="font-size:11px;color:#7e22ce;margin-top:8px">🧮 EV=每注的娱乐成本与庄家抽水；🔬 审计=卡方查每位数字公不公平；📊 报告=各市场平均多久轮到一个号。</div>
-    </div>
-    <div id="honest-out"></div>
-  </div>
-</div>
 
-<!-- Scene: 工作台（流水线） -->
-<div id="scene-hub" class="scene-panel">
-  <div style="padding:14px">
-    <div class="card">
-      <h3>🏭 工作台 · 工具流水线（点方块直接跳）</h3>
-      <div class="warn" style="margin:6px 0">四个阶段:① 造号 → ② 收窄 → ③ 算账/验证 → ④ 记录复盘。点任一方块跳到那个工具。⚠️ 前三阶段帮你选号/收窄/算成本;<b>没有任何组合能提高中奖率</b>——那是随机的。</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:10px" id="hub-grid"></div>
-      <div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px">
-        <div style="font-size:13px;font-weight:800;color:#1e3a5f;margin-bottom:6px">🔗 推荐串法（顺着走）</div>
-        <div style="font-size:12px;color:#334155;line-height:2">
-          <div><b>发群主线:</b> 缺席分析 → 分区地图4D(加*) → 会员版</div>
-          <div><b>精选主线:</b> 组合生成器(A∩B撞号) → 高级筛选(打数/数根/久违) → 复制</div>
-          <div><b>算账主线:</b> 下一期主打(1D+2D) → 你的box打法 → 融合清单钱账</div>
-          <div><b>单号决策:</b> 条件筛选(撞号) → 查一个号 → EV计算器</div>
-          <div><b>长期复盘:</b> 任何选号 → 下注账本 → 分市场/玩法找漏</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-(function(){
-  var HUB=[
-    {t:'① 造号 / 选号',c:'#0d9488',bg:'#f0fdfa',items:[
-      ['🎯 缺席分析','absent'],['🎯 下一期主打','absent'],['🧩 组合生成器','absent'],
-      ['🗺️ 分区地图4D','absent'],['🔗 链接号码','absent'],['🗓️ 季节常客','season'],
-      ['🐲 生肖图','zodiac'],['🔢 号码排列','numsort']
-    ]},
-    {t:'② 收窄 / 撞号',c:'#dc2626',bg:'#fef2f2',items:[
-      ['🧰 条件筛选(A∩B撞号)','filter'],['🧩 组合生成器(过滤)','absent'],['🔍 查一个号','numlookup']
-    ]},
-    {t:'③ 算账 / 验证',c:'#7c3aed',bg:'#faf5ff',items:[
-      ['🧮 EV计算器','__honest'],['🔬 诚实审计','__honest'],['📊 市场周期报告','__honest'],
-      ['🔁 跨奖位重复','__honest'],['📑 想法验证报告','__honest'],['🎯 一键总览(回测)','overview']
-    ]},
-    {t:'④ 记录 / 复盘',c:'#be123c',bg:'#fff1f2',items:[
-      ['📓 下注账本','__honest'],['📜 查回历史','absent'],['🌟 会员版','absent']
-    ]}
-  ];
-  function go(target){
-    if(target==='__honest'){ if(typeof switchScene==='function') switchScene('honest'); return; }
-    if(typeof switchTab==='function') switchTab(target);
-    else if(typeof showTabPanel==='function') showTabPanel(target);
-  }
-  window.__hubGo=go;
-  function render(){
-    var g=document.getElementById('hub-grid'); if(!g) return;
-    g.innerHTML=HUB.map(function(col){
-      var chips=col.items.map(function(it){
-        return '<div onclick="__hubGo(\''+it[1]+'\')" style="cursor:pointer;background:#fff;border:1px solid '+col.c+'33;border-left:3px solid '+col.c+';border-radius:7px;padding:7px 9px;margin:5px 0;font-size:12px;font-weight:600;color:#1e293b;transition:all .1s" onmouseover="this.style.background=\''+col.bg+'\'" onmouseout="this.style.background=\'#fff\'">'+it[0]+'</div>';
-      }).join('');
-      return '<div style="background:'+col.bg+';border:1px solid '+col.c+'44;border-radius:12px;padding:10px"><div style="font-size:14px;font-weight:800;color:'+col.c+';margin-bottom:4px">'+col.t+'</div>'+chips+'</div>';
-    }).join('');
-  }
-  if(document.readyState!=='loading') render(); else document.addEventListener('DOMContentLoaded',render);
-})();
-</script>
 
 <!-- 走势分析 panels -->
 <div id="tab-dr-table" class="panel" style="padding:12px">
@@ -406,116 +317,6 @@ tr:hover td{background:#fafaf5}
   <div id="dr-table-out"></div>
 </div>
 
-<!-- TAB: 推荐中心 (合并 一键分析 + 号码推荐 + 漏失诊断) -->
-<div id="tab-recommend-hub" class="panel" style="padding:12px">
-  <!-- 内部迷你导航 -->
-  <div style="display:flex;gap:6px;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:10px">
-    <button id="rhub-btn-quick" onclick="showRHub('quick')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#1e3a5f;color:#fff">⚡ 一键分析</button>
-    <button id="rhub-btn-recommend" onclick="showRHub('recommend')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">🎯 号码推荐</button>
-    <button id="rhub-btn-diagnose" onclick="showRHub('diagnose')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">🤖 自动分析引擎</button>
-  </div>
-  <!-- 一键分析内容 -->
-  <div id="rhub-quick">
-    <div class="card">
-      <h3>⚡ 一键分析 — 输入最新一期成绩</h3>
-      <div class="row" style="margin-bottom:8px">
-        <div class="ig"><label>公司</label>
-          <select id="dq-company"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
-        </div>
-        <div class="ig"><label>日期</label><input type="date" id="dq-date" style="width:140px"></div>
-        <div class="ig"><label>奖项参考</label>
-          <select id="dq-prize"><option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option></select>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="ig"><label>🥇 头奖</label><input type="text" id="dq-p1" maxlength="4" placeholder="如 2624" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-        <div class="ig"><label>🥈 二奖</label><input type="text" id="dq-p2" maxlength="4" placeholder="如 3953" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-        <div class="ig"><label>🥉 三奖</label><input type="text" id="dq-p3" maxlength="4" placeholder="如 3693" oninput="this.value=this.value.replace(/\D/g,'')"></div>
-      </div>
-      <div class="ig" style="margin-bottom:8px">
-        <label>特别奖（空格分开，首位单双分组找1D）</label>
-        <textarea id="dq-special" rows="2" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:5px;font-size:13px;font-family:monospace" placeholder="8691 0786 3141 7670 7065 0793 7327 5216 5103 9714"></textarea>
-      </div>
-      <div class="row">
-        <button class="btn btn-green" onclick="drQuickAnalysis()">⚡ 立即分析</button>
-        <button class="btn btn-sm" onclick="drQuickFillToday()" style="background:#6b7280">今天日期</button>
-      </div>
-    </div>
-    <div id="dq-out"></div>
-  </div>
-  <!-- 号码推荐内容 -->
-  <div id="rhub-recommend" style="display:none">
-    <div class="card">
-      <h3>🎯 号码推荐</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div class="ig"><label>公司</label>
-          <select id="dr-company"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
-        </div>
-        <div class="ig"><label>期数</label>
-          <select id="dr-periods"><option value="20">最近20期</option><option value="50" selected>最近50期</option><option value="100">最近100期</option><option value="0">全部</option></select>
-        </div>
-        <div class="ig"><label>奖项</label>
-          <select id="dr-prize2"><option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option></select>
-        </div>
-      </div>
-      <div class="ig" style="margin-bottom:8px">
-        <label>本期特别奖（空格分开，首位单双分组找1D）</label>
-        <textarea id="dr-special" rows="2" style="width:100%;padding:7px;border:1px solid #ccc;border-radius:5px;font-size:13px;font-family:monospace" placeholder="8691 0786 3141 7670 7065 0793 7327 5216 5103 9714"></textarea>
-      </div>
-      <button class="btn btn-green" onclick="drRecommend()">🎯 生成推荐号码</button>
-    </div>
-    <div id="dr-recommend-out"></div>
-  </div>
-  <!-- 自动分析引擎内容 -->
-  <div id="rhub-diagnose" style="display:none">
-    <div class="card">
-      <h3>🤖 自动分析引擎 — 系统自己算，你看结果</h3>
-      <div class="warn" style="margin-bottom:12px">
-        选好市场和参考期数，系统自动跑完四步分析，给出下期候选号码。<br>
-        开奖后点「<b>回测上期</b>」，系统自己检讨哪一步算错了。
-      </div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
-        <div class="ig"><label>市场</label>
-          <select id="ae-market" onchange="aeRun()">
-            <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option>
-          </select>
-        </div>
-        <div class="ig"><label>分析奖项</label>
-          <select id="ae-prize" onchange="aeRun()">
-            <option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option>
-          </select>
-        </div>
-        <div class="ig"><label>参考历史期数</label>
-          <select id="ae-window" onchange="aeRun()">
-            <option value="20">最近20期</option>
-            <option value="30" selected>最近30期</option>
-            <option value="50">最近50期</option>
-          </select>
-        </div>
-        <button class="btn btn-green" onclick="aeRun()" style="padding:8px 22px">▶ 运行分析</button>
-        <button class="btn" onclick="aeBacktest()" style="padding:8px 18px;background:#7c3aed;color:#fff;border:none">🔁 回测上期</button>
-      </div>
-    </div>
-    <div id="ae-out" style="margin-top:8px"></div>
-    <div class="card" style="margin-top:12px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div style="font-weight:700;font-size:13px;color:#1e3a5f">📚 回测历史（系统自我检讨）</div>
-        <button class="btn btn-sm" onclick="aeClearHistory()" style="font-size:11px;color:#dc2626;background:#fee2e2;border:none">清空</button>
-      </div>
-      <div id="ae-history-list"><div style="color:#94a3b8;font-size:12px">暂无记录</div></div>
-    </div>
-  </div>
-</div>
-<script>
-function showRHub(name){
-  ['quick','recommend','diagnose'].forEach(function(k){
-    document.getElementById('rhub-'+k).style.display = k===name?'':'none';
-    var btn=document.getElementById('rhub-btn-'+k);
-    btn.style.background = k===name?'#1e3a5f':'#e2e8f0';
-    btn.style.color = k===name?'#fff':'#475569';
-  });
-}
-</script>
 
 <!-- TAB: 1D + 后3D 走势 (v61 新增) -->
 <div id="tab-dr-1db3d" class="panel" style="padding:12px">
@@ -1510,39 +1311,6 @@ function renderPatternTrend(){
 
 
 
-<!-- TAB: 贴入解析 V33 -->
-<div id="tab-paste" class="panel">
-<div class="card">
-  <h3>📋 智能贴入解析 V37 — 自动识别多市场</h3>
-  <div class="warn" style="margin-bottom:10px">
-    <b>用法：</b> 直接把 4d2u.com、gdlotto.net 或任何结果页面的文字全选复制，贴到下面 → 点「🔍 解析」。<br>
-    <b>✨ 新功能：</b> 不需要选市场，系统自动识别万能 / 多多 / 大马彩 / 新加坡 / 豪龙 / 跑马，一次存入全部市场。<br>
-    <b>批量：</b> 支持一次贴多期，自动按日期切割。每期至少需要日期 + 3 个 4D 号码才会识别。
-  </div>
-  <div class="row" style="margin-bottom:8px">
-    <div class="ig"><label>找不到市场时的备用市场</label>
-      <select id="paste-market">
-        <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option>
-      </select>
-    </div>
-    <div class="ig"><label>冲突处理</label>
-      <select id="paste-conflict">
-        <option value="skip">已存在则跳过</option>
-        <option value="overwrite">已存在则覆盖</option>
-      </select>
-    </div>
-    <button class="btn" onclick="pasteSmartSample()" style="margin-top:auto">📝 多市场示例</button>
-    <button class="btn" onclick="pasteSingleSample()" style="margin-top:auto">📝 单期示例</button>
-    <button class="btn btn-red" onclick="document.getElementById('paste-input').value='';document.getElementById('paste-preview').innerHTML='';" style="margin-top:auto">🗑 清除</button>
-  </div>
-  <textarea id="paste-input" placeholder="把官网文字（支持多市场、多期混贴）粘在这里⋯⋯&#10;&#10;例如：&#10;万能 Magnum  头奖 1234  二奖 5678  三奖 9012&#10;多多 Sports Toto  头奖 4321  二奖 8765  三奖 2109&#10;豪龙 GD Lotto  头奖 5555  二奖 6666  三奖 7777&#10;&#10;或者直接把整个网页文字复制贴上来。" style="width:100%;min-height:220px;font-family:monospace;font-size:12px;border:1px solid #cbd5e1;border-radius:6px;padding:10px;resize:vertical"></textarea>
-  <div class="row" style="margin-top:10px">
-    <button class="btn btn-green" style="padding:9px 20px;font-size:13px" onclick="parseSmartPaste()">🔍 解析</button>
-    <span id="paste-summary" style="margin-top:auto;margin-left:auto;font-size:11px;color:#666"></span>
-  </div>
-  <div id="paste-preview" style="margin-top:12px"></div>
-</div>
-</div>
 
 <!-- TAB: 数据导出 (合并 本地备份 + 云端同步 + 导出Excel) -->
 <div id="tab-dataexport" class="panel" style="padding:12px">
@@ -1550,15 +1318,6 @@ function renderPatternTrend(){
     <button id="dexp-btn-backup" onclick="showDExp('backup')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#1e3a5f;color:#fff">📦 本地备份</button>
     <button id="dexp-btn-sync" onclick="showDExp('sync')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">☁️ 云端同步</button>
     <button id="dexp-btn-excel" onclick="showDExp('excel')" style="padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:13px;font-weight:700;background:#e2e8f0;color:#475569">📤 导出 Excel</button>
-  </div>
-  <div class="card" style="border:2px solid #b45309;margin-bottom:10px">
-    <h3 style="color:#b45309">🏆 大奖走势报告（头/二/三奖分开 · Excel）</h3>
-    <div class="warn">每个奖位一个 sheet，逐期一行:点数/数根/打数/大小/单双/千个位/前后2D，方便滚动看走势找「脾气」。另有「脾气汇总」sheet 看各奖位分布。⚠️ 描述历史，不预测。</div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
-      <span>市场 <select id="bpx-market" style="font-size:13px;padding:5px 8px;border:1px solid #fbbf24;border-radius:6px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></span>
-      <button class="btn" style="background:#b45309;color:#fff;padding:8px 18px;font-size:14px" onclick="zoBigPrizeExcel()">📊 导出大奖走势 Excel</button>
-    </div>
-    <div id="bpx-msg" style="margin-top:6px;font-size:12px"></div>
   </div>
   <div id="dexp-backup"></div>
   <div id="dexp-sync" style="display:none"></div>
@@ -12627,10 +12386,7 @@ let CURRENT_SCENE='decision';
 const SCENE_MAP={
   decision:['overview','numlookup','filter','decompose','wizard'],
   analysis:['season','zodiac','numsort','luohan','absent'],
-  data:['add','paste','dataexport'],
-  dranalysis:['recommend-hub'],
-  honest:[],
-  hub:[]
+  data:['add','dataexport']
 };
 const TAB_TO_SCENE={};
 for(const[scene,tabs]of Object.entries(SCENE_MAP)){
