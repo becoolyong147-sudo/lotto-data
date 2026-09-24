@@ -9943,12 +9943,12 @@ function zoNineGridReportShow(){
   for(var i=start;i>=end;i--){
     var src=per[i], tgt=per[i+1];
     tgt.roots.forEach(function(r){ rootFreq[r]=(rootFreq[r]||0)+1; });
-    var tdCells=dirsFull(src.uniq).map(function(D){ var lbl=D[0],set=D[1],col=D[3];
+    var tdCells=dirsFull(src.uniq).map(function(D){ var lbl=D[0],set=D[1],disp=D[2],col=D[3];
       var sz=0; for(var k in set)sz++;
       var got=[]; tgt.roots.forEach(function(r){ if(set[r]&&got.indexOf(r)<0)got.push(r); }); var hit=got.length>0;
       tot[lbl]++; if(hit)hitc[lbl]++; baseE[lbl]+= 1-Math.pow((9-sz)/9, tgt.roots.length); covSum[lbl]+=sz/9;
       var stk=streak[lbl]; if(!stk.done){ if(stk.type===null){stk.type=hit;stk.len=1;} else if(stk.type===hit){stk.len++;} else {stk.done=true;} }
-      return '<td style="text-align:center;padding:3px 6px;'+(hit?'background:#f0fdf4':'')+'">'+(hit?'<b style="color:#16a34a">✅'+got.join('')+'</b>':'<span style="color:#dc2626">❌</span>')+'</td>';
+      return '<td style="text-align:center;padding:3px 6px;white-space:nowrap;'+(hit?'background:#f0fdf4':'')+'"><div style="font-family:monospace;font-size:11px;color:'+col+';font-weight:700">'+disp+'</div><div style="font-size:12px">'+(hit?'<b style="color:#16a34a">✅'+got.join('')+'</b>':'<span style="color:#dc2626">❌</span>')+'</div></td>';
     }).join('');
     rowsHtml+='<tr style="border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap;color:#94a3b8">'+src.date.slice(5)+'<br><span style="color:#7c3aed;font-family:monospace">根'+src.uniq.join('')+'</span></td><td style="padding:3px 6px;white-space:nowrap;font-weight:700;color:#5b21b6">'+tgt.date.slice(5)+'</td><td style="padding:3px 6px;font-family:monospace;font-size:11px;color:#64748b;white-space:nowrap">'+tgt.nums.join('/')+' <span style="color:#7c3aed">根'+tgt.roots.join('')+'</span></td>'+tdCells+'</tr>';
   }
