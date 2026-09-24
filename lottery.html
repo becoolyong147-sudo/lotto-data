@@ -9904,19 +9904,22 @@ function zoNGto4DBacktest(){
   }
   var DK=['门','大小','全镜'], DC={门:'#0369a1',大小:'#0f766e',全镜:'#be185d'};
   var tot={},hitc={},baseE={},candSum={}; DK.forEach(function(k){tot[k]=0;hitc[k]=0;baseE[k]=0;candSum[k]=0;});
+  var det=[];
   for(var i=0;i+1<per.length;i++){
     var src=per[i], tgt=per[i+1];
     var f2=[]; src.abs[0].forEach(function(a){ src.abs[1].forEach(function(b){ f2.push(''+a+b); }); });
     var b2=[]; src.abs[2].forEach(function(a){ src.abs[3].forEach(function(b){ b2.push(''+a+b); }); });
     if(!f2.length||!b2.length) continue;
-    var DR=dirRoots(src.roots);
+    var DR=dirRoots(src.roots); var rowDir={};
     DK.forEach(function(k){ var rs=DR[k]; var cand={};
       f2.forEach(function(f){ b2.forEach(function(b){ var n=f+b; var rt=dr((+n[0])+(+n[1])+(+n[2])+(+n[3])); if(rs[rt])cand[n]=1; }); });
-      var C=Object.keys(cand); var sz=C.length; if(!sz)return;
-      var hit=tgt.nums.some(function(n){return cand[n];});
+      var C=Object.keys(cand); var sz=C.length; if(!sz){ rowDir[k]={sz:0,hit:false,nums:[]}; return; }
+      var gotN=tgt.nums.filter(function(n){return cand[n];}); var hit=gotN.length>0;
       tot[k]++; if(hit)hitc[k]++; candSum[k]+=sz;
       baseE[k]+= 1-Math.pow((10000-sz)/10000, tgt.nums.length);
+      rowDir[k]={sz:sz,hit:hit,nums:gotN};
     });
+    det.push({sd:src.date, td:tgt.date, tn:tgt.nums, dir:rowDir});
   }
   function vd(t,hp,bp){ if(t<10)return {t:'🔵少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高',c:'#d97706'}:(lead<-2*se?{t:'🔴低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}); }
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔬 '+mk+' · 方向×缺席前2D×后2D→4D · 回测（'+per.length+'期）</h3>';
@@ -9925,7 +9928,21 @@ function zoNGto4DBacktest(){
   DK.forEach(function(k){ var t=tot[k],hh=hitc[k],be=Math.round(baseE[k]),avg=t?Math.round(candSum[k]/t):0,hp=t?hh/t*100:0,bp=t?baseE[k]/t*100:0,v=vd(t,hp,bp);
     h+='<div style="font-size:13px;padding:5px 0;border-top:1px dashed #ede9fe"><span style="display:inline-block;min-width:52px;background:'+DC[k]+';color:#fff;border-radius:4px;padding:1px 8px;font-weight:700;text-align:center">'+k+'</span> '+t+'期里中 <b>'+hh+'</b> 期,随机撒同样多也中约 <b>'+be+'</b> 期 → <b style="color:'+v.c+'">'+v.t+'</b> <span style="font-size:11px;color:#94a3b8">· 平均每期 '+avg+' 个候选4D</span></div>';
   });
-  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">👉 命中率高多半是候选号多(撒大网),看「比随机高不高」。判定用2×标准误。缺席=用源期头二三各位没出现的数字。</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin:6px 0">👉 命中率高多半是候选号多(撒大网),看「比随机高不高」。判定用2×标准误。缺席=用源期头二三各位没出现的数字。</div>';
+  // 逐期明细表(看效果:每期哪个方向中了、中的是哪个号)
+  var show=det.slice().reverse().slice(0,50);
+  h+='<div style="font-weight:700;color:#7c3aed;font-size:12px;margin:4px 0">📜 逐期明细（近'+show.length+'期 · 新→旧 · ✅后=命中的号）</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:4px 6px">源期</th><th style="text-align:left;padding:4px 6px">→下一期开号</th>';
+  DK.forEach(function(k){ h+='<th style="text-align:center;padding:4px 6px;color:'+DC[k]+'">'+k+'</th>'; });
+  h+='</tr>';
+  show.forEach(function(x){
+    h+='<tr style="border-top:1px solid #ede9fe"><td style="padding:3px 6px;color:#94a3b8;white-space:nowrap">'+x.sd.slice(5)+'</td><td style="padding:3px 6px;font-family:monospace;font-size:11px;white-space:nowrap"><b style="color:#5b21b6">'+x.td.slice(5)+'</b> '+x.tn.join('/')+'</td>';
+    DK.forEach(function(k){ var d=x.dir[k]||{}; var cell = d.hit?('<b style="color:#16a34a">✅'+d.nums.join(',')+'</b>'):'<span style="color:#dc2626">❌</span>';
+      h+='<td style="text-align:center;padding:3px 6px;white-space:nowrap;'+(d.hit?'background:#f0fdf4':'')+'">'+cell+'<div style="font-size:9px;color:#cbd5e1">'+(d.sz||0)+'个</div></td>';
+    });
+    h+='</tr>';
+  });
+  h+='</table></div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
