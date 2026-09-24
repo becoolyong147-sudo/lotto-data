@@ -9951,28 +9951,31 @@ function zoNineGridReportShow(){
       var stk=streak[lbl]; if(!stk.done){ if(stk.type===null){stk.type=hit;stk.len=1;} else if(stk.type===hit){stk.len++;} else {stk.done=true;} }
       return '<td style="text-align:center;padding:3px 6px;'+(hit?'background:#f0fdf4':'')+'">'+(hit?'<b style="color:#16a34a">✅'+got.join('')+'</b>':'<span style="color:#dc2626">❌</span>')+'</td>';
     }).join('');
-    rowsHtml+='<tr style="border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap;font-weight:700">'+tgt.date.slice(5)+'</td><td style="padding:3px 6px;font-family:monospace;font-size:11px;color:#64748b;white-space:nowrap">'+tgt.nums.join('/')+' <span style="color:#7c3aed">根'+tgt.roots.join('')+'</span></td>'+tdCells+'</tr>';
+    rowsHtml+='<tr style="border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap;color:#94a3b8">'+src.date.slice(5)+'<br><span style="color:#7c3aed;font-family:monospace">根'+src.uniq.join('')+'</span></td><td style="padding:3px 6px;white-space:nowrap;font-weight:700;color:#5b21b6">'+tgt.date.slice(5)+'</td><td style="padding:3px 6px;font-family:monospace;font-size:11px;color:#64748b;white-space:nowrap">'+tgt.nums.join('/')+' <span style="color:#7c3aed">根'+tgt.roots.join('')+'</span></td>'+tdCells+'</tr>';
   }
   // 顶部小结(各方向命中 vs 随机 + 覆盖率 + 连中/连挂)
   function vd(t,hp,bp){ if(t<10)return {t:'🔵少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高',c:'#d97706'}:(lead<-2*se?{t:'🔴低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}); }
   var bestK='',bestLead=-99;
-  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0">';
+  DK.forEach(function(k){ var t=tot[k],hp=t?hitc[k]/t*100:0,bp=t?baseE[k]/t*100:0; if(t>=10&&(hp-bp)>bestLead){bestLead=hp-bp;bestK=k;} });
+  // 👉 人话总结(一眼看懂)
+  h+='<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:10px 12px;margin:8px 0;font-size:14px;color:#166534;line-height:1.7"><b>👉 人话:</b> 过去 <b>'+tot['门']+'</b> 期,拿<b>旧一期</b>算方向去猜<b>下一期</b>,'+(bestLead>2?('里面 <b>'+bestK+'</b> 比乱猜稍好一点点(多中约 '+bestLead.toFixed(0)+'%),多半是运气。'):'四个方向命中率<b>跟闭眼乱猜差不多</b>。')+'<br><b style="color:#065f46">结论:方向不会让你更容易中,别为它多花钱 —— 它只帮你缩号、控成本。</b></div>';
+  // 4条一行大白话
+  h+='<div style="margin:6px 0">';
   DK.forEach(function(k){ var t=tot[k],hh=hitc[k],be=Math.round(baseE[k]),hp=t?hh/t*100:0,bp=t?baseE[k]/t*100:0,v=vd(t,hp,bp);
-    var cov=t?Math.round(covSum[k]/t*100):0; var stk=streak[k]; var stkTxt=stk.type===null?'':(stk.type?('🔥连中'+stk.len):('❄️连挂'+stk.len));
-    if(t>=10&&(hp-bp)>bestLead){bestLead=hp-bp;bestK=k;}
-    h+='<div style="border:1px solid '+DC[k]+'55;border-radius:8px;padding:5px 10px;background:#faf5ff;font-size:12px;line-height:1.7"><b style="color:'+DC[k]+'">'+k+'</b> 中 <b>'+hh+'/'+t+'</b> · 随机~'+be+' · <b style="color:'+v.c+'">'+v.t+'</b><br><span style="font-size:11px;color:#64748b">覆盖 '+cov+'% · '+stkTxt+'</span></div>';
+    h+='<div style="font-size:13px;padding:4px 0;border-top:1px dashed #ede9fe"><span style="display:inline-block;min-width:52px;background:'+DC[k]+';color:#fff;border-radius:4px;padding:1px 8px;font-weight:700;text-align:center">'+k+'</span> '+t+' 期里中了 <b>'+hh+'</b> 期,乱猜也会中约 <b>'+be+'</b> 期 → <b style="color:'+v.c+'">'+v.t+'</b></div>';
   });
   h+='</div>';
-  // 一句话结论
-  h+='<div style="background:#faf5ff;border:1px solid #ede9fe;border-radius:8px;padding:7px 10px;margin:4px 0;font-size:13px;color:#5b21b6">🧠 <b>值得跟哪个?</b> '+(bestLead>2?('这段里 <b>'+bestK+'</b> 比随机多中一点(约 '+bestLead.toFixed(1)+'%),'+(bestLead<4?'但差距小,八成巧合,盯几期再说。':'幅度还行,值得盯几期。')):'四个方向<b>基本都跟随机一样</b> —— 没哪个更准,用来收窄/控成本,不是预测。')+'</div>';
-  // 🏆 近期最劳模的4D数根(纯频率,不分方向)
+  // 详细(折叠：明细表 + 最劳模的根)
+  var _did='ngrpt-det';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\''+_did+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700;font-size:12px">▾ 想看细节:逐期明细表 + 最劳模的根</span></div>';
+  h+='<div id="'+_did+'" style="display:none;margin-top:6px">';
   var rfArr=Object.keys(rootFreq).map(function(r){return [r,rootFreq[r]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
-  h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:12px;color:#92400e">🏆 <b>近期最常开的4D数根</b>:'+rfArr.map(function(x){return '<b>'+x[0]+'</b>('+x[1]+'次)';}).join(' · ')+' <span style="font-size:10px;color:#b45309">← 不管方向,纯频率参考</span></div>';
-  // 逐期明细表格(下一期｜开号｜门｜大小｜斜｜全镜)
-  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:4px 6px">下一期</th><th style="text-align:left;padding:4px 6px">开号(根)</th>';
+  h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:12px;color:#92400e">🏆 <b>近期最常开的4D数根</b>:'+rfArr.map(function(x){return '<b>'+x[0]+'</b>('+x[1]+'次)';}).join(' · ')+'</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:4px 6px">源期(算方向)</th><th style="text-align:left;padding:4px 6px">→下一期</th><th style="text-align:left;padding:4px 6px">开号(根)</th>';
   DK.forEach(function(k){ h+='<th style="text-align:center;padding:4px 6px;color:'+DC[k]+'">'+k+'</th>'; });
   h+='</tr>'+rowsHtml+'</table></div>';
-  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">✅后小数字=靠哪个根中的。绿底=该方向那期中了。⚠️ 判定用2×标准误,命中率高是覆盖大,看比随机高不高。</div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">📖 用源期(旧)算方向→看下一期(新)落没落进去。✅后小数字=靠哪个根中的。</div>';
+  h+='</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
