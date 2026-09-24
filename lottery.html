@@ -634,6 +634,7 @@ function renderPatternTrend(){
 
 <!-- TAB: 一键总览 (V53 新增) -->
 <div id="tab-overview" class="panel active">
+<div style="margin-bottom:10px"><button class="btn" style="background:#0f766e;color:#fff;padding:10px 20px;font-size:15px;font-weight:700" onclick="switchTab('absent');if(typeof zoAbsentPerPeriod==='function')zoAbsentPerPeriod();">🔮 推测图（一键打开）</button></div>
 <div class="card" style="background:linear-gradient(135deg,#fef9e7 0%,#fff7ed 100%);border:2px solid #d4a960">
   <h3 style="color:#7c5a1e">🎯 一键总览 — 头/二/三奖最新一期 × 三大引擎</h3>
   <div class="row">
@@ -8415,7 +8416,7 @@ function doBacktest(){
         <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoQuick2D()">🎯 2D速选</button>
-        <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">📅 逐期缺席表</button>
+        <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">🔮 推测图</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#be185d;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMonthlyReport()">📅 月度报告</button>
@@ -9840,7 +9841,7 @@ function zoAbsentPerPeriod(){
   function pad(n){return String(n).padStart(4,'0');}
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
   var h='<div class="card" style="border:2px solid #0f766e">';
-  h+='<h3 style="color:#0f766e">📅 逐期缺席表 · '+mk+'（每期头二三 · 各位 已出现/缺席）</h3>';
+  h+='<h3 style="color:#0f766e">🔮 推测图 · '+mk+'（每期头二三 · 各位 已出现/缺席）</h3>';
   h+='<div style="margin-bottom:8px">市场 <select id="app-mk-sel" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px;color:#0f766e;font-weight:700">'+mkts.map(opt).join('')+'</select> · 期数 <select id="app-n" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(N===5?' selected':'')+'>5</option><option'+(N===10?' selected':'')+'>10</option><option'+(N===20?' selected':'')+'>20</option><option'+(N===40?' selected':'')+'>40</option><option'+(N===80?' selected':'')+'>80</option><option value="9999"'+(N>1000?' selected':'')+'>全部</option></select> · 🔀交集近 <select id="app-k" onchange="zoAbsentPerPeriod()" style="font-size:13px;padding:3px 8px;border:1px solid #5eead4;border-radius:6px"><option'+(K===1?' selected':'')+'>1</option><option'+(K===2?' selected':'')+'>2</option><option'+(K===3?' selected':'')+'>3</option><option'+(K===5?' selected':'')+'>5</option></select> 期</div>';
   h+='<div class="warn" style="margin:6px 0">每期用<b>特别奖(10-13个号)</b>算每位缺席(号多→缺席窄,才准)。「下期开」「命中」对的是下期<b>头/二/三奖</b>。⚠️ 特别奖数据只在最近约30期有。描述历史,不预测。</div>';
   var rows=m.slice(0,N);
@@ -10898,7 +10899,9 @@ function zoAbsentZoneFusion(){
   var exc=((document.getElementById('fz-exc')||{value:''}).value.match(/\d/g)||[]);
   var rts={},anyRt=false; for(var _r=1;_r<=9;_r++){var re=document.getElementById('fz-rt-'+_r);if(re&&re.checked){rts[_r]=1;anyRt=true;}}
   var old=document.getElementById('abs-zf-card'); if(old) old.remove();
-  if(!window.__absentSets){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">请先点「🎯 分析」算出缺席数字，再点本按钮。</div></div>'); return; }
+  // 没算过缺席就自动先跑一次「🎯 分析」，免得点了没反应
+  if(!window.__absentSets && typeof doAbsent==='function'){ try{ doAbsent(); }catch(e){ console.warn('auto doAbsent',e); } }
+  if(!window.__absentSets){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">请先点「🎯 分析」算出缺席数字，再点本按钮。</div></div>'); out.scrollIntoView({behavior:'smooth',block:'start'}); return; }
   var a0=window.__absentSets[0]||[], a1=window.__absentSets[1]||[];   // 千 / 百 缺席
   if(!a0.length || !a1.length){ out.insertAdjacentHTML('beforeend','<div id="abs-zf-card" class="card" style="margin-top:8px"><div class="warn">千位或百位没有缺席数字，无法拼前2D。减少期数或换奖项范围再试。</div></div>'); return; }
   var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
