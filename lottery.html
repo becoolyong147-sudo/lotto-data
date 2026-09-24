@@ -8416,6 +8416,7 @@ function doBacktest(){
         <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoQuick2D()">🎯 2D速选</button>
+        <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNineGridDir()">🎲 九宫格方向</button>
         <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">🔮 推测图</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
@@ -9751,6 +9752,75 @@ function zoSend3DToFilter(list3d, mk, pos){
     if(typeof switchTab==='function') switchTab('filter'); else if(typeof showTabPanel==='function') showTabPanel('filter');
     setTimeout(function(){ var el=document.getElementById('flt-pos-pattern'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
     alert('已把 '+arr.length+' 个 '+wn+' 锁进「条件筛选 → 位数条件」（另一位是 x 任意）。\n例:'+pats.split(' ').slice(0,3).join(' / ')+' …\n再叠加条件 → 点🔍筛选，或直接拿去下 3D。');
+  }catch(e){ console.warn(e); }
+}
+// 🎲 九宫格方向：根据刚开头二三的4D数根，算 横行/直列(门)/斜线/点对称 的数根方向 → 一键勾进4D数根筛选
+// 九宫格  7 8 9 / 4 5 6 / 1 2 3 ：直列=门(147/258/369)，横行=大小(123/456/789)，斜=159/357
+function zoNineGridDir(){
+  var out=document.getElementById('abs-out'); if(!out) return;
+  var mk=(document.getElementById('ng-mk-sel')||document.getElementById('abs-market')||{value:'万能'}).value;
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  function drf(x){ return x===0?0:(x%9===0?9:x%9); }
+  function pad(n){ return String(n).padStart(4,'0'); }
+  // 取最新一期头二三
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  var last=m[m.length-1];
+  var opt=function(v){return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>';};
+  var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🎲 '+mk+' · 九宫格方向（4D数根）</h3>';
+  h+='<div style="margin-bottom:8px">市场 <select id="ng-mk-sel" onchange="zoNineGridDir()" style="font-size:13px;padding:3px 8px;border:1px solid #ddd6fe;border-radius:6px;color:#7c3aed;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
+  if(!last){ h+='<div class="warn">'+mk+' 无最新一期数据。</div></div>'; out.innerHTML=h; out.scrollIntoView(); return; }
+  // 头二三的 4D数根
+  var roots=[]; [0,1,2].forEach(function(p){ var v=last.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s)){ var r=drf((+s[0])+(+s[1])+(+s[2])+(+s[3])); roots.push(r); } });
+  var uniq=[]; roots.forEach(function(r){ if(uniq.indexOf(r)<0)uniq.push(r); });
+  function grow(r){ return Math.ceil(r/3); }      // 横行 1(123)/2(456)/3(789)
+  function gcol(r){ return ((r-1)%3)+1; }          // 直列 1(147)/2(258)/3(369)
+  function fmt(set){ return set.slice().sort(function(a,b){return a-b;}).join(''); }
+  // 横行：取占到的整行
+  var rowsHit={}; uniq.forEach(function(r){ if(r>=1)rowsHit[grow(r)]=1; });
+  var rowSet=[]; for(var r=1;r<=9;r++){ if(rowsHit[grow(r)])rowSet.push(r); }
+  // 直列(门)：取占到的整列
+  var colsHit={}; uniq.forEach(function(r){ if(r>=1)colsHit[gcol(r)]=1; });
+  var colSet=[]; for(var r2=1;r2<=9;r2++){ if(colsHit[gcol(r2)])colSet.push(r2); }
+  // 斜线 159 / 357
+  var d1=[1,5,9], d2=[3,5,7]; var diagSet={}; uniq.forEach(function(r){ if(d1.indexOf(r)>=0)d1.forEach(function(x){diagSet[x]=1;}); if(d2.indexOf(r)>=0)d2.forEach(function(x){diagSet[x]=1;}); });
+  var diag=Object.keys(diagSet).map(Number);
+  // 点对称(全镜) 1↔9 2↔8 3↔7 4↔6 5↔5
+  var ptSet={}; uniq.forEach(function(r){ if(r>=1&&r<=9)ptSet[10-r]=1; }); var pt=Object.keys(ptSet).map(Number);
+  // 展示九宫格(点亮开出的数根)
+  var gridRows=[[7,8,9],[4,5,6],[1,2,3]];
+  h+='<div class="warn">刚开头二三的 4D数根：<b style="color:#7c3aed;font-size:15px">'+uniq.join(' ')+'</b>（在九宫格点亮）。下面各方向的数根，点「📤」直接勾进高级筛选的 <b>4D数根</b>。</div>';
+  h+='<table style="border-collapse:collapse;margin:6px 0;font-family:monospace">';
+  gridRows.forEach(function(rw){ h+='<tr>'; rw.forEach(function(c){ var on=uniq.indexOf(c)>=0; h+='<td style="width:38px;height:34px;text-align:center;border:1px solid #ddd6fe;font-weight:800;font-size:16px;'+(on?'background:#7c3aed;color:#fff':'color:#94a3b8')+'">'+c+'</td>'; }); h+='</tr>'; });
+  h+='</table>';
+  function dirRow(lbl,desc,set,col){ if(!set.length) return ''; var s=fmt(set);
+    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0;padding:6px 8px;background:#faf5ff;border:1px solid #ede9fe;border-radius:8px">'+
+      '<span style="min-width:120px;font-weight:800;color:'+col+'">'+lbl+'</span>'+
+      '<span style="font-family:monospace;font-size:16px;font-weight:800;color:'+col+'">'+s+'</span>'+
+      '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoNGSend(\''+s+'\',\''+mk+'\')">📤 勾进4D数根筛选</button>'+
+      '<span style="font-size:10px;color:#94a3b8">'+desc+'</span></div>';
+  }
+  h+=dirRow('直列·门','换门(147/258/369)=主干',colSet,'#0369a1');
+  h+=dirRow('横行·大小','同门换大小(123小/456中/789大)',rowSet,'#0f766e');
+  h+=dirRow('斜线','159/357 过中心',diag,'#b45309');
+  h+=dirRow('点对称·全镜','1↔9 2↔8 3↔7 4↔6（又换门又换大小）',pt,'#be185d');
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 主干=147/258/369三门数根。这些方向只是把号缩到某几组数根,再配前中后2D/点数等一起筛。历史随机,不构成预测。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 把一组数根(字符串如"123456")勾进高级筛选的 4D数根，并跳去筛选页
+function zoNGSend(rootsStr, mk){
+  try{
+    var arr=String(rootsStr).split('').map(Number).filter(function(r){return r>=1&&r<=9;});
+    var st={}; arr.forEach(function(r){st[r]=1;});
+    for(var r=1;r<=9;r++){ var cb=document.getElementById('flt-r4d-'+r); if(cb){ cb.checked=!!st[r]; if(typeof updateChipStyle==='function') updateChipStyle('r4d',r); } }
+    var fm=document.getElementById('flt-market'); if(fm&&mk) fm.value=mk;
+    if(typeof switchTab==='function') switchTab('filter');
+    setTimeout(function(){ var el=document.getElementById('flt-r4droot-chips'); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },200);
+    alert('已勾选 4D数根：'+arr.join(' ')+'\n再叠加 前中后2D / 点数 / 年份 等条件 → 点🔍筛选。');
   }catch(e){ console.warn(e); }
 }
 // 🔍 回查历史：四位数字集合 posStr，找历史头/二/三里四位全在集合内的号
