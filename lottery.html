@@ -5365,7 +5365,7 @@ function runAdvancedFilter(){
   </div>`;
 
   if(rows.length){
-    html+=`<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#3730a3;display:flex;gap:10px;flex-wrap:wrap;align-items:center">🔄 <b>已推荐池·去重</b>:本次 ${_fTotal} 个,其中 <b style="color:#94a3b8">重复 ${_fDup}</b>(别的数根已出)、<b style="color:#16a34a">新增 ${_fNew}</b>。池内共 ${_fPoolSize} 个。<label style="cursor:pointer"><input type="checkbox" id="flt-newonly" ${_fNewOnly?'checked':''} onchange="runAdvancedFilter()"> 只看新增</label> <button class="btn btn-green" style="padding:3px 10px;font-size:11px" onclick="fltCopyNew(this)">📋只新增(${window.__fltNewNums.length})</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#6366f1;color:#fff" onclick="window.__fltPool={};runAdvancedFilter()">🗑️清空池</button> <span style="font-size:10px;color:#818cf8">配九宫格:换个方向数根重筛,之前拿过的号会灰掉,「只新增」拿这方向独家号。</span></div>`;
+    html+=`<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#3730a3;display:flex;gap:10px;flex-wrap:wrap;align-items:center">🔄 <b>已推荐池·去重</b>:本次 ${_fTotal} 个,其中 <b style="color:#94a3b8">重复 ${_fDup}</b>(别的数根已出)、<b style="color:#16a34a">新增 ${_fNew}</b>。池内共 ${_fPoolSize} 个。<label style="cursor:pointer"><input type="checkbox" id="flt-newonly" ${_fNewOnly?'checked':''} onchange="runAdvancedFilter()"> 只看新增</label> <button class="btn btn-green" style="padding:3px 10px;font-size:11px" onclick="fltCopyNew(this)">📋只新增(${window.__fltNewNums.length})</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#818cf8;color:#fff" onclick="fltViewPool(this)">👁️查看全池(${_fPoolSize})</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#4f46e5;color:#fff" onclick="fltCopyPool(this)">📋复制全池</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#6366f1;color:#fff" onclick="window.__fltPool={};runAdvancedFilter()">🗑️清空池</button> <span style="font-size:10px;color:#818cf8">配九宫格:换个方向数根重筛,之前拿过的号会灰掉,「只新增」拿这方向独家号。</span></div><div id="flt-pool-view" style="display:none"></div>`;
     // 🆕 本次新增号 — 纯号码清单块(一眼看到这组数根的新号,可直接选取)
     var _newNums=window.__fltNewNums||[];
     var _newCap=_newNums.slice(0,400);
@@ -5703,6 +5703,29 @@ function fltCopyNew(btn){
   const done=()=>{ if(btn){ const t=btn.textContent; btn.textContent='✅已复制'; setTimeout(()=>btn.textContent='📋只新增('+nums.length+')',1400); } };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(done); }
   else { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
+}
+function fltPoolNums(){ var p=window.__fltPool||{}; return Object.keys(p).sort(); }
+function fltViewPool(btn){
+  var box=document.getElementById('flt-pool-view'); if(!box) return;
+  if(box.style.display!=='none'){ box.style.display='none'; if(btn)btn.textContent='👁️查看全池('+fltPoolNums().length+')'; return; }
+  var nums=fltPoolNums();
+  if(!nums.length){ box.innerHTML='<div class="warn" style="margin:6px 0">池是空的。先筛一次就会把结果存进池。</div>'; box.style.display='block'; return; }
+  var cap=nums.slice(0,800);
+  box.innerHTML='<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:8px 10px;margin-bottom:8px">'+
+    '<div style="font-size:12px;font-weight:700;color:#3730a3;margin-bottom:5px">🗂️ 池内全部号码（'+nums.length+' 个 · 所有方向累积)</div>'+
+    '<div style="font-family:monospace;font-size:13px;line-height:2;word-break:break-all;max-height:240px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">'+
+    cap.map(function(n){return '<span style="display:inline-block;background:#e0e7ff;color:#3730a3;border-radius:5px;padding:1px 7px;margin:2px">'+n+'</span>';}).join('')+
+    (nums.length>800?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">…只显示前800个,全部请用 📋复制全池</div>':'')+'</div></div>';
+  box.style.display='block';
+  if(btn)btn.textContent='🙈收起全池';
+}
+function fltCopyPool(btn){
+  var nums=fltPoolNums();
+  if(!nums.length){ alert('池是空的,先筛一次'); return; }
+  var text=nums.join(' ');
+  var done=function(){ if(btn){ btn.textContent='✅已复制'; setTimeout(function(){btn.textContent='📋复制全池';},1400); } };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(done); }
+  else { var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
 }
 function copyFilterNums(sep){
   const nums = window._lastFilterNums;
