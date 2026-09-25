@@ -5699,7 +5699,7 @@ function fltRecommendBack2D(){
 function fltCopyNew(btn){
   const nums = window.__fltNewNums||[];
   if(!nums.length){ alert('本次没有「新增」号（都被别的数根出过,或池是空的先筛一次）'); return; }
-  const text = nums.join(' ');
+  const text = nums.join('\n');
   const done=()=>{ if(btn){ const t=btn.textContent; btn.textContent='✅已复制'; setTimeout(()=>btn.textContent='📋只新增('+nums.length+')',1400); } };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(done); }
   else { const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
@@ -5722,7 +5722,7 @@ function fltViewPool(btn){
 function fltCopyPool(btn){
   var nums=fltPoolNums();
   if(!nums.length){ alert('池是空的,先筛一次'); return; }
-  var text=nums.join(' ');
+  var text=nums.join('\n');
   var done=function(){ if(btn){ btn.textContent='✅已复制'; setTimeout(function(){btn.textContent='📋复制全池';},1400); } };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(done).catch(done); }
   else { var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); done(); }
