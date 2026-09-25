@@ -9875,11 +9875,13 @@ function zoNGto4D(rootsStr, mk, dlbl){
   var b2=[]; abs[2].forEach(function(a){ abs[3].forEach(function(b){ b2.push(''+a+b); }); });
   if(!f2.length||!b2.length){ out.insertAdjacentHTML('beforeend','<div id="ng4d-card" class="card" style="margin-top:8px"><div class="warn">前2D或后2D缺席为空,拼不出4D。</div></div>'); return; }
   var H4=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
-  // 2D数根缺席回补条件(用最近两期前2D/后2D数根)
-  var mode2d=(document.getElementById('ng4d-2dmode')||{value:'off'}).value;
-  function r2abs(two){ var pf={},pb={}; two.forEach(function(d){ if(!d)return; [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return; pf[dr((+s[0])+(+s[1]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; } return {F:F,B:B,M:M}; }
+  // ⑥ 2D数根缺席:前/中/后三个数根各自独立勾(用最近两期算缺席根)
+  var r2f=(document.getElementById('ng4d-r2f')||{checked:false}).checked;
+  var r2m=(document.getElementById('ng4d-r2m')||{checked:false}).checked;
+  var r2b=(document.getElementById('ng4d-r2b')||{checked:false}).checked;
+  function r2abs(two){ var pf={},pm={},pb={}; two.forEach(function(d){ if(!d)return; [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return; pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var AF={},AM={},AB={}; for(var r=1;r<=9;r++){ if(!pf[r])AF[r]=1; if(!pm[r])AM[r]=1; if(!pb[r])AB[r]=1; } return {AF:AF,AM:AM,AB:AB}; }
   var R2=r2abs([mm[mm.length-2],mm[mm.length-1]]);
-  function r2pass(n){ if(mode2d==='off')return true; var fr=dr((+n[0])+(+n[1])),br=dr((+n[2])+(+n[3])); if(mode2d==='mix')return !!(R2.M[fr]||R2.M[br]); if(mode2d==='split')return !!(R2.F[fr]&&R2.B[br]); return true; }
+  function r2pass(n){ if(r2f&&!R2.AF[dr((+n[0])+(+n[1]))])return false; if(r2m&&!R2.AM[dr((+n[1])+(+n[2]))])return false; if(r2b&&!R2.AB[dr((+n[2])+(+n[3]))])return false; return true; }
   // ⑦ 具体2D缺席目标(特别奖源,an2)
   var tg2on=(document.getElementById('ng4d-tg2')||{checked:false}).checked;
   var lastSp=(last.sp||[]).map(pad).filter(function(s){return /^\d{4}$/.test(s);});
@@ -9889,18 +9891,29 @@ function zoNGto4D(rootsStr, mk, dlbl){
   var cand={};
   f2.forEach(function(f){ b2.forEach(function(b){ var n=f+b; var sum=(+n[0])+(+n[1])+(+n[2])+(+n[3]); if(!rs[dr(sum)])return; if(ptF!=null&&sum<ptF)return; if(ptT!=null&&sum>ptT)return; if(onlyOpen&&!(H4.cnt[n]>0))return; if(!r2pass(n))return; if(!tg2pass(n))return; cand[n]=1; }); });
   var arr=Object.keys(cand).map(function(n){return {n:n,c:H4.cnt[n]||0};}).sort(function(a,b){return b.c-a.c||a.n.localeCompare(b.n);});
-  var CAP=60, show=arr.slice(0,CAP), opened=arr.filter(function(x){return x.c>0;}).length;
+  // 🔄 已推荐池·去重:标出哪些号之前别的方向已经出过(池按方向记来源,重跑同方向不算重复)
+  if(typeof window.__ng4dPool!=='object'||!window.__ng4dPool) window.__ng4dPool={};
+  var pool=window.__ng4dPool, curDir=(dlbl||'方向'), dupN=0, newN=0;
+  arr.forEach(function(x){ var o=pool[x.n]; if(o&&o!==curDir){x.dup=true;x.from=o;dupN++;} else {x.dup=false;newN++;} });
+  arr.forEach(function(x){ if(!pool[x.n]) pool[x.n]=curDir; });   // 本方向的号登记入池
+  var poolSize=Object.keys(pool).length;
+  var newOnly=(document.getElementById('ng4d-newonly')||{checked:false}).checked;
+  var view=newOnly?arr.filter(function(x){return !x.dup;}):arr;
+  var CAP=60, show=view.slice(0,CAP), opened=arr.filter(function(x){return x.c>0;}).length;
   var A='\''+String(rootsStr)+'\',\''+mk+'\',\''+(dlbl||'方向')+'\'';   // 收窄控件改动时重算
   var h='<div id="ng4d-card" class="card" style="margin-top:8px;border:2px solid #7c3aed">';
   h+='<h3 style="color:#7c3aed">🎯 '+mk+' · '+(dlbl||'方向')+' 方向出4D（B版·各位缺席）</h3>';
-  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;margin-bottom:6px">🔽收窄:点数 <input type="number" id="ng4d-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4D('+A+')" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4d-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4D('+A+')" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> <label style="cursor:pointer;margin-left:6px"><input type="checkbox" id="ng4d-open" '+(onlyOpen?'checked':'')+' onchange="zoNGto4D('+A+')"> 只留历史开过</label> <span style="border-left:1px solid #ddd6fe;padding-left:8px">2D数根缺席 <select id="ng4d-2dmode" onchange="zoNGto4D('+A+')" style="padding:2px 5px;border:1px solid #ddd6fe;border-radius:4px"><option value="off"'+(mode2d==='off'?' selected':'')+'>关</option><option value="mix"'+(mode2d==='mix'?' selected':'')+'>混合</option><option value="split"'+(mode2d==='split'?' selected':'')+'>分前后</option></select></span> <label style="cursor:pointer;border-left:1px solid #ddd6fe;padding-left:8px"><input type="checkbox" id="ng4d-tg2" '+(tg2on?'checked':'')+' onchange="zoNGto4D('+A+')"> 具体2D缺席目标</label></div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px;margin-bottom:6px">🔽收窄:点数 <input type="number" id="ng4d-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4D('+A+')" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4d-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4D('+A+')" style="width:48px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> <label style="cursor:pointer;margin-left:6px"><input type="checkbox" id="ng4d-open" '+(onlyOpen?'checked':'')+' onchange="zoNGto4D('+A+')"> 只留历史开过</label> <span style="border-left:1px solid #ddd6fe;padding-left:8px">⑥2D数根缺席 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ng4d-r2f" '+(r2f?'checked':'')+' onchange="zoNGto4D('+A+')"> 前</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ng4d-r2m" '+(r2m?'checked':'')+' onchange="zoNGto4D('+A+')"> 中</label><label style="cursor:pointer"><input type="checkbox" id="ng4d-r2b" '+(r2b?'checked':'')+' onchange="zoNGto4D('+A+')"> 后</label></span> <label style="cursor:pointer;border-left:1px solid #ddd6fe;padding-left:8px"><input type="checkbox" id="ng4d-tg2" '+(tg2on?'checked':'')+' onchange="zoNGto4D('+A+')"> ⑦具体2D缺席目标</label></div>';
   h+='<div class="warn">方向数根 <b>'+String(rootsStr)+'</b> × 最新一期缺席前2D('+f2.length+')×后2D('+b2.length+')拼4D。共 <b>'+arr.length+'</b> 个候选(历史开过 '+opened+')。<b>用上面点数/只开过 慢慢往下压</b>。⚠️ 收窄用,不预测。</div>';
+  // 🔄 去重池提示
+  h+='<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:6px 10px;margin:4px 0;font-size:12px;color:#3730a3;display:flex;gap:10px;flex-wrap:wrap;align-items:center">🔄 <b>已推荐池</b>:本次 '+arr.length+' 个,其中 <b style="color:#94a3b8">重复 '+dupN+'</b>(别的方向已出)、<b style="color:#16a34a">新增 '+newN+'</b>。池内共 '+poolSize+' 个。<label style="cursor:pointer"><input type="checkbox" id="ng4d-newonly" '+(newOnly?'checked':'')+' onchange="zoNGto4D('+A+')"> 只看新增</label> <button class="btn" style="padding:2px 8px;font-size:11px;background:#6366f1;color:#fff" onclick="window.__ng4dPool={};zoNGto4D('+A+')">🗑️清空池</button></div>';
   h+='<div style="line-height:2.2;max-height:300px;overflow-y:auto;border:1px solid #ede9fe;border-radius:8px;padding:8px;background:#fff">';
-  show.forEach(function(x){ if(x.c>0) h+='<span title="开过'+x.c+'次" style="display:inline-block;font-family:monospace;font-size:15px;font-weight:700;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'·'+x.c+'</span>'; else h+='<span style="display:inline-block;font-family:monospace;font-size:15px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'○</span>'; });
+  show.forEach(function(x){ if(x.dup){ h+='<span title="别的方向('+x.from+')已出过" style="display:inline-block;font-family:monospace;font-size:15px;background:#f8fafc;color:#cbd5e1;border:1px dashed #e2e8f0;border-radius:6px;padding:1px 7px;margin:2px;text-decoration:line-through">'+x.n+'</span>'; } else if(x.c>0){ h+='<span title="开过'+x.c+'次·新增" style="display:inline-block;font-family:monospace;font-size:15px;font-weight:700;background:#7c3aed;color:#fff;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'·'+x.c+'</span>'; } else { h+='<span title="新增·没开过" style="display:inline-block;font-family:monospace;font-size:15px;background:#f1f5f9;color:#94a3b8;border-radius:6px;padding:1px 7px;margin:2px">'+x.n+'○</span>'; } });
   h+='</div>';
   var allL=arr.map(function(x){return x.n;});
-  h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="padding:4px 12px;font-size:12px;background:#7c3aed;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allL.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋全部('+allL.length+')\',1200)})">📋全部('+allL.length+')</button><button class="btn" style="padding:4px 12px;font-size:12px;background:#5b21b6;color:#fff" onclick="zoNGto4DBacktest()">🔬 回测这套方式</button></div>';
-  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">深紫=历史开过(带次数)、○=没开过。收窄后号还多的话,去高级筛选再叠打数,或配预算只挑前几注。</div>';
+  var newL=arr.filter(function(x){return !x.dup;}).map(function(x){return x.n;});
+  h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="padding:4px 12px;font-size:12px;background:#7c3aed;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allL.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋全部('+allL.length+')\',1200)})">📋全部('+allL.length+')</button><button class="btn" style="padding:4px 12px;font-size:12px;background:#16a34a;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+newL.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋只新增('+newL.length+')\',1200)})">📋只新增('+newL.length+')</button><button class="btn" style="padding:4px 12px;font-size:12px;background:#5b21b6;color:#fff" onclick="zoNGto4DBacktest()">🔬 回测这套方式</button></div>';
+  h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">深紫=历史开过(带次数)、○=没开过、<span style="text-decoration:line-through">灰划线</span>=别的方向已出(重复)。轮着几个方向出4D,「📋只新增」拿这方向的独家号。收窄后还多就去高级筛选叠打数。</div>';
   h+='</div>';
   out.insertAdjacentHTML('beforeend',h);
   document.getElementById('ng4d-card').scrollIntoView({behavior:'smooth',block:'start'});
@@ -9922,7 +9935,10 @@ function zoNGto4DBacktest(){
   var ptT=parseInt((document.getElementById('ng4dbt-ptt')||{value:''}).value,10); if(isNaN(ptT))ptT=null;
   var onlyOpen=(document.getElementById('ng4dbt-open')||{checked:false}).checked;
   var das={},anyDa=false; [24,12,6,4,1].forEach(function(dd){var e=document.getElementById('ng4dbt-da-'+dd);if(e&&e.checked){das[dd]=1;anyDa=true;}});
-  var mode2d=(document.getElementById('ng4dbt-2dmode')||{value:'off'}).value;
+  var r2f=(document.getElementById('ng4dbt-r2f')||{checked:false}).checked;
+  var r2m=(document.getElementById('ng4dbt-r2m')||{checked:false}).checked;
+  var r2b=(document.getElementById('ng4dbt-r2b')||{checked:false}).checked;
+  var r2any=(r2f||r2m||r2b);
   var H4bt=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
   var per=m.map(function(d){ var nums=[],rs=[],pos=[{},{},{},{}]; [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s)){ nums.push(s); var r=dr((+s[0])+(+s[1])+(+s[2])+(+s[3])); if(r>=1&&rs.indexOf(r)<0)rs.push(r); for(var q=0;q<4;q++)pos[q][+s[q]]=1; } });
     var abs=[[],[],[],[]]; for(var q=0;q<4;q++)for(var dgt=0;dgt<=9;dgt++)if(!pos[q][dgt])abs[q].push(dgt);
@@ -9937,8 +9953,8 @@ function zoNGto4DBacktest(){
     return {门:colS(),大小:rowS(),全镜:ps};
   }
   function ptOk(n){ var s=(+n[0])+(+n[1])+(+n[2])+(+n[3]); if(ptF!=null&&s<ptF)return false; if(ptT!=null&&s>ptT)return false; if(onlyOpen&&!(H4bt.cnt[n]>0))return false; if(anyDa&&!das[(typeof zoDaCount==='function'?zoDaCount(n):24)])return false; return true; }
-  function r2absBt(two){ var pf={},pb={}; two.forEach(function(d){ if(!d)return; d.nums.forEach(function(s){ if(!/^\d{4}$/.test(s))return; pf[dr((+s[0])+(+s[1]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; } return {F:F,B:B,M:M}; }
-  function r2passBt(n,R2){ if(mode2d==='off')return true; var fr=dr((+n[0])+(+n[1])),br=dr((+n[2])+(+n[3])); if(mode2d==='mix')return !!(R2.M[fr]||R2.M[br]); if(mode2d==='split')return !!(R2.F[fr]&&R2.B[br]); return true; }
+  function r2absBt(two){ var pf={},pm={},pb={}; two.forEach(function(d){ if(!d)return; d.nums.forEach(function(s){ if(!/^\d{4}$/.test(s))return; pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var AF={},AM={},AB={}; for(var r=1;r<=9;r++){ if(!pf[r])AF[r]=1; if(!pm[r])AM[r]=1; if(!pb[r])AB[r]=1; } return {AF:AF,AM:AM,AB:AB}; }
+  function r2passBt(n,R2){ if(r2f&&!R2.AF[dr((+n[0])+(+n[1]))])return false; if(r2m&&!R2.AM[dr((+n[1])+(+n[2]))])return false; if(r2b&&!R2.AB[dr((+n[2])+(+n[3]))])return false; return true; }
   // ⑦ 具体2D缺席目标(特别奖源,an2)
   var tg2on=(document.getElementById('ng4dbt-tg2')||{checked:false}).checked;
   function an2(g,wa,wb){ var rt={},fs={}; g.forEach(function(n){ rt[dr((+n[wa])+(+n[wb]))]=1; fs[n[wa]]=(fs[n[wa]]||0)+1; }); var a2=[],a1=[]; for(var r=1;r<=9;r++) if(!rt[r])a2.push(r); for(var d=0;d<=9;d++) if(!fs[''+d])a1.push(''+d); var mo=null,mc=-1; Object.keys(fs).forEach(function(k){if(fs[k]>mc){mc=fs[k];mo=k;}}); var t1=a1.concat(mo!=null?[mo]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){if(a2.indexOf(dr((+d1)+d2))>=0)ts[''+d1+d2]=1;}}); return ts; }
@@ -9951,7 +9967,7 @@ function zoNGto4DBacktest(){
     var f2=[]; src.abs[0].forEach(function(a){ src.abs[1].forEach(function(b){ f2.push(''+a+b); }); });
     var b2=[]; src.abs[2].forEach(function(a){ src.abs[3].forEach(function(b){ b2.push(''+a+b); }); });
     if(!f2.length||!b2.length) continue;
-    if(mode2d!=='off' && i<1) continue;                 // 分前后/混合需要前一期算缺席根
+    if(r2any && i<1) continue;                          // ⑥数根缺席需要前一期算缺席根
     if(tg2on && src.sp.length<3) continue;              // ⑦具体2D缺席目标需要源期特别奖
     var R2=r2absBt([per[i-1],src]);                      // 用源期和它前一期算2D数根缺席
     var TG2F=tg2on?an2(src.sp,0,1):null, TG2B=tg2on?an2(src.sp,2,3):null;
@@ -9963,7 +9979,7 @@ function zoNGto4DBacktest(){
       if((ptF!=null&&sum<ptF)||(ptT!=null&&sum>ptT))fa.push('pt');
       if(onlyOpen&&!(H4bt.cnt[w]>0))fa.push('open');
       if(anyDa&&!das[(typeof zoDaCount==='function'?zoDaCount(w):24)])fa.push('da');
-      if(mode2d!=='off'&&!r2passBt(w,R2))fa.push('r2');
+      if(r2any&&!r2passBt(w,R2))fa.push('r2');
       if(tg2on&&!tg2pass(w))fa.push('tg2');
       if(fa.length===0)capAll++; else if(fa.length===1)loss[fa[0]]++;
     });
@@ -9980,13 +9996,13 @@ function zoNGto4DBacktest(){
   }
   function vd(t,hp,bp){ if(t<10)return {t:'🔵少',c:'#64748b'}; var se=Math.sqrt((bp/100)*(1-bp/100)/t)*100,lead=hp-bp; return lead>2*se?{t:'🟡略高',c:'#d97706'}:(lead<-2*se?{t:'🔴低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}); }
   var h='<div class="card" style="border:2px solid #7c3aed"><h3 style="color:#7c3aed">🔬 '+mk+' · 方向×缺席前2D×后2D→4D · 回测（'+per.length+'期 · 位缺席B版）</h3>';
-  h+='<div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">市场 <select id="ng-mk-sel" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px;color:#7c3aed;font-weight:700">'+['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 期数 <select id="ng4dbt-n" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[100,150,300,500].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select> <span style="border-left:1px solid #ddd6fe;padding-left:8px">🔽点数 <input type="number" id="ng4dbt-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4dbt-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"></span> <label style="cursor:pointer"><input type="checkbox" id="ng4dbt-open" '+(onlyOpen?'checked':'')+' onchange="zoNGto4DBacktest()"> 只历史开过</label> <span style="border-left:1px solid #ddd6fe;padding-left:8px">打数 '+[24,12,6,4,1].map(function(dd){return '<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="ng4dbt-da-'+dd+'" '+(das[dd]?'checked':'')+' onchange="zoNGto4DBacktest()">'+dd+'</label>';}).join('')+'</span> <span style="border-left:1px solid #ddd6fe;padding-left:8px">2D数根缺席 <select id="ng4dbt-2dmode" onchange="zoNGto4DBacktest()" style="padding:2px 5px;border:1px solid #ddd6fe;border-radius:4px"><option value="off"'+(mode2d==='off'?' selected':'')+'>关</option><option value="mix"'+(mode2d==='mix'?' selected':'')+'>混合</option><option value="split"'+(mode2d==='split'?' selected':'')+'>分前后</option></select></span> <label style="cursor:pointer;border-left:1px solid #ddd6fe;padding-left:8px"><input type="checkbox" id="ng4dbt-tg2" '+(tg2on?'checked':'')+' onchange="zoNGto4DBacktest()"> 具体2D缺席目标(特别奖源)</label></div>';
+  h+='<div style="margin-bottom:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:12px">市场 <select id="ng-mk-sel" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px;color:#7c3aed;font-weight:700">'+['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'].map(function(x){return '<option'+(x===mk?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 期数 <select id="ng4dbt-n" onchange="zoNGto4DBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[100,150,300,500].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select> <span style="border-left:1px solid #ddd6fe;padding-left:8px">🔽点数 <input type="number" id="ng4dbt-ptf" value="'+(ptF!=null?ptF:'')+'" placeholder="0" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"> – <input type="number" id="ng4dbt-ptt" value="'+(ptT!=null?ptT:'')+'" placeholder="36" min="0" max="36" onchange="zoNGto4DBacktest()" style="width:44px;padding:2px 4px;border:1px solid #ddd6fe;border-radius:4px"></span> <label style="cursor:pointer"><input type="checkbox" id="ng4dbt-open" '+(onlyOpen?'checked':'')+' onchange="zoNGto4DBacktest()"> 只历史开过</label> <span style="border-left:1px solid #ddd6fe;padding-left:8px">打数 '+[24,12,6,4,1].map(function(dd){return '<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="ng4dbt-da-'+dd+'" '+(das[dd]?'checked':'')+' onchange="zoNGto4DBacktest()">'+dd+'</label>';}).join('')+'</span> <span style="border-left:1px solid #ddd6fe;padding-left:8px">⑥2D数根缺席 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ng4dbt-r2f" '+(r2f?'checked':'')+' onchange="zoNGto4DBacktest()"> 前</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="ng4dbt-r2m" '+(r2m?'checked':'')+' onchange="zoNGto4DBacktest()"> 中</label><label style="cursor:pointer"><input type="checkbox" id="ng4dbt-r2b" '+(r2b?'checked':'')+' onchange="zoNGto4DBacktest()"> 后</label></span> <label style="cursor:pointer;border-left:1px solid #ddd6fe;padding-left:8px"><input type="checkbox" id="ng4dbt-tg2" '+(tg2on?'checked':'')+' onchange="zoNGto4DBacktest()"> ⑦具体2D缺席目标(特别奖源)</label></div>';
   // 📋 当前生效的条件
   var conds=['<b>①方向数根</b>(逐方向:门/大小/全镜)','<b>②各位缺席</b>前2D×后2D(千百×十个没出现的数字)'];
   conds.push('<b>③点数</b>:'+((ptF!=null||ptT!=null)?((ptF!=null?ptF:0)+'–'+(ptT!=null?ptT:36)):'不限'));
   conds.push('<b>④只历史开过</b>:'+(onlyOpen?'是':'否'));
   conds.push('<b>⑤打数</b>:'+(anyDa?Object.keys(das).join('/')+'打':'不限'));
-  conds.push('<b>⑥2D数根缺席</b>:'+(mode2d==='mix'?'混合(前或后根∈缺根)':mode2d==='split'?'分前后(前根∈前缺 且 后根∈后缺)':'关'));
+  conds.push('<b>⑥2D数根缺席</b>:'+(r2any?[r2f?'前':'',r2m?'中':'',r2b?'后':''].filter(Boolean).join('/')+'根∈各自缺根':'关'));
   conds.push('<b>⑦具体2D缺席目标</b>:'+(tg2on?'开(特别奖源,只测有特别奖的期)':'关'));
   h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:7px 10px;margin:6px 0;font-size:12px;color:#1e40af">📋 <b>当前生效条件</b>（改上面控件加/减）:<br>'+conds.join(' ｜ ')+'</div>';
   // 🔎 命中归因:哪个条件卡掉了本可命中的号
