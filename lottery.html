@@ -5366,6 +5366,13 @@ function runAdvancedFilter(){
 
   if(rows.length){
     html+=`<div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:6px 10px;margin-bottom:8px;font-size:12px;color:#3730a3;display:flex;gap:10px;flex-wrap:wrap;align-items:center">🔄 <b>已推荐池·去重</b>:本次 ${_fTotal} 个,其中 <b style="color:#94a3b8">重复 ${_fDup}</b>(别的数根已出)、<b style="color:#16a34a">新增 ${_fNew}</b>。池内共 ${_fPoolSize} 个。<label style="cursor:pointer"><input type="checkbox" id="flt-newonly" ${_fNewOnly?'checked':''} onchange="runAdvancedFilter()"> 只看新增</label> <button class="btn btn-green" style="padding:3px 10px;font-size:11px" onclick="fltCopyNew(this)">📋只新增(${window.__fltNewNums.length})</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#6366f1;color:#fff" onclick="window.__fltPool={};runAdvancedFilter()">🗑️清空池</button> <span style="font-size:10px;color:#818cf8">配九宫格:换个方向数根重筛,之前拿过的号会灰掉,「只新增」拿这方向独家号。</span></div>`;
+    // 🆕 本次新增号 — 纯号码清单块(一眼看到这组数根的新号,可直接选取)
+    var _newNums=window.__fltNewNums||[];
+    var _newCap=_newNums.slice(0,400);
+    html+=`<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+      <div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:5px">🆕 本次新增号（${_newNums.length} 个）${_fDup?` · 已排除重复 ${_fDup} 个`:` · 暂无重复`}</div>
+      ${_newNums.length?`<div style="font-family:monospace;font-size:14px;line-height:2;word-break:break-all;max-height:220px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">${_newCap.map(n=>`<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:5px;padding:1px 7px;margin:2px;font-weight:700">${n}</span>`).join('')}${_newNums.length>400?`<div style="font-size:11px;color:#94a3b8;margin-top:4px">…只显示前400个,全部请用 📋只新增 复制</div>`:''}</div>`:`<div style="font-size:12px;color:#94a3b8">这组数根没有新增号(都被别的数根出过了)。换一组数根再筛。</div>`}
+    </div>`;
   }
 
   if(!rows.length){
