@@ -9856,11 +9856,14 @@ function zoNGto4D(rootsStr, mk, dlbl){
   var out=document.getElementById('abs-out'); if(!out) return;
   function dr(x){ return x===0?0:(x%9===0?9:x%9); } function pad(n){ return String(n).padStart(4,'0'); }
   var rs={}; String(rootsStr).split('').forEach(function(r){ if(+r>=1)rs[+r]=1; });
-  var old=document.getElementById('ng4d-card'); if(old)old.remove();
+  // ⚠️ 先读控件值,最后才删旧卡(否则控件一改就被重置,永远压不下去)
+  var old=document.getElementById('ng4d-card'); var firstOpen=!old;
   // 收窄控件的当前值
   var ptF=parseInt((document.getElementById('ng4d-ptf')||{value:''}).value,10); if(isNaN(ptF))ptF=null;
   var ptT=parseInt((document.getElementById('ng4d-ptt')||{value:''}).value,10); if(isNaN(ptT))ptT=null;
   var onlyOpen=(document.getElementById('ng4d-open')||{checked:false}).checked;
+  // A. 首次打开的默认收窄:只留历史开过 + 点数10–26(避免一开就2090个用不到)
+  if(firstOpen){ onlyOpen=true; if(ptF==null)ptF=10; if(ptT==null)ptT=26; }
   // 取最新一期头二三 → 各位缺席(B版,跟回测同源)
   var nd=(typeof getNewResults==='function')?getNewResults():{}, sn={}, mm=[];
   (nd[mk]||[]).forEach(function(d){if(d&&d.date&&!sn[d.date]){sn[d.date]=1;mm.push(d);}});
@@ -9868,12 +9871,12 @@ function zoNGto4D(rootsStr, mk, dlbl){
   mm=mm.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
   mm.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
   var last=mm[mm.length-1];
-  if(!last){ out.insertAdjacentHTML('beforeend','<div id="ng4d-card" class="card" style="margin-top:8px"><div class="warn">'+mk+' 无最新一期数据。</div></div>'); return; }
+  if(!last){ if(old)old.remove(); out.insertAdjacentHTML('beforeend','<div id="ng4d-card" class="card" style="margin-top:8px"><div class="warn">'+mk+' 无最新一期数据。</div></div>'); return; }
   var pos=[{},{},{},{}]; [0,1,2].forEach(function(p){ var v=last.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))for(var q=0;q<4;q++)pos[q][+s[q]]=1; });
   var abs=[[],[],[],[]]; for(var q=0;q<4;q++)for(var dgt=0;dgt<=9;dgt++)if(!pos[q][dgt])abs[q].push(dgt);
   var f2=[]; abs[0].forEach(function(a){ abs[1].forEach(function(b){ f2.push(''+a+b); }); });
   var b2=[]; abs[2].forEach(function(a){ abs[3].forEach(function(b){ b2.push(''+a+b); }); });
-  if(!f2.length||!b2.length){ out.insertAdjacentHTML('beforeend','<div id="ng4d-card" class="card" style="margin-top:8px"><div class="warn">前2D或后2D缺席为空,拼不出4D。</div></div>'); return; }
+  if(!f2.length||!b2.length){ if(old)old.remove(); out.insertAdjacentHTML('beforeend','<div id="ng4d-card" class="card" style="margin-top:8px"><div class="warn">前2D或后2D缺席为空,拼不出4D。</div></div>'); return; }
   var H4=(typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
   // ⑥ 2D数根缺席:前/中/后三个数根各自独立勾(用最近两期算缺席根)
   var r2f=(document.getElementById('ng4d-r2f')||{checked:false}).checked;
@@ -9915,6 +9918,7 @@ function zoNGto4D(rootsStr, mk, dlbl){
   h+='<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="padding:4px 12px;font-size:12px;background:#7c3aed;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allL.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋全部('+allL.length+')\',1200)})">📋全部('+allL.length+')</button><button class="btn" style="padding:4px 12px;font-size:12px;background:#16a34a;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+newL.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋只新增('+newL.length+')\',1200)})">📋只新增('+newL.length+')</button><button class="btn" style="padding:4px 12px;font-size:12px;background:#5b21b6;color:#fff" onclick="zoNGto4DBacktest()">🔬 回测这套方式</button></div>';
   h+='<div style="font-size:10px;color:#94a3b8;margin-top:4px">深紫=历史开过(带次数)、○=没开过、<span style="text-decoration:line-through">灰划线</span>=别的方向已出(重复)。轮着几个方向出4D,「📋只新增」拿这方向的独家号。收窄后还多就去高级筛选叠打数。</div>';
   h+='</div>';
+  if(old)old.remove();
   out.insertAdjacentHTML('beforeend',h);
   document.getElementById('ng4d-card').scrollIntoView({behavior:'smooth',block:'start'});
 }
