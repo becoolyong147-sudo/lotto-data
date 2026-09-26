@@ -12050,8 +12050,8 @@ function zo2DRootBacktest(){
 </div>
 
 <div class="card" style="border:2px solid #9333ea;margin-top:12px">
-  <h3 style="color:#9333ea">🔢 2D数根 · 缺席回补回测（固定两期一组）</h3>
-  <div class="warn">每个 4D 拆「前2D数根 + 后2D数根」(各缩成1位)。<b>固定用连续两期</b>把头二三的这些根收集起来，1–9 里没出现的＝<b>缺席根</b>；再看<b>下一期</b>会不会补上其中一个。逐期滚动，算命中率 vs 随机。</div>
+  <h3 style="color:#9333ea">🔢 2D数根 · 缺席回补回测（回看窗口可调）</h3>
+  <div class="warn">每个 4D 拆「前2D数根 + 后2D数根」(各缩成1位)。用<b>连续 N 期</b>(下方「回看窗口」可选1/2/3期)把头二三的这些根收集起来，1–9 里没出现的＝<b>缺席根</b>；再看<b>下一期</b>会不会补上其中一个。逐期滚动，算命中率 vs 随机 + 逐期✅❌明细。</div>
   <div class="row" style="margin-top:8px">
     <div class="ig"><label>市场</label>
       <select id="r2a-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select>
@@ -12061,6 +12061,9 @@ function zo2DRootBacktest(){
     </div>
     <div class="ig"><label>粒度</label>
       <select id="r2a-mode"><option value="mix">混合(不分位)</option><option value="split">分前后(各自算)</option><option value="pair">前配后(整对)</option></select>
+    </div>
+    <div class="ig"><label>回看窗口</label>
+      <select id="r2a-win"><option value="1">近1期</option><option value="2" selected>近2期</option><option value="3">近3期</option></select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px" onclick="zoRoot2DAbsentBacktest()">🔬 开始回测</button></div>
     <div class="ig"><label>1D回看窗口</label>
@@ -21990,6 +21993,7 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
   var mk=optMk||(document.getElementById('r2a-market')||{value:'万能'}).value;
   var N=(optN!=null)?optN:(parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0);
   var mode=optMode||(document.getElementById('r2a-mode')||{value:'mix'}).value;
+  var W=parseInt((document.getElementById('r2a-win')||{value:'2'}).value,10)||2;
   function pad(n){return String(n).padStart(4,'0');}
   function root2(a,b){ var s=(+a)+(+b); return s===0?0:(s%9===0?9:s%9); }
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
@@ -22013,16 +22017,17 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
   }
   var modeLbl={mix:'混合(不分位)',split:'分前后',pair:'前配后(整对)'}[mode];
   var h='<div class="card" style="border:2px solid #9333ea">';
-  h+='<h3 style="color:#9333ea">🔬 '+mk+' · 2D数根缺席回补回测 · '+modeLbl+'（两期一组）</h3>';
+  h+='<h3 style="color:#9333ea">🔬 '+mk+' · 2D数根缺席回补回测 · '+modeLbl+'（近'+W+'期一组）</h3>';
   // 🎯 本期缺席（用最新两期算，给下一期参考）
-  if(per.length>=2){
-    var L1=per[per.length-1], L2=per[per.length-2];
-    var poolF={}; [L1.f,L2.f].forEach(function(s){for(var k in s)poolF[k]=1;}); var abF=absentOf(poolF);
-    var poolM={}; [L1.m,L2.m].forEach(function(s){for(var k in s)poolM[k]=1;}); var abM=absentOf(poolM);
-    var poolB={}; [L1.b,L2.b].forEach(function(s){for(var k in s)poolB[k]=1;}); var abB=absentOf(poolB);
-    var poolAll={}; [L1.f,L1.m,L1.b,L2.f,L2.m,L2.b].forEach(function(s){for(var k in s)poolAll[k]=1;}); var abAll=absentOf(poolAll);
+  if(per.length>=W){
+    var winLast=per.slice(per.length-W);
+    var poolF={}; winLast.forEach(function(p){for(var k in p.f)poolF[k]=1;}); var abF=absentOf(poolF);
+    var poolM={}; winLast.forEach(function(p){for(var k in p.m)poolM[k]=1;}); var abM=absentOf(poolM);
+    var poolB={}; winLast.forEach(function(p){for(var k in p.b)poolB[k]=1;}); var abB=absentOf(poolB);
+    var poolAll={}; winLast.forEach(function(p){[p.f,p.m,p.b].forEach(function(s){for(var k in s)poolAll[k]=1;});}); var abAll=absentOf(poolAll);
+    window.__r2aAbsent={f:abF,m:abM,b:abB,all:abAll,mode:mode,mk:mk};
     h+='<div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
-    h+='<div style="font-size:13px;font-weight:800;color:#6d28d9">🎯 本期缺席（最新两期 '+L2.date+' + '+L1.date+' → 下一期盯这些根）</div>';
+    h+='<div style="font-size:13px;font-weight:800;color:#6d28d9">🎯 本期缺席（最新'+W+'期 '+winLast[0].date+' ~ '+winLast[winLast.length-1].date+' → 下一期盯这些根）<button class="btn" style="padding:2px 10px;font-size:11px;background:#9333ea;color:#fff;margin-left:8px" onclick="zoR2aSendToFilter()">📤 勾进高级筛选</button></div>';
     if(mode==='split'){
       h+='<div style="font-size:14px;margin-top:4px">前2D根缺：<b style="color:#0f766e">'+(abF.join(' ')||'无')+'</b><br>中2D根缺：<b style="color:#b45309">'+(abM.join(' ')||'无')+'</b><br>后2D根缺：<b style="color:#be185d">'+(abB.join(' ')||'无')+'</b></div>';
     } else if(mode==='pair'){
@@ -22036,20 +22041,21 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
   var det=[];
   if(mode==='mix'){
     var tot=0,hit=0,bs=0;
-    for(var i=0;i+2<per.length;i++){ var pool={}; [per[i].f,per[i].m,per[i].b,per[i+1].f,per[i+1].m,per[i+1].b].forEach(function(s){for(var k in s)pool[k]=1;}); var ab=absentOf(pool); if(!ab.length)continue; var nx={}; for(var k1 in per[i+2].f)nx[k1]=1; for(var km in per[i+2].m)nx[km]=1; for(var k2 in per[i+2].b)nx[k2]=1; var got=ab.filter(function(r){return nx[r];}); tot++; var hh=got.length>0; if(hh)hit++; bs+=1-Math.pow((9-ab.length)/9,9); det.push({date:per[i+2].date,absent:ab.join(' '),got:got.join(' ')||'—',hit:hh}); }
+    for(var i=0;i+W<per.length;i++){ var pool={}; for(var w=0;w<W;w++){[per[i+w].f,per[i+w].m,per[i+w].b].forEach(function(s){for(var k in s)pool[k]=1;});} var ab=absentOf(pool); if(!ab.length)continue; var tp=per[i+W]; var nx={}; for(var k1 in tp.f)nx[k1]=1; for(var km in tp.m)nx[km]=1; for(var k2 in tp.b)nx[k2]=1; var got=ab.filter(function(r){return nx[r];}); tot++; var hh=got.length>0; if(hh)hit++; bs+=1-Math.pow((9-ab.length)/9,9); det.push({date:tp.date,absent:ab.join(' '),got:got.join(' ')||'—',hit:hh}); }
     h+=mcard('前中后合并',tot,hit,bs);
     h+='<div class="warn">两期的前+中+后2D根合在一起算缺席,看下期前/中/后根有没有补上任一个。</div>';
   } else if(mode==='split'){
     var tF=0,hF=0,bF=0, tM=0,hM=0,bM=0, tB=0,hB=0,bB=0;
-    for(var i2=0;i2+2<per.length;i2++){
-      var poolF={}; [per[i2].f,per[i2+1].f].forEach(function(s){for(var k in s)poolF[k]=1;}); var abF=absentOf(poolF);
-      var poolM={}; [per[i2].m,per[i2+1].m].forEach(function(s){for(var k in s)poolM[k]=1;}); var abM=absentOf(poolM);
-      var poolB={}; [per[i2].b,per[i2+1].b].forEach(function(s){for(var k in s)poolB[k]=1;}); var abB=absentOf(poolB);
-      if(abF.length){ var gF=abF.filter(function(r){return per[i2+2].f[r];}); tF++; var hhF=gF.length>0; if(hhF)hF++; bF+=1-Math.pow((9-abF.length)/9,3); }
-      if(abM.length){ var gM=abM.filter(function(r){return per[i2+2].m[r];}); tM++; var hhM=gM.length>0; if(hhM)hM++; bM+=1-Math.pow((9-abM.length)/9,3); }
-      if(abB.length){ var gB=abB.filter(function(r){return per[i2+2].b[r];}); tB++; var hhB=gB.length>0; if(hhB)hB++; bB+=1-Math.pow((9-abB.length)/9,3); }
-      var _gF=abF.filter(function(r){return per[i2+2].f[r];}), _gM=abM.filter(function(r){return per[i2+2].m[r];}), _gB=abB.filter(function(r){return per[i2+2].b[r];});
-      det.push({date:per[i2+2].date,absent:'前['+abF.join(' ')+'] 中['+abM.join(' ')+'] 后['+abB.join(' ')+']',got:'前:'+(_gF.join(' ')||'—')+' 中:'+(_gM.join(' ')||'—')+' 后:'+(_gB.join(' ')||'—'),hitStr:'前'+(abF.length?(_gF.length?'✅':'❌'):'—')+' 中'+(abM.length?(_gM.length?'✅':'❌'):'—')+' 后'+(abB.length?(_gB.length?'✅':'❌'):'—')});
+    for(var i2=0;i2+W<per.length;i2++){
+      var poolF={}; for(var wf=0;wf<W;wf++){for(var k in per[i2+wf].f)poolF[k]=1;} var abF=absentOf(poolF);
+      var poolM={}; for(var wm=0;wm<W;wm++){for(var k in per[i2+wm].m)poolM[k]=1;} var abM=absentOf(poolM);
+      var poolB={}; for(var wb=0;wb<W;wb++){for(var k in per[i2+wb].b)poolB[k]=1;} var abB=absentOf(poolB);
+      var tp2=per[i2+W];
+      if(abF.length){ var gF=abF.filter(function(r){return tp2.f[r];}); tF++; var hhF=gF.length>0; if(hhF)hF++; bF+=1-Math.pow((9-abF.length)/9,3); }
+      if(abM.length){ var gM=abM.filter(function(r){return tp2.m[r];}); tM++; var hhM=gM.length>0; if(hhM)hM++; bM+=1-Math.pow((9-abM.length)/9,3); }
+      if(abB.length){ var gB=abB.filter(function(r){return tp2.b[r];}); tB++; var hhB=gB.length>0; if(hhB)hB++; bB+=1-Math.pow((9-abB.length)/9,3); }
+      var _gF=abF.filter(function(r){return tp2.f[r];}), _gM=abM.filter(function(r){return tp2.m[r];}), _gB=abB.filter(function(r){return tp2.b[r];});
+      det.push({date:tp2.date,absent:'前['+abF.join(' ')+'] 中['+abM.join(' ')+'] 后['+abB.join(' ')+']',got:'前:'+(_gF.join(' ')||'—')+' 中:'+(_gM.join(' ')||'—')+' 后:'+(_gB.join(' ')||'—'),hitStr:'前'+(abF.length?(_gF.length?'✅':'❌'):'—')+' 中'+(abM.length?(_gM.length?'✅':'❌'):'—')+' 后'+(abB.length?(_gB.length?'✅':'❌'):'—')});
     }
     h+=mcard('前2D根(缺→下期前根补)',tF,hF,bF);
     h+=mcard('中2D根(缺→下期中根补)',tM,hM,bM);
@@ -22057,27 +22063,43 @@ function zoRoot2DAbsentBacktest(optMk, optN, optMode, optOut){
     h+='<div class="warn">前根、中根、后根<b>各自</b>算缺席、各自核对下期同位。中2D=中间两位(百+十)的数根。</div>';
   } else { // pair
     var tot2=0,hit2=0,bs2=0;
-    for(var i3=0;i3+2<per.length;i3++){
-      var pF={}; [per[i3].f,per[i3+1].f].forEach(function(s){for(var k in s)pF[k]=1;}); var aF=absentOf(pF);
-      var pB={}; [per[i3].b,per[i3+1].b].forEach(function(s){for(var k in s)pB[k]=1;}); var aB=absentOf(pB);
+    for(var i3=0;i3+W<per.length;i3++){
+      var pF={}; for(var wpf=0;wpf<W;wpf++){for(var k in per[i3+wpf].f)pF[k]=1;} var aF=absentOf(pF);
+      var pB={}; for(var wpb=0;wpb<W;wpb++){for(var k in per[i3+wpb].b)pB[k]=1;} var aB=absentOf(pB);
       if(!aF.length||!aB.length) continue;
+      var tp3=per[i3+W];
       var aFs={}; aF.forEach(function(r){aFs[r]=1;}); var aBs={}; aB.forEach(function(r){aBs[r]=1;});
-      var g=per[i3+2].pairs.filter(function(pr){ return aFs[pr.f]&&aBs[pr.b]; });
+      var g=tp3.pairs.filter(function(pr){ return aFs[pr.f]&&aBs[pr.b]; });
       tot2++; var hh2=g.length>0; if(hh2)hit2++;
       var pf=aF.length/9, pb=aB.length/9; bs2+=1-Math.pow(1-pf*pb,3);
-      det.push({date:per[i3+2].date,absent:'前['+aF.join(' ')+']×后['+aB.join(' ')+']',got:g.map(function(pr){return pr.f+'-'+pr.b;}).join(' ')||'—',hit:hh2});
+      det.push({date:tp3.date,absent:'前['+aF.join(' ')+']×后['+aB.join(' ')+']',got:g.map(function(pr){return pr.f+'-'+pr.b;}).join(' ')||'—',hit:hh2});
     }
     h+=mcard('前配后·整对凑成',tot2,hit2,bs2);
     h+='<div class="warn">更严:看下期有没有<b>同一个号</b>里「前根∈缺席前根 且 后根∈缺席后根」凑成一对。</div>';
   }
   // 逐期明细
-  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'r2a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#9333ea;font-weight:700">逐期明细 ▾</span>';
-  h+='<div id="r2a-det" style="display:none;max-height:320px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9333ea"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席</th><th style="text-align:left;padding:3px 6px">补上</th><th style="padding:3px 6px">中?</th></tr>';
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'r2a-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#9333ea;font-weight:700">逐期明细 ▾（点可收起）</span>';
+  h+='<div id="r2a-det" style="display:block;max-height:360px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#9333ea"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席</th><th style="text-align:left;padding:3px 6px">补上</th><th style="padding:3px 6px">中?</th></tr>';
   det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px">'+x.date+'</td><td style="padding:3px 6px">'+x.absent+'</td><td style="padding:3px 6px;font-weight:700;color:#16a34a">'+x.got+'</td><td style="padding:3px 6px;text-align:center;white-space:nowrap">'+(x.hitStr!=null?x.hitStr:(x.hit==null?'':(x.hit?'✅':'❌')))+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——缺席≠会补开。诚实验证用,不构成预测。判定用2×标准误。</div>';
   h+='</div>';
   out.innerHTML=h;
+}
+
+// 📤 把「本期缺席根」勾进高级筛选的 前/中/后2D数根
+function zoR2aSendToFilter(){
+  var A=window.__r2aAbsent; if(!A){ alert('先点「🔬 开始回测」生成本期缺席根,再送。'); return; }
+  function clr(g){ for(var r=1;r<=9;r++){ var cb=document.getElementById('flt-'+g+'-'+r); if(cb){ cb.checked=false; if(typeof updateChipStyle==='function')updateChipStyle(g,r); } } }
+  function setg(g,list){ clr(g); (list||[]).forEach(function(r){ var cb=document.getElementById('flt-'+g+'-'+r); if(cb){ cb.checked=true; if(typeof updateChipStyle==='function')updateChipStyle(g,r); } }); }
+  var msg='';
+  if(A.mode==='split'){ setg('f2r',A.f); setg('m2r',A.m); setg('b2r',A.b); msg='前2D根['+(A.f.join(' ')||'无')+'] 中['+(A.m.join(' ')||'无')+'] 后['+(A.b.join(' ')||'无')+']'; }
+  else if(A.mode==='pair'){ setg('f2r',A.f); clr('m2r'); setg('b2r',A.b); msg='前2D根['+(A.f.join(' ')||'无')+'] 后['+(A.b.join(' ')||'无')+']'; }
+  else { setg('f2r',A.all); clr('m2r'); clr('b2r'); msg='混合缺席合集['+(A.all.join(' ')||'无')+'] → 已勾进「前2D数根」\n(混合=任一位补上,高级筛选只能按位勾,已放前2D,你可自行改勾中/后2D数根)'; }
+  var fm=document.getElementById('flt-market'); if(fm&&A.mk)fm.value=A.mk;
+  if(typeof switchTab==='function') switchTab('filter');
+  setTimeout(function(){ var el=document.getElementById('flt-f2root-chips'); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); },200);
+  alert('已勾进高级筛选:\n'+msg+'\n再叠 点数/打数/年份 等 → 点🔍筛选。');
 }
 
 // 🔢 缺席1D·逐位回测：千/百/十/个 每位各自。回看窗口内该位出现过的数字，0-9里没出现的＝该位缺席1D；
