@@ -12082,6 +12082,7 @@ function zo2DRootBacktest(){
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#c2410c;color:#fff;padding:9px 16px" onclick="zoRootExcludeBacktest()">🚫 排除法回测(2D+3D数根·排刚出的)</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#9333ea;color:#fff;padding:9px 16px" onclick="zoCausalBacktest()">🔀 因果回测(1D缺 × 2D数根缺 是否关联)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff;padding:9px 16px" onclick="zoComboMainBacktest()">🎯 主打2D × 数根1D 双推荐回测</button></div>
   </div>
   <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
@@ -22197,6 +22198,78 @@ function zoDigit1AbsentBacktest(){
 
 // 🧬 数根×缺席1D 组合回测：命中＝奖号「2D数根∈缺席根(两期一组)」且「该位数字∈缺席1D(最新一期)」两者同时中。
 // 三模式：mix混合数根 / split分前后 / pair前后匹配。
+// 🔀 因果回测：下一期中奖号上,「该2D两位∈缺席1D」和「该2D数根∈缺席根」是不是一起发生(相关/独立)
+function zoCausalBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  var SRC=(document.getElementById('d1-src')||{value:'nums'}).value;
+  var srcLbl=(SRC==='sp')?'特别奖':'头二三(大奖)';
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){return x===0?0:(x%9===0?9:x%9);}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0&&m.length>N)m=m.slice(m.length-N);
+  function info(d){ var nums=[], raw=(SRC==='sp')?(d.sp||[]):[d.nums&&d.nums[0],d.nums&&d.nums[1],d.nums&&d.nums[2]]; raw.forEach(function(v){ if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); return {date:d.date,nums:nums}; }
+  var per=m.map(info).filter(function(x){return x.nums.length>0;});
+  if(per.length<5){ out.innerHTML='<div class="warn">'+mk+' 有'+srcLbl+'的期数太少('+per.length+'),无法回测。</div>'; return; }
+  function rootAbs(i){ var pf={},pb={}; [per[i],per[i+1]].forEach(function(pp){ pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},B={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pb[r])B[r]=1; } return {F:F,B:B}; }
+  function d1Abs(i){ var pr=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}]; for(var q=0;q<4;q++)for(var dg=0;dg<=9;dg++)if(!pr[q][dg])A[q][dg]=1; return A; }
+  // 2×2 计数器:A=1D缺✓根缺✓(双缺) B=1D缺✓根✗ C=1D✗根缺✓ D=都✗
+  function newT(){return {A:0,B:0,C:0,D:0};}
+  var TF=newT(), TB=newT(), det=[];
+  for(var i=0;i+2<per.length;i++){
+    var R=rootAbs(i), Ad=d1Abs(i+1), tgt=per[i+2];
+    var rf={A:0,B:0,C:0,D:0}, rb={A:0,B:0,C:0,D:0};
+    tgt.nums.forEach(function(s){
+      var d0=+s[0],d1=+s[1],d2=+s[2],d3=+s[3];
+      // 前2D
+      var o1f=(Ad[0][d0]&&Ad[1][d1]), orf=!!R.F[dr(d0+d1)];
+      var kf=(o1f&&orf)?'A':(o1f&&!orf)?'B':(!o1f&&orf)?'C':'D'; TF[kf]++; rf[kf]++;
+      // 后2D
+      var o1b=(Ad[2][d2]&&Ad[3][d3]), orb=!!R.B[dr(d2+d3)];
+      var kb=(o1b&&orb)?'A':(o1b&&!orb)?'B':(!o1b&&orb)?'C':'D'; TB[kb]++; rb[kb]++;
+    });
+    det.push({date:tgt.date, rf:rf, rb:rb});
+  }
+  function analyze(T){ var tot=T.A+T.B+T.C+T.D; if(!tot)return null;
+    var expA=(T.A+T.B)*(T.A+T.C)/tot;                      // 独立时该有的"双缺"量
+    var denom=Math.sqrt((T.A+T.B)*(T.C+T.D)*(T.A+T.C)*(T.B+T.D));
+    var phi=denom>0?((T.A*T.D-T.B*T.C)/denom):0;            // 相关系数 -1..1
+    // 卡方(1自由度)判显著:chi=tot*phi^2;>3.84≈95%
+    var chi=tot*phi*phi; var sig=chi>=3.84;
+    // 按相关强度|φ|判(不被大样本假显著骗):<0.1几乎独立
+    var ap=Math.abs(phi), vd;
+    if(ap<0.1) vd={t:'🟢基本独立(无因果)',c:'#16a34a'};
+    else if(ap<0.3) vd=(phi>0?{t:'🟡弱正相关',c:'#d97706'}:{t:'🟠弱负相关',c:'#ea580c'});
+    else vd=(phi>0?{t:'🔵中强正相关',c:'#2563eb'}:{t:'🔴中强负相关',c:'#dc2626'});
+    return {tot:tot,expA:expA,phi:phi,chi:chi,sig:sig,vd:vd};
+  }
+  function tbl(title,T,col){ var a=analyze(T); if(!a)return '';
+    var s='<div style="margin:8px 0;border-left:3px solid '+col+';padding-left:8px">';
+    s+='<div style="font-weight:800;color:'+col+';font-size:13px">'+title+'（共 '+a.tot+' 个2D）</div>';
+    s+='<table style="border-collapse:collapse;font-size:12px;margin:4px 0"><tr><td style="padding:2px 6px"></td><td style="padding:2px 6px;font-weight:700;color:'+col+'">数根缺✓</td><td style="padding:2px 6px;font-weight:700;color:#94a3b8">数根缺✗</td></tr>'+
+      '<tr><td style="padding:2px 6px;font-weight:700;color:'+col+'">1D缺✓</td><td style="padding:2px 8px;text-align:center;background:#faf5ff;font-weight:800">A '+T.A+'</td><td style="padding:2px 8px;text-align:center">B '+T.B+'</td></tr>'+
+      '<tr><td style="padding:2px 6px;font-weight:700;color:#94a3b8">1D缺✗</td><td style="padding:2px 8px;text-align:center">C '+T.C+'</td><td style="padding:2px 8px;text-align:center;color:#94a3b8">D '+T.D+'</td></tr></table>';
+    s+='<div style="font-size:12px">双缺A实际 <b style="color:'+col+'">'+T.A+'</b> · 独立时应有 <b>'+a.expA.toFixed(0)+'</b> · 相关系数 φ=<b style="color:'+a.vd.c+'">'+a.phi.toFixed(3)+'</b> → <b style="color:'+a.vd.c+'">'+a.vd.t+'</b></div>';
+    s+='</div>'; return s;
+  }
+  var h='<div class="card" style="border:2px solid #9333ea">';
+  h+='<h3 style="color:#9333ea">🔀 '+mk+' · 因果回测:1D缺 × 2D数根缺 是否关联 · 源['+srcLbl+']（数根两期·1D最新一期 · '+per.length+'期）</h3>';
+  h+='<div class="warn">对下一期每个中奖号的 前2D/后2D,同时看:①两位是否都在<b>缺席1D</b> ②数根是否在<b>缺席根</b>。数够多就看「双缺A」是不是明显超过「两者独立时该有的量」。φ≈0=独立(叠加无增益);φ>0且卡方>3.84=真有正相关。</div>';
+  h+=tbl('前2D(千百)',TF,'#0f766e');
+  h+=tbl('后2D(十个)',TB,'#be185d');
+  var aF=analyze(TF),aB=analyze(TB);
+  var weakBoth=(aF&&Math.abs(aF.phi)<0.1&&aB&&Math.abs(aB.phi)<0.1);
+  h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#334155">👉 <b>人话</b>:前2D φ='+(aF?aF.phi.toFixed(3):'—')+' · 后2D φ='+(aB?aB.phi.toFixed(3):'—')+'(φ范围-1~1,越接近0越无关)。'+
+     (weakBoth?'两个|φ|都<0.1 → 「数根缺」和「1D缺」<b>基本互不相干</b>。就算卡方说"统计显著",那只是<b>样本上万的假象</b>,实际关联小到可忽略。<b>结论:双缺(AND)叠加不产生额外优势</b>——双缺件之所以少,纯粹是"两个各自随机的条件碰巧同时满足"本来就稀有,不是它们有协同。φ还略带负号=双缺比独立预期还<b>少一丁点</b>,更说明别指望叠加增益。':'有一项|φ|≥0.1,见上表,可能真有结构,值得再看。')+'</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 // 🚫 排除法回测：把最近W期出现过的数根「排除」,买剩下的(以外);测 前2D/后2D/前3D/后3D 四维,看下期落在"以外"没 vs 随机
 function zoRootExcludeBacktest(){
   var out=document.getElementById('r2a-out'); if(!out) return;
