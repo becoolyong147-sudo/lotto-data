@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🐲 生肖推荐历史记录 2021-2026 · 万马多新豪</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;600;700&family=EB+Garamond:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --color-primary: #0F172A;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #334155;
+  --color-accent: #0369A1;
+  --color-background: #F8FAFC;
+  --color-foreground: #020617;
+  --color-muted: #E8ECF1;
+  --color-border: #E2E8F0;
+  --color-destructive: #DC2626;
+  --color-ring: #0F172A;
+  --color-success: #16A34A;
+
+  --font-heading: 'EB Garamond', serif;
+  --font-body: 'Crimson Text', serif;
+
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.08);
+  --shadow-md: 0 4px 12px rgba(15,23,42,.12);
+  --shadow-lg: 0 8px 24px rgba(15,23,42,.16);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* ===== HEADER ===== */
+header {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1e293b 100%);
+  color: var(--color-on-primary);
+  padding: 60px 20px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+header h1 {
+  font-family: var(--font-heading);
+  font-size: clamp(28px, 6vw, 48px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 12px;
+}
+
+header p {
+  font-size: 18px;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+  font-weight: 400;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+/* ===== DISCLAIMER ===== */
+.disclaimer {
+  background: #FEF9C3;
+  border-left: 4px solid #F59E0B;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 32px;
+  font-size: 14px;
+  color: #78350F;
+  line-height: 1.7;
+}
+
+/* ===== STATS GRID ===== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: var(--color-on-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: all 200ms ease;
+}
+
+.stat-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-card .value {
+  font-family: var(--font-heading);
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-card .label {
+  font-size: 13px;
+  color: var(--color-secondary);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* ===== CONTROLS ===== */
+.controls {
+  background: var(--color-on-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 32px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.controls select {
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--color-on-primary);
+  color: var(--color-foreground);
+  cursor: pointer;
+  transition: border-color 150ms;
+}
+
+.controls select:hover,
+.controls select:focus {
+  border-color: var(--color-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.1);
+}
+
+.controls button {
+  padding: 10px 20px;
+  background: var(--color-accent);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 200ms;
+  box-shadow: var(--shadow-sm);
+}
+
+.controls button:hover {
+  background: #0284C7;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.controls button:active {
+  transform: translateY(0);
+}
+
+.controls .status {
+  color: var(--color-secondary);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* ===== ZODIAC GRID ===== */
+.zodiac-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.zodiac-card {
+  background: var(--color-on-primary);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 200ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.zodiac-card:hover {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-6px);
+  background: linear-gradient(135deg, #F0F4F8, var(--color-on-primary));
+}
+
+.zodiac-emoji {
+  font-size: 56px;
+  line-height: 1;
+  display: inline-block;
+  margin-bottom: 12px;
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.zodiac-card:hover .zodiac-emoji {
+  animation: zodiacPop 600ms ease;
+}
+
+@keyframes zodiacPop {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.2) rotate(-8deg); }
+  50% { transform: scale(1.3) rotate(8deg); }
+  75% { transform: scale(1.15) rotate(-4deg); }
+}
+
+.zodiac-name {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 8px;
+}
+
+.zodiac-stats {
+  font-size: 13px;
+  color: var(--color-secondary);
+  line-height: 1.6;
+}
+
+.zodiac-hits {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin: 8px 0;
+}
+
+.zodiac-rate {
+  font-size: 12px;
+  padding: 6px 10px;
+  background: linear-gradient(135deg, rgba(3,105,161,0.08), rgba(3,105,161,0.04));
+  border: 1px solid rgba(3,105,161,0.2);
+  border-radius: 6px;
+  color: var(--color-accent);
+  font-weight: 600;
+  margin-top: 8px;
+  display: inline-block;
+}
+
+/* ===== TABLE ===== */
+.section {
+  background: var(--color-on-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin-bottom: 32px;
+  box-shadow: var(--shadow-sm);
+}
+
+.section h2 {
+  font-family: var(--font-heading);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  background: linear-gradient(135deg, #F8FAFC, #F1F5F9);
+  padding: 12px;
+  text-align: left;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--color-primary);
+  border-bottom: 2px solid var(--color-border);
+}
+
+td {
+  padding: 12px;
+  border-bottom: 1px solid var(--color-muted);
+  color: var(--color-foreground);
+}
+
+tr:hover {
+  background: #F8FAFC;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+.hit-yes {
+  color: var(--color-success);
+  font-weight: 700;
+}
+
+.hit-no {
+  color: var(--color-secondary);
+}
+
+/* ===== LOADING ===== */
+.loading {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--color-secondary);
+}
+
+.spinner {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== FOOTER ===== */
+footer {
+  text-align: center;
+  padding: 32px 20px;
+  color: var(--color-secondary);
+  font-size: 13px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 60px;
+}
+
+footer p {
+  margin: 4px 0;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .section {
+    padding: 20px;
+  }
+
+  header {
+    padding: 40px 20px;
+  }
+
+  header h1 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .zodiac-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stat-card .value {
+    font-size: 28px;
+  }
+
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .controls select,
+  .controls button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zodiac-card:hover .zodiac-emoji {
+    animation: none;
+    transform: scale(1.05);
+  }
+
+  .zodiac-card,
+  .stat-card,
+  .controls button {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐲 生肖推荐历史记录</h1>
+  <p>2021-2026 历史数据 | 公开透明 | 实时可查</p>
+</header>
+
+<div class="container">
+
+  <div class="disclaimer">
+    ⚠️ <strong>免责声明</strong>：彩票具有完全随机性。本页面为历史统计整理，不构成任何预测或投注建议。命中与未命中均如实记录，仅供参考。请理性购彩、量力而行。
+  </div>
+
+  <!-- 统计汇总 -->
+  <div class="stats-grid" id="stats">
+    <div class="stat-card">
+      <div class="value">—</div>
+      <div class="label">总命中次数</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">—</div>
+      <div class="label">总命中率</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">—</div>
+      <div class="label">参与月份</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">—/12</div>
+      <div class="label">命中生肖数</div>
+    </div>
+  </div>
+
+  <!-- 控制面板 -->
+  <div class="controls">
+    <select id="market">
+      <option value="万能">万能</option>
+      <option value="跑马">跑马</option>
+      <option value="多多">多多</option>
+      <option value="新加坡">新加坡</option>
+      <option value="豪龙">豪龙</option>
+    </select>
+    <button onclick="loadData()">📊 加载复盘数据</button>
+    <span class="status" id="status"></span>
+  </div>
+
+  <!-- 12生肖卡片 -->
+  <div class="zodiac-grid" id="zodiacGrid">
+    <div class="loading">
+      <div class="spinner"></div>
+      <p style="margin-top: 16px;">准备数据中...</p>
+    </div>
+  </div>
+
+  <!-- 月度回测表 -->
+  <div class="section">
+    <h2>📅 月度回测详情</h2>
+    <div class="table-wrapper">
+      <table id="replayTable">
+        <thead>
+          <tr>
+            <th>年月</th>
+            <th>期数</th>
+            <th>命中期数</th>
+            <th>命中率</th>
+            <th>命中生肖</th>
+          </tr>
+        </thead>
+        <tbody id="replayBody">
+          <tr><td colspan="5" style="text-align: center; color: var(--color-secondary);">暂无数据</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>🐲 万马多新豪 号码分析系统 · 生肖推荐公开复盘</p>
+  <p>数据来源: 浏览器本地存储 | 完全透明 | 月底公开复盘</p>
+</footer>
+
+<script>
+const ZODIACS = [
+  { name: '鼠', emoji: '🐭', idx: 0 },
+  { name: '牛', emoji: '🐮', idx: 1 },
+  { name: '虎', emoji: '🐯', idx: 2 },
+  { name: '兔', emoji: '🐰', idx: 3 },
+  { name: '龙', emoji: '🐲', idx: 4 },
+  { name: '蛇', emoji: '🐍', idx: 5 },
+  { name: '马', emoji: '🐴', idx: 6 },
+  { name: '羊', emoji: '🐑', idx: 7 },
+  { name: '猴', emoji: '🐵', idx: 8 },
+  { name: '鸡', emoji: '🐔', idx: 9 },
+  { name: '狗', emoji: '🐶', idx: 10 },
+  { name: '猪', emoji: '🐷', idx: 11 }
+];
+
+let replayData = null;
+
+function loadData() {
+  const market = document.getElementById('market').value;
+  const status = document.getElementById('status');
+  status.textContent = '⏳ 加载中...';
+
+  try {
+    const lsData = JSON.parse(localStorage.getItem('lottery_new_results') || '{}');
+    const draws = lsData[market] || [];
+
+    if (!draws.length) {
+      status.textContent = '❌ 暂无数据';
+      document.getElementById('zodiacGrid').innerHTML = '<div class="loading" style="grid-column: 1/-1;">此市场暂无开奖数据。请先在主系统导入数据。</div>';
+      return;
+    }
+
+    const filtered = draws.filter(d => {
+      const year = parseInt(d.date?.split('-')[0], 10);
+      return year >= 2021;
+    }).sort((a, b) => a.date.localeCompare(b.date));
+
+    if (!filtered.length) {
+      status.textContent = '❌ 2021年后暂无数据';
+      return;
+    }
+
+    replayData = computeStats(filtered);
+    renderStats(replayData);
+    renderZodiacCards(replayData);
+    renderReplayTable(replayData);
+
+    status.textContent = `✅ 已加载 ${filtered.length} 期数据`;
+  } catch (e) {
+    console.error('数据加载失败:', e);
+    status.textContent = '❌ 数据加载失败';
+  }
+}
+
+// 生肖计算规则（与lottery.html同步）
+function getZodiacByNum(num) {
+  const year = parseInt(num, 10);
+  const zodiacIdx = ((year - 4) % 12 + 12) % 12;
+  return zodiacIdx;
+}
+
+function computeStats(draws) {
+  const zodiacStats = ZODIACS.map(z => ({
+    ...z,
+    hits: 0,
+    total: 0,
+    rate: 0
+  }));
+
+  let totalHits = 0;
+  const hitZodiacSet = new Set();
+  const monthData = {};
+
+  draws.forEach(d => {
+    const month = d.date.substring(0, 7);
+    if (!monthData[month]) monthData[month] = { total: 0, hits: 0, zodiacSet: new Set() };
+    monthData[month].total++;
+
+    [0, 1, 2].forEach(prizeIdx => {
+      const num = d.nums?.[prizeIdx];
+      if (!num) return;
+
+      const zodiacIdx = getZodiacByNum(num);
+      zodiacStats[zodiacIdx].hits++;
+      zodiacStats[zodiacIdx].total++;
+      totalHits++;
+      hitZodiacSet.add(zodiacIdx);
+      monthData[month].hits++;
+      monthData[month].zodiacSet.add(zodiacIdx);
+    });
+  });
+
+  zodiacStats.forEach(z => {
+    z.rate = z.total > 0 ? Math.round(z.hits / z.total * 100) : 0;
+  });
+
+  return {
+    totalHits,
+    overallRate: Math.round(totalHits / (draws.length * 3) * 100),
+    zodiacStats,
+    monthData,
+    monthKeys: Object.keys(monthData).sort(),
+    hitZodiacCount: hitZodiacSet.size
+  };
+}
+
+function renderStats(data) {
+  const html = `
+    <div class="stat-card">
+      <div class="value">${data.totalHits}</div>
+      <div class="label">总命中次数</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">${data.overallRate}%</div>
+      <div class="label">总命中率</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">${data.monthKeys.length}</div>
+      <div class="label">参与月份</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">${data.hitZodiacCount}/12</div>
+      <div class="label">命中生肖数</div>
+    </div>
+  `;
+  document.getElementById('stats').innerHTML = html;
+}
+
+function renderZodiacCards(data) {
+  const html = data.zodiacStats.map(z => `
+    <div class="zodiac-card">
+      <div class="zodiac-emoji">${z.emoji}</div>
+      <div class="zodiac-name">${z.name}肖</div>
+      <div class="zodiac-stats">
+        <div class="zodiac-hits">${z.hits}</div>
+        <div>命中 ${z.total} 次</div>
+        <div class="zodiac-rate">${z.rate}%</div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('zodiacGrid').innerHTML = html;
+}
+
+function renderReplayTable(data) {
+  const rows = data.monthKeys.map(month => {
+    const m = data.monthData[month];
+    const rate = m.total > 0 ? Math.round(m.hits / m.total * 100) : 0;
+    const zodiacNames = Array.from(m.zodiacSet).map(i => ZODIACS[i].name).join('、');
+    return `
+      <tr>
+        <td>${month}</td>
+        <td>${m.total}</td>
+        <td class="hit-yes">${m.hits}</td>
+        <td class="hit-yes">${rate}%</td>
+        <td style="font-size: 13px;">${zodiacNames || '—'}</td>
+      </tr>
+    `;
+  }).join('');
+
+  document.getElementById('replayBody').innerHTML = rows || '<tr><td colspan="5" style="text-align: center; color: var(--color-secondary);">暂无数据</td></tr>';
+}
+
+window.addEventListener('load', loadData);
+</script>
+
+</body>
+</html>
