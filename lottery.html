@@ -12081,6 +12081,7 @@ function zo2DRootBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#c2410c;color:#fff;padding:9px 16px" onclick="zoRootExcludeBacktest()">🚫 排除法回测(2D+3D数根·排刚出的)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff;padding:9px 16px" onclick="zoComboMainBacktest()">🎯 主打2D × 数根1D 双推荐回测</button></div>
   </div>
   <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
@@ -22196,6 +22197,69 @@ function zoDigit1AbsentBacktest(){
 
 // 🧬 数根×缺席1D 组合回测：命中＝奖号「2D数根∈缺席根(两期一组)」且「该位数字∈缺席1D(最新一期)」两者同时中。
 // 三模式：mix混合数根 / split分前后 / pair前后匹配。
+// 🚫 排除法回测：把最近W期出现过的数根「排除」,买剩下的(以外);测 前2D/后2D/前3D/后3D 四维,看下期落在"以外"没 vs 随机
+function zoRootExcludeBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  var W=parseInt((document.getElementById('r2a-win')||{value:'2'}).value,10)||2;
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){return x===0?0:(x%9===0?9:x%9);}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0&&m.length>N)m=m.slice(m.length-N);
+  // 每期 → 四维数根出现集合
+  function info(d){ var f2={},b2={},f3={},b3={}; if(d.nums){ [0,1,2].forEach(function(p){ var v=d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return; f2[dr((+s[0])+(+s[1]))]=1; b2[dr((+s[2])+(+s[3]))]=1; f3[dr((+s[0])+(+s[1])+(+s[2]))]=1; b3[dr((+s[1])+(+s[2])+(+s[3]))]=1; }); } return {date:d.date,f2:f2,b2:b2,f3:f3,b3:b3,cnt:(d.nums?[0,1,2].filter(function(p){return d.nums[p]!=null&&d.nums[p]!=='';}).length:0)}; }
+  var per=m.map(info).filter(function(x){return x.cnt>0;});
+  if(per.length<W+3){ out.innerHTML='<div class="warn">'+mk+' 期数太少('+per.length+'),窗口'+W+'期无法回测。</div>'; return; }
+  var DIMS=[{k:'f2',lbl:'前2D数根',col:'#0f766e'},{k:'b2',lbl:'后2D数根',col:'#be185d'},{k:'f3',lbl:'前3D数根',col:'#2563eb'},{k:'b3',lbl:'后3D数根',col:'#7c3aed'}];
+  var agg={}; DIMS.forEach(function(D){ agg[D.k]={t:0,h:0,b:0,playSum:0,arr:[]}; });
+  var det=[];
+  for(var i=0;i+W<per.length;i++){
+    var tp=per[i+W], nc=tp.cnt, row={date:tp.date};
+    DIMS.forEach(function(D){
+      var appeared={}; for(var w=0;w<W;w++){ for(var r in per[i+w][D.k]) appeared[+r]=1; }
+      var play=[]; for(var r2=1;r2<=9;r2++){ if(!appeared[r2]) play.push(r2); }
+      var playSet={}; play.forEach(function(r){playSet[r]=1;});
+      var got=[]; for(var r3 in tp[D.k]){ if(playSet[+r3]) got.push(+r3); }
+      var a=agg[D.k];
+      if(play.length){ a.t++; var hh=got.length>0; if(hh)a.h++; a.b+=1-Math.pow((9-play.length)/9,nc); a.playSum+=play.length; a.arr.push(hh);
+        row[D.k]={excl:Object.keys(appeared).map(Number).sort(), play:play, got:got.sort(), hit:hh}; }
+      else row[D.k]={excl:Object.keys(appeared).map(Number).sort(), play:[], got:[], hit:null};
+    });
+    det.push(row);
+  }
+  function verdict(t,hp,bp){ var se=Math.sqrt((bp/100)*(1-bp/100)/Math.max(t,1))*100, lead=hp-bp; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#c2410c'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'})); }
+  function streaks(arr){ var mw=0,ml=0,cw=0,cl=0; arr.forEach(function(h){ if(h){cw++;cl=0;if(cw>mw)mw=cw;}else{cl++;cw=0;if(cl>ml)ml=cl;} }); var i=arr.length-1,sg=0,n=0; if(i>=0){sg=arr[i]?1:-1; while(i>=0&&(arr[i]?1:-1)===sg){n++;i--;}} return {mw:mw,ml:ml,cur:sg*n}; }
+  var h='<div class="card" style="border:2px solid #c2410c">';
+  h+='<h3 style="color:#c2410c">🚫 '+mk+' · 排除法回测（近'+W+'期出现的数根→排除,买以外 · '+per.length+'期）</h3>';
+  h+='<div class="warn">规则:看最近 '+W+' 期某维出现过哪些数根 → <b>排掉这些</b>,买 1–9 里<b>剩下的(以外)</b>。例:前2D出了 <b>2 4 8</b> → 玩 <b>1 3 5 6 7 9</b>。逐期看下一期该维数根有没有落在"以外"里。⚠️ 排得少=买得多,命中率自然高,看是否<b>比随机高</b>才算数。</div>';
+  DIMS.forEach(function(D){ var a=agg[D.k], hp=a.t?a.h/a.t*100:0, bp=a.t?a.b/a.t*100:0, vd=verdict(a.t,hp,bp), st=streaks(a.arr), avgPlay=a.t?(a.playSum/a.t).toFixed(1):0;
+    function bb(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:18px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin:6px 0;border-left:3px solid '+D.col+';padding-left:8px">';
+    h+='<div style="grid-column:1/-1;font-weight:800;color:'+D.col+';font-size:13px">'+D.lbl+'（'+a.t+' 期）</div>';
+    h+=bb('命中率',hp.toFixed(1)+'%',D.col)+bb('随机基准',bp.toFixed(1)+'%')+bb('判定',vd.t,vd.c)+bb('平均买几根',avgPlay+'/9','#0891b2')+bb('最长连中',st.mw+'期','#16a34a')+bb('最长连错',st.ml+'期','#dc2626')+bb('当前',st.cur>0?('连中'+st.cur):st.cur<0?('连错'+(-st.cur)):'—',st.cur>0?'#16a34a':st.cur<0?'#dc2626':'#64748b');
+    h+='</div>';
+  });
+  h+='<div style="background:#fff7ed;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#7c2d12">👉 <b>人话</b>:排除法命中率通常很高(平均买了大半的根,当然常中),但看「随机基准」几乎一样 → 🟢≈随机。<b>排除法 ≈ 缺席回补的另一种说法</b>(排掉出现的=买没出现的=缺席)。想买少一点就调大「回看窗口」(排掉更多根)。它省不了"追不过随机"这条,但当"避开刚出的、少买几根"的<b>缩注纪律</b>用是可以的。</div>';
+  // 逐期明细
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rex-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#c2410c;font-weight:700">逐期明细 ▾（点可收起）</span>';
+  h+='<div id="rex-det" style="display:block;max-height:360px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#c2410c"><th style="text-align:left;padding:3px 6px">下一期</th>';
+  DIMS.forEach(function(D){ h+='<th style="padding:3px 6px;color:'+D.col+'">'+D.lbl.replace('数根','')+'</th>'; });
+  h+='</tr>';
+  function cell(o){ if(!o||o.hit==null)return '<span style="color:#cbd5e1">—</span>'; return '<span style="font-size:9px;color:#94a3b8">排'+o.excl.join('')+'</span> '+(o.hit?'<b style="color:#16a34a">✅'+o.got.join('')+'</b>':'<span style="color:#dc2626">❌</span>'); }
+  det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date.slice(5)+'</td>';
+    DIMS.forEach(function(D){ var o=x[D.k]; h+='<td style="text-align:center;padding:3px 6px;white-space:nowrap'+(o&&o.hit?';background:#f0fdf4':'')+'">'+cell(o)+'</td>'; });
+    h+='</tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 排=排掉的根、✅后=下期落在"以外"里的根。大概率🟢≈随机。判定用2×标准误。诚实验证,不构成预测。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 // 🔗 链接3D 逐期回测：前3D(前2D+中2D共用百) / 后3D(中2D+后2D共用十) / 联合(前2D∩后2D同一4D) → 下期命中 vs 随机
 function zoLink3DBacktest(){
   var out=document.getElementById('r2a-out'); if(!out) return;
