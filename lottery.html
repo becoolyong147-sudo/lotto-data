@@ -12080,6 +12080,7 @@ function zo2DRootBacktest(){
       <select id="rd-mode"><option value="mix">混合数根</option><option value="split">数根分前后</option><option value="pair">前后数根匹配</option></select>
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff;padding:9px 16px" onclick="zoComboMainBacktest()">🎯 主打2D × 数根1D 双推荐回测</button></div>
   </div>
   <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
@@ -22195,6 +22196,73 @@ function zoDigit1AbsentBacktest(){
 
 // 🧬 数根×缺席1D 组合回测：命中＝奖号「2D数根∈缺席根(两期一组)」且「该位数字∈缺席1D(最新一期)」两者同时中。
 // 三模式：mix混合数根 / split分前后 / pair前后匹配。
+// 🔗 链接3D 逐期回测：前3D(前2D+中2D共用百) / 后3D(中2D+后2D共用十) / 联合(前2D∩后2D同一4D) → 下期命中 vs 随机
+function zoLink3DBacktest(){
+  var out=document.getElementById('r2a-out'); if(!out) return;
+  var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('r2a-n')||{value:'0'}).value,10)||0;
+  var SRC=(document.getElementById('d1-src')||{value:'nums'}).value;
+  var srcLbl=(SRC==='sp')?'特别奖':'头二三(大奖)';
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){return x===0?0:(x%9===0?9:x%9);}
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0&&m.length>N)m=m.slice(m.length-N);
+  function info(d){ var nums=[], raw=(SRC==='sp')?(d.sp||[]):[d.nums&&d.nums[0],d.nums&&d.nums[1],d.nums&&d.nums[2]]; raw.forEach(function(v){ if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); return {date:d.date,nums:nums}; }
+  var per=m.map(info).filter(function(x){return x.nums.length>0;});
+  if(per.length<5){ out.innerHTML='<div class="warn">'+mk+' 有'+srcLbl+'的期数太少('+per.length+')，无法回测。'+(SRC==='sp'?'（特别奖只近期有，选「头二三」）':'')+'</div>'; return; }
+  function rootAbs(i){ var pf={},pm={},pb={}; [per[i],per[i+1]].forEach(function(pp){ pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); }); var F={},Mid={},B={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pm[r])Mid[r]=1; if(!pb[r])B[r]=1; } return {F:F,Mid:Mid,B:B}; }
+  function d1Abs(i){ var pr=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}]; for(var q=0;q<4;q++)for(var dg=0;dg<=9;dg++)if(!pr[q][dg])A[q][dg]=1; return A; }
+  function dbl(ro,s1,s2){ var set={}; for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(ro[dr(a+b)]&&s1[a]&&s2[b]) set[''+a+b]=1; } return set; }
+  function streaks(arr){ var mw=0,ml=0,cw=0,cl=0; arr.forEach(function(h){ if(h){cw++;cl=0;if(cw>mw)mw=cw;}else{cl++;cw=0;if(cl>ml)ml=cl;} }); var i=arr.length-1,sg=0,n=0; if(i>=0){sg=arr[i]?1:-1; while(i>=0&&(arr[i]?1:-1)===sg){n++;i--;}} return {mw:mw,ml:ml,cur:sg*n}; }
+  var det=[];
+  var tF=0,hF=0,bF=0,szF=0,arF=[];
+  var tB=0,hB=0,bB=0,szB=0,arB=[];
+  var tJ=0,hJ=0,bJ=0,szJ=0,arJ=[];
+  for(var i=0;i+2<per.length;i++){
+    var R=rootAbs(i), A=d1Abs(i+1), tgt=per[i+2], nc=tgt.nums.length;
+    var f2=dbl(R.F,A[0],A[1]), m2=dbl(R.Mid,A[1],A[2]), b2=dbl(R.B,A[2],A[3]);
+    var f3={}, b3={};
+    Object.keys(f2).forEach(function(f){ Object.keys(m2).forEach(function(mm){ if(f[1]===mm[0]) f3[f+mm[1]]=1; }); });
+    Object.keys(m2).forEach(function(mm){ Object.keys(b2).forEach(function(b){ if(mm[1]===b[0]) b3[mm[0]+mm[1]+b[1]]=1; }); });
+    var nf3=Object.keys(f3).length, nb3=Object.keys(b3).length, nf2=Object.keys(f2).length, nb2=Object.keys(b2).length;
+    var gF=[],gB=[],gJ=[];
+    tgt.nums.forEach(function(s){ if(f3[s.slice(0,3)])gF.push(s); if(b3[s.slice(1,4)])gB.push(s); if(f2[s.slice(0,2)]&&b2[s.slice(2,4)])gJ.push(s); });
+    var hf=null,hb=null,hj=null;
+    if(nf3){ tF++; hf=gF.length>0; if(hf)hF++; bF+=1-Math.pow(1-nf3/1000,nc); szF+=nf3; arF.push(hf); }
+    if(nb3){ tB++; hb=gB.length>0; if(hb)hB++; bB+=1-Math.pow(1-nb3/1000,nc); szB+=nb3; arB.push(hb); }
+    if(nf2&&nb2){ tJ++; hj=gJ.length>0; if(hj)hJ++; bJ+=1-Math.pow(1-(nf2/100)*(nb2/100),nc); szJ+=nf2*nb2; arJ.push(hj); }
+    det.push({date:tgt.date, nf3:nf3, nb3:nb3, nj:(nf2&&nb2)?(nf2*nb2):0, gF:gF, gB:gB, gJ:gJ, hf:hf, hb:hb, hj:hj});
+  }
+  function verdict(t,hp,bp){ var se=Math.sqrt((bp/100)*(1-bp/100)/Math.max(t,1))*100, lead=hp-bp; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#0f766e'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'})); }
+  function mcard(title,tot,hit,base,avgLabel,avg,st,col){ var hp=tot?hit/tot*100:0, bp=tot?base/tot*100:0, vd=verdict(tot,hp,bp);
+    function b(l,v,c){ return '<div><div style="font-size:11px;color:#64748b">'+l+'</div><div style="font-size:18px;font-weight:800;color:'+(c||'#1e293b')+'">'+v+'</div></div>'; }
+    var s='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px;margin:6px 0;border-left:3px solid '+col+';padding-left:8px">';
+    s+='<div style="grid-column:1/-1;font-weight:800;color:'+col+';font-size:13px">'+title+'（'+tot+' 期）</div>';
+    s+=b('命中率',hp.toFixed(1)+'%',col)+b('随机基准',bp.toFixed(1)+'%')+b('判定',vd.t,vd.c)+b(avgLabel,avg,'#0891b2')+b('最长连中',st.mw+'期','#16a34a')+b('最长连错',st.ml+'期','#dc2626')+b('当前',st.cur>0?('连中'+st.cur):st.cur<0?('连错'+(-st.cur)):'—',st.cur>0?'#16a34a':st.cur<0?'#dc2626':'#64748b');
+    return s+'</div>';
+  }
+  var h='<div class="card" style="border:2px solid #0f766e">';
+  h+='<h3 style="color:#0f766e">🔗 '+mk+' · 链接3D 逐期回测 · 源['+srcLbl+']（数根两期·1D最新一期 · '+per.length+'期）</h3>';
+  h+='<div class="warn">逐期只用<b>之前</b>的数据算 前3D/后3D/联合 目标,再看<b>下一期</b>头二三补没补。前3D=前2D与中2D共用百;后3D=中2D与后2D共用十;联合=同一4D「前2D双缺 且 后2D双缺」(你说的两端连线,大概率≈0)。⚠️ 历史,不预测。</div>';
+  h+=mcard('前3D(千百十)',tF,hF,bF,'平均撒网',(tF?(szF/tF).toFixed(0):0)+'/1000',streaks(arF),'#0f766e');
+  h+=mcard('后3D(百十个)',tB,hB,bB,'平均撒网',(tB?(szB/tB).toFixed(0):0)+'/1000',streaks(arB),'#be185d');
+  h+=mcard('联合·前2D∩后2D',tJ,hJ,bJ,'平均撒网',(tJ?(szJ/tJ).toFixed(0):0)+'注',streaks(arJ),'#7c3aed');
+  h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#334155">👉 <b>人话</b>:三行都看「命中率 vs 随机基准」——差不多就是 🟢≈随机(缺席不预测,补率高只是网大)。<b>联合那行</b>命中率若很低/≈随机,正好证明你说的「前2D和后2D连不上」,别硬凑4D两端;要用就用 <b>前3D 或 后3D 单边</b>当主干,再筛。</div>';
+  // 逐期明细
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'link3dbt-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0f766e;font-weight:700">逐期明细 ▾（点可收起）</span>';
+  h+='<div id="link3dbt-det" style="display:block;max-height:360px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0f766e"><th style="text-align:left;padding:3px 6px">下一期</th><th style="padding:3px 6px">前3D</th><th style="padding:3px 6px">后3D</th><th style="padding:3px 6px">联合</th></tr>';
+  function cell(hh,got,n){ if(hh==null)return '<span style="color:#cbd5e1">—</span>'; return (hh?'<b style="color:#16a34a">✅'+got.join(',')+'</b>':'<span style="color:#dc2626">❌</span>')+'<div style="font-size:9px;color:#cbd5e1">'+n+(n>999?'':'')+'</div>'; }
+  det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #e2e8f0"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date.slice(5)+'</td><td style="text-align:center;padding:3px 6px'+(x.hf?';background:#f0fdf4':'')+'">'+cell(x.hf,x.gF,x.nf3)+'</td><td style="text-align:center;padding:3px 6px'+(x.hb?';background:#fdf2f8':'')+'">'+cell(x.hb,x.gB,x.nb3)+'</td><td style="text-align:center;padding:3px 6px'+(x.hj?';background:#faf5ff':'')+'">'+cell(x.hj,x.gJ,x.nj)+'</td></tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率🟢≈随机。判定用2×标准误。撒网=候选3D/4D数量,越大命中率越虚高。诚实验证,不构成预测。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function zoRootDigitComboBacktest(){
   var out=document.getElementById('r2a-out'); if(!out) return;
   var mk=(document.getElementById('r2a-market')||{value:'万能'}).value;
