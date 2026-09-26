@@ -448,11 +448,9 @@ tr:hover td{background:#fafaf5}
   <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn btn-green" onclick="zoneSendToWizard()" style="padding:7px 16px;font-size:12px">⚡ 把当前筛选条件发送到四步选号</button>
     <button class="btn" onclick="zoneRunBacktest()" style="padding:7px 16px;font-size:12px">🧪 回测当前筛选过去N期命中率</button>
-    <button class="btn" onclick="zoneLabelBacktest()" style="padding:7px 16px;font-size:12px;background:#7c3aed;color:#fff">🔬 回测:规律标签能不能预测（vs随机）</button>
   </div>
 </div>
 <div id="zone-search-result"></div>
-<div id="zone-lblbt-out"></div>
 <div id="zone-backtest-out"></div>
 <div id="zone-top10-out"></div>
 <div id="zone-stats-out"></div>
@@ -20168,51 +20166,6 @@ function zoneRunBacktest(){
     <div>${detailHtml}</div>
     <div class="warn" style="margin-top:10px;font-size:11px">⚠️ 此回测假设「候选条件固定不变」，实际使用时数根/打数选择可能随每期数据变化而调整，结果仅供参考，不代表未来命中率。</div>
   </div>`;
-}
-
-// 🔬 诚实回测:后3D「规律标签」逐期point-in-time,看每个标签组下一期命中 vs 随机同大小的组
-function zoneLabelBacktest(){
-  var out=document.getElementById('zone-lblbt-out'); if(!out) return;
-  var market=(document.getElementById('zone-market')||{value:'万能'}).value;
-  var prizeVal=(document.getElementById('zone-prize')||{value:'all'}).value;
-  var N=parseInt((document.getElementById('zone-lblbt-n')||{value:'200'}).value,10)||200;
-  var rows=(DB[market]||[]).filter(function(r){return r.date&&!String(r.date).endsWith('-00');});
-  if(rows.length<N+80){ out.innerHTML='<div class="card"><div class="warn">'+market+' 历史不足(需 '+(N+80)+' 期以上,现有 '+rows.length+')。换个市场或减少期数。</div></div>'; return; }
-  var chron=rows.slice().reverse(); // 旧→新
-  var prizeIdx=prizeVal==='all'?[0,1,2]:[parseInt(prizeVal,10)];
-  function back3(draw){ var s=new Set(); prizeIdx.forEach(function(pi){ var v=draw.nums[pi]; if(v==null||v==='')return; s.add(String(v).padStart(4,'0').slice(1)); }); return s; }
-  var LABELS=['⭐ 规律活跃','🔵 规律等待中','🟡 规律超时','⚪ 散乱型','🔴 低频冷号','⬛ 从未出现'];
-  var LC={'⭐ 规律活跃':'#16a34a','🔵 规律等待中':'#2563eb','🟡 规律超时':'#d97706','⚪ 散乱型':'#64748b','🔴 低频冷号':'#dc2626','⬛ 从未出现':'#111827'};
-  var st={}; // b3d -> {cnt,last,gN,gS,gSq}
-  function classify(b3d,p){ var s=st[b3d]; if(!s||s.cnt===0)return '⬛ 从未出现'; if(s.cnt<5)return '🔴 低频冷号'; var avg=s.gN?s.gS/s.gN:null, cv=null; if(s.gN>=2){ var v=s.gSq/s.gN-avg*avg; cv=avg>0?Math.sqrt(Math.max(0,v))/avg:0; } if(cv===null||cv>=0.65)return '⚪ 散乱型'; var ratio=avg>0?(p-s.last)/avg:99; if(ratio>=0.75&&ratio<=1.5)return '⭐ 规律活跃'; if(ratio<0.75)return '🔵 规律等待中'; return '🟡 规律超时'; }
-  var hits={},base={},sizeSum={},periods=0; LABELS.forEach(function(L){hits[L]=0;base[L]=0;sizeSum[L]=0;});
-  var startP=chron.length-N;
-  for(var p=0;p<chron.length;p++){
-    if(p>=startP){
-      var actual=back3(chron[p]), A=actual.size, gs={}; LABELS.forEach(function(L){gs[L]=0;});
-      for(var n=0;n<1000;n++){ var b=String(n).padStart(3,'0'); var L=classify(b,p); gs[L]++; if(actual.has(b))hits[L]++; }
-      LABELS.forEach(function(L){ base[L]+=gs[L]/1000*A; sizeSum[L]+=gs[L]; });
-      periods++;
-    }
-    back3(chron[p]).forEach(function(b){ var s=st[b]||(st[b]={cnt:0,last:-1,gN:0,gS:0,gSq:0}); if(s.cnt>0){ var g=p-s.last; s.gN++; s.gS+=g; s.gSq+=g*g; } s.cnt++; s.last=p; });
-  }
-  function vd(h,b){ if(b<3)return {t:'🔵样本少',c:'#64748b'}; var se=Math.sqrt(b),lead=h-b; if(lead>2*se)return {t:'🟡略高',c:'#d97706'}; if(lead<-2*se)return {t:'🔴略低',c:'#dc2626'}; return {t:'🟢≈随机',c:'#16a34a'}; }
-  var h='<div class="card" style="border:2px solid #7c3aed">';
-  h+='<h3 style="color:#7c3aed">🔬 后3D规律标签 · 诚实回测（'+market+' · '+periods+'期滑动）</h3>';
-  h+='<div style="margin-bottom:6px;font-size:12px">期数 <select id="zone-lblbt-n" onchange="zoneLabelBacktest()" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+[100,200,300,500].map(function(x){return '<option'+(x===N?' selected':'')+'>'+x+'</option>';}).join('')+'</select> 奖位随上面「'+ (prizeVal==='all'?'头二三':('第'+(parseInt(prizeVal,10)+1)+'奖')) +'」</div>';
-  h+='<div class="warn">每期只用<b>那期之前</b>的历史给1000个后3D贴标签,再看<b>这一期真开的后3D</b>落在哪个标签组。把「该组实际命中」和「随机撒同样大小的组会命中多少」比。⚠️ 历史,不预测。</div>';
-  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f5f3ff;color:#7c3aed"><th style="text-align:left;padding:5px 8px">标签</th><th style="padding:5px 8px">组内平均号数</th><th style="padding:5px 8px">实际命中</th><th style="padding:5px 8px">随机同量应中</th><th style="padding:5px 8px">倍数</th><th style="padding:5px 8px">判定</th></tr>';
-  LABELS.forEach(function(L){ var avgSize=periods?Math.round(sizeSum[L]/periods):0, hh=hits[L], bb=base[L], lift=bb>0?(hh/bb):0, v=vd(hh,bb);
-    h+='<tr style="border-top:1px solid #ede9fe"><td style="padding:5px 8px;font-weight:700;color:'+LC[L]+'">'+L+'</td><td style="text-align:center;padding:5px 8px">'+avgSize+'</td><td style="text-align:center;padding:5px 8px;font-weight:700">'+hh+'</td><td style="text-align:center;padding:5px 8px;color:#94a3b8">'+bb.toFixed(1)+'</td><td style="text-align:center;padding:5px 8px;font-weight:700;color:'+(lift>1.1?'#16a34a':lift<0.9?'#dc2626':'#64748b')+'">'+(bb>0?lift.toFixed(2)+'×':'—')+'</td><td style="text-align:center;padding:5px 8px;color:'+v.c+';font-weight:700">'+v.t+'</td></tr>';
-  });
-  h+='</table></div>';
-  // 人话总结
-  var star=LABELS[0], sl=base[star]>0?hits[star]/base[star]:0;
-  h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-top:8px;font-size:12px;color:#334155">👉 <b>人话</b>:看 ⭐规律活跃 那行的<b>倍数</b>——'+
-     (sl>1.1?('<b style="color:#16a34a">'+sl.toFixed(2)+'×</b>,略高于随机,但多半样本波动,别当必中。'):(sl<0.9?('<b style="color:#dc2626">'+sl.toFixed(2)+'×</b>,反而比随机低。'):('<b>≈1×</b>,和随机撒同样多号<b>没差别</b>——规律标签不构成预测。')))+
-     ' 「散乱型」占了绝大多数,是随机开奖的正常现象。标签只当冷热描述看,别当追号信号。</div>';
-  h+='</div>';
-  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function renderZoneMap(){
