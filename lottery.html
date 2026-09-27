@@ -870,7 +870,9 @@ function renderPatternTrend(){
       <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">排序/筛选</label>
         <select id="rp-sort" onchange="zoRecentProfile()"><option value="time">按开奖顺序</option><option value="fit">应景优先</option><option value="h2">下半年型优先</option><option value="h1">上半年型优先</option><option value="onlyfit">只看应景</option></select></div>
       <button class="btn" style="padding:9px 18px;font-size:14px;background:#6b21a8;color:#fff" onclick="zoRecentProfile()">📅 显示画像</button>
+      <button class="btn" style="padding:9px 18px;font-size:14px;background:#0891b2;color:#fff" onclick="zoCommonRate()">📊 常开占比</button>
     </div>
+    <div id="rp-stat"></div>
     <div id="rp-out"></div>
   </div>
 </div>
@@ -10511,6 +10513,36 @@ function zoRootLink4DReview(){
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔍 查一个号：一个4D的九市场档案（历史事实，不预测）
+// 📊 常开占比:最近N期开的号,正字 vs 整组 历史开过几次的分布(同一家)
+function zoCommonRate(){
+  var out=document.getElementById('rp-stat'); if(!out) return;
+  var mk=(document.getElementById('rp-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('rp-n')||{value:'20'}).value,10)||20;
+  function pad(n){return String(n).padStart(4,'0');}
+  function seaKey(s){ return (typeof seaPermKey==='function')?seaPermKey(s):s.split('').sort().join(''); }
+  var _nd=(typeof getNewResults==='function')?getNewResults():{};
+  var seen={},mg=[]; (_nd[mk]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}}); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}});
+  mg=mg.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
+  if(!mg.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
+  var exact={},box={};
+  mg.forEach(function(d){[0,1,2].forEach(function(pi){var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; exact[s]=(exact[s]||0)+1; box[seaKey(s)]=(box[seaKey(s)]||0)+1;});});
+  var mm=mg.slice().sort(function(a,b){return (b.date||'').localeCompare(a.date||'');}).slice(0,N);
+  var nums=[]; mm.forEach(function(d){[0,1,2].forEach(function(pi){var n=d.nums&&d.nums[pi]; if(n!=null&&n!=='')nums.push(pad(n));});});
+  function dist(fn){var o={a:0,b:0,c:0}; nums.forEach(function(s){var c=fn(s); if(c<=1)o.a++; else if(c===2)o.b++; else o.c++;}); return o;}
+  var eD=dist(function(s){return exact[s]||0;}), bD=dist(function(s){return box[seaKey(s)]||0;});
+  var T=nums.length||1;
+  function bar(o,lbl,note){ function seg(v,col,t){ var w=Math.round(v/T*100); return w>0?'<div style="width:'+w+'%;background:'+col+';height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff" title="'+t+'">'+v+'</div>':''; }
+    return '<div style="margin:6px 0"><div style="font-size:12px;font-weight:700;color:#0e7490;margin-bottom:2px">'+lbl+' <span style="font-weight:400;color:#94a3b8">'+note+'</span> — 常开(3+)占 <b style="color:'+(o.c/T>=0.5?'#16a34a':'#dc2626')+'">'+Math.round(o.c/T*100)+'%</b></div><div style="display:flex;border-radius:6px;overflow:hidden;border:1px solid #e2e8f0">'+seg(o.a,'#cbd5e1','只1次/首次')+seg(o.b,'#fbbf24','2次')+seg(o.c,'#16a34a','3次以上')+'</div></div>'; }
+  var h='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:10px;padding:10px 12px;margin-bottom:8px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#0e7490;margin-bottom:4px">📊 '+mk+' 最近'+N+'期共'+T+'个号 · 历史开过几次(本家'+mg.length+'期)</div>';
+  h+=bar(eD,'正字(该号本身)','稀客多');
+  h+=bar(bD,'整组(调字/iBox)','合起来算');
+  h+='<div style="display:flex;gap:12px;font-size:11px;color:#64748b;margin-top:4px"><span><span style="display:inline-block;width:10px;height:10px;background:#cbd5e1;border-radius:2px"></span> 只1次</span><span><span style="display:inline-block;width:10px;height:10px;background:#fbbf24;border-radius:2px"></span> 2次</span><span><span style="display:inline-block;width:10px;height:10px;background:#16a34a;border-radius:2px"></span> 3次以上=常开</span></div>';
+  h+='<div style="font-size:11px;color:#0e7490;margin-top:6px">👉 <b>正字</b>常开占比低=刚开的号大半是"稀客(1-2次)";<b>整组</b>常开占比高=爱开常来的组,但组里具体排列常是新面孔。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 // 📅 最近开奖画像:自动列最近N期开的号 + 每个号的上/下半年偏好 + 各年份
 function zoRecentProfile(){
   var out=document.getElementById('rp-out'); if(!out) return;
@@ -22641,18 +22673,25 @@ function zoRootDigitComboBacktest(){
     // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）；两位都在缺席1D里的高亮（数根+1D双缺=打法目标）
     (function(){
       // s1=第一位(千/十)缺席集, s2=第二位(百/个)缺席集
-      function rootLine(r,col,s1,s2){
-        var groups={}, wins=[], nons=[];
+      // 各2D的半年脾气(用源期数据)+ 当前半年,判「应景」
+      var SEA={0:{},1:{},2:{}};
+      per.forEach(function(p){ var half=(+String(p.date).slice(5,7))<=6?'h1':'h2'; p.nums.forEach(function(s){ [[0,s.slice(0,2)],[1,s.slice(1,3)],[2,s.slice(2,4)]].forEach(function(kv){ var o=SEA[kv[0]][kv[1]]||(SEA[kv[0]][kv[1]]={h1:0,h2:0}); o[half]++; }); }); });
+      var _nowMo=new Date().getMonth()+1, curHalf=_nowMo<=6?'h1':'h2';
+      function fitOf(wi,v){ var o=SEA[wi]&&SEA[wi][v]; if(!o)return 0; if(o.h1>o.h2*1.2)return curHalf==='h1'?1:-1; if(o.h2>o.h1*1.2)return curHalf==='h2'?1:-1; return 0; }
+      function rootLine(r,col,s1,s2,wi){
+        var groups={}, wins=[], winsFit=[], nons=[];
         for(var a=0;a<=9;a++)for(var bb=0;bb<=9;bb++){ if(dr(a+bb)===+r){ var k=(a<bb?(''+a+bb):(''+bb+a)); (groups[k]=groups[k]||[]).push(''+a+bb); } }
         var keys=Object.keys(groups).sort();
-        var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q)wins.push(v); else nons.push(v); return q?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>':'<span style="color:#94a3b8;border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">'+v+'</span>'; }).join('·'); });
-        return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+wins.length+'双缺)</span></div>', wins:wins, nons:nons};
+        var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q){ wins.push(v); var f=fitOf(wi,v); if(f===1){ winsFit.push(v); return '<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700;box-shadow:inset 0 -3px 0 #f59e0b" title="应景(当前半年活跃)">'+v+'✓</span>'; } return '<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>'; } else { nons.push(v); return '<span style="color:#94a3b8;border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">'+v+'</span>'; } }).join('·'); });
+        return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+wins.length+'双缺·'+winsFit.length+'应景)</span></div>', wins:wins, winsFit:winsFit, nons:nons};
       }
       function cpBtn(lst,label,bg,fg,bd){ return '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+bg+';color:'+fg+';border:1px solid '+bd+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\''+label+'\',1200)})">'+label+'</button>'; }
-      function block(rootArr,col,lbl,s1,s2,wi){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[], allNon=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); allWins=allWins.concat(o.wins); allNon=allNon.concat(o.nons); s+=o.html; }); allWins.sort(); allNon.sort();
+      function block(rootArr,col,lbl,s1,s2,wi){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[], allNon=[], allFit=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2,wi); allWins=allWins.concat(o.wins); allNon=allNon.concat(o.nons); allFit=allFit.concat(o.winsFit); s+=o.html; }); allWins.sort(); allNon.sort(); allFit.sort();
         var allCombo=allWins.concat(allNon).sort();
-        s+='<div style="font-size:10px;color:#94a3b8;margin-top:2px">🟩色块=双缺('+allWins.length+'个,打法目标) · <span style="border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">灰框</span>=只中数根、位没缺(未选,'+allNon.length+'个)</div>';
+        var halfLbl=(curHalf==='h2'?'下半年':'上半年');
+        s+='<div style="font-size:10px;color:#94a3b8;margin-top:2px">🟩色块=双缺('+allWins.length+'个,打法目标)·<b style="color:#b45309">✓金边='+allFit.length+'个应景('+halfLbl+'活跃)</b> · <span style="border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">灰框</span>=未选('+allNon.length+'个)</div>';
         s+='<div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">';
+        if(allFit.length){ s+='<button class="btn" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:#fff" onclick="zoSend2DToFilter(\''+allFit.join(' ')+'\',\''+mk+'\','+wi+')">📤 送应景进筛选('+allFit.length+')</button>'+cpBtn(allFit.join(' '),'📋复制应景('+allFit.length+')','#fffbeb','#b45309','#fde68a'); }
         if(allWins.length){ var lst=allWins.join(' ');
           s+='<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend2DToFilter(\''+lst+'\',\''+mk+'\','+wi+')">📤 送双缺进筛选('+allWins.length+')</button>'+cpBtn(lst,'📋复制双缺('+allWins.length+')','#fff',col,col); }
         if(allNon.length){ s+=cpBtn(allNon.join(' '),'📋复制未选('+allNon.length+')','#f8fafc','#64748b','#cbd5e1'); }
