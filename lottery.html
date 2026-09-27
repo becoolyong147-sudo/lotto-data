@@ -22514,18 +22514,22 @@ function zoRootDigitComboBacktest(){
     (function(){
       // s1=第一位(千/十)缺席集, s2=第二位(百/个)缺席集
       function rootLine(r,col,s1,s2){
-        var groups={}, wins=[];
+        var groups={}, wins=[], nons=[];
         for(var a=0;a<=9;a++)for(var bb=0;bb<=9;bb++){ if(dr(a+bb)===+r){ var k=(a<bb?(''+a+bb):(''+bb+a)); (groups[k]=groups[k]||[]).push(''+a+bb); } }
         var keys=Object.keys(groups).sort();
-        var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q)wins.push(v); return q?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>':'<span style="color:#94a3b8">'+v+'</span>'; }).join('·'); });
-        return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+wins.length+'双缺)</span></div>', wins:wins};
+        var cells=keys.map(function(k){ return groups[k].sort().map(function(v){ var q=(s1[+v[0]]&&s2[+v[1]]); if(q)wins.push(v); else nons.push(v); return q?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 3px;font-weight:700">'+v+'</span>':'<span style="color:#94a3b8;border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">'+v+'</span>'; }).join('·'); });
+        return {html:'<div style="font-family:monospace;font-size:12px;padding:1px 0"><span style="display:inline-block;min-width:44px;color:'+col+';font-weight:700">根'+r+'</span>'+cells.join(' ｜ ')+' <span style="color:'+col+';font-size:10px">('+wins.length+'双缺)</span></div>', wins:wins, nons:nons};
       }
-      function block(rootArr,col,lbl,s1,s2,wi){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); allWins=allWins.concat(o.wins); s+=o.html; }); allWins.sort();
+      function cpBtn(lst,label,bg,fg,bd){ return '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+bg+';color:'+fg+';border:1px solid '+bd+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\''+label+'\',1200)})">'+label+'</button>'; }
+      function block(rootArr,col,lbl,s1,s2,wi){ if(!rootArr.length) return ''; var s='<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b></div>', allWins=[], allNon=[]; rootArr.forEach(function(r){ var o=rootLine(r,col,s1,s2); allWins=allWins.concat(o.wins); allNon=allNon.concat(o.nons); s+=o.html; }); allWins.sort(); allNon.sort();
+        var allCombo=allWins.concat(allNon).sort();
+        s+='<div style="font-size:10px;color:#94a3b8;margin-top:2px">🟩色块=双缺('+allWins.length+'个,打法目标) · <span style="border:1px dashed #cbd5e1;border-radius:3px;padding:0 2px">灰框</span>=只中数根、位没缺(未选,'+allNon.length+'个)</div>';
+        s+='<div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">';
         if(allWins.length){ var lst=allWins.join(' ');
-          s+='<div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">'+
-             '<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend2DToFilter(\''+lst+'\',\''+mk+'\','+wi+')">📤 一键送进高级筛选('+allWins.length+')</button>'+
-             '<button class="btn" style="padding:3px 10px;font-size:11px;background:#fff;color:'+col+';border:1px solid '+col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制('+allWins.length+')\',1200)})">📋复制('+allWins.length+')</button>'+
-             '</div>'; }
+          s+='<button class="btn" style="padding:3px 10px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend2DToFilter(\''+lst+'\',\''+mk+'\','+wi+')">📤 送双缺进筛选('+allWins.length+')</button>'+cpBtn(lst,'📋复制双缺('+allWins.length+')','#fff',col,col); }
+        if(allNon.length){ s+=cpBtn(allNon.join(' '),'📋复制未选('+allNon.length+')','#f8fafc','#64748b','#cbd5e1'); }
+        if(allCombo.length){ s+='<button class="btn" style="padding:3px 10px;font-size:11px;background:#ede9fe;color:#5b21b6;border:1px solid #ddd6fe" onclick="zoSend2DToFilter(\''+allCombo.join(' ')+'\',\''+mk+'\','+wi+')">📤 送全部进筛选('+allCombo.length+')</button>'+cpBtn(allCombo.join(' '),'📋复制全部('+allCombo.length+')','#ede9fe','#5b21b6','#ddd6fe'); }
+        s+='</div>';
         return s; }
       var cid='rdc-combo', A=Dc.A;
       h+='<div style="margin-top:5px"><span onclick="var e=document.getElementById(\''+cid+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700;font-size:12px">▾ 展开缺根的2D组合（高亮=两位都在缺席1D里）</span>';
