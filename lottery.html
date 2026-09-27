@@ -21903,7 +21903,8 @@ function zoHuazLinkBoard(){
 }
 // 与 Excel 导出完全相同的列顺序与配色，返回单个市场的表格 HTML
 function zoBuildMarketTableHTML(market){
-  var rows = (DB[market]||[]).filter(function(r){return r.date>='2020-01-01';}).slice()
+  var _svCut=(window.__svYearFrom||'2020')+'-01-01';
+  var rows = (DB[market]||[]).filter(function(r){return r.date>=_svCut;}).slice()
     .sort(function(a,b){ return a.date.localeCompare(b.date) || (a.draw||'').localeCompare(b.draw||''); });
   if(!rows.length) return '<div style="color:#94a3b8;padding:8px">无数据</div>';
   // 预计算每行标签 + 化整值
@@ -22022,9 +22023,14 @@ function zoBuildMarketTableHTML(market){
 function zoScreenView(){
   var out=document.getElementById('screen-view-result'); if(!out) return;
   var markets=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
-  var h='<div style="font-size:12px;color:#475569;margin-bottom:8px">📺 屏幕查看 · 全部公司全部历史(2020至今) · 完整表 · 化整6栏跨期同值同色。<b>点公司名展开</b>(全部一起渲染会卡,故按需展开)。</div>';
+  if(!window.__svYearFrom) window.__svYearFrom='2020';
+  var nowY=new Date().getFullYear(), yrOpts='';
+  for(var y=2020;y<=nowY;y++){ yrOpts+='<option value="'+y+'"'+(String(y)===window.__svYearFrom?' selected':'')+'>'+y+' 起</option>'; }
+  yrOpts='<option value="2000"'+(window.__svYearFrom==='2000'?' selected':'')+'>全部</option>'+yrOpts;
+  var h='<div style="font-size:12px;color:#475569;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">📺 屏幕查看 · 完整表 · 化整6栏跨期同值同色。<b>点公司名展开</b>(按需渲染)。 <label style="color:#b45309;font-weight:700">🗓️起始年份 <select onchange="window.__svYearFrom=this.value;zoScreenView();" style="padding:2px 6px;border:1px solid #ddd6fe;border-radius:5px">'+yrOpts+'</select></label> <span style="color:#94a3b8">太旧的年份可在此去除</span></div>';
+  var svCut=window.__svYearFrom+'-01-01';
   markets.forEach(function(mk){
-    var n=((DB[mk]||[]).filter(function(r){return r.date>='2020-01-01';})).length;
+    var n=((DB[mk]||[]).filter(function(r){return r.date>=svCut;})).length;
     h+='<details style="margin:4px 0;border:1px solid #cbd5e1;border-radius:8px" data-mk="'+mk+'">'+
        '<summary style="cursor:pointer;padding:8px 12px;font-weight:800;color:#0f766e;background:#f0fdfa;border-radius:8px">'+mk+' <span style="font-weight:500;color:#64748b;font-size:12px">（'+n+' 期）</span></summary>'+
        '<div class="sv-body" style="overflow:auto;max-height:70vh;padding:6px"><span style="color:#94a3b8;font-size:12px">展开渲染中…</span></div></details>';
