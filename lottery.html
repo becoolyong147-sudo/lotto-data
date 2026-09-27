@@ -10699,8 +10699,8 @@ function lcRun(){
       var key=b[0]+'_'+p[0], title=b[1]+inc18+' '+p[1]+'('+L.length+'个)';
       window.__lcCopy[key]=L.join('\n');
       whole.push(title+'\n'+L.join('\n'));
-      h+='<div style="margin:6px 0"><b style="color:'+(p[0]===24?'#7c3aed':p[0]===12?'#0f766e':'#64748b')+'">'+p[1]+'</b> '+L.length+' 个 <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this)">📋 复制(一行一个)</button>'+
-        '<div style="font-family:monospace;font-size:12px;color:#334155;line-height:1.7;margin-top:2px;word-break:break-word">'+L.join(', ')+'</div></div>';
+      h+='<div style="display:inline-block;vertical-align:top;margin:6px 18px 6px 0"><b style="color:'+(p[0]===24?'#7c3aed':p[0]===12?'#0f766e':'#64748b')+'">'+p[1]+'</b> '+L.length+' 个 <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this)">📋 复制(一行一个)</button>'+
+        '<textarea readonly rows="8" onclick="this.select()" style="display:block;width:140px;margin-top:4px;font-family:monospace;font-size:13px;color:#334155;line-height:1.5">'+L.join('\n')+'</textarea></div>';
     });
     h+='</div>';
   });
