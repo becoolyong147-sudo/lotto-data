@@ -6005,7 +6005,9 @@ async function autoImportFetchedResults(srcUrl){
       if(!p || !p.market || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;
       const nums = (p.nums||[]).slice(0,3).map(n=>String(n).padStart(4,'0'));
       if(nums.length<3 || nums.some(n=>!/^\d{4}$/.test(n))) continue;
-      const sp = clean4d(p.sp), cs = clean4d(p.cs);
+      // 🩹 清洗:抓取源有时把头二三误混进特别/安慰奖 → 剔掉(同期一个号不会既是头二三又是特/安)
+      const _top = new Set(nums);
+      const sp = clean4d(p.sp).filter(n=>!_top.has(n)), cs = clean4d(p.cs).filter(n=>!_top.has(n));
       const ex = (data[p.market]||[]).find(x=>x.date===p.date);
       if(ex){
         // 手动/云端已有 → 号码不动, 但补上缺失的特别奖/安慰奖

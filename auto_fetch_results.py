@@ -81,10 +81,13 @@ def fetch_huat5(sess, market, code):
         if not groups or len(groups[0]) < 3:
             continue
         entry = {"market": market, "date": d, "draw": draw, "nums": groups[0][:3]}
+        top = set(entry["nums"])  # 清洗: 头二三不该出现在特别/安慰奖里, 源站偶尔混入
         if len(groups) > 1 and groups[1]:
-            entry["sp"] = groups[1][:13]
+            sp = [x for x in groups[1][:13] if x not in top]
+            if sp: entry["sp"] = sp
         if len(groups) > 2 and groups[2]:
-            entry["cs"] = groups[2][:13]
+            cs = [x for x in groups[2][:13] if x not in top]
+            if cs: entry["cs"] = cs
         out.append(entry)
     return out
 
