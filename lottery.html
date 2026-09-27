@@ -256,6 +256,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab active" data-tab="overview" onclick="switchSubtab(this)">🎯 一键总览</div>
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
+    <div class="subtab" data-tab="listcmp" onclick="switchSubtab(this)">🧮 号码对比</div>
     <div class="subtab" data-tab="decompose" onclick="switchSubtab(this)">🔢 号码分解</div>
     <div class="subtab" data-tab="wizard" onclick="switchSubtab(this)">⚡ 四步选号</div>
   </div>
@@ -874,6 +875,25 @@ function renderPatternTrend(){
     </div>
     <div id="rp-stat"></div>
     <div id="rp-out"></div>
+  </div>
+</div>
+
+<!-- TAB: 号码对比（贴几组号 → 重复/没重复 → 点数×打数分组 → 复制发WhatsApp） -->
+<div id="tab-listcmp" class="panel" style="padding:12px">
+  <div class="card">
+    <h3>🧮 号码对比 — 贴几组号,找重复 / 没重复,按点数和打数分好,一键复制发 WhatsApp</h3>
+    <div class="warn" style="margin:6px 0">每组直接贴(逗号、空格、换行都行,自动抓4位数)。<b>重复</b>=两组以上都有;<b>没重复</b>=只在一组出现。点数=四位相加;<b>24打</b>=四个数字都不同,<b>12打</b>=有一对相同。</div>
+    <div id="lc-groups" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px"></div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
+      <button class="btn" style="padding:7px 12px;font-size:12px" onclick="lcAddGroup()">➕ 加一组</button>
+      <div><label style="font-size:12px;color:#1e3a5f;font-weight:700;display:block">要哪些号</label>
+        <select id="lc-src" onchange="lcRun()"><option value="uniq" selected>没重复(只在一组)</option><option value="dup">重复(两组以上)</option><option value="all">全部(合并去重)</option></select></div>
+      <div><label style="font-size:12px;color:#1e3a5f;font-weight:700;display:block">刚好18点算</label>
+        <select id="lc-18" onchange="lcRun()"><option value="own" selected>单独一栏</option><option value="lo">算18点以下</option><option value="hi">算18点以上</option></select></div>
+      <button class="btn btn-green" style="padding:9px 18px;font-size:14px" onclick="lcRun()">🧮 对比</button>
+      <button class="btn btn-red" style="padding:7px 12px;font-size:12px" onclick="lcClear()">🗑 清空</button>
+    </div>
+    <div id="lc-out" style="margin-top:10px"></div>
   </div>
 </div>
 
@@ -10605,6 +10625,89 @@ function zoRecentProfile(){
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+// 🧮 号码对比:贴几组号 → 重复/没重复 → 点数(18以下/18/18以上) × 打数(12/24) → 一行一个复制发 WhatsApp
+function lcAddGroup(val){
+  var box=document.getElementById('lc-groups'); if(!box)return;
+  var i=box.children.length+1;
+  var d=document.createElement('div');
+  d.innerHTML='<label style="font-size:12px;color:#1e3a5f;font-weight:700;display:block">组 '+i+' <span class="lc-cnt" style="color:#94a3b8;font-weight:400"></span></label>'+
+    '<textarea class="lc-ta" rows="6" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px" placeholder="贴号码,如 0693, 0860, 1293…"></textarea>';
+  box.appendChild(d);
+  if(val) d.querySelector('textarea').value=val;
+}
+function lcClear(){
+  var box=document.getElementById('lc-groups'); if(box) box.innerHTML='';
+  lcAddGroup(); lcAddGroup();
+  document.getElementById('lc-out').innerHTML='';
+}
+function lcPerm(n){
+  var c={}; for(var i=0;i<4;i++) c[n[i]]=(c[n[i]]||0)+1;
+  var v=Object.values(c).sort().join('');
+  return {'1111':24,'112':12,'22':6,'13':4,'4':1}[v];
+}
+function lcCopy(key,btn){
+  var t=(window.__lcCopy||{})[key]; if(t==null)return;
+  var old=btn.textContent, done=function(){ btn.textContent='✅ 已复制'; setTimeout(function(){btn.textContent=old;},1400); };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(function(){ lcCopyFallback(t); done(); }); }
+  else { lcCopyFallback(t); done(); }
+}
+function lcCopyFallback(t){
+  var ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} ta.remove();
+}
+function lcRun(){
+  var out=document.getElementById('lc-out'); if(!out)return;
+  var tas=[].slice.call(document.querySelectorAll('#lc-groups .lc-ta'));
+  var groups=[], sums=[];
+  tas.forEach(function(ta,i){
+    var raw=(ta.value.match(/\d+/g)||[]).filter(function(x){return x.length===4;});
+    var set={}; raw.forEach(function(x){set[x]=1;});
+    var u=Object.keys(set).length;
+    var lab=ta.parentElement.querySelector('.lc-cnt');
+    if(lab) lab.textContent=raw.length?('· '+u+' 个'+(raw.length!==u?'(组内重复 '+(raw.length-u)+')':'')):'';
+    if(raw.length){ groups.push(set); sums.push({i:i+1,n:raw.length,u:u}); }
+  });
+  if(!groups.length){ out.innerHTML='<div style="color:#888;font-size:12px">先贴号码。</div>'; return; }
+  var cnt={}; groups.forEach(function(g){ Object.keys(g).forEach(function(x){ cnt[x]=(cnt[x]||0)+1; }); });
+  var all=Object.keys(cnt).sort();
+  var dup=all.filter(function(x){return cnt[x]>=2;}), uniq=all.filter(function(x){return cnt[x]===1;});
+  var src=document.getElementById('lc-src').value, m18=document.getElementById('lc-18').value;
+  var list=src==='dup'?dup:src==='uniq'?uniq:all;
+  var srcName=src==='dup'?'重复':src==='uniq'?'没重复':'全部';
+  window.__lcCopy={dup:dup.join('\n'),uniq:uniq.join('\n'),all:all.join('\n')};
+
+  var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
+  sums.forEach(function(g){ h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px">组'+g.i+' <b style="font-size:16px">'+g.u+'</b> 个'+(g.n!==g.u?' <span style="color:#dc2626">(贴了'+g.n+',组内重复'+(g.n-g.u)+')</span>':'')+'</div>'; });
+  [['dup','重复','#b45309',dup],['uniq','没重复','#16a34a',uniq],['all','合并去重','#1e40af',all]].forEach(function(r){
+    h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px">'+r[1]+' <b style="font-size:16px;color:'+r[2]+'">'+r[3].length+'</b> 个 <button class="btn" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="lcCopy(\''+r[0]+'\',this)">📋 复制</button></div>';
+  });
+  h+='</div>';
+
+  var bands=m18==='own'?[['lo','18点以下'],['eq','刚好18点'],['hi','18点以上']]:[['lo','18点以下'],['hi','18点以上']];
+  var bandOf=function(s){ if(s<18)return 'lo'; if(s>18)return 'hi'; return m18==='own'?'eq':m18; };
+  var perms=[[12,'12打'],[24,'24打'],[6,'6打'],[4,'4打'],[1,'1打']];
+  var B={}; list.forEach(function(x){ var s=(+x[0])+(+x[1])+(+x[2])+(+x[3]); var k=bandOf(s)+'|'+lcPerm(x); (B[k]=B[k]||[]).push(x); });
+  var whole=[];
+  h+='<div style="font-size:13px;font-weight:800;color:#1e3a5f;margin:4px 0 6px">「'+srcName+'」'+list.length+' 个 · 按点数 × 打数分 <button class="btn btn-green" style="padding:4px 12px;font-size:12px;margin-left:6px" onclick="lcCopy(\'whole\',this)">📋 复制整份(带标题)</button></div>';
+  bands.forEach(function(b){
+    var tot=0; perms.forEach(function(p){ tot+=(B[b[0]+'|'+p[0]]||[]).length; });
+    if(!tot)return;
+    var inc18=(b[0]===m18)?'(含18)':'';
+    h+='<div style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="font-size:13px;font-weight:800;color:#334155;margin-bottom:4px">'+b[1]+inc18+' · '+tot+' 个</div>';
+    perms.forEach(function(p){
+      var L=B[b[0]+'|'+p[0]]; if(!L||!L.length)return;
+      var key=b[0]+'_'+p[0], title=b[1]+inc18+' '+p[1]+'('+L.length+'个)';
+      window.__lcCopy[key]=L.join('\n');
+      whole.push(title+'\n'+L.join('\n'));
+      h+='<div style="margin:6px 0"><b style="color:'+(p[0]===24?'#7c3aed':p[0]===12?'#0f766e':'#64748b')+'">'+p[1]+'</b> '+L.length+' 个 <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this)">📋 复制(一行一个)</button>'+
+        '<div style="font-family:monospace;font-size:12px;color:#334155;line-height:1.7;margin-top:2px;word-break:break-word">'+L.join(', ')+'</div></div>';
+    });
+    h+='</div>';
+  });
+  window.__lcCopy.whole=whole.join('\n\n');
+  out.innerHTML=h;
+}
+
 function zoNumLookup(){
   var out=document.getElementById('nl-out'); if(!out) return;
   var num=(document.getElementById('nl-num')||{value:''}).value;
@@ -12847,7 +12950,7 @@ let CURRENT_SCENE='decision';
 
 // Map: which scene contains which tabs
 const SCENE_MAP={
-  decision:['overview','numlookup','filter','decompose','wizard'],
+  decision:['overview','numlookup','filter','listcmp','decompose','wizard'],
   analysis:['season','zodiac','numsort','luohan','absent'],
   data:['add','dataexport']
 };
@@ -25727,5 +25830,6 @@ setTimeout(function(){
 </script>
 
 
+<script>try{lcAddGroup();lcAddGroup();}catch(e){}</script>
 </body>
 </html>
