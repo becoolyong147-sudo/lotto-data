@@ -857,6 +857,20 @@ function renderPatternTrend(){
     </div>
     <div id="nl-out"></div>
   </div>
+  <div class="card" style="border:2px solid #6b21a8">
+    <h3 style="color:#6b21a8">📅 最近开奖 · 年份 & 上下半年画像</h3>
+    <div class="warn">自动列出最近开的号,每个号旁边直接显示它<b>历史上偏上半年还是下半年</b>、<b>各年份开过</b>。不用自己查——开出来的号直接看惯性。</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">市场</label>
+        <select id="rp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+      <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">最近期数</label>
+        <select id="rp-n"><option value="10">近10期</option><option value="20" selected>近20期</option><option value="30">近30期</option></select></div>
+      <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">惯性口径</label>
+        <select id="rp-grp"><option value="box">调字整组(iBox)</option><option value="exact">正字(该号本身)</option></select></div>
+      <button class="btn" style="padding:9px 18px;font-size:14px;background:#6b21a8;color:#fff" onclick="zoRecentProfile()">📅 显示画像</button>
+    </div>
+    <div id="rp-out"></div>
+  </div>
 </div>
 
 <!-- TAB: 高级筛选 -->
@@ -10495,6 +10509,50 @@ function zoRootLink4DReview(){
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔍 查一个号：一个4D的九市场档案（历史事实，不预测）
+// 📅 最近开奖画像:自动列最近N期开的号 + 每个号的上/下半年偏好 + 各年份
+function zoRecentProfile(){
+  var out=document.getElementById('rp-out'); if(!out) return;
+  var mk=(document.getElementById('rp-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('rp-n')||{value:'20'}).value,10)||20;
+  var grp=(document.getElementById('rp-grp')||{value:'box'}).value;
+  function pad(n){return String(n).padStart(4,'0');}
+  function keyOf(s){ return grp==='box' ? ((typeof seaPermKey==='function')?seaPermKey(s):s.split('').sort().join('')) : s; }
+  var mkts=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var _nd=(typeof getNewResults==='function')?getNewResults():{};
+  // 全历史统计:key -> {mon:[13], yr:{}, tot, last}
+  var MAP={};
+  mkts.forEach(function(m2){ var seen={},mg=[]; (_nd[m2]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}}); ((typeof DB!=='undefined'&&DB[m2])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}});
+    mg.forEach(function(d){ if(String(d.date).endsWith('-00'))return; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return; var k=keyOf(s); var o=MAP[k]||(MAP[k]={mon:new Array(13).fill(0),yr:{},tot:0,last:''}); var mo=+String(d.date).slice(5,7); if(mo>=1&&mo<=12)o.mon[mo]++; var yr=String(d.date).slice(0,4); o.yr[yr]=(o.yr[yr]||0)+1; o.tot++; if(d.date>o.last)o.last=d.date; }); });
+  });
+  // 目标市场最近N期
+  var seen2={}, mm=[]; (_nd[mk]||[]).forEach(function(d){if(d&&d.date&&!seen2[d.date]){seen2[d.date]=1;mm.push(d);}}); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!seen2[d.date]){seen2[d.date]=1;mm.push(d);}});
+  mm=mm.filter(function(d){return !String(d.date).endsWith('-00')&&d.nums;});
+  mm.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
+  mm=mm.slice(0,N);
+  if(!mm.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
+  var PZ=['头','二','三'];
+  var h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f3e8ff;color:#6b21a8"><th style="text-align:left;padding:5px 8px">开奖日期</th><th style="padding:5px 8px">奖</th><th style="padding:5px 8px">号码</th><th style="padding:5px 8px">上/下半年偏好</th><th style="text-align:left;padding:5px 8px">各年份开过(紫=最近)</th></tr>';
+  mm.forEach(function(d){
+    [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
+      var o=MAP[keyOf(s)]||{mon:new Array(13).fill(0),yr:{},tot:0,last:''};
+      var h1=0,h2=0; for(var a=1;a<=6;a++)h1+=o.mon[a]; for(var b=7;b<=12;b++)h2+=o.mon[b];
+      var lean = h1>h2*1.2?{t:'上半年型',c:'#0369a1',bg:'#dbeafe'}:(h2>h1*1.2?{t:'下半年型',c:'#be185d',bg:'#fce7f3'}:{t:'均衡',c:'#64748b',bg:'#f1f5f9'});
+      var yrKeys=Object.keys(o.yr).sort(), lastY=yrKeys.length?yrKeys[yrKeys.length-1]:'';
+      var yrHtml=yrKeys.map(function(y){ var rc=(y===lastY); return '<span style="display:inline-block;border-radius:4px;padding:0 6px;margin:1px;font-size:11px;font-weight:700;background:'+(rc?'#6b21a8':'#f3e8ff')+';color:'+(rc?'#fff':'#6b21a8')+'">'+y+'·'+o.yr[y]+'</span>'; }).join('')||'<span style="color:#cbd5e1">首次/无</span>';
+      h+='<tr style="border-top:1px solid #ede9fe">'+
+        '<td style="padding:4px 8px;white-space:nowrap;color:#64748b">'+d.date+'</td>'+
+        '<td style="padding:4px 8px;text-align:center;color:#94a3b8">'+PZ[pi]+'</td>'+
+        '<td style="padding:4px 8px;text-align:center;font-family:monospace;font-size:16px;font-weight:800;color:#1e3a5f">'+s+'</td>'+
+        '<td style="padding:4px 8px;text-align:center"><span style="background:'+lean.bg+';color:'+lean.c+';border-radius:5px;padding:2px 8px;font-weight:700;white-space:nowrap">'+lean.t+' '+h1+':'+h2+'</span></td>'+
+        '<td style="padding:4px 8px;line-height:1.9">'+yrHtml+'</td>'+
+        '</tr>';
+    });
+  });
+  h+='</table></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">口径「'+(grp==='box'?'调字整组(它的所有排列合计,样本多)':'正字(该号本身,样本少可能只1次)')+'」·9市场合计统计。上/下半年偏好=历史落点,样本少时只是巧合。⚠️ 不预测。</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function zoNumLookup(){
   var out=document.getElementById('nl-out'); if(!out) return;
   var num=(document.getElementById('nl-num')||{value:''}).value;
@@ -10545,10 +10603,10 @@ function zoNumLookup(){
   h+='<div style="font-size:11px;color:#64748b;margin-top:6px">「正字」=这4位原样开过;「调字整组」=它的所有排列(box)合计开过多少次;「几年没来」红=超12年、橙=超6年;「命中本期目标」=该号(或调字)落在这个市场「下一期主打」的缺席目标2D里。全是历史统计,不构成预测。</div>';
   // === 新增:整组(iBox)实际开过哪些排列 + 上/下半年活跃 ===
   var qkey=(typeof seaPermKey==='function')?seaPermKey(num):num.split('').sort().join('');
-  var permCnt={}, monthCnt=new Array(13).fill(0), totOcc=0, byMkt={};
+  var permCnt={}, monthCnt=new Array(13).fill(0), totOcc=0, byMkt={}, yearCnt={}, lastY='';
   var _nd=(typeof getNewResults==='function')?getNewResults():{};
   mkts.forEach(function(mk){ var seen={},mg=[]; (_nd[mk]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}}); ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mg.push(d);}});
-    mg.forEach(function(d){ if(String(d.date).endsWith('-00'))return; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=String(n).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; if(seaPermKey(s)!==qkey)return; permCnt[s]=(permCnt[s]||0)+1; var mo=+d.date.slice(5,7); if(mo>=1&&mo<=12)monthCnt[mo]++; totOcc++; byMkt[mk]=(byMkt[mk]||0)+1; }); });
+    mg.forEach(function(d){ if(String(d.date).endsWith('-00'))return; [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=String(n).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; if(seaPermKey(s)!==qkey)return; permCnt[s]=(permCnt[s]||0)+1; var mo=+d.date.slice(5,7); if(mo>=1&&mo<=12)monthCnt[mo]++; var yr=String(d.date).slice(0,4); yearCnt[yr]=(yearCnt[yr]||0)+1; if(yr>lastY)lastY=yr; totOcc++; byMkt[mk]=(byMkt[mk]||0)+1; }); });
   });
   var permList=Object.keys(permCnt).sort(function(a,b){return permCnt[b]-permCnt[a];});
   h+='<div style="margin-top:12px;padding:10px 12px;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px">';
@@ -10561,6 +10619,9 @@ function zoNumLookup(){
     var topMo=1; for(var mm3=2;mm3<=12;mm3++) if(monthCnt[mm3]>monthCnt[topMo]) topMo=mm3;
     var lean = h1>h2*1.2?'上半年(1-6月)更活跃':(h2>h1*1.2?'下半年(7-12月)更活跃':'上下半年差不多');
     h+='<div style="margin-top:8px;font-size:12px;color:#6b21a8"><b>📅 季节活跃：</b>上半年 '+h1+' 次 · 下半年 '+h2+' 次 → <b>'+lean+'</b>；最常开在 <b>'+topMo+'月</b>('+monthCnt[topMo]+'次)</div>';
+    // 📆 属于什么年份:各年份开过几次(最近年份高亮)
+    var yrKeys=Object.keys(yearCnt).sort();
+    h+='<div style="margin-top:6px;font-size:12px;color:#6b21a8"><b>📆 各年份开过：</b>'+yrKeys.map(function(y){ var recent=(y===lastY); return '<span style="display:inline-block;border-radius:5px;padding:1px 8px;margin:2px;font-weight:700;background:'+(recent?'#6b21a8':'#f3e8ff')+';color:'+(recent?'#fff':'#6b21a8')+'">'+y+' <span style="font-weight:500">×'+yearCnt[y]+'</span></span>'; }).join('')+' <span style="font-size:11px;color:#94a3b8">(紫底=最近年份 '+lastY+')</span></div>';
     h+='<div style="font-size:11px;color:#94a3b8;margin-top:2px">⚠️ 这是历史落点,样本少时(几次)只是巧合,别当规律。</div>';
   }
   h+='</div>';
