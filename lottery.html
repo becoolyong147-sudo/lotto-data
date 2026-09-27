@@ -22248,10 +22248,14 @@ function zoP1D2Backtest(){
     var bA={}; pi.abs[1].forEach(function(d){bA[d]=1;});
     var oT={}; pi.abs[3].forEach(function(d){oT[d]=1;}); if(pi.most[3]!=null)oT[pi.most[3]]=1;
     var tA={}; pi.abs[2].forEach(function(d){tA[d]=1;});
-    var front={},back={};
-    for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(qT[a]&&bA[b]&&(!useRoot||rt.F[dr(a+b)])) front[''+a+b]=1; }
-    for(var c=0;c<=9;c++)for(var e=0;e<=9;e++){ if(tA[c]&&oT[e]&&(!useRoot||rt.B[dr(c+e)])) back[''+c+e]=1; }
-    return {front:front,back:back,pi:pi,rt:rt};
+    var qA={}; pi.abs[0].forEach(function(d){qA[d]=1;});   // 千缺(纯1D,不含最多)
+    var oA={}; pi.abs[3].forEach(function(d){oA[d]=1;});   // 个缺(纯1D,不含最多)
+    var front={},back={}, frontNon={},backNon={};
+    for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(qT[a]&&bA[b]&&(!useRoot||rt.F[dr(a+b)])) front[''+a+b]=1;
+      else if(qA[a]&&bA[b]) frontNon[''+a+b]=1; }   // 剩余=1D双缺(千缺×百缺)但没进配合(多半被数根刷掉)
+    for(var c=0;c<=9;c++)for(var e=0;e<=9;e++){ if(tA[c]&&oT[e]&&(!useRoot||rt.B[dr(c+e)])) back[''+c+e]=1;
+      else if(tA[c]&&oA[e]) backNon[''+c+e]=1; }
+    return {front:front,back:back,frontNon:frontNon,backNon:backNon,pi:pi,rt:rt};
   }
   function streaks(arr){ var mw=0,ml=0,cw=0,cl=0; arr.forEach(function(h){ if(h){cw++;cl=0;if(cw>mw)mw=cw;}else{cl++;cw=0;if(cl>ml)ml=cl;} }); var i=arr.length-1,sg=0,n=0; if(i>=0){sg=arr[i]?1:-1; while(i>=0&&(arr[i]?1:-1)===sg){n++;i--;}} return {mw:mw,ml:ml,cur:sg*n}; }
   var tF=0,hF=0,bF=0,szF=0,arF=[], tB=0,hB=0,bB=0,szB=0,arB=[], det=[];
@@ -22282,9 +22286,14 @@ function zoP1D2Backtest(){
   var h='<div style="border:1px solid #fde68a;border-radius:10px;background:#fffbeb;padding:10px 12px;margin-bottom:10px">';
   h+='<div style="font-weight:800;color:#92400e;font-size:13px;margin-bottom:4px">🎯 本期主打（源'+srcLbl+' · 最近'+W+'期 '+lastWin[0].date+'~'+lastWin[lastWin.length-1].date+'）</div>';
   h+='<div style="font-size:13px">千位 缺 <b style="color:#b45309">'+(qi.abs.join(' ')||'无')+'</b> · 最多 <b style="color:#16a34a">'+(qi.most!=null?qi.most:'—')+'</b> → 前1D目标 <b style="color:#b45309">'+qi.abs.concat(qi.most!=null?[qi.most]:[]).join(' ')+'</b></div>';
-  h+='<div style="margin:3px 0 6px">配合前2D('+Object.keys(LS.front).length+')：'+chips(LS.front,[],'#0f766e')+'</div>';
-  h+='<div style="font-size:13px">个位 缺 <b style="color:#b45309">'+(oi.abs.join(' ')||'无')+'</b> · 最多 <b style="color:#16a34a">'+(oi.most!=null?oi.most:'—')+'</b> → 后1D目标 <b style="color:#b45309">'+oi.abs.concat(oi.most!=null?[oi.most]:[]).join(' ')+'</b></div>';
-  h+='<div style="margin:3px 0">配合后2D('+Object.keys(LS.back).length+')：'+chips(LS.back,[],'#be185d')+'</div>';
+  function sendcp(setObj,mk2,wi,col){ var lst=Object.keys(setObj).sort().join(' '); if(!lst)return ''; return '<div style="margin-top:3px;display:flex;gap:5px;flex-wrap:wrap">'+
+    '<button class="btn" style="padding:2px 9px;font-size:11px;background:'+col+';color:#fff" onclick="zoSend2DToFilter(\''+lst+'\',\''+mk2+'\','+wi+')">📤 送筛选</button>'+
+    '<button class="btn" style="padding:2px 9px;font-size:11px;background:#fff;color:'+col+';border:1px solid '+col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+lst+'\').then(()=>{this.textContent=\'✅\';setTimeout(()=>this.textContent=\'📋复制\',1000)})">📋复制</button></div>'; }
+  h+='<div style="margin:3px 0 2px">配合前2D('+Object.keys(LS.front).length+')：'+chips(LS.front,[],'#0f766e')+'</div>'+sendcp(LS.front,mk,0,'#0f766e');
+  if(Object.keys(LS.frontNon).length){ h+='<div style="margin:5px 0 2px;font-size:12px;color:#94a3b8">剩余双缺前2D('+Object.keys(LS.frontNon).length+')·千位∉目标或数根没缺：'+chips(LS.frontNon,[],'#94a3b8')+'</div>'+sendcp(LS.frontNon,mk,0,'#94a3b8'); }
+  h+='<div style="font-size:13px;margin-top:8px">个位 缺 <b style="color:#b45309">'+(oi.abs.join(' ')||'无')+'</b> · 最多 <b style="color:#16a34a">'+(oi.most!=null?oi.most:'—')+'</b> → 后1D目标 <b style="color:#b45309">'+oi.abs.concat(oi.most!=null?[oi.most]:[]).join(' ')+'</b></div>';
+  h+='<div style="margin:3px 0 2px">配合后2D('+Object.keys(LS.back).length+')：'+chips(LS.back,[],'#be185d')+'</div>'+sendcp(LS.back,mk,2,'#be185d');
+  if(Object.keys(LS.backNon).length){ h+='<div style="margin:5px 0 2px;font-size:12px;color:#94a3b8">剩余双缺后2D('+Object.keys(LS.backNon).length+')·个位∉目标或数根没缺：'+chips(LS.backNon,[],'#94a3b8')+'</div>'+sendcp(LS.backNon,mk,2,'#94a3b8'); }
   h+='</div>';
   var H='<div class="card" style="border:2px solid #b45309"><h3 style="color:#b45309">🎯 '+mk+' · 主打1D×2D 配合成功率（'+per.length+'期'+(useRoot?' · 含数根缺':'')+'）</h3>';
   H+=h;
