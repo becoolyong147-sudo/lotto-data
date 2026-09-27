@@ -867,6 +867,8 @@ function renderPatternTrend(){
         <select id="rp-n"><option value="10">近10期</option><option value="20" selected>近20期</option><option value="30">近30期</option></select></div>
       <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">惯性口径</label>
         <select id="rp-grp"><option value="box">调字整组(iBox)</option><option value="exact">正字(该号本身)</option></select></div>
+      <div><label style="font-size:12px;color:#6b21a8;font-weight:700;display:block">排序/筛选</label>
+        <select id="rp-sort" onchange="zoRecentProfile()"><option value="time">按开奖顺序</option><option value="fit">应景优先</option><option value="h2">下半年型优先</option><option value="h1">上半年型优先</option><option value="onlyfit">只看应景</option></select></div>
       <button class="btn" style="padding:9px 18px;font-size:14px;background:#6b21a8;color:#fff" onclick="zoRecentProfile()">📅 显示画像</button>
     </div>
     <div id="rp-out"></div>
@@ -10530,26 +10532,44 @@ function zoRecentProfile(){
   mm.sort(function(a,b){return (b.date||'').localeCompare(a.date||'');});
   mm=mm.slice(0,N);
   if(!mm.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
-  var PZ=['头','二','三'];
-  var h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f3e8ff;color:#6b21a8"><th style="text-align:left;padding:5px 8px">开奖日期</th><th style="padding:5px 8px">奖</th><th style="padding:5px 8px">号码</th><th style="padding:5px 8px">上/下半年偏好</th><th style="text-align:left;padding:5px 8px">各年份开过(紫=最近)</th></tr>';
-  mm.forEach(function(d){
+  var sortMode=(document.getElementById('rp-sort')||{value:'time'}).value;
+  var PZ=['头','二','三'], MON=['','1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  var nowY=new Date().getFullYear(), nowMo=new Date().getMonth()+1, curHalf=(nowMo<=6)?'h1':'h2';
+  // 收集所有行
+  var items=[];
+  mm.forEach(function(d,di){
     [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=pad(n); if(!/^\d{4}$/.test(s))return;
       var o=MAP[keyOf(s)]||{mon:new Array(13).fill(0),yr:{},tot:0,last:''};
       var h1=0,h2=0; for(var a=1;a<=6;a++)h1+=o.mon[a]; for(var b=7;b<=12;b++)h2+=o.mon[b];
-      var lean = h1>h2*1.2?{t:'上半年型',c:'#0369a1',bg:'#dbeafe'}:(h2>h1*1.2?{t:'下半年型',c:'#be185d',bg:'#fce7f3'}:{t:'均衡',c:'#64748b',bg:'#f1f5f9'});
-      var yrKeys=Object.keys(o.yr).sort(), lastY=yrKeys.length?yrKeys[yrKeys.length-1]:'';
-      var yrHtml=yrKeys.map(function(y){ var rc=(y===lastY); return '<span style="display:inline-block;border-radius:4px;padding:0 6px;margin:1px;font-size:11px;font-weight:700;background:'+(rc?'#6b21a8':'#f3e8ff')+';color:'+(rc?'#fff':'#6b21a8')+'">'+y+'·'+o.yr[y]+'</span>'; }).join('')||'<span style="color:#cbd5e1">首次/无</span>';
-      h+='<tr style="border-top:1px solid #ede9fe">'+
-        '<td style="padding:4px 8px;white-space:nowrap;color:#64748b">'+d.date+'</td>'+
-        '<td style="padding:4px 8px;text-align:center;color:#94a3b8">'+PZ[pi]+'</td>'+
-        '<td style="padding:4px 8px;text-align:center;font-family:monospace;font-size:16px;font-weight:800;color:#1e3a5f">'+s+'</td>'+
-        '<td style="padding:4px 8px;text-align:center"><span style="background:'+lean.bg+';color:'+lean.c+';border-radius:5px;padding:2px 8px;font-weight:700;white-space:nowrap">'+lean.t+' '+h1+':'+h2+'</span></td>'+
-        '<td style="padding:4px 8px;line-height:1.9">'+yrHtml+'</td>'+
-        '</tr>';
+      var type = h1>h2*1.2?'h1':(h2>h1*1.2?'h2':'bal');
+      var r5=0; for(var y=nowY-4;y<=nowY;y++) r5+=(o.yr[String(y)]||0);
+      var topMo=1; for(var mo2=2;mo2<=12;mo2++) if(o.mon[mo2]>o.mon[topMo]) topMo=mo2;
+      var fit = (type==='bal')?0:(type===curHalf?1:-1);   // 1应景 -1反季 0中性
+      items.push({date:d.date,di:di,pi:pi,s:s,h1:h1,h2:h2,type:type,r5:r5,tot:o.tot,topMo:o.tot?topMo:0,fit:fit});
     });
   });
+  if(sortMode==='onlyfit') items=items.filter(function(x){return x.fit===1;});
+  if(sortMode==='fit') items.sort(function(a,b){return b.fit-a.fit || a.di-b.di;});
+  else if(sortMode==='h2') items.sort(function(a,b){return (b.h2-b.h1)-(a.h2-a.h1) || a.di-b.di;});
+  else if(sortMode==='h1') items.sort(function(a,b){return (b.h1-b.h2)-(a.h1-a.h2) || a.di-b.di;});
+  var LEANM={h1:{t:'上半年型',c:'#0369a1',bg:'#dbeafe'},h2:{t:'下半年型',c:'#be185d',bg:'#fce7f3'},bal:{t:'均衡',c:'#64748b',bg:'#f1f5f9'}};
+  var FITM={1:{t:'✅应景',c:'#16a34a',bg:'#dcfce7'},'-1':{t:'⚠️反季',c:'#d97706',bg:'#fef3c7'},0:{t:'–',c:'#94a3b8',bg:'#f8fafc'}};
+  var h='<div style="font-size:12px;color:#6b21a8;margin-bottom:6px">现在是 <b>'+nowMo+'月('+(curHalf==='h2'?'下半年':'上半年')+')</b> → <b style="color:#16a34a">✅应景</b>=惯性偏当前半年、<b style="color:#d97706">⚠️反季</b>=偏另一半年。「近5年」='+(nowY-4)+'~'+nowY+'共开几次(热度)。</div>';
+  h+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#f3e8ff;color:#6b21a8"><th style="text-align:left;padding:5px 8px">开奖日期</th><th style="padding:5px 8px">奖</th><th style="padding:5px 8px">号码</th><th style="padding:5px 8px">合拍</th><th style="padding:5px 8px">半年偏好</th><th style="padding:5px 8px">近5年热度</th><th style="padding:5px 8px">高峰月</th></tr>';
+  if(!items.length) h+='<tr><td colspan="7" style="padding:8px;color:#94a3b8">没有符合的号(试试换排序)。</td></tr>';
+  items.forEach(function(x){ var lean=LEANM[x.type], fit=FITM[x.fit];
+    h+='<tr style="border-top:1px solid #ede9fe'+(x.fit===1?';background:#f0fdf4':'')+'">'+
+      '<td style="padding:4px 8px;white-space:nowrap;color:#64748b">'+x.date+'</td>'+
+      '<td style="padding:4px 8px;text-align:center;color:#94a3b8">'+PZ[x.pi]+'</td>'+
+      '<td style="padding:4px 8px;text-align:center;font-family:monospace;font-size:16px;font-weight:800;color:#1e3a5f">'+x.s+'</td>'+
+      '<td style="padding:4px 8px;text-align:center"><span style="background:'+fit.bg+';color:'+fit.c+';border-radius:5px;padding:2px 8px;font-weight:700;white-space:nowrap">'+fit.t+'</span></td>'+
+      '<td style="padding:4px 8px;text-align:center"><span style="background:'+lean.bg+';color:'+lean.c+';border-radius:5px;padding:2px 8px;font-weight:700;white-space:nowrap">'+lean.t+' '+x.h1+':'+x.h2+'</span></td>'+
+      '<td style="padding:4px 8px;text-align:center;font-weight:700;color:'+(x.r5>=8?'#dc2626':x.r5>=4?'#d97706':'#64748b')+'">'+x.r5+'次<span style="font-size:10px;color:#cbd5e1"> /总'+x.tot+'</span></td>'+
+      '<td style="padding:4px 8px;text-align:center;color:#6b21a8;font-weight:700">'+(x.topMo?MON[x.topMo]:'—')+'</td>'+
+      '</tr>';
+  });
   h+='</table></div>';
-  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">口径「'+(grp==='box'?'调字整组(它的所有排列合计,样本多)':'正字(该号本身,样本少可能只1次)')+'」·9市场合计统计。上/下半年偏好=历史落点,样本少时只是巧合。⚠️ 不预测。</div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">口径「'+(grp==='box'?'调字整组(所有排列合计,样本多)':'正字(该号本身,样本少可能只1次)')+'」·9市场合计。近5年热度红=≥8次(热)、橙=≥4次。惯性=历史落点,样本少只是巧合。⚠️ 不预测。</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
