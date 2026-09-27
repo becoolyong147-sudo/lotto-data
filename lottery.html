@@ -1147,6 +1147,13 @@ function renderPatternTrend(){
       <button class="btn" style="padding:5px 12px;font-size:11px;margin-left:auto" onclick="runRepeatRateCheck()">📊 验证：这个假设站得住脚吗？</button>
     </div>
     <div id="flt-repeat-check-out" style="margin-top:8px"></div>
+    <div class="row" style="align-items:center;margin-top:8px;border-top:1px dashed #a7f3d0;padding-top:8px;flex-wrap:wrap;gap:10px">
+      <span style="font-size:12px;font-weight:700;color:#b45309">🔥 活跃度</span>
+      <label style="font-size:12px;color:#065f46">窗口 <select id="flt-act-win"><option value="0">不限</option><option value="3">近3个月</option><option value="6">近半年</option><option value="12">近1年</option><option value="36">近3年</option></select></label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:#065f46;cursor:pointer"><input type="checkbox" id="flt-act-on" style="width:auto"> 只留窗口内开过(=近期活跃)</label>
+      <label style="font-size:12px;color:#065f46">半年型 <select id="flt-act-half"><option value="">不限</option><option value="h1">上半年型(1-6月多)</option><option value="h2">下半年型(7-12月多)</option><option value="bal">均衡</option></select></label>
+      <span style="font-size:11px;color:#92400e;flex-basis:100%">近期活跃=接近最近方向；半年型=季节偏向。叠一起=又新鲜又对季节(现下半年→勾「近半年活跃 + 下半年型」)。</span>
+    </div>
   </div>
 
   <!-- Row 6: 形态 + 包含数字 -->
@@ -4902,6 +4909,9 @@ function clearAdvancedFilter(){
   { const el=document.getElementById('flt-occ-cmp'); if(el)el.value='gte'; }
   { const el=document.getElementById('flt-exclude-recent'); if(el)el.checked=false; }
   { const el=document.getElementById('flt-exclude-months'); if(el)el.value='12'; }
+  { const el=document.getElementById('flt-act-win'); if(el)el.value='0'; }
+  { const el=document.getElementById('flt-act-on'); if(el)el.checked=false; }
+  { const el=document.getElementById('flt-act-half'); if(el)el.value=''; }
   { const el=document.getElementById('flt-repeat-check-out'); if(el)el.innerHTML=''; }
   ['flt-month-from','flt-month-to'].forEach(id=>{const el=document.getElementById(id); if(el)el.value='';});
   document.getElementById('flt-prize').value='all';
@@ -5329,6 +5339,26 @@ function runAdvancedFilter(){
     }
   }
 
+  // 🔥 活跃度过滤:近期活跃(窗口内开过) + 上/下半年型(全历史 H1 vs H2)
+  var actWin=parseInt((document.getElementById('flt-act-win')||{value:'0'}).value,10)||0;
+  var actOn=(document.getElementById('flt-act-on')||{checked:false}).checked;
+  var actHalf=(document.getElementById('flt-act-half')||{value:''}).value;
+  window.__fltActMap=null;
+  if((actOn&&actWin>0)||actHalf){
+    var allRecsA=DB[market]||[];
+    var latestA=allRecsA.length?allRecsA.reduce(function(mx,r){return r.date>mx?r.date:mx;},allRecsA[0].date):'';
+    var cutoffA=null; if(actWin>0&&latestA){ var cd=new Date(latestA); cd.setMonth(cd.getMonth()-actWin); cutoffA=cd.toISOString().slice(0,10); }
+    var HA={};
+    allRecsA.forEach(function(r){ if(!r.date||String(r.date).endsWith('-00'))return; var mo=parseInt(String(r.date).slice(5,7),10); (r.nums||[]).forEach(function(n){ if(!n||n==='0000')return; var p=pz(n); if(!HA[p])HA[p]={win:0,h1:0,h2:0,last:''}; if(cutoffA&&r.date>=cutoffA)HA[p].win++; if(mo>=1&&mo<=6)HA[p].h1++; else if(mo>=7)HA[p].h2++; if(r.date>HA[p].last)HA[p].last=r.date; }); });
+    window.__fltActMap=HA;
+    grouped=grouped.filter(function(g){ var hh=HA[g.num]||{win:0,h1:0,h2:0};
+      if(actOn&&actWin>0&&hh.win<=0)return false;
+      if(actHalf==='h1'&&!(hh.h1>hh.h2))return false;
+      if(actHalf==='h2'&&!(hh.h2>hh.h1))return false;
+      if(actHalf==='bal'&&Math.abs(hh.h1-hh.h2)>Math.max(1,(hh.h1+hh.h2)*0.2))return false;
+      return true; });
+  }
+
   // 🔄 已推荐池·去重(配九宫格轮方向:池按「4D数根选择」记来源,同数根重筛不算重复,换方向/换数根才标灰)
   if(typeof window.__fltPool!=='object'||!window.__fltPool) window.__fltPool={};
   var _fpool=window.__fltPool;
@@ -5411,8 +5441,10 @@ function runAdvancedFilter(){
       const zoneChip = zi && lm
         ? `<span style="background:${lm.bg};color:${lm.color};padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700;white-space:nowrap">${zi.label}</span><br><span style="font-size:10px;color:#94a3b8">${avgStr} ${agoStr}</span>`
         : '<span style="color:#94a3b8;font-size:11px">—</span>';
+      const _act = window.__fltActMap ? window.__fltActMap[g.num] : null;
+      const _actTag = _act ? `<div style="font-size:9px;color:#92400e;white-space:nowrap">${_act.h2>_act.h1?'H2':_act.h1>_act.h2?'H1':'均'} ${_act.h1}:${_act.h2}${_act.last?' ·最近'+_act.last.slice(0,7):''}</div>` : '';
       return `<tr${g._dup?` style="opacity:.4" title="别的数根(${g._dupFrom})已出过"`:''}>
-        <td><span class="nc nc-sm"${g._dup?' style="text-decoration:line-through"':''}>${g.num}</span></td>
+        <td><span class="nc nc-sm"${g._dup?' style="text-decoration:line-through"':''}>${g.num}</span>${_actTag}</td>
         <td style="white-space:nowrap">${g._cat.chip}</td>
         <td><span class="bb">${g.count}次</span></td>
         <td>${prizeMiniCounts(g)}</td>
