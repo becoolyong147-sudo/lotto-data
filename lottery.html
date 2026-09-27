@@ -1783,8 +1783,13 @@ async function bootstrapV51(){
     // Now call existing init() — no changes to its behavior
     try{
       init();
-      const _autoAdded = await autoImportFetchedResults(); // V63: 合并自动抓取成绩(只增不覆盖)
+      const _GH_RAW='https://raw.githubusercontent.com/becoolyong147-sudo/lotto-data/main/auto_results.json?t=';
+      const _localAdded = await autoImportFetchedResults(); // V63: 本地 auto_results.json(只增不覆盖)
+      let _ghAdded=0; try{ _ghAdded = await autoImportFetchedResults(_GH_RAW+Date.now()); }catch(e){} // 启动时也从GitHub拉最新
+      const _autoAdded = _localAdded + _ghAdded;
       loadSavedResults();
+      // ⏱️ 开着时每10分钟自动从GitHub拉一次最新成绩(有新的就补上+提示,不刷新页面)
+      try{ if(!window.__ghPollTimer){ window.__ghPollTimer=setInterval(async function(){ try{ var k=await autoImportFetchedResults(_GH_RAW+Date.now()); if(k>0){ loadSavedResults(); var nd2=getNewResults(); var nc2=Object.values(nd2).reduce((a,v)=>a+v.length,0); var tt2=Object.values(DB).reduce((a,v)=>a+v.length,0); var el2=document.getElementById('data-count'); if(el2)el2.textContent='历史'+(tt2-nc2)+'期 + 新增'+nc2+'期'; } }catch(e){} }, 600000); } }catch(e){}
       if(_autoAdded){
         // 导入后重算计数并刷新总览(init 里那次还没算上刚导入的)
         const nd=getNewResults();
