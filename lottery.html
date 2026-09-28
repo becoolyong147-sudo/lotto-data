@@ -12375,7 +12375,7 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-open" onchange="zoFixedPackBacktest()"> ⑦只留历史开过</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-sea" onchange="zoFixedPackBacktest()"> ⑧只留应景(偏当期半年)</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-yr" onchange="zoFixedPackBacktest()"> ⑨近<select id="fp-yrn" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option>3</option><option selected>5</option><option>10</option></select>年开过</label>
-    <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-excl" onchange="zoFixedPackBacktest()"> ⑩排除已开过的正字(此前开过就不买)</label>
+    <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-excl" onchange="zoFixedPackBacktest()"> ⑩排除近<select id="fp-excln" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option value="0">全部(永久)</option><option value="100">100</option><option value="50" selected>50</option><option value="20">20</option></select>期开过的正字</label>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22594,12 +22594,14 @@ function zoFixedPackBacktest(){
   var staticCount=null;
   if(mode5==='off'&&!seaYrOn){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
   var tot=0,hit=0,base=0,szSum=0,det=[],arr=[];
+  var loss={},capturable=0,capAll=0;   // 🔎命中归因:开出的号被哪个单一条件卡掉
   var startI=(mode5==='off')?0:1;
-  var drawn={};  // ⑩ point-in-time: 已开过的正字(截至当期之前)
-  for(var j=0;j<startI;j++) per[j].nums.forEach(function(s){drawn[s]=1;});
-  function passExcl(s){ return !exclOn || !drawn[s]; }
+  var exclN=parseInt(V('fp-excln','50'),10)||0;   // 0=永久排除, 否则近N期内排除、过后回池
+  var drawnAt={};  // ⑩ point-in-time: 正字最近开过的期号
+  for(var j=0;j<startI;j++) per[j].nums.forEach(function(s){drawnAt[s]=j;});
+  function passExcl(s){ if(!exclOn)return true; var k=drawnAt[s]; if(k===undefined)return true; if(exclN===0)return false; return (i-k)>=exclN; }
   for(var i=startI;i+1<per.length;i++){
-    per[i].nums.forEach(function(s){drawn[s]=1;});   // 加入本期 → drawn=per[0..i](下一期之前都开过的)
+    per[i].nums.forEach(function(s){drawnAt[s]=i;});   // 记本期开过 → 判下一期时按冷却期算
     var tgt=per[i+1], nc=tgt.nums.length, dq=null;
     var th=(+String(tgt.date).slice(5,7))<=6?'h1':'h2', ty=+String(tgt.date).slice(0,4);
     var candSize;
@@ -22618,7 +22620,23 @@ function zoFixedPackBacktest(){
     }
     // 命中判定 + 原因
     function pass5(s){ if(mode5==='off')return true; var f=s.slice(0,2),b=s.slice(2,4); if(mode5==='split')return !!(dq.front[f]&&dq.back[b]); return !!(dq.front[f]||dq.back[b]); }
-    var marks=[]; tgt.nums.forEach(function(s){ if(passStatic(s)&&pass5(s)&&passSea(s,th,ty)&&passExcl(s)) marks.push(s); });
+    var marks=[];
+    tgt.nums.forEach(function(s){
+      var d=[+s[0],+s[1],+s[2],+s[3]], fa=[];
+      if(cP4){ var v=d[0]+d[1]+d[2]+d[3]; if(v<p4a||v>p4b)fa.push('p4'); }
+      if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)fa.push('p3f'); }
+      if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)fa.push('p3b'); }
+      if(oeOn){ var odd=0; for(var q=0;q<4;q++)if(d[q]%2)odd++; if(!oeAllow[odd])fa.push('oe'); }
+      if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])fa.push('da'); }
+      if(openOn){ if(!(H4.cnt[s]>0))fa.push('open'); }
+      if(seaOn){ var o=SEA[_sk(s)]; var lean=o?(o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal')):'bal'; if(lean!==th)fa.push('sea'); }
+      if(yrOn){ var o2=SEA[_sk(s)]; var ok=false; if(o2){for(var y=ty-yrN+1;y<=ty;y++)if(o2.yr[y]){ok=true;break;}} if(!ok)fa.push('yr'); }
+      if(exclOn && !passExcl(s))fa.push('excl');
+      if(mode5!=='off' && !pass5(s))fa.push('r1d');
+      capturable++;
+      if(fa.length===0){ capAll++; marks.push(s); }
+      else if(fa.length===1){ loss[fa[0]]=(loss[fa[0]]||0)+1; }
+    });
     var hh=marks.length>0;
     tot++; if(hh)hit++; szSum+=candSize; arr.push(hh);
     base+=1-Math.pow(1-Math.min(candSize,10000)/10000, nc);
@@ -22639,13 +22657,17 @@ function zoFixedPackBacktest(){
   if(openOn)conds.push('⑦只留历史开过');
   if(seaOn)conds.push('⑧只留应景(偏当期半年)');
   if(yrOn)conds.push('⑨近'+yrN+'年开过');
-  if(exclOn)conds.push('⑩排除已开过正字');
+  if(exclOn)conds.push('⑩排除近'+(exclN===0?'全部':exclN)+'期开过正字');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
   h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
   h+='<div style="font-size:13px;font-weight:700;margin-bottom:2px">命中率 <span style="color:'+vd.c+'">'+vd.t+'</span> <span style="font-size:11px;color:#94a3b8">· 平均候选 '+avg+' 个/期 · 连中'+st.mw+' 连错'+st.ml+'</span></div>';
   h+=bar('实际命中',hp,'#0891b2')+bar('随机同量',bp,'#cbd5e1');
   h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;margin-top:4px">👉 「实际命中」明显长过「随机同量」才算这套条件有料;差不多长=🟢≈随机。<b>一个个加条件</b>看命中率和候选数怎么变——候选压越少、命中还撑住,才是好条件。</div>';
+  // 🔎 命中归因:开出的号被哪个单一条件卡掉(去掉它就能多catch)
+  var LN={p4:'①4D点数',p3f:'②前3D点数',p3b:'③后3D点数',oe:'④单双',r1d:'⑤数根×1D',da:'⑥打数',open:'⑦只开过',sea:'⑧应景',yr:'⑨年份',excl:'⑩排除已开过'};
+  var lparts=Object.keys(loss).filter(function(k){return loss[k]>0;}).sort(function(a,b){return loss[b]-loss[a];}).map(function(k){return '<b style="color:#dc2626">'+(LN[k]||k)+' 卡掉 '+loss[k]+' 个</b>';});
+  h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#9a3412">🔎 <b>命中归因</b>(为什么❌):开出的号共 <b>'+capturable+'</b> 个,全条件通过(=✅命中) <b style="color:#16a34a">'+capAll+'</b> 个。'+(lparts.length?('<br>被<b>单一条件</b>卡掉(去掉它这号就能中):'+lparts.join(' · ')+'。<br><span style="font-size:11px;color:#c2410c">👉 卡掉最多的那个条件最「贵」——它是❌的主因,想多中就考虑放宽它。</span>'):'<br>没有号是被单一条件卡掉的(要么全过、要么同时被多个条件挡)。')+'</div>';
   // 逐期
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'fp-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细 ▾</span>';
   h+='<div id="fp-det" style="display:block;max-height:340px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0891b2"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">命中奖号(满足全部条件)</th><th style="padding:3px 6px">候选</th><th style="padding:3px 6px">中?</th></tr>';
