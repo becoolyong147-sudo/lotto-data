@@ -6026,7 +6026,12 @@ async function autoImportFetchedResults(srcUrl){
         if(touched){ enriched++; markets.add(p.market); }
         continue;
       }
-      if((DB[p.market]||[]).some(x=>x.date===p.date)) continue;     // 历史库已有 → 不动
+      const dbEx=(DB[p.market]||[]).find(x=>x.date===p.date);
+      if(dbEx){
+        const dbNums=(dbEx.nums||[]).map(n=>String(n).padStart(4,'0'));
+        if(dbNums.join(',')===nums.join(',')) continue;   // 历史库号码已对 → 不动
+        // 🩹 历史库号码不对(之前抓错存进DB) → 加正确的进新成绩, 合并时覆盖DB显示
+      }
       if(!data[p.market]) data[p.market]=[];
       const entry={date:p.date, draw:p.draw||'', nums};
       if(sp.length) entry.sp=sp;
