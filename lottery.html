@@ -12354,6 +12354,27 @@ function zo2DRootBacktest(){
   <div id="r2a-out" style="margin-top:10px"></div>
 </div>
 
+<!-- 🎁 固定条件包 · 逐期命中回测（可勾条件，叠积木看命中率） -->
+<div class="card" style="border:2px solid #0891b2;margin-top:12px">
+  <h3 style="color:#0891b2">🎁 固定条件包 · 逐期命中回测</h3>
+  <div class="warn">先勾几个固定条件看<b>历史命中率 vs 随机</b>,再一个个加条件看命中率怎么变(叠积木)。默认是你要的那套,随时勾/取消。命中=下一期头二三里有号<b>同时满足所有勾选的条件</b>。</div>
+  <div class="row" style="margin-top:8px">
+    <div class="ig"><label>市场</label>
+      <select id="fp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+    <div class="ig"><label>回测期数</label>
+      <select id="fp-n"><option value="0">全部</option><option value="100">近100</option><option value="200" selected>近200</option><option value="500">近500</option></select></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoFixedPackBacktest()">🎁 回测</button></div>
+  </div>
+  <div style="margin-top:8px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px">
+    <label style="cursor:pointer"><input type="checkbox" id="fp-c-p4" checked onchange="zoFixedPackBacktest()"> ①4D点数 <input type="number" id="fp-p4a" value="12" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p4b" value="24" style="width:42px" onchange="zoFixedPackBacktest()"></label>
+    <label style="cursor:pointer"><input type="checkbox" id="fp-c-p3f" checked onchange="zoFixedPackBacktest()"> ②前3D点数 <input type="number" id="fp-p3fa" value="10" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p3fb" value="18" style="width:42px" onchange="zoFixedPackBacktest()"></label>
+    <label style="cursor:pointer"><input type="checkbox" id="fp-c-p3b" checked onchange="zoFixedPackBacktest()"> ③后3D点数 <input type="number" id="fp-p3ba" value="10" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p3bb" value="18" style="width:42px" onchange="zoFixedPackBacktest()"></label>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px">④单双 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-31" checked onchange="zoFixedPackBacktest()"> 3单1双</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-13" checked onchange="zoFixedPackBacktest()"> 3双1单</label><label style="cursor:pointer"><input type="checkbox" id="fp-oe-22" checked onchange="zoFixedPackBacktest()"> 2单2双</label></span>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑤数根×缺席1D <select id="fp-r1d" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="split">前后(双缺)</option><option value="mix">混合(双缺)</option></select></span>
+  </div>
+  <div id="fp-out" style="margin-top:10px"></div>
+</div>
+
 <!-- 🎯 主打1D×2D 配合 · 成功率回测（独立卡） -->
 <div class="card" style="border:2px solid #b45309;margin-top:12px">
   <h3 style="color:#b45309">🎯 主打1D×2D 配合 · 成功率回测</h3>
@@ -22503,6 +22524,99 @@ function zoDigit1AbsentBacktest(){
 
 // 🧬 数根×缺席1D 组合回测：命中＝奖号「2D数根∈缺席根(两期一组)」且「该位数字∈缺席1D(最新一期)」两者同时中。
 // 三模式：mix混合数根 / split分前后 / pair前后匹配。
+// 🎁 固定条件包 · 逐期命中回测：可勾条件(4D点数/前后3D点数/单双/数根×缺席1D),叠积木看命中率 vs 随机
+function zoFixedPackBacktest(){
+  var out=document.getElementById('fp-out'); if(!out) return;
+  function V(id,d){ var e=document.getElementById(id); return e?e.value:d; }
+  function C(id){ var e=document.getElementById(id); return e?e.checked:false; }
+  function I(id,d){ var v=parseInt(V(id,''),10); return isNaN(v)?d:v; }
+  var mk=V('fp-market','万能'), N=parseInt(V('fp-n','200'),10)||0;
+  function pad(n){return String(n).padStart(4,'0');}
+  function dr(x){return x===0?0:(x%9===0?9:x%9);}
+  var cP4=C('fp-c-p4'), p4a=I('fp-p4a',12), p4b=I('fp-p4b',24);
+  var cP3f=C('fp-c-p3f'), p3fa=I('fp-p3fa',10), p3fb=I('fp-p3fb',18);
+  var cP3b=C('fp-c-p3b'), p3ba=I('fp-p3ba',10), p3bb=I('fp-p3bb',18);
+  var oeAllow={}; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-22'))oeAllow[2]=1;
+  var oeOn=Object.keys(oeAllow).length>0;
+  var mode5=V('fp-r1d','off');
+  function passStatic(s){
+    var d=[+s[0],+s[1],+s[2],+s[3]];
+    if(cP4){ var v=d[0]+d[1]+d[2]+d[3]; if(v<p4a||v>p4b)return false; }
+    if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)return false; }
+    if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)return false; }
+    if(oeOn){ var odd=0; for(var i=0;i<4;i++)if(d[i]%2)odd++; if(!oeAllow[odd])return false; }
+    return true;
+  }
+  var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return !String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  if(N>0&&m.length>N)m=m.slice(m.length-N);
+  function info(d){ var nums=[]; [0,1,2].forEach(function(p){ var v=d.nums&&d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); return {date:d.date,nums:nums}; }
+  var per=m.map(info).filter(function(x){return x.nums.length>0;});
+  if(per.length<5){ out.innerHTML='<div class="warn">'+mk+' 期数太少,无法回测。</div>'; return; }
+  // ⑤ 双缺集合(数根两期 per[i],per[i+1] · 1D per[i+1])
+  function dbl2(i){ var pf={},pm={},pb={}; [per[i],per[i+1]].forEach(function(pp){pp.nums.forEach(function(s){pf[dr((+s[0])+(+s[1]))]=1;pm[dr((+s[1])+(+s[2]))]=1;pb[dr((+s[2])+(+s[3]))]=1;});}); var F={},B={},M={}; for(var r=1;r<=9;r++){if(!pf[r])F[r]=1;if(!pb[r])B[r]=1;if(!pf[r]&&!pb[r])M[r]=1;}
+    var A=[{},{},{},{}]; per[i+1].nums.forEach(function(s){for(var q=0;q<4;q++)A[q][+s[q]]=1;}); var Ab=[{},{},{},{}]; for(var q=0;q<4;q++)for(var dg=0;dg<=9;dg++)if(!A[q][dg])Ab[q][dg]=1;
+    var frontRoot=(mode5==='mix')?M:F, backRoot=(mode5==='mix')?M:B;
+    var front={},back={};
+    for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(frontRoot[dr(a+b)]&&Ab[0][a]&&Ab[1][b])front[''+a+b]=1; if(backRoot[dr(a+b)]&&Ab[2][a]&&Ab[3][b])back[''+a+b]=1; }
+    return {front:front,back:back};
+  }
+  // ⑤ off 时静态候选数(全10000过①②③④)
+  var staticCount=null;
+  if(mode5==='off'){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
+  var tot=0,hit=0,base=0,szSum=0,det=[],arr=[];
+  var startI=(mode5==='off')?0:1;
+  for(var i=startI;i+1<per.length;i++){
+    var tgt=per[i+1], nc=tgt.nums.length, dq=null;
+    var candSize;
+    if(mode5==='off'){ candSize=staticCount; }
+    else { if(i<1)continue; dq=dbl2(i-1); var setC={};
+      var fk=Object.keys(dq.front), bk=Object.keys(dq.back);
+      if(mode5==='split'){ fk.forEach(function(f){ bk.forEach(function(b){ var s=f+b; if(passStatic(s))setC[s]=1; }); }); }
+      else { // mix: 前双缺×任意后 ∪ 任意前×后双缺
+        fk.forEach(function(f){ for(var b=0;b<100;b++){ var s=f+String(b).padStart(2,'0'); if(passStatic(s))setC[s]=1; } });
+        bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s))setC[s]=1; } });
+      }
+      candSize=Object.keys(setC).length; dq._set=setC;
+    }
+    // 命中判定 + 原因
+    function pass5(s){ if(mode5==='off')return true; var f=s.slice(0,2),b=s.slice(2,4); if(mode5==='split')return !!(dq.front[f]&&dq.back[b]); return !!(dq.front[f]||dq.back[b]); }
+    var marks=[]; tgt.nums.forEach(function(s){ if(passStatic(s)&&pass5(s)) marks.push(s); });
+    var hh=marks.length>0;
+    tot++; if(hh)hit++; szSum+=candSize; arr.push(hh);
+    base+=1-Math.pow(1-Math.min(candSize,10000)/10000, nc);
+    det.push({date:tgt.date, marks:marks, hit:hh, sz:candSize});
+  }
+  function streaks(a){ var mw=0,ml=0,cw=0,cl=0; a.forEach(function(h){if(h){cw++;cl=0;if(cw>mw)mw=cw;}else{cl++;cw=0;if(cl>ml)ml=cl;}}); var i=a.length-1,sg=0,n=0; if(i>=0){sg=a[i]?1:-1;while(i>=0&&(a[i]?1:-1)===sg){n++;i--;}} return {mw:mw,ml:ml,cur:sg*n}; }
+  var hp=tot?hit/tot*100:0, bp=tot?base/tot*100:0, avg=tot?Math.round(szSum/tot):0, st=streaks(arr);
+  var se=tot?Math.sqrt((bp/100)*(1-bp/100)/tot)*100:0, lead=hp-bp;
+  var vd=tot<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#0891b2'}:(lead<-2*se?{t:'🔴比随机低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}));
+  // 当前生效条件
+  var conds=[];
+  if(cP4)conds.push('①4D点数'+p4a+'–'+p4b);
+  if(cP3f)conds.push('②前3D点数'+p3fa+'–'+p3fb);
+  if(cP3b)conds.push('③后3D点数'+p3ba+'–'+p3bb);
+  if(oeOn)conds.push('④单双['+[C('fp-oe-31')?'3单1双':'',C('fp-oe-13')?'3双1单':'',C('fp-oe-22')?'2单2双':''].filter(Boolean).join('/')+']');
+  conds.push('⑤数根×1D:'+(mode5==='off'?'关':mode5==='split'?'前后双缺':'混合双缺'));
+  function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
+  var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
+  h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
+  h+='<div style="font-size:13px;font-weight:700;margin-bottom:2px">命中率 <span style="color:'+vd.c+'">'+vd.t+'</span> <span style="font-size:11px;color:#94a3b8">· 平均候选 '+avg+' 个/期 · 连中'+st.mw+' 连错'+st.ml+'</span></div>';
+  h+=bar('实际命中',hp,'#0891b2')+bar('随机同量',bp,'#cbd5e1');
+  h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;margin-top:4px">👉 「实际命中」明显长过「随机同量」才算这套条件有料;差不多长=🟢≈随机。<b>一个个加条件</b>看命中率和候选数怎么变——候选压越少、命中还撑住,才是好条件。</div>';
+  // 逐期
+  h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'fp-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细 ▾</span>';
+  h+='<div id="fp-det" style="display:block;max-height:340px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0891b2"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">命中奖号(满足全部条件)</th><th style="padding:3px 6px">候选</th><th style="padding:3px 6px">中?</th></tr>';
+  det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #e0f2fe;background:'+(x.hit?'#ecfeff':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;font-weight:700;color:#0e7490">'+(x.marks.length?x.marks.join(' '):'<span style="color:#cbd5e1">—</span>')+'</td><td style="text-align:center;padding:3px 6px;color:#94a3b8">'+x.sz+'</td><td style="text-align:center;padding:3px 6px;font-size:15px">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+  h+='</table></div></div>';
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 候选=当期满足所有勾选条件的4D数量(⑤开时按双缺拼)。判定2×标准误。诚实验证,不预测。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 // 🎯 主打1D×2D 配合 · 成功率回测：千位(缺+最多)×百位缺 → 配合前2D;个位(缺+最多)×十位缺 → 配合后2D;逐期看下期落没落进 vs 随机
 function zoP1D2Backtest(){
   var out=document.getElementById('p1d2-out'); if(!out) return;
