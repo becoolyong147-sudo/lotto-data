@@ -67,26 +67,35 @@ def fetch_huat5(sess, market, code):
         tbl = re.search(r'<table class="results">(.*?)</table>', blk, re.S)
         if not tbl:
             continue
-        # 行分组: 头二三 | 分隔 | 特别奖(13) | 分隔 | 安慰奖(10); ---- = 空位
+        # 结构(固定): 第1行=头二三 | 特别奖(2行) | 安慰奖(2行), ---- = 未放/空位
+        def cellnums(row):
+            return [c.strip() for c in re.findall(r"<td[^>]*>([^<]*)</td>", row)
+                    if re.fullmatch(r"\d{4}", c.strip())]
+        rows = re.findall(r"<tr>(.*?)</tr>", tbl.group(1), re.S)
+        if not rows:
+            continue
+        head = cellnums(rows[0])
+        # ⚠️ 头二三必须在第1行放全(≥3个)才抓; 没放全(----)就跳过, 等下次补(否则会误抓安慰奖当头三)
+        if len(head) < 3:
+            continue
+        nums = head[:3]
+        # 头三之后的行按空行/---- 分组: 第1组=特别, 第2组=安慰
         groups, cur = [], []
-        for row in re.findall(r"<tr>(.*?)</tr>", tbl.group(1), re.S):
-            cells = re.findall(r"<td[^>]*>([^<]*)</td>", row)
-            nums = [c.strip() for c in cells if re.fullmatch(r"\d{4}", c.strip())]
-            if nums:
-                cur.extend(nums)
+        for row in rows[1:]:
+            ns = cellnums(row)
+            if ns:
+                cur.extend(ns)
             elif cur:
                 groups.append(cur); cur = []
         if cur:
             groups.append(cur)
-        if not groups or len(groups[0]) < 3:
-            continue
-        entry = {"market": market, "date": d, "draw": draw, "nums": groups[0][:3]}
-        top = set(entry["nums"])  # 清洗: 头二三不该出现在特别/安慰奖里, 源站偶尔混入
-        if len(groups) > 1 and groups[1]:
-            sp = [x for x in groups[1][:13] if x not in top]
+        entry = {"market": market, "date": d, "draw": draw, "nums": nums}
+        top = set(nums)  # 双保险: 头三不该出现在特别/安慰里
+        if len(groups) > 0 and groups[0]:
+            sp = [x for x in groups[0][:13] if x not in top]
             if sp: entry["sp"] = sp
-        if len(groups) > 2 and groups[2]:
-            cs = [x for x in groups[2][:13] if x not in top]
+        if len(groups) > 1 and groups[1]:
+            cs = [x for x in groups[1][:13] if x not in top]
             if cs: entry["cs"] = cs
         out.append(entry)
     return out
@@ -113,7 +122,7 @@ def load_existing():
 def fill_huat5(sess, by_key, markets):
     """对 markets 跑一遍 huat5: 新增缺失期 + 只补已有条目缺失的 sp/cs(不动 nums)。
     返回 (added, spcs_filled)。markets 为 [(市场名, rins代号), ...]。"""
-    added, spcs_filled = 0, 0
+    added, spcs_filled, fixed = 0, 0, 0
     for market, code in markets:
         try:
             for x in fetch_huat5(sess, market, code):
@@ -122,13 +131,21 @@ def fill_huat5(sess, by_key, markets):
                     by_key[k] = x; added += 1
                 else:
                     old = by_key[k]
+                    # 自纠错: 源站补全后, 若已存 nums 与新抓的不一致(之前源站未放全抓错), 用新的覆盖
+                    if x.get("nums") and old.get("nums") and list(x["nums"]) != list(old["nums"]):
+                        log(f"纠正 {market} {x['date']} nums {old['nums']} -> {x['nums']}")
+                        old["nums"] = x["nums"]
+                        if "sp" in x: old["sp"] = x["sp"]
+                        if "cs" in x: old["cs"] = x["cs"]
+                        fixed += 1
+                        continue
                     for f in ("sp", "cs"):
                         if f in x and not old.get(f):
                             old[f] = x[f]; spcs_filled += 1
             time.sleep(1.5)
         except Exception as e:
             log(f"huat5 {market} 失败: {type(e).__name__}: {e}")
-    return added, spcs_filled
+    return added, spcs_filled, fixed
 
 def markets_missing_sp(by_key):
     """找出「最新一期还缺特别奖」的市场 → [(市场名, rins代号), ...]。
@@ -231,12 +248,12 @@ def main():
 
     existing = load_existing()
     by_key = {(x["market"], x["date"]): x for x in existing}
-    added, spcs_filled = 0, 0
+    added, spcs_filled, fixed = 0, 0, 0
 
-    # 1) huat5: 每市场最近3期(含 sp/cs); 已有条目只补缺失的 sp/cs 不动 nums
-    a, f = fill_huat5(sess, by_key, MARKETS)
-    added += a; spcs_filled += f
-    log(f"huat5 最新抓取 OK: 新增 {added} 条, 补 sp/cs {spcs_filled} 处")
+    # 1) huat5: 每市场最近3期(含 sp/cs); 新增缺失期 + 补 sp/cs + 源站补全后自纠错 nums
+    a, f, fx = fill_huat5(sess, by_key, MARKETS)
+    added += a; spcs_filled += f; fixed += fx
+    log(f"huat5 最新抓取 OK: 新增 {added} 条, 补 sp/cs {spcs_filled} 处, 纠正 {fixed} 处")
 
     # 2) huat3 补漏: 一次拉整段历史, 补最近 N 天缺的日期(仅头二三)
     if backfill_days > 0:
@@ -255,7 +272,7 @@ def main():
         log(f"huat3 补漏({backfill_days}天) OK: 补回 {bf} 条")
         added += bf
 
-    if not added and not spcs_filled and existing:
+    if not added and not spcs_filled and not fixed and existing:
         log("无新数据, 文件保持不变")
         return
 

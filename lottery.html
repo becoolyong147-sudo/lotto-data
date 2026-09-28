@@ -6015,10 +6015,14 @@ async function autoImportFetchedResults(srcUrl){
       const sp = clean4d(p.sp).filter(n=>!_top.has(n)), cs = clean4d(p.cs).filter(n=>!_top.has(n));
       const ex = (data[p.market]||[]).find(x=>x.date===p.date);
       if(ex){
-        // 手动/云端已有 → 号码不动, 但补上缺失的特别奖/安慰奖
         let touched=false;
-        if(sp.length && !(ex.sp&&ex.sp.length)){ ex.sp=sp; touched=true; }
-        if(cs.length && !(ex.cs&&ex.cs.length)){ ex.cs=cs; touched=true; }
+        // 🩹 自纠错:源站补全后,若已存号码与新的不一致(之前源站没放全抓错)→ 用新的覆盖
+        const exNums=(ex.nums||[]).map(n=>String(n).padStart(4,'0'));
+        if(exNums.join(',')!==nums.join(',')){ ex.nums=nums; ex.sp=sp; ex.cs=cs; touched=true; }
+        else {
+          if(sp.length && !(ex.sp&&ex.sp.length)){ ex.sp=sp; touched=true; }
+          if(cs.length && !(ex.cs&&ex.cs.length)){ ex.cs=cs; touched=true; }
+        }
         if(touched){ enriched++; markets.add(p.market); }
         continue;
       }
