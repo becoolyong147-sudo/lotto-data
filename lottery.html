@@ -12364,8 +12364,8 @@ function zo2DRootBacktest(){
     <div class="ig"><label>回测期数</label>
       <select id="fp-n"><option value="0">全部</option><option value="30">近30</option><option value="50">近50</option><option value="100">近100</option><option value="200" selected>近200</option><option value="500">近500</option></select></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoFixedPackBacktest()">🎁 回测</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 12px" onclick="fpPreset('A')" title="点数15-21·前后3D11-17·2单2双·打数24·只开过·排除近期开过(天天开120/其它50)">🅰 固定方案(~330个)</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 12px" onclick="fpPreset('B')" title="⑤前后双缺·点数12-24·前后3D10-18·单双3种·打数24/12">🅱 非固定方案(~230个)</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 12px" onclick="fpPreset('A')" title="点数14-22·前后3D11-17·单双3种·打数24·只开过·排除近期开过(天天开120/其它50)">🅰 固定方案(~800组)</button></div>
+    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 12px" onclick="fpPreset('B')" title="⑤混合双缺·点数12-24·前后3D10-18·单双3种·打数24/12·⑫上限800">🅱 非固定方案(≤800组)</button></div>
   </div>
   <div style="margin-top:8px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px">
     <label style="cursor:pointer"><input type="checkbox" id="fp-c-p4" checked onchange="zoFixedPackBacktest()"> ①4D点数 <input type="number" id="fp-p4a" value="12" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p4b" value="24" style="width:42px" onchange="zoFixedPackBacktest()"></label>
@@ -12379,6 +12379,7 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-yr" onchange="zoFixedPackBacktest()"> ⑨近<select id="fp-yrn" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option>3</option><option selected>5</option><option>10</option></select>年开过</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-excl" onchange="zoFixedPackBacktest()"> ⑩排除近<select id="fp-excln" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option value="0">全部(永久)</option><option value="150">150</option><option value="120">120(天天开⭐)</option><option value="100">100</option><option value="50" selected>50(一周3次⭐)</option><option value="20">20</option></select>期开过的正字</label>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑪4D数根 <select id="fp-r4mode" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="mix">跟随缺根·合并(前后缺)</option><option value="front">跟随·前2D缺根</option><option value="back">跟随·后2D缺根</option></select></span>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑫每期上限 <select id="fp-cap" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="0">不限</option><option value="300">300</option><option value="500">500</option><option value="800">800</option><option value="1000">1000</option></select><span style="font-size:10px;color:#64748b"> (⑤开时,超上限自动逐级加条件压下来)</span></span>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22553,14 +22554,18 @@ function fpPreset(kind){
   function set(id,v){ var e=d.getElementById(id); if(e)e.value=v; } function on(id){ var e=d.getElementById(id); if(e)e.checked=true; }
   set('fp-r4mode','off');
   if(kind==='A'){
-    ['fp-c-p4','fp-c-p3f','fp-c-p3b','fp-oe-22','fp-da-24','fp-open','fp-excl'].forEach(on);
-    set('fp-p4a',15);set('fp-p4b',21);set('fp-p3fa',11);set('fp-p3fb',17);set('fp-p3ba',11);set('fp-p3bb',17);
-    var mk=(d.getElementById('fp-market')||{value:''}).value; set('fp-excln',(mk==='豪龙'||mk==='9龙')?'120':'50');
+    ['fp-c-p4','fp-c-p3f','fp-c-p3b','fp-oe-31','fp-oe-22','fp-oe-13','fp-da-24','fp-open','fp-excl'].forEach(on);
+    var mk=(d.getElementById('fp-market')||{value:''}).value;
+    // 按市场历史长短微调,让每期≈800组(9龙历史短→放宽;山打根历史长→收紧)
+    var P=(mk==='9龙')?[12,24,10,18]:(mk==='山打根')?[14,22,12,17]:[14,22,11,17];
+    set('fp-p4a',P[0]);set('fp-p4b',P[1]);set('fp-p3fa',P[2]);set('fp-p3fb',P[3]);set('fp-p3ba',P[2]);set('fp-p3bb',P[3]);
+    set('fp-cap','0');
+    set('fp-excln',(mk==='豪龙'||mk==='9龙')?'120':'50');
     set('fp-r1d','off');
   } else {
     ['fp-c-p4','fp-c-p3f','fp-c-p3b','fp-oe-31','fp-oe-22','fp-oe-13','fp-da-24','fp-da-12'].forEach(on);
     set('fp-p4a',12);set('fp-p4b',24);set('fp-p3fa',10);set('fp-p3fb',18);set('fp-p3ba',10);set('fp-p3bb',18);
-    set('fp-r1d','split');
+    set('fp-r1d','mix'); set('fp-cap','800');
   }
   zoFixedPackBacktest();
 }
@@ -22579,7 +22584,8 @@ function zoFixedPackBacktest(){
   var cP3f=C('fp-c-p3f'), p3fa=I('fp-p3fa',10), p3fb=I('fp-p3fb',18);
   var cP3b=C('fp-c-p3b'), p3ba=I('fp-p3ba',10), p3bb=I('fp-p3bb',18);
   var oeAllow={}; if(C('fp-oe-40'))oeAllow[4]=1; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-22'))oeAllow[2]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-04'))oeAllow[0]=1;
-  var r4mode=V('fp-r4mode','off'), r4On=(r4mode!=='off');   // ⑪ 跟随缺席回补的缺根(动态)
+  var r4mode=V('fp-r4mode','off'), r4On=(r4mode!=='off');
+  var capN=parseInt(V('fp-cap','0'),10)||0;   // ⑫ 每期上限(只对⑤开启时生效)   // ⑪ 跟随缺席回补的缺根(动态)
   var oeOn=Object.keys(oeAllow).length>0;
   var mode5=V('fp-r1d','off');
   var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
@@ -22609,6 +22615,20 @@ function zoFixedPackBacktest(){
     if(openOn){ if(!(H4.cnt[s]>0))return false; }
     return true;
   }
+  // ⑫ 上限阶梯:由松到紧逐级叠加,直到每期候选≤上限
+  function _sum(s,a,b){ var t=0; for(var k=a;k<=b;k++)t+=+s[k]; return t; }
+  function _odd(s){ var o=0; for(var k=0;k<4;k++)if((+s[k])%2)o++; return o; }
+  var CAPLAD=[
+    {n:'4D点数12-24',f:function(s){var v=_sum(s,0,3);return v>=12&&v<=24;}},
+    {n:'前后3D10-18',f:function(s){var a=_sum(s,0,2),b=_sum(s,1,3);return a>=10&&a<=18&&b>=10&&b<=18;}},
+    {n:'单双3种',f:function(s){var o=_odd(s);return o>=1&&o<=3;}},
+    {n:'打数24/12',f:function(s){var c=(typeof zoDaCount==='function')?zoDaCount(s):24;return c===24||c===12;}},
+    {n:'打数24',f:function(s){return ((typeof zoDaCount==='function')?zoDaCount(s):24)===24;}},
+    {n:'4D点数14-22',f:function(s){var v=_sum(s,0,3);return v>=14&&v<=22;}},
+    {n:'前后3D11-17',f:function(s){var a=_sum(s,0,2),b=_sum(s,1,3);return a>=11&&a<=17&&b>=11&&b<=17;}},
+    {n:'2单2双',f:function(s){return _odd(s)===2;}},
+    {n:'4D点数15-21',f:function(s){var v=_sum(s,0,3);return v>=15&&v<=21;}}
+  ];
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
   (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
   ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
@@ -22649,7 +22669,7 @@ function zoFixedPackBacktest(){
     var tgt=per[i+1], nc=tgt.nums.length, dq=null;
     advanceTo(String(tgt.date));   // 只用目标期之前的历史
     var th=(+String(tgt.date).slice(5,7))<=6?'h1':'h2', ty=+String(tgt.date).slice(0,4);
-    var candSize;
+    var candSize, lvUsed=0;
     if(mode5==='off'){
       if(!seaYrOn){ candSize=staticCount; }
       else { var cc=0; for(var n1=0;n1<10000;n1++){ var s1=pad(n1); if(passStatic(s1)&&passSea(s1,th,ty)&&passExcl(s1)&&passR4(s1))cc++; } candSize=cc; }
@@ -22662,6 +22682,7 @@ function zoFixedPackBacktest(){
         bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s)&&passR4(s))setC[s]=1; } });
       }
       candSize=Object.keys(setC).length; dq._set=setC;
+      if(capN>0&&candSize>capN){ var arrC=Object.keys(setC); for(var LL=0;LL<CAPLAD.length&&arrC.length>capN;LL++){ arrC=arrC.filter(CAPLAD[LL].f); lvUsed=LL+1; } setC={}; arrC.forEach(function(x){setC[x]=1;}); candSize=arrC.length; dq._set=setC; }
     }
     // 命中判定 + 原因
     function pass5(s){ if(mode5==='off')return true; var f=s.slice(0,2),b=s.slice(2,4); if(mode5==='split')return !!(dq.front[f]&&dq.back[b]); return !!(dq.front[f]||dq.back[b]); }
@@ -22679,6 +22700,7 @@ function zoFixedPackBacktest(){
       if(yrOn){ var o2=SEA[_sk(s)]; var ok=false; if(o2){for(var y=ty-yrN+1;y<=ty;y++)if(o2.yr[y]){ok=true;break;}} if(!ok)fa.push('yr'); }
       if(exclOn && !passExcl(s))fa.push('excl');
       if(mode5!=='off' && !pass5(s))fa.push('r1d');
+      if(lvUsed){ for(var L2=0;L2<lvUsed;L2++){ if(!CAPLAD[L2].f(s)){ fa.push('cap'); break; } } }
       capturable++;
       if(fa.length===0){ capAll++; marks.push(s); }
       else if(fa.length===1){ loss[fa[0]]=(loss[fa[0]]||0)+1; }
@@ -22705,6 +22727,8 @@ function zoFixedPackBacktest(){
     if(mode5==='split'){ fk2.forEach(function(f){bk2.forEach(function(b){var s2=f+b; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;});}); }
     else { fk2.forEach(function(f){for(var b=0;b<100;b++){var s2=f+String(b).padStart(2,'0'); if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;}}); bk2.forEach(function(b2){for(var a=0;a<100;a++){var s2=String(a).padStart(2,'0')+b2; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;}}); }
   }
+  var capNote='';
+  if(mode5!=='off'&&capN>0){ var arrN=Object.keys(candNow); var usedN=[]; for(var LN2=0;LN2<CAPLAD.length&&arrN.length>capN;LN2++){ arrN=arrN.filter(CAPLAD[LN2].f); usedN.push(CAPLAD[LN2].n); } if(usedN.length){ candNow={}; arrN.forEach(function(x){candNow[x]=1;}); capNote=' · ⑫为压到'+capN+'内自动加了:'+usedN.join('、'); } }
   var candList=Object.keys(candNow).sort(); window.__fpCand=candList;
   var conds=[];
   if(cP4)conds.push('①4D点数'+p4a+'–'+p4b);
@@ -22717,6 +22741,7 @@ function zoFixedPackBacktest(){
   if(seaOn)conds.push('⑧只留应景(偏当期半年)');
   if(yrOn)conds.push('⑨近'+yrN+'年开过');
   if(exclOn)conds.push('⑩排除近'+(exclN===0?'全部':exclN)+'期开过正字');
+  if(capN>0&&mode5!=='off')conds.push('⑫每期上限'+capN);
   if(r4On)conds.push('⑪4D数根跟随缺根('+(r4mode==='front'?'前2D缺':r4mode==='back'?'后2D缺':'合并前后缺')+')');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
@@ -22724,7 +22749,7 @@ function zoFixedPackBacktest(){
   // 📋 本期候选(下一期该买的号)
   var _capN=candList.slice(0,300);
   h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin-bottom:8px">';
-  h+='<div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:4px">📋 本期候选 · 下一期该买的号（满足全部条件,共 '+candList.length+' 个）</div>';
+  h+='<div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:4px">📋 本期候选 · 下一期该买的号（满足全部条件,共 '+candList.length+' 个'+capNote+'）</div>';
   if(candList.length){
     h+='<div style="font-family:monospace;font-size:14px;line-height:2;max-height:180px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">'+_capN.map(function(n){return '<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:5px;padding:1px 7px;margin:2px;font-weight:700">'+n+'</span>';}).join('')+(candList.length>300?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">…只显示前300,全部请用📋复制</div>':'')+'</div>';
     h+='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="padding:3px 12px;font-size:12px;background:#16a34a;color:#fff" onclick="fpCopyCand(\'nl\',this)">📋复制全部('+candList.length+')换行</button><button class="btn" style="padding:3px 12px;font-size:12px;background:#fff;color:#16a34a;border:1px solid #86efac" onclick="fpCopyCand(\'sp\',this)">📋空格</button></div>';
@@ -22734,7 +22759,7 @@ function zoFixedPackBacktest(){
   h+=bar('实际命中',hp,'#0891b2')+bar('随机同量',bp,'#cbd5e1');
   h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;margin-top:4px">👉 「实际命中」明显长过「随机同量」才算这套条件有料;差不多长=🟢≈随机。<b>一个个加条件</b>看命中率和候选数怎么变——候选压越少、命中还撑住,才是好条件。</div>';
   // 🔎 命中归因:开出的号被哪个单一条件卡掉(去掉它就能多catch)
-  var LN={p4:'①4D点数',p3f:'②前3D点数',p3b:'③后3D点数',oe:'④单双',r1d:'⑤数根×1D',da:'⑥打数',open:'⑦只开过',sea:'⑧应景',yr:'⑨年份',excl:'⑩排除已开过',r4:'⑪4D数根'};
+  var LN={p4:'①4D点数',p3f:'②前3D点数',p3b:'③后3D点数',oe:'④单双',r1d:'⑤数根×1D',da:'⑥打数',open:'⑦只开过',sea:'⑧应景',yr:'⑨年份',excl:'⑩排除已开过',r4:'⑪4D数根',cap:'⑫上限自动加条件'};
   var lparts=Object.keys(loss).filter(function(k){return loss[k]>0;}).sort(function(a,b){return loss[b]-loss[a];}).map(function(k){return '<b style="color:#dc2626">'+(LN[k]||k)+' 卡掉 '+loss[k]+' 个</b>';});
   h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#9a3412">🔎 <b>命中归因</b>(为什么❌):开出的号共 <b>'+capturable+'</b> 个,全条件通过(=✅命中) <b style="color:#16a34a">'+capAll+'</b> 个。'+(lparts.length?('<br>被<b>单一条件</b>卡掉(去掉它这号就能中):'+lparts.join(' · ')+'。<br><span style="font-size:11px;color:#c2410c">👉 卡掉最多的那个条件最「贵」——它是❌的主因,想多中就考虑放宽它。</span>'):'<br>没有号是被单一条件卡掉的(要么全过、要么同时被多个条件挡)。')+'</div>';
   // 逐期
