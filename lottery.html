@@ -6030,7 +6030,8 @@ async function autoImportFetchedResults(srcUrl){
       if(dbEx){
         const dbNums=(dbEx.nums||[]).map(n=>String(n).padStart(4,'0'));
         if(dbNums.join(',')===nums.join(',')) continue;   // 历史库号码已对 → 不动
-        // 🩹 历史库号码不对(之前抓错存进DB) → 加正确的进新成绩, 合并时覆盖DB显示
+        // 🩹 历史库号码不对(之前抓错存进DB) → 直接改内存DB(所有显示立刻对)+ 加进新成绩持久化
+        dbEx.nums=nums; if(sp.length)dbEx.sp=sp; if(cs.length)dbEx.cs=cs;
       }
       if(!data[p.market]) data[p.market]=[];
       const entry={date:p.date, draw:p.draw||'', nums};
