@@ -12369,7 +12369,7 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer"><input type="checkbox" id="fp-c-p4" checked onchange="zoFixedPackBacktest()"> ①4D点数 <input type="number" id="fp-p4a" value="12" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p4b" value="24" style="width:42px" onchange="zoFixedPackBacktest()"></label>
     <label style="cursor:pointer"><input type="checkbox" id="fp-c-p3f" checked onchange="zoFixedPackBacktest()"> ②前3D点数 <input type="number" id="fp-p3fa" value="10" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p3fb" value="18" style="width:42px" onchange="zoFixedPackBacktest()"></label>
     <label style="cursor:pointer"><input type="checkbox" id="fp-c-p3b" checked onchange="zoFixedPackBacktest()"> ③后3D点数 <input type="number" id="fp-p3ba" value="10" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p3bb" value="18" style="width:42px" onchange="zoFixedPackBacktest()"></label>
-    <span style="border-left:1px solid #a5f3fc;padding-left:10px">④单双 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-31" checked onchange="zoFixedPackBacktest()"> 3单1双</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-13" checked onchange="zoFixedPackBacktest()"> 3双1单</label><label style="cursor:pointer"><input type="checkbox" id="fp-oe-22" checked onchange="zoFixedPackBacktest()"> 2单2双</label></span>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px">④单双 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-40" onchange="zoFixedPackBacktest()"> 4单</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-31" checked onchange="zoFixedPackBacktest()"> 3单1双</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-22" checked onchange="zoFixedPackBacktest()"> 2单2双</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-13" checked onchange="zoFixedPackBacktest()"> 3双1单</label><label style="cursor:pointer"><input type="checkbox" id="fp-oe-04" onchange="zoFixedPackBacktest()"> 4双</label></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑤数根×缺席1D <select id="fp-r1d" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="split">前后(双缺)</option><option value="mix">混合(双缺)</option></select></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px" id="fp-da-wrap">⑥打数<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-24" onchange="zoFixedPackBacktest()">24</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-12" onchange="zoFixedPackBacktest()">12</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-6" onchange="zoFixedPackBacktest()">6</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-4" onchange="zoFixedPackBacktest()">4</label><label style="cursor:pointer"><input type="checkbox" id="fp-da-1" onchange="zoFixedPackBacktest()">1</label></span>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-open" onchange="zoFixedPackBacktest()"> ⑦只留历史开过</label>
@@ -22541,7 +22541,7 @@ function zoFixedPackBacktest(){
   var cP4=C('fp-c-p4'), p4a=I('fp-p4a',12), p4b=I('fp-p4b',24);
   var cP3f=C('fp-c-p3f'), p3fa=I('fp-p3fa',10), p3fb=I('fp-p3fb',18);
   var cP3b=C('fp-c-p3b'), p3ba=I('fp-p3ba',10), p3bb=I('fp-p3bb',18);
-  var oeAllow={}; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-22'))oeAllow[2]=1;
+  var oeAllow={}; if(C('fp-oe-40'))oeAllow[4]=1; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-22'))oeAllow[2]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-04'))oeAllow[0]=1;
   var oeOn=Object.keys(oeAllow).length>0;
   var mode5=V('fp-r1d','off');
   var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
@@ -22651,7 +22651,7 @@ function zoFixedPackBacktest(){
   if(cP4)conds.push('①4D点数'+p4a+'–'+p4b);
   if(cP3f)conds.push('②前3D点数'+p3fa+'–'+p3fb);
   if(cP3b)conds.push('③后3D点数'+p3ba+'–'+p3bb);
-  if(oeOn)conds.push('④单双['+[C('fp-oe-31')?'3单1双':'',C('fp-oe-13')?'3双1单':'',C('fp-oe-22')?'2单2双':''].filter(Boolean).join('/')+']');
+  if(oeOn)conds.push('④单双['+[C('fp-oe-40')?'4单':'',C('fp-oe-31')?'3单1双':'',C('fp-oe-22')?'2单2双':'',C('fp-oe-13')?'3双1单':'',C('fp-oe-04')?'4双':''].filter(Boolean).join('/')+']');
   conds.push('⑤数根×1D:'+(mode5==='off'?'关':mode5==='split'?'前后双缺':'混合双缺'));
   if(daOn)conds.push('⑥打数['+Object.keys(daSel).join('/')+']');
   if(openOn)conds.push('⑦只留历史开过');
