@@ -12376,6 +12376,7 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-sea" onchange="zoFixedPackBacktest()"> ⑧只留应景(偏当期半年)</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-yr" onchange="zoFixedPackBacktest()"> ⑨近<select id="fp-yrn" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option>3</option><option selected>5</option><option>10</option></select>年开过</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-excl" onchange="zoFixedPackBacktest()"> ⑩排除近<select id="fp-excln" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option value="0">全部(永久)</option><option value="100">100</option><option value="50" selected>50</option><option value="20">20</option></select>期开过的正字</label>
+    <span id="fp-r4d-wrap" style="border-left:1px solid #a5f3fc;padding-left:10px">⑪4D数根<label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-1" onchange="zoFixedPackBacktest()">1</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-2" onchange="zoFixedPackBacktest()">2</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-3" onchange="zoFixedPackBacktest()">3</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-4" onchange="zoFixedPackBacktest()">4</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-5" onchange="zoFixedPackBacktest()">5</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-6" onchange="zoFixedPackBacktest()">6</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-7" onchange="zoFixedPackBacktest()">7</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-8" onchange="zoFixedPackBacktest()">8</label><label style="cursor:pointer"><input type="checkbox" id="fp-r4d-9" onchange="zoFixedPackBacktest()">9</label></span>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22529,6 +22530,8 @@ function zoDigit1AbsentBacktest(){
 
 // 🧬 数根×缺席1D 组合回测：命中＝奖号「2D数根∈缺席根(两期一组)」且「该位数字∈缺席1D(最新一期)」两者同时中。
 // 三模式：mix混合数根 / split分前后 / pair前后匹配。
+// 复制本期候选(存全局,避免把带换行的长串塞进onclick)
+function fpCopyCand(sep,btn){ var a=window.__fpCand||[]; if(!a.length){alert('无候选');return;} var t=a.join(sep==='nl'?'\n':' '); var done=function(){ if(btn){var o=btn.textContent;btn.textContent='✅已复制';setTimeout(function(){btn.textContent=o;},1200);} }; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(done);}else{var ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);done();} }
 // 🎁 固定条件包 · 逐期命中回测：可勾条件(4D点数/前后3D点数/单双/数根×缺席1D),叠积木看命中率 vs 随机
 function zoFixedPackBacktest(){
   var out=document.getElementById('fp-out'); if(!out) return;
@@ -22542,6 +22545,7 @@ function zoFixedPackBacktest(){
   var cP3f=C('fp-c-p3f'), p3fa=I('fp-p3fa',10), p3fb=I('fp-p3fb',18);
   var cP3b=C('fp-c-p3b'), p3ba=I('fp-p3ba',10), p3bb=I('fp-p3bb',18);
   var oeAllow={}; if(C('fp-oe-40'))oeAllow[4]=1; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-22'))oeAllow[2]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-04'))oeAllow[0]=1;
+  var r4Sel={},r4On=false; for(var rr=1;rr<=9;rr++){ if(C('fp-r4d-'+rr)){r4Sel[rr]=1;r4On=true;} }
   var oeOn=Object.keys(oeAllow).length>0;
   var mode5=V('fp-r1d','off');
   var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
@@ -22567,6 +22571,7 @@ function zoFixedPackBacktest(){
     if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)return false; }
     if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)return false; }
     if(oeOn){ var odd=0; for(var i=0;i<4;i++)if(d[i]%2)odd++; if(!oeAllow[odd])return false; }
+    if(r4On){ var sm=d[0]+d[1]+d[2]+d[3]; if(!r4Sel[dr(sm)])return false; }
     if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])return false; }
     if(openOn){ if(!(H4.cnt[s]>0))return false; }
     return true;
@@ -22627,6 +22632,7 @@ function zoFixedPackBacktest(){
       if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)fa.push('p3f'); }
       if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)fa.push('p3b'); }
       if(oeOn){ var odd=0; for(var q=0;q<4;q++)if(d[q]%2)odd++; if(!oeAllow[odd])fa.push('oe'); }
+      if(r4On){ var sm=d[0]+d[1]+d[2]+d[3]; if(!r4Sel[dr(sm)])fa.push('r4'); }
       if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])fa.push('da'); }
       if(openOn){ if(!(H4.cnt[s]>0))fa.push('open'); }
       if(seaOn){ var o=SEA[_sk(s)]; var lean=o?(o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal')):'bal'; if(lean!==th)fa.push('sea'); }
@@ -22647,6 +22653,17 @@ function zoFixedPackBacktest(){
   var se=tot?Math.sqrt((bp/100)*(1-bp/100)/tot)*100:0, lead=hp-bp;
   var vd=tot<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#0891b2'}:(lead<-2*se?{t:'🔴比随机低',c:'#dc2626'}:{t:'🟢≈随机',c:'#16a34a'}));
   // 当前生效条件
+  // 📋 本期候选:用最新数据算下一期该买的号(满足全部条件)
+  var nowMo2=new Date().getMonth()+1, curTh=nowMo2<=6?'h1':'h2', curTy=new Date().getFullYear();
+  var lastIdx=per.length-1; per[lastIdx].nums.forEach(function(s){drawnAt[s]=lastIdx;});
+  function passExcl2(s){ if(!exclOn)return true; var k=drawnAt[s]; if(k===undefined)return true; if(exclN===0)return false; return (lastIdx-k)>=exclN; }
+  var candNow={};
+  if(mode5==='off'){ for(var nn=0;nn<10000;nn++){ var ss=pad(nn); if(passStatic(ss)&&passSea(ss,curTh,curTy)&&passExcl2(ss))candNow[ss]=1; } }
+  else if(per.length>=2){ var dqn=dbl2(per.length-2); var fk2=Object.keys(dqn.front),bk2=Object.keys(dqn.back);
+    if(mode5==='split'){ fk2.forEach(function(f){bk2.forEach(function(b){var s2=f+b; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;});}); }
+    else { fk2.forEach(function(f){for(var b=0;b<100;b++){var s2=f+String(b).padStart(2,'0'); if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;}}); bk2.forEach(function(b2){for(var a=0;a<100;a++){var s2=String(a).padStart(2,'0')+b2; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;}}); }
+  }
+  var candList=Object.keys(candNow).sort(); window.__fpCand=candList;
   var conds=[];
   if(cP4)conds.push('①4D点数'+p4a+'–'+p4b);
   if(cP3f)conds.push('②前3D点数'+p3fa+'–'+p3fb);
@@ -22658,14 +22675,24 @@ function zoFixedPackBacktest(){
   if(seaOn)conds.push('⑧只留应景(偏当期半年)');
   if(yrOn)conds.push('⑨近'+yrN+'年开过');
   if(exclOn)conds.push('⑩排除近'+(exclN===0?'全部':exclN)+'期开过正字');
+  if(r4On)conds.push('⑪4D数根['+Object.keys(r4Sel).join('')+']');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
   h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
+  // 📋 本期候选(下一期该买的号)
+  var _capN=candList.slice(0,300);
+  h+='<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 10px;margin-bottom:8px">';
+  h+='<div style="font-size:13px;font-weight:800;color:#15803d;margin-bottom:4px">📋 本期候选 · 下一期该买的号（满足全部条件,共 '+candList.length+' 个）</div>';
+  if(candList.length){
+    h+='<div style="font-family:monospace;font-size:14px;line-height:2;max-height:180px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">'+_capN.map(function(n){return '<span style="display:inline-block;background:#dcfce7;color:#166534;border-radius:5px;padding:1px 7px;margin:2px;font-weight:700">'+n+'</span>';}).join('')+(candList.length>300?'<div style="font-size:11px;color:#94a3b8;margin-top:4px">…只显示前300,全部请用📋复制</div>':'')+'</div>';
+    h+='<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><button class="btn" style="padding:3px 12px;font-size:12px;background:#16a34a;color:#fff" onclick="fpCopyCand(\'nl\',this)">📋复制全部('+candList.length+')换行</button><button class="btn" style="padding:3px 12px;font-size:12px;background:#fff;color:#16a34a;border:1px solid #86efac" onclick="fpCopyCand(\'sp\',this)">📋空格</button></div>';
+  } else h+='<div style="font-size:12px;color:#94a3b8">没有满足全部条件的号(条件太严,松一两个)。</div>';
+  h+='</div>';
   h+='<div style="font-size:13px;font-weight:700;margin-bottom:2px">命中率 <span style="color:'+vd.c+'">'+vd.t+'</span> <span style="font-size:11px;color:#94a3b8">· 平均候选 '+avg+' 个/期 · 连中'+st.mw+' 连错'+st.ml+'</span></div>';
   h+=bar('实际命中',hp,'#0891b2')+bar('随机同量',bp,'#cbd5e1');
   h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155;margin-top:4px">👉 「实际命中」明显长过「随机同量」才算这套条件有料;差不多长=🟢≈随机。<b>一个个加条件</b>看命中率和候选数怎么变——候选压越少、命中还撑住,才是好条件。</div>';
   // 🔎 命中归因:开出的号被哪个单一条件卡掉(去掉它就能多catch)
-  var LN={p4:'①4D点数',p3f:'②前3D点数',p3b:'③后3D点数',oe:'④单双',r1d:'⑤数根×1D',da:'⑥打数',open:'⑦只开过',sea:'⑧应景',yr:'⑨年份',excl:'⑩排除已开过'};
+  var LN={p4:'①4D点数',p3f:'②前3D点数',p3b:'③后3D点数',oe:'④单双',r1d:'⑤数根×1D',da:'⑥打数',open:'⑦只开过',sea:'⑧应景',yr:'⑨年份',excl:'⑩排除已开过',r4:'⑪4D数根'};
   var lparts=Object.keys(loss).filter(function(k){return loss[k]>0;}).sort(function(a,b){return loss[b]-loss[a];}).map(function(k){return '<b style="color:#dc2626">'+(LN[k]||k)+' 卡掉 '+loss[k]+' 个</b>';});
   h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#9a3412">🔎 <b>命中归因</b>(为什么❌):开出的号共 <b>'+capturable+'</b> 个,全条件通过(=✅命中) <b style="color:#16a34a">'+capAll+'</b> 个。'+(lparts.length?('<br>被<b>单一条件</b>卡掉(去掉它这号就能中):'+lparts.join(' · ')+'。<br><span style="font-size:11px;color:#c2410c">👉 卡掉最多的那个条件最「贵」——它是❌的主因,想多中就考虑放宽它。</span>'):'<br>没有号是被单一条件卡掉的(要么全过、要么同时被多个条件挡)。')+'</div>';
   // 逐期
