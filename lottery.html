@@ -12362,7 +12362,7 @@ function zo2DRootBacktest(){
     <div class="ig"><label>市场</label>
       <select id="fp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
     <div class="ig"><label>回测期数</label>
-      <select id="fp-n"><option value="0">全部</option><option value="100">近100</option><option value="200" selected>近200</option><option value="500">近500</option></select></div>
+      <select id="fp-n"><option value="0">全部</option><option value="30">近30</option><option value="50">近50</option><option value="100">近100</option><option value="200" selected>近200</option><option value="500">近500</option></select></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0891b2;color:#fff;padding:9px 16px" onclick="zoFixedPackBacktest()">🎁 回测</button></div>
   </div>
   <div style="margin-top:8px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:8px 10px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12px">
@@ -12376,7 +12376,7 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-sea" onchange="zoFixedPackBacktest()"> ⑧只留应景(偏当期半年)</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-yr" onchange="zoFixedPackBacktest()"> ⑨近<select id="fp-yrn" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option>3</option><option selected>5</option><option>10</option></select>年开过</label>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-excl" onchange="zoFixedPackBacktest()"> ⑩排除近<select id="fp-excln" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option value="0">全部(永久)</option><option value="100">100</option><option value="50" selected>50</option><option value="20">20</option></select>期开过的正字</label>
-    <span id="fp-r4d-wrap" style="border-left:1px solid #a5f3fc;padding-left:10px">⑪4D数根<label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-1" onchange="zoFixedPackBacktest()">1</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-2" onchange="zoFixedPackBacktest()">2</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-3" onchange="zoFixedPackBacktest()">3</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-4" onchange="zoFixedPackBacktest()">4</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-5" onchange="zoFixedPackBacktest()">5</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-6" onchange="zoFixedPackBacktest()">6</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-7" onchange="zoFixedPackBacktest()">7</label><label style="cursor:pointer;margin-right:2px"><input type="checkbox" id="fp-r4d-8" onchange="zoFixedPackBacktest()">8</label><label style="cursor:pointer"><input type="checkbox" id="fp-r4d-9" onchange="zoFixedPackBacktest()">9</label></span>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑪4D数根 <select id="fp-r4mode" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="mix">跟随缺根·合并(前后缺)</option><option value="front">跟随·前2D缺根</option><option value="back">跟随·后2D缺根</option></select></span>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22545,7 +22545,7 @@ function zoFixedPackBacktest(){
   var cP3f=C('fp-c-p3f'), p3fa=I('fp-p3fa',10), p3fb=I('fp-p3fb',18);
   var cP3b=C('fp-c-p3b'), p3ba=I('fp-p3ba',10), p3bb=I('fp-p3bb',18);
   var oeAllow={}; if(C('fp-oe-40'))oeAllow[4]=1; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-22'))oeAllow[2]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-04'))oeAllow[0]=1;
-  var r4Sel={},r4On=false; for(var rr=1;rr<=9;rr++){ if(C('fp-r4d-'+rr)){r4Sel[rr]=1;r4On=true;} }
+  var r4mode=V('fp-r4mode','off'), r4On=(r4mode!=='off');   // ⑪ 跟随缺席回补的缺根(动态)
   var oeOn=Object.keys(oeAllow).length>0;
   var mode5=V('fp-r1d','off');
   var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
@@ -22571,7 +22571,6 @@ function zoFixedPackBacktest(){
     if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)return false; }
     if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)return false; }
     if(oeOn){ var odd=0; for(var i=0;i<4;i++)if(d[i]%2)odd++; if(!oeAllow[odd])return false; }
-    if(r4On){ var sm=d[0]+d[1]+d[2]+d[3]; if(!r4Sel[dr(sm)])return false; }
     if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])return false; }
     if(openOn){ if(!(H4.cnt[s]>0))return false; }
     return true;
@@ -22593,33 +22592,38 @@ function zoFixedPackBacktest(){
     for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(frontRoot[dr(a+b)]&&Ab[0][a]&&Ab[1][b])front[''+a+b]=1; if(backRoot[dr(a+b)]&&Ab[2][a]&&Ab[3][b])back[''+a+b]=1; }
     return {front:front,back:back};
   }
+  // ⑪ 跟随缺根:per[i],per[i+1] 的缺席根(前/后/合并)
+  function rootAbs4(i,mode){ var pf={},pb={}; [per[i],per[i+1]].forEach(function(pp){ if(!pp)return; pp.nums.forEach(function(s){pf[dr((+s[0])+(+s[1]))]=1;pb[dr((+s[2])+(+s[3]))]=1;});}); var set={}; for(var r=1;r<=9;r++){ var aF=!pf[r],aB=!pb[r]; if(mode==='front'){if(aF)set[r]=1;} else if(mode==='back'){if(aB)set[r]=1;} else {if(aF&&aB)set[r]=1;} } return set; }
   // ⑤ off 时静态候选数(全10000过①②③④)
-  var seaYrOn=(seaOn||yrOn||exclOn);
+  var seaYrOn=(seaOn||yrOn||exclOn||r4On);
   // ⑤off 且无应景/年份/排除 → 候选静态,预算一次
   var staticCount=null;
   if(mode5==='off'&&!seaYrOn){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
   var tot=0,hit=0,base=0,szSum=0,det=[],arr=[];
   var loss={},capturable=0,capAll=0;   // 🔎命中归因:开出的号被哪个单一条件卡掉
-  var startI=(mode5==='off')?0:1;
+  var startI=(mode5!=='off'||r4On)?1:0;
   var exclN=parseInt(V('fp-excln','50'),10)||0;   // 0=永久排除, 否则近N期内排除、过后回池
   var drawnAt={};  // ⑩ point-in-time: 正字最近开过的期号
   for(var j=0;j<startI;j++) per[j].nums.forEach(function(s){drawnAt[s]=j;});
   function passExcl(s){ if(!exclOn)return true; var k=drawnAt[s]; if(k===undefined)return true; if(exclN===0)return false; return (i-k)>=exclN; }
+  var r4set=null;
+  function passR4(s){ if(!r4On)return true; if(!r4set)return false; var sm=(+s[0])+(+s[1])+(+s[2])+(+s[3]); return !!r4set[dr(sm)]; }
   for(var i=startI;i+1<per.length;i++){
     per[i].nums.forEach(function(s){drawnAt[s]=i;});   // 记本期开过 → 判下一期时按冷却期算
+    r4set=(r4On&&i>=1)?rootAbs4(i-1,r4mode):null;      // ⑪ 用 per[i-1],per[i] 的缺根盯下一期
     var tgt=per[i+1], nc=tgt.nums.length, dq=null;
     var th=(+String(tgt.date).slice(5,7))<=6?'h1':'h2', ty=+String(tgt.date).slice(0,4);
     var candSize;
     if(mode5==='off'){
       if(!seaYrOn){ candSize=staticCount; }
-      else { var cc=0; for(var n1=0;n1<10000;n1++){ var s1=pad(n1); if(passStatic(s1)&&passSea(s1,th,ty)&&passExcl(s1))cc++; } candSize=cc; }
+      else { var cc=0; for(var n1=0;n1<10000;n1++){ var s1=pad(n1); if(passStatic(s1)&&passSea(s1,th,ty)&&passExcl(s1)&&passR4(s1))cc++; } candSize=cc; }
     }
     else { if(i<1)continue; dq=dbl2(i-1); var setC={};
       var fk=Object.keys(dq.front), bk=Object.keys(dq.back);
-      if(mode5==='split'){ fk.forEach(function(f){ bk.forEach(function(b){ var s=f+b; if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s))setC[s]=1; }); }); }
+      if(mode5==='split'){ fk.forEach(function(f){ bk.forEach(function(b){ var s=f+b; if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s)&&passR4(s))setC[s]=1; }); }); }
       else { // mix: 前双缺×任意后 ∪ 任意前×后双缺
-        fk.forEach(function(f){ for(var b=0;b<100;b++){ var s=f+String(b).padStart(2,'0'); if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s))setC[s]=1; } });
-        bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s))setC[s]=1; } });
+        fk.forEach(function(f){ for(var b=0;b<100;b++){ var s=f+String(b).padStart(2,'0'); if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s)&&passR4(s))setC[s]=1; } });
+        bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s)&&passSea(s,th,ty)&&passExcl(s)&&passR4(s))setC[s]=1; } });
       }
       candSize=Object.keys(setC).length; dq._set=setC;
     }
@@ -22632,7 +22636,7 @@ function zoFixedPackBacktest(){
       if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)fa.push('p3f'); }
       if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)fa.push('p3b'); }
       if(oeOn){ var odd=0; for(var q=0;q<4;q++)if(d[q]%2)odd++; if(!oeAllow[odd])fa.push('oe'); }
-      if(r4On){ var sm=d[0]+d[1]+d[2]+d[3]; if(!r4Sel[dr(sm)])fa.push('r4'); }
+      if(r4On){ if(!passR4(s))fa.push('r4'); }
       if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])fa.push('da'); }
       if(openOn){ if(!(H4.cnt[s]>0))fa.push('open'); }
       if(seaOn){ var o=SEA[_sk(s)]; var lean=o?(o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal')):'bal'; if(lean!==th)fa.push('sea'); }
@@ -22657,11 +22661,12 @@ function zoFixedPackBacktest(){
   var nowMo2=new Date().getMonth()+1, curTh=nowMo2<=6?'h1':'h2', curTy=new Date().getFullYear();
   var lastIdx=per.length-1; per[lastIdx].nums.forEach(function(s){drawnAt[s]=lastIdx;});
   function passExcl2(s){ if(!exclOn)return true; var k=drawnAt[s]; if(k===undefined)return true; if(exclN===0)return false; return (lastIdx-k)>=exclN; }
+  if(per.length>=2) r4set=rootAbs4(per.length-2,r4mode); else r4set=null;   // ⑪ 本期用最新两期缺根
   var candNow={};
-  if(mode5==='off'){ for(var nn=0;nn<10000;nn++){ var ss=pad(nn); if(passStatic(ss)&&passSea(ss,curTh,curTy)&&passExcl2(ss))candNow[ss]=1; } }
+  if(mode5==='off'){ for(var nn=0;nn<10000;nn++){ var ss=pad(nn); if(passStatic(ss)&&passSea(ss,curTh,curTy)&&passExcl2(ss)&&passR4(ss))candNow[ss]=1; } }
   else if(per.length>=2){ var dqn=dbl2(per.length-2); var fk2=Object.keys(dqn.front),bk2=Object.keys(dqn.back);
-    if(mode5==='split'){ fk2.forEach(function(f){bk2.forEach(function(b){var s2=f+b; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;});}); }
-    else { fk2.forEach(function(f){for(var b=0;b<100;b++){var s2=f+String(b).padStart(2,'0'); if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;}}); bk2.forEach(function(b2){for(var a=0;a<100;a++){var s2=String(a).padStart(2,'0')+b2; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2))candNow[s2]=1;}}); }
+    if(mode5==='split'){ fk2.forEach(function(f){bk2.forEach(function(b){var s2=f+b; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;});}); }
+    else { fk2.forEach(function(f){for(var b=0;b<100;b++){var s2=f+String(b).padStart(2,'0'); if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;}}); bk2.forEach(function(b2){for(var a=0;a<100;a++){var s2=String(a).padStart(2,'0')+b2; if(passStatic(s2)&&passSea(s2,curTh,curTy)&&passExcl2(s2)&&passR4(s2))candNow[s2]=1;}}); }
   }
   var candList=Object.keys(candNow).sort(); window.__fpCand=candList;
   var conds=[];
@@ -22675,7 +22680,7 @@ function zoFixedPackBacktest(){
   if(seaOn)conds.push('⑧只留应景(偏当期半年)');
   if(yrOn)conds.push('⑨近'+yrN+'年开过');
   if(exclOn)conds.push('⑩排除近'+(exclN===0?'全部':exclN)+'期开过正字');
-  if(r4On)conds.push('⑪4D数根['+Object.keys(r4Sel).join('')+']');
+  if(r4On)conds.push('⑪4D数根跟随缺根('+(r4mode==='front'?'前2D缺':r4mode==='back'?'后2D缺':'合并前后缺')+')');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
   h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
