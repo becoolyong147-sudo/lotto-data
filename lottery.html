@@ -12371,6 +12371,8 @@ function zo2DRootBacktest(){
     <label style="cursor:pointer"><input type="checkbox" id="fp-c-p3b" checked onchange="zoFixedPackBacktest()"> ③后3D点数 <input type="number" id="fp-p3ba" value="10" style="width:42px" onchange="zoFixedPackBacktest()">–<input type="number" id="fp-p3bb" value="18" style="width:42px" onchange="zoFixedPackBacktest()"></label>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">④单双 <label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-31" checked onchange="zoFixedPackBacktest()"> 3单1双</label><label style="cursor:pointer;margin-right:4px"><input type="checkbox" id="fp-oe-13" checked onchange="zoFixedPackBacktest()"> 3双1单</label><label style="cursor:pointer"><input type="checkbox" id="fp-oe-22" checked onchange="zoFixedPackBacktest()"> 2单2双</label></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑤数根×缺席1D <select id="fp-r1d" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="split">前后(双缺)</option><option value="mix">混合(双缺)</option></select></span>
+    <span style="border-left:1px solid #a5f3fc;padding-left:10px" id="fp-da-wrap">⑥打数<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-24" onchange="zoFixedPackBacktest()">24</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-12" onchange="zoFixedPackBacktest()">12</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-6" onchange="zoFixedPackBacktest()">6</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-4" onchange="zoFixedPackBacktest()">4</label><label style="cursor:pointer"><input type="checkbox" id="fp-da-1" onchange="zoFixedPackBacktest()">1</label></span>
+    <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-open" onchange="zoFixedPackBacktest()"> ⑦只留历史开过</label>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22539,12 +22541,16 @@ function zoFixedPackBacktest(){
   var oeAllow={}; if(C('fp-oe-31'))oeAllow[3]=1; if(C('fp-oe-13'))oeAllow[1]=1; if(C('fp-oe-22'))oeAllow[2]=1;
   var oeOn=Object.keys(oeAllow).length>0;
   var mode5=V('fp-r1d','off');
+  var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
+  var openOn=C('fp-open'); var H4=(openOn&&typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
   function passStatic(s){
     var d=[+s[0],+s[1],+s[2],+s[3]];
     if(cP4){ var v=d[0]+d[1]+d[2]+d[3]; if(v<p4a||v>p4b)return false; }
     if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)return false; }
     if(cP3b){ var v4=d[1]+d[2]+d[3]; if(v4<p3ba||v4>p3bb)return false; }
     if(oeOn){ var odd=0; for(var i=0;i<4;i++)if(d[i]%2)odd++; if(!oeAllow[odd])return false; }
+    if(daOn){ var da=(typeof zoDaCount==='function')?zoDaCount(s):24; if(!daSel[da])return false; }
+    if(openOn){ if(!(H4.cnt[s]>0))return false; }
     return true;
   }
   var nd=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, m=[];
@@ -22601,6 +22607,8 @@ function zoFixedPackBacktest(){
   if(cP3b)conds.push('③后3D点数'+p3ba+'–'+p3bb);
   if(oeOn)conds.push('④单双['+[C('fp-oe-31')?'3单1双':'',C('fp-oe-13')?'3双1单':'',C('fp-oe-22')?'2单2双':''].filter(Boolean).join('/')+']');
   conds.push('⑤数根×1D:'+(mode5==='off'?'关':mode5==='split'?'前后双缺':'混合双缺'));
+  if(daOn)conds.push('⑥打数['+Object.keys(daSel).join('/')+']');
+  if(openOn)conds.push('⑦只留历史开过');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
   h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
