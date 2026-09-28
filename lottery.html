@@ -12373,6 +12373,8 @@ function zo2DRootBacktest(){
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑤数根×缺席1D <select id="fp-r1d" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="split">前后(双缺)</option><option value="mix">混合(双缺)</option></select></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px" id="fp-da-wrap">⑥打数<label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-24" onchange="zoFixedPackBacktest()">24</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-12" onchange="zoFixedPackBacktest()">12</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-6" onchange="zoFixedPackBacktest()">6</label><label style="cursor:pointer;margin-right:3px"><input type="checkbox" id="fp-da-4" onchange="zoFixedPackBacktest()">4</label><label style="cursor:pointer"><input type="checkbox" id="fp-da-1" onchange="zoFixedPackBacktest()">1</label></span>
     <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-open" onchange="zoFixedPackBacktest()"> ⑦只留历史开过</label>
+    <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-sea" onchange="zoFixedPackBacktest()"> ⑧只留应景(偏当期半年)</label>
+    <label style="cursor:pointer;border-left:1px solid #a5f3fc;padding-left:10px"><input type="checkbox" id="fp-yr" onchange="zoFixedPackBacktest()"> ⑨近<select id="fp-yrn" onchange="zoFixedPackBacktest()" style="padding:1px 3px"><option>3</option><option selected>5</option><option>10</option></select>年开过</label>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22543,6 +22545,20 @@ function zoFixedPackBacktest(){
   var mode5=V('fp-r1d','off');
   var daSel={},daOn=false; [24,12,6,4,1].forEach(function(dd){ if(C('fp-da-'+dd)){daSel[dd]=1;daOn=true;} });
   var openOn=C('fp-open'); var H4=(openOn&&typeof zoNum4Hist==='function')?zoNum4Hist(mk):{cnt:{}};
+  var seaOn=C('fp-sea'), yrOn=C('fp-yr'), yrN=parseInt(V('fp-yrn','5'),10)||5;
+  // ⑧⑨ 用整组(iBox)历史的半年/年份分布(本市场全历史)
+  var SEA={};
+  if(seaOn||yrOn){
+    function sk(s){ return (typeof seaPermKey==='function')?seaPermKey(s):s.split('').sort().join(''); }
+    var _ndS=(typeof getNewResults==='function')?getNewResults():{};
+    (((_ndS[mk]||[]).concat((typeof DB!=='undefined'&&DB[mk])||[]))).forEach(function(d){ if(!d||!d.date||String(d.date).endsWith('-00'))return; var mo=+String(d.date).slice(5,7), yr=+String(d.date).slice(0,4); [0,1,2].forEach(function(pi){ var n=d.nums&&d.nums[pi]; if(n==null||n==='')return; var s=String(n).padStart(4,'0'); if(!/^\d{4}$/.test(s))return; var k=sk(s); var o=SEA[k]||(SEA[k]={h1:0,h2:0,yr:{}}); if(mo>=1&&mo<=6)o.h1++; else if(mo>=7)o.h2++; o.yr[yr]=(o.yr[yr]||0)+1; }); });
+  }
+  function _sk(s){ return (typeof seaPermKey==='function')?seaPermKey(s):s.split('').sort().join(''); }
+  function passSea(s,th,ty){ if(!seaOn&&!yrOn)return true; var o=SEA[_sk(s)];
+    if(seaOn){ if(!o)return false; var lean=o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal'); if(lean!==th)return false; }
+    if(yrOn){ if(!o)return false; var ok=false; for(var y=ty-yrN+1;y<=ty;y++){ if(o.yr[y]){ok=true;break;} } if(!ok)return false; }
+    return true;
+  }
   function passStatic(s){
     var d=[+s[0],+s[1],+s[2],+s[3]];
     if(cP4){ var v=d[0]+d[1]+d[2]+d[3]; if(v<p4a||v>p4b)return false; }
@@ -22571,26 +22587,32 @@ function zoFixedPackBacktest(){
     return {front:front,back:back};
   }
   // ⑤ off 时静态候选数(全10000过①②③④)
+  var seaYrOn=(seaOn||yrOn);
+  // ⑤off 且无应景/年份 → 候选静态,预算一次
   var staticCount=null;
-  if(mode5==='off'){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
+  if(mode5==='off'&&!seaYrOn){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
   var tot=0,hit=0,base=0,szSum=0,det=[],arr=[];
   var startI=(mode5==='off')?0:1;
   for(var i=startI;i+1<per.length;i++){
     var tgt=per[i+1], nc=tgt.nums.length, dq=null;
+    var th=(+String(tgt.date).slice(5,7))<=6?'h1':'h2', ty=+String(tgt.date).slice(0,4);
     var candSize;
-    if(mode5==='off'){ candSize=staticCount; }
+    if(mode5==='off'){
+      if(!seaYrOn){ candSize=staticCount; }
+      else { var cc=0; for(var n1=0;n1<10000;n1++){ var s1=pad(n1); if(passStatic(s1)&&passSea(s1,th,ty))cc++; } candSize=cc; }
+    }
     else { if(i<1)continue; dq=dbl2(i-1); var setC={};
       var fk=Object.keys(dq.front), bk=Object.keys(dq.back);
-      if(mode5==='split'){ fk.forEach(function(f){ bk.forEach(function(b){ var s=f+b; if(passStatic(s))setC[s]=1; }); }); }
+      if(mode5==='split'){ fk.forEach(function(f){ bk.forEach(function(b){ var s=f+b; if(passStatic(s)&&passSea(s,th,ty))setC[s]=1; }); }); }
       else { // mix: 前双缺×任意后 ∪ 任意前×后双缺
-        fk.forEach(function(f){ for(var b=0;b<100;b++){ var s=f+String(b).padStart(2,'0'); if(passStatic(s))setC[s]=1; } });
-        bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s))setC[s]=1; } });
+        fk.forEach(function(f){ for(var b=0;b<100;b++){ var s=f+String(b).padStart(2,'0'); if(passStatic(s)&&passSea(s,th,ty))setC[s]=1; } });
+        bk.forEach(function(b2){ for(var a=0;a<100;a++){ var s=String(a).padStart(2,'0')+b2; if(passStatic(s)&&passSea(s,th,ty))setC[s]=1; } });
       }
       candSize=Object.keys(setC).length; dq._set=setC;
     }
     // 命中判定 + 原因
     function pass5(s){ if(mode5==='off')return true; var f=s.slice(0,2),b=s.slice(2,4); if(mode5==='split')return !!(dq.front[f]&&dq.back[b]); return !!(dq.front[f]||dq.back[b]); }
-    var marks=[]; tgt.nums.forEach(function(s){ if(passStatic(s)&&pass5(s)) marks.push(s); });
+    var marks=[]; tgt.nums.forEach(function(s){ if(passStatic(s)&&pass5(s)&&passSea(s,th,ty)) marks.push(s); });
     var hh=marks.length>0;
     tot++; if(hh)hit++; szSum+=candSize; arr.push(hh);
     base+=1-Math.pow(1-Math.min(candSize,10000)/10000, nc);
@@ -22609,6 +22631,8 @@ function zoFixedPackBacktest(){
   conds.push('⑤数根×1D:'+(mode5==='off'?'关':mode5==='split'?'前后双缺':'混合双缺'));
   if(daOn)conds.push('⑥打数['+Object.keys(daSel).join('/')+']');
   if(openOn)conds.push('⑦只留历史开过');
+  if(seaOn)conds.push('⑧只留应景(偏当期半年)');
+  if(yrOn)conds.push('⑨近'+yrN+'年开过');
   function bar(lbl,val,col){ return '<div style="display:flex;align-items:center;gap:8px;margin:3px 0"><span style="width:80px;font-size:12px;color:#64748b">'+lbl+'</span><div style="flex:1;background:#f1f5f9;border-radius:5px;height:24px"><div style="width:'+Math.max(2,Math.min(100,val))+'%;background:'+col+';height:24px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;font-size:12px;font-weight:700;color:#fff">'+val.toFixed(1)+'%</div></div></div>'; }
   var h='<div class="card" style="border:2px solid #0891b2"><h3 style="color:#0891b2">🎁 '+mk+' · 固定条件包回测（'+tot+'期）</h3>';
   h+='<div style="background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:7px 10px;margin-bottom:8px;font-size:12px;color:#0e7490">📋 <b>当前生效条件</b>:'+conds.join(' ｜ ')+'</div>';
