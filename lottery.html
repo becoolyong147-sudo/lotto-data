@@ -876,6 +876,22 @@ function renderPatternTrend(){
     <div id="rp-stat"></div>
     <div id="rp-out"></div>
   </div>
+  <div class="card" style="border:2px solid #0e7490">
+    <h3 style="color:#0e7490">🕰️ 新开号 · 上次开在哪天</h3>
+    <div class="warn">每期开出的头二三,自动查这个号<b>上一次开是几年几月几号</b>、隔了多久、以前开过几次。</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <div><label style="font-size:12px;color:#0e7490;font-weight:700;display:block">市场</label>
+        <select id="lo-market" onchange="zoLastOpen()"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+      <div><label style="font-size:12px;color:#0e7490;font-weight:700;display:block">最近几期</label>
+        <select id="lo-n" onchange="zoLastOpen()"><option value="1">最新1期</option><option value="5" selected>近5期</option><option value="10">近10期</option><option value="20">近20期</option></select></div>
+      <div><label style="font-size:12px;color:#0e7490;font-weight:700;display:block">在哪里找上一次</label>
+        <select id="lo-scope" onchange="zoLastOpen()"><option value="same">只看同一家</option><option value="all">9家都找</option></select></div>
+      <div><label style="font-size:12px;color:#0e7490;font-weight:700;display:block">号码口径</label>
+        <select id="lo-grp" onchange="zoLastOpen()"><option value="exact">正字(原号)</option><option value="box">调字(任何排列都算)</option></select></div>
+      <button class="btn" style="padding:9px 18px;font-size:14px;background:#0e7490;color:#fff" onclick="zoLastOpen()">🕰️ 查</button>
+    </div>
+    <div id="lo-out"></div>
+  </div>
 </div>
 
 <!-- TAB: 号码对比（贴几组号 → 重复/没重复 → 点数×打数分组 → 复制发WhatsApp） -->
@@ -10580,6 +10596,49 @@ function zoCommonRate(){
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
+// 🕰️ 新开号 · 上次开在哪天:每期头二三 → 同号(或调字)上一次开奖的日期、隔多久、开过几次
+function zoLastOpen(){
+  var out=document.getElementById('lo-out'); if(!out) return;
+  var mk=(document.getElementById('lo-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('lo-n')||{value:'5'}).value,10)||5;
+  var scope=(document.getElementById('lo-scope')||{value:'same'}).value;
+  var grp=(document.getElementById('lo-grp')||{value:'exact'}).value;
+  function pad(n){return String(n).padStart(4,'0');}
+  function key(s){ return grp==='box'?s.split('').sort().join(''):s; }
+  function fmt(d){ var p=String(d).split('-'); return p[0]+'/'+(+p[1])+'/'+(+p[2]); }
+  var MK=['万能','跑马','多多','新加坡','豪龙','沙巴','9龙','砂拉越','山打根'];
+  var nd=(typeof getNewResults==='function')?getNewResults():{};
+  function hist(m){ var seen={},a=[]; (nd[m]||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;a.push(d);}}); ((typeof DB!=='undefined'&&DB[m])||[]).forEach(function(d){if(d&&d.date&&!seen[d.date]){seen[d.date]=1;a.push(d);}});
+    return a.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(x,y){return String(x.date).localeCompare(String(y.date));}); }
+  // 索引:key → [{date,mk,prize,num,idx}] (按日期升序)
+  var IDX={}, own=hist(mk), ownIdx={};
+  own.forEach(function(d,i){ ownIdx[d.date]=i; });
+  (scope==='all'?MK:[mk]).forEach(function(m){ var H=(m===mk)?own:hist(m);
+    H.forEach(function(d,i){ [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return;
+      (IDX[key(s)]=IDX[key(s)]||[]).push({date:String(d.date),mk:m,pz:['头','二','三'][pi],num:s,i:(m===mk?i:-1)}); }); }); });
+  Object.keys(IDX).forEach(function(k){ IDX[k].sort(function(a,b){return a.date.localeCompare(b.date);}); });
+  if(!own.length){ out.innerHTML='<div class="warn">'+mk+' 无数据。</div>'; return; }
+  var recent=own.slice(-N).reverse(), PZ=['头奖','二奖','三奖'];
+  var h='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#ecfeff;color:#0e7490"><th style="text-align:left;padding:5px 8px">开奖日期</th><th style="padding:5px 8px">奖</th><th style="padding:5px 8px">号码</th><th style="text-align:left;padding:5px 8px">上一次开在</th><th style="padding:5px 8px">隔了多久</th><th style="padding:5px 8px">以前开过</th></tr>';
+  recent.forEach(function(d){
+    [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s=pad(v); if(!/^\d{4}$/.test(s))return;
+      var L=IDX[key(s)]||[], prev=null, cnt=0, dd=String(d.date);
+      for(var k=0;k<L.length;k++){ if(L[k].date<dd){ prev=L[k]; cnt++; } }
+      var when='<span style="color:#dc2626;font-weight:700">🆕 首次开出</span>', gap='—';
+      if(prev){
+        var extra=[]; if(scope==='all')extra.push(prev.mk); if(grp==='box'||prev.num!==s)extra.push(prev.num); extra.push(prev.pz);
+        when='<b style="color:#0e7490">'+fmt(prev.date)+'</b> <span style="font-size:11px;color:#94a3b8">('+extra.join('·')+')</span>';
+        var days=Math.round((new Date(dd)-new Date(prev.date))/86400000), y=Math.floor(days/365), mo=Math.floor((days%365)/30);
+        var t=(y?y+'年':'')+(mo?mo+'个月':'')+(!y&&!mo?days+'天':'');
+        if(prev.mk===mk&&prev.i>=0&&ownIdx[dd]!=null) t+=' <span style="font-size:11px;color:#94a3b8">('+(ownIdx[dd]-prev.i)+'期)</span>';
+        gap='<span style="font-weight:700;color:'+(y>=10?'#dc2626':y>=3?'#d97706':'#16a34a')+'">'+t+'</span>';
+      }
+      h+='<tr style="border-top:1px solid #cffafe"><td style="padding:4px 8px;white-space:nowrap;color:#64748b">'+fmt(dd)+'</td><td style="padding:4px 8px;text-align:center;color:#94a3b8">'+PZ[pi]+'</td><td style="padding:4px 8px;text-align:center;font-family:monospace;font-size:16px;font-weight:800;color:#1e3a5f">'+s+'</td><td style="padding:4px 8px">'+when+'</td><td style="padding:4px 8px;text-align:center">'+gap+'</td><td style="padding:4px 8px;text-align:center;color:#64748b">'+(cnt?cnt+'次':'0次')+'</td></tr>';
+    });
+  });
+  h+='</table></div><div style="font-size:11px;color:#94a3b8;margin-top:6px">隔多久:绿=3年内、橙=3–10年、红=10年以上。「正字」只找完全一样的号;「调字」任何排列都算(括号里显示当时开的是哪个排列)。</div>';
+  out.innerHTML=h;
+}
 // 📅 最近开奖画像:自动列最近N期开的号 + 每个号的上/下半年偏好 + 各年份
 function zoRecentProfile(){
   var out=document.getElementById('rp-out'); if(!out) return;
