@@ -6179,6 +6179,7 @@ function seaCollect(market,prize,level,period,yearsBack){
     const dyy=parseInt(String(r.date).slice(8,10),10)||1;
     const y=parseInt(String(r.date).slice(0,4),10);
     if(y===_curY && m===_curM) return;   // 跳过正在进行的本月
+    if(y===_curY && (document.getElementById('sea-nocur')||{checked:true}).checked) return;   // 🔒只用往年:今年整年不进排行,「本年出现」才是真检验
     if(minYear!==null){ if(y<minYear) return;}
     const wi=w.idxOf(m,dyy);
     prizes.forEach(pi=>{
@@ -8144,6 +8145,7 @@ function doBacktest(){
       </select>
     </div>
     <div class="ig" style="align-self:flex-end"><label style="cursor:pointer;font-weight:700;color:#16a34a"><input type="checkbox" id="sea-only-green" onchange="doSeasonRank()" style="vertical-align:middle"> ⭐ 只看真常客(🟢多年分散)</label></div>
+    <div class="ig" style="align-self:flex-end"><label style="cursor:pointer;font-weight:700;color:#7c3aed" title="打开:排行只用往年数据,今年开奖不算进命中次数→「本年出现」✓才是真正事前命中。关闭:今年已开的也算进去(会马后炮)"><input type="checkbox" id="sea-nocur" checked onchange="doSeasonRank()" style="vertical-align:middle"> 🔒 只用往年(不含今年)</label></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" onclick="doSeasonRank()">🏆 生成季节排行榜</button></div>
   </div>
 </div>
