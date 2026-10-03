@@ -6380,6 +6380,7 @@ function doSeasonRank(){
           +'<td style="white-space:nowrap;font-size:11px"><span style="color:#1e3a5f">🔍 明细</span> · <span onclick="'+auditClick+'" style="color:#9d174d;cursor:pointer" title="审核跨年份稳健性">🔬 审核</span></td></tr>';
       });
       html+='</table></div>';
+      if(onlyGreen && shown<pw.entries.length) html+='<div style="font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:5px 10px;margin-top:6px">⭐ 已勾「只看真常客」:显示 <b>'+shown+'</b> / 共 '+pw.entries.length+' 组,另外 <b>'+(pw.entries.length-shown)+'</b> 组命中只集中在1–2年(非🟢多年分散)被隐藏。取消勾选即可看全部。</div>';
       if(onlyGreen && shown===0) html+='<div class="warn">这个窗口没有 🟢真常客(多年分散)。取消勾选可看全部,或放宽门槛。</div>';
     }
     html+='</div>';
