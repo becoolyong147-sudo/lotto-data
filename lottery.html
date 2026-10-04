@@ -867,7 +867,11 @@ function renderPatternTrend(){
     <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:8px">只用前2D数根,和「再加别的条件」的几种选法,放在一起比。每一期画一个小格子:<b style="color:#16a34a">绿 = 中了</b>,<b style="color:#94a3b8">灰 = 没中</b>。</div>
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
       <div><label style="font-size:13px;color:#4338ca;font-weight:700;display:block">看最近几期</label>
-        <select id="mpv-n" style="font-size:16px;padding:6px 10px"><option value="50">50期</option><option value="100" selected>100期</option><option value="200">200期</option></select></div>
+        <select id="mpv-n" style="font-size:16px;padding:6px 10px"><option value="50">50期</option><option value="100" selected>100期</option><option value="200">200期</option><option value="300">300期</option><option value="500">500期</option><option value="1000">1000期</option></select></div>
+      <div><label style="font-size:13px;color:#4338ca;font-weight:700;display:block">每注多少钱(RM)</label>
+        <input id="mpv-bet" type="number" value="1" min="0.1" step="0.1" style="width:80px;font-size:16px;padding:6px 8px"></div>
+      <div><label style="font-size:13px;color:#4338ca;font-weight:700;display:block">中了赢多少(头/二/三)</label>
+        <select id="mpv-pay" style="font-size:15px;padding:6px 8px"><option value="2500,1000,500" selected>2500 / 1000 / 500</option><option value="2000,1000,500">2000 / 1000 / 500</option><option value="3000,1500,800">3000 / 1500 / 800</option></select></div>
       <button class="btn" style="background:#6366f1;color:#fff;font-size:17px;font-weight:800;padding:11px 24px" onclick="zoMyPlayVisual()">📊 画给我看</button>
     </div>
     <div id="mpv-out" style="margin-top:10px"></div>
@@ -23022,22 +23026,53 @@ function zoMyPlayVisual(){
   for(var i=start;i<per.length-1;i++){
     var R=roots(i), tg=per[i+1];
     res.forEach(function(r){ var f=r.p.mk(R), cnt=0; for(var n=0;n<10000;n++){ if(f(pad(n)))cnt++; }
-      var got=tg.nums.filter(f); var ok=got.length>0; r.cells.push({ok:ok,date:tg.date,n:cnt,tg:tg.nums,got:got}); if(ok)r.hit++; r.sz+=cnt; r.base+=1-Math.pow(1-cnt/10000,tg.nums.length); });
+      var got=tg.nums.filter(f); var ok=got.length>0; var pz=[]; tg.nums.forEach(function(x,ix){ if(f(x))pz.push(ix); }); r.cells.push({ok:ok,date:tg.date,n:cnt,tg:tg.nums,got:got,pz:pz,R:R}); if(ok)r.hit++; r.sz+=cnt; r.base+=1-Math.pow(1-cnt/10000,tg.nums.length); });
   }
+  var bet=parseFloat((document.getElementById('mpv-bet')||{value:'1'}).value)||1;
+  var pay=((document.getElementById('mpv-pay')||{value:'2500,1000,500'}).value).split(',').map(Number);
+  window.__mpv={res:res,N:N,mk:mk,bet:bet,pay:pay};
+  function streak(cells,want){ var mx=0,c=0; cells.forEach(function(x){ if(x.ok===want){c++; if(c>mx)mx=c;} else c=0; }); return mx; }
+  function curStreak(cells){ var k=cells.length-1,v=cells[k].ok,c=0; while(k>=0&&cells[k].ok===v){c++;k--;} return (v?'连中 ':'连没中 ')+c+' 期'; }
   var h='<div class="card" style="border:2px solid #6366f1"><h3 style="color:#4338ca">📊 '+mk+' · 最近 '+N+' 期,几种选法对比(绿=中了头二三,灰=没中)</h3>';
-  h+='<div style="font-size:13px;color:#64748b;margin-bottom:8px">每一小格 = 一期。从左到右:旧 → 新(最右边是最近一期)。把鼠标放在格子上,可以看那一期的日期和开奖号码。</div>';
+  h+='<div style="font-size:13px;color:#64748b;margin-bottom:8px">每一小格 = 一期。从左到右:旧 → 新(最右边是最近一期)。<b>点一个格子</b>,下面会展开那一期的详细情况。</div>';
+  // 总表
+  h+='<div style="overflow-x:auto;margin-bottom:10px"><table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#eef2ff;color:#4338ca"><th style="text-align:left;padding:5px 8px">选法</th><th style="padding:5px 8px">每期买</th><th style="padding:5px 8px">中几期</th><th style="padding:5px 8px">最长连中</th><th style="padding:5px 8px">最长连没中</th><th style="padding:5px 8px">现在</th><th style="padding:5px 8px">总共花</th><th style="padding:5px 8px">总共赢</th><th style="padding:5px 8px">盈亏</th></tr>';
   res.forEach(function(r){
+    var spend=r.sz*bet, win=0; r.cells.forEach(function(c){ c.pz.forEach(function(ix){ win+=pay[ix]*bet; }); });
+    r.spend=spend; r.win=win; var net=win-spend;
+    h+='<tr style="border-top:1px solid #e0e7ff"><td style="padding:5px 8px;font-weight:700;color:'+r.p.c+'">'+r.p.n+'</td><td style="text-align:center;padding:5px 8px">'+Math.round(r.sz/N)+'组</td><td style="text-align:center;padding:5px 8px"><b>'+r.hit+'</b>/'+N+'</td><td style="text-align:center;padding:5px 8px;color:#16a34a">'+streak(r.cells,true)+'期</td><td style="text-align:center;padding:5px 8px;color:#dc2626">'+streak(r.cells,false)+'期</td><td style="text-align:center;padding:5px 8px;font-size:12px">'+curStreak(r.cells)+'</td><td style="text-align:right;padding:5px 8px">RM'+Math.round(spend).toLocaleString()+'</td><td style="text-align:right;padding:5px 8px">RM'+Math.round(win).toLocaleString()+'</td><td style="text-align:right;padding:5px 8px;font-weight:800;color:'+(net>=0?'#16a34a':'#dc2626')+'">'+(net>=0?'+':'-')+'RM'+Math.abs(Math.round(net)).toLocaleString()+'</td></tr>';
+  });
+  h+='</table></div>';
+  // 每种选法一排
+  res.forEach(function(r,ri){
     var avg=Math.round(r.sz/N), hp=Math.round(r.hit/N*100), bp=Math.round(r.base/N*100);
+    var half=Math.floor(N/2), h1=r.cells.slice(0,half).filter(function(c){return c.ok;}).length, h2=r.cells.slice(half).filter(function(c){return c.ok;}).length;
     h+='<div style="margin:10px 0;padding:8px 10px;border:1px solid #e2e8f0;border-left:5px solid '+r.p.c+';border-radius:8px">';
     h+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline"><b style="color:'+r.p.c+';font-size:15px">'+r.p.n+'</b><span style="font-size:13px;color:#475569">每期买约 <b>'+avg+'</b> 组 · 中 <b style="font-size:16px;color:#16a34a">'+r.hit+'</b> / '+N+' 期(<b>'+hp+'%</b>)</span></div>';
     h+='<div style="font-size:12px;color:#94a3b8;margin:2px 0 5px">'+r.p.d+'</div>';
-    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c){ var tip=c.date+'  买'+c.n+'组  开:'+c.tg.join(' ')+(c.ok?'  ✅中:'+c.got.join(' '):'  没中'); return '<span title="'+tip+'" style="display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
-    h+='<div style="font-size:12px;color:#64748b;margin-top:4px">随便买同样多组,平均会中 '+bp+'% → '+(Math.abs(hp-bp)<5?'<b>差不多</b>':(hp>bp?'<b style="color:#16a34a">稍高</b>':'<b style="color:#dc2626">稍低</b>'))+'</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c,ci){ var tip=c.date+'  买'+c.n+'组  开:'+c.tg.join(' ')+(c.ok?'  ✅中:'+c.got.join(' '):'  没中'); return '<span onclick="mpvPick('+ri+','+ci+')" title="'+tip+'" style="cursor:pointer;display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
+    h+='<div style="font-size:12px;color:#64748b;margin-top:4px">前半段(旧) 中 '+h1+'/'+half+' 期 · 后半段(新) 中 '+h2+'/'+(N-half)+' 期 · 随便买同样多组,平均会中 '+bp+'% → '+(Math.abs(hp-bp)<5?'<b>差不多</b>':(hp>bp?'<b style="color:#16a34a">稍高</b>':'<b style="color:#dc2626">稍低</b>'))+'</div>';
     h+='</div>';
   });
-  h+='<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:14px;color:#334155;line-height:1.8">👀 <b>怎么看:</b><br>① 看<b>绿格多不多</b>:格子越绿,表示越常中。<br>② 看<b>每期买几组</b>:买得越少越省钱,但绿格也会跟着变少。<br>③ <b>绿格的多少,基本是跟着"买几组"走</b>;加了条件,买的组数变少了,绿格也变少了。</div>';
+  h+='<div id="mpv-detail" style="display:none;position:sticky;bottom:0;background:#fff;border:2px solid #6366f1;border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 -2px 8px rgba(0,0,0,.12)"></div>';
+  h+='<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:14px;color:#334155;line-height:1.8">👀 <b>怎么看:</b><br>① <b>绿格多不多</b>:越绿越常中。<br>② <b>每期买几组</b>:买得越少越省钱,绿格也会跟着变少。<br>③ <b>盈亏</b>:每注按你填的金额算,中了按赔率算。大部分时候花的比赢的多,这是4D的常态。<br>④ <b>前半段 vs 后半段</b>:看最近有没有变好或变差。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 点格子 → 展开那一期的详情
+function mpvPick(ri,ci){
+  var G=window.__mpv; if(!G) return; var r=G.res[ri], c=r.cells[ci], el=document.getElementById('mpv-detail'); if(!el) return;
+  var NM=['头奖','二奖','三奖'];
+  var fk=Object.keys(c.R.f).sort().join('、'), bk=Object.keys(c.R.b).sort().join('、');
+  var t='<div style="display:flex;justify-content:space-between;align-items:center"><b style="color:'+r.p.c+';font-size:15px">'+r.p.n+' · '+c.date+'</b><span onclick="document.getElementById(\'mpv-detail\').style.display=\'none\'" style="cursor:pointer;color:#94a3b8;font-size:18px">✕</span></div>';
+  t+='<div style="font-size:14px;line-height:2;color:#334155">';
+  t+='上一期的数根:前2D <b>'+fk+'</b> · 后2D <b>'+bk+'</b><br>';
+  t+='这期要买 <b>'+c.n+'</b> 组(RM'+Math.round(c.n*G.bet)+')<br>';
+  t+='这期开奖:'+c.tg.map(function(x,ix){ var hit=c.pz.indexOf(ix)>=0; return NM[ix]+' <span style="font-family:monospace;font-size:16px;font-weight:800;color:'+(hit?'#16a34a':'#94a3b8')+'">'+x+(hit?' ✅':'')+'</span>'; }).join('　')+'<br>';
+  var win=0; c.pz.forEach(function(ix){win+=G.pay[ix]*G.bet;});
+  t+=c.ok?'<b style="color:#16a34a">这期中了,赢 RM'+win.toLocaleString()+',扣掉本钱 RM'+Math.round(c.n*G.bet)+',净赚 RM'+Math.round(win-c.n*G.bet).toLocaleString()+'</b>':'<b style="color:#dc2626">这期没中,亏 RM'+Math.round(c.n*G.bet)+'</b>';
+  t+='</div>';
+  el.innerHTML=t; el.style.display='block';
 }
 
 // 🎲 我的玩法:跟上期前2D/后2D数根 → 本期号码 + 回测(一句话)
