@@ -862,6 +862,16 @@ function renderPatternTrend(){
     </div>
   </div>
   <div id="mp-out"></div>
+  <div class="card" style="border:2px solid #6366f1;margin-top:12px">
+    <h3 style="color:#4338ca">📊 看得见的回测 · 几种选法并排比较</h3>
+    <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:8px">只用前2D数根,和「再加别的条件」的几种选法,放在一起比。每一期画一个小格子:<b style="color:#16a34a">绿 = 中了</b>,<b style="color:#94a3b8">灰 = 没中</b>。</div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:13px;color:#4338ca;font-weight:700;display:block">看最近几期</label>
+        <select id="mpv-n" style="font-size:16px;padding:6px 10px"><option value="50">50期</option><option value="100" selected>100期</option><option value="200">200期</option></select></div>
+      <button class="btn" style="background:#6366f1;color:#fff;font-size:17px;font-weight:800;padding:11px 24px" onclick="zoMyPlayVisual()">📊 画给我看</button>
+    </div>
+    <div id="mpv-out" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <!-- TAB: 查一个号 -->
@@ -22976,6 +22986,60 @@ function zoScoreTopN(){
   h+='</table></div></div></div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
+// 📊 看得见的回测:几种选法并排,每期一格(绿=中 灰=没中)
+function zoMyPlayVisual(){
+  var out=document.getElementById('mpv-out'); if(!out) return;
+  var mk=(document.getElementById('mp-market')||{value:'万能'}).value;
+  var N=parseInt((document.getElementById('mpv-n')||{value:'100'}).value,10)||100;
+  function pad(n){ return String(n).padStart(4,'0'); }
+  function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+  function sm(s,a,b){ var t=0; for(var i=a;i<=b;i++)t+=+s[i]; return t; }
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  var per=m.map(function(d){ return {date:d.date,nums:[0,1,2].map(function(p){return d.nums[p];}).filter(function(v){return v!=null&&v!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);})}; }).filter(function(x){return x.nums.length;});
+  if(per.length<N+5){ out.innerHTML='<div class="card"><div class="warn">成绩不够。</div></div>'; return; }
+  function da(s){ return (typeof zoDaCount==='function')?zoDaCount(s):24; }
+  function odd(s){ var o=0; for(var k=0;k<4;k++)if((+s[k])%2)o++; return o; }
+  // 每种选法:给「上一期」→ 一个判断函数 f(号)→是否买
+  var PL=[
+    {n:'① 只用前2D数根',d:'上一期前2D的数根,这期前2D数根一样就买(不加任何条件)',c:'#f59e0b',
+      mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]; }; }},
+    {n:'② 前2D数根 + 点数12-24',d:'再加:4个数字相加在12到24之间',c:'#3b82f6',
+      mk:function(R){ return function(s){ var v=sm(s,0,3); return !!R.f[dr(sm(s,0,1))]&&v>=12&&v<=24; }; }},
+    {n:'③ 前2D数根 + 单双不极端',d:'再加:不要全单、全双',c:'#8b5cf6',
+      mk:function(R){ return function(s){ var o=odd(s); return !!R.f[dr(sm(s,0,1))]&&o>=1&&o<=3; }; }},
+    {n:'④ 前2D数根 + 4个数字全不同',d:'再加:4个数字都不一样(24打)',c:'#ec4899',
+      mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]&&da(s)===24; }; }},
+    {n:'⑤ 前2D数根 + 点数 + 单双 + 全不同',d:'上面三个条件全加',c:'#14b8a6',
+      mk:function(R){ return function(s){ var v=sm(s,0,3),o=odd(s); return !!R.f[dr(sm(s,0,1))]&&v>=12&&v<=24&&o>=1&&o<=3&&da(s)===24; }; }},
+    {n:'⑥ 前2D数根 + 后2D数根',d:'前后2D数根都一样才买(最严)',c:'#ef4444',
+      mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]&&!!R.b[dr(sm(s,2,3))]; }; }}
+  ];
+  function roots(i){ var f={},b={}; per[i].nums.forEach(function(s){ f[dr(sm(s,0,1))]=1; b[dr(sm(s,2,3))]=1; }); return {f:f,b:b}; }
+  var start=per.length-1-N, res=PL.map(function(p){ return {p:p,cells:[],hit:0,sz:0,base:0}; });
+  for(var i=start;i<per.length-1;i++){
+    var R=roots(i), tg=per[i+1];
+    res.forEach(function(r){ var f=r.p.mk(R), cnt=0; for(var n=0;n<10000;n++){ if(f(pad(n)))cnt++; }
+      var got=tg.nums.filter(f); var ok=got.length>0; r.cells.push({ok:ok,date:tg.date,n:cnt,tg:tg.nums,got:got}); if(ok)r.hit++; r.sz+=cnt; r.base+=1-Math.pow(1-cnt/10000,tg.nums.length); });
+  }
+  var h='<div class="card" style="border:2px solid #6366f1"><h3 style="color:#4338ca">📊 '+mk+' · 最近 '+N+' 期,几种选法对比(绿=中了头二三,灰=没中)</h3>';
+  h+='<div style="font-size:13px;color:#64748b;margin-bottom:8px">每一小格 = 一期。从左到右:旧 → 新(最右边是最近一期)。把鼠标放在格子上,可以看那一期的日期和开奖号码。</div>';
+  res.forEach(function(r){
+    var avg=Math.round(r.sz/N), hp=Math.round(r.hit/N*100), bp=Math.round(r.base/N*100);
+    h+='<div style="margin:10px 0;padding:8px 10px;border:1px solid #e2e8f0;border-left:5px solid '+r.p.c+';border-radius:8px">';
+    h+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline"><b style="color:'+r.p.c+';font-size:15px">'+r.p.n+'</b><span style="font-size:13px;color:#475569">每期买约 <b>'+avg+'</b> 组 · 中 <b style="font-size:16px;color:#16a34a">'+r.hit+'</b> / '+N+' 期(<b>'+hp+'%</b>)</span></div>';
+    h+='<div style="font-size:12px;color:#94a3b8;margin:2px 0 5px">'+r.p.d+'</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c){ return '<span title="'+c.date+'  买'+c.n+'组  开:'+c.tg.join(\' \')+(c.ok?\'  ✅中:\'+c.got.join(\' \'):\'  没中\')+'" style="display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
+    h+='<div style="font-size:12px;color:#64748b;margin-top:4px">随便买同样多组,平均会中 '+bp+'% → '+(Math.abs(hp-bp)<5?'<b>差不多</b>':(hp>bp?'<b style="color:#16a34a">稍高</b>':'<b style="color:#dc2626">稍低</b>'))+'</div>';
+    h+='</div>';
+  });
+  h+='<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:14px;color:#334155;line-height:1.8">👀 <b>怎么看:</b><br>① 看<b>绿格多不多</b>:格子越绿,表示越常中。<br>② 看<b>每期买几组</b>:买得越少越省钱,但绿格也会跟着变少。<br>③ <b>绿格的多少,基本是跟着"买几组"走</b>;加了条件,买的组数变少了,绿格也变少了。</div>';
+  h+='</div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 // 🎲 我的玩法:跟上期前2D/后2D数根 → 本期号码 + 回测(一句话)
 function mpCopy(sep,btn){ var a=window.__mpList||[]; if(!a.length){alert('没有号码');return;} var t=a.join(sep==='nl'?'\n':' '); var done=function(){ if(btn){var o=btn.textContent;btn.textContent='✅ 已复制';setTimeout(function(){btn.textContent=o;},1500);} }; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(done);}else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);done();} }
 function zoMyPlay(){
