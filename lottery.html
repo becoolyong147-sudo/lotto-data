@@ -23031,7 +23031,7 @@ function zoMyPlayVisual(){
     h+='<div style="margin:10px 0;padding:8px 10px;border:1px solid #e2e8f0;border-left:5px solid '+r.p.c+';border-radius:8px">';
     h+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline"><b style="color:'+r.p.c+';font-size:15px">'+r.p.n+'</b><span style="font-size:13px;color:#475569">每期买约 <b>'+avg+'</b> 组 · 中 <b style="font-size:16px;color:#16a34a">'+r.hit+'</b> / '+N+' 期(<b>'+hp+'%</b>)</span></div>';
     h+='<div style="font-size:12px;color:#94a3b8;margin:2px 0 5px">'+r.p.d+'</div>';
-    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c){ return '<span title="'+c.date+'  买'+c.n+'组  开:'+c.tg.join(\' \')+(c.ok?\'  ✅中:\'+c.got.join(\' \'):\'  没中\')+'" style="display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c){ var tip=c.date+'  买'+c.n+'组  开:'+c.tg.join(' ')+(c.ok?'  ✅中:'+c.got.join(' '):'  没中'); return '<span title="'+tip+'" style="display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
     h+='<div style="font-size:12px;color:#64748b;margin-top:4px">随便买同样多组,平均会中 '+bp+'% → '+(Math.abs(hp-bp)<5?'<b>差不多</b>':(hp>bp?'<b style="color:#16a34a">稍高</b>':'<b style="color:#dc2626">稍低</b>'))+'</div>';
     h+='</div>';
   });
