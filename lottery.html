@@ -23004,17 +23004,17 @@ function zoMyPlayVisual(){
   function odd(s){ var o=0; for(var k=0;k<4;k++)if((+s[k])%2)o++; return o; }
   // 每种选法:给「上一期」→ 一个判断函数 f(号)→是否买
   var PL=[
-    {n:'① 只用前2D数根',d:'上一期前2D的数根,这期前2D数根一样就买(不加任何条件)',c:'#f59e0b',
+    {n:'① 只看前2D数根',d:'上一期开的号,前两位的数根是几,这期就买「前两位数根一样」的号。例:上期前两位是 14 → 数根 5,这期就买前两位数根是 5 的号。不加别的条件。',c:'#f59e0b',
       mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]; }; }},
-    {n:'② 前2D数根 + 点数12-24',d:'再加:4个数字相加在12到24之间',c:'#3b82f6',
+    {n:'② 前2D数根 + 点数',d:'同上,但只留「4个数字加起来在 12 到 24 之间」的号(太大太小的不要)。',c:'#3b82f6',
       mk:function(R){ return function(s){ var v=sm(s,0,3); return !!R.f[dr(sm(s,0,1))]&&v>=12&&v<=24; }; }},
-    {n:'③ 前2D数根 + 单双不极端',d:'再加:不要全单、全双',c:'#8b5cf6',
+    {n:'③ 前2D数根 + 单双',d:'同①,但不要「4个数字全是单数」或「全是双数」的号。',c:'#8b5cf6',
       mk:function(R){ return function(s){ var o=odd(s); return !!R.f[dr(sm(s,0,1))]&&o>=1&&o<=3; }; }},
-    {n:'④ 前2D数根 + 4个数字全不同',d:'再加:4个数字都不一样(24打)',c:'#ec4899',
+    {n:'④ 前2D数根 + 4个数字不重复',d:'同①,但只留「4个数字都不一样」的号(例 1234 可以,1123 不行)。',c:'#ec4899',
       mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]&&da(s)===24; }; }},
-    {n:'⑤ 前2D数根 + 点数 + 单双 + 全不同',d:'上面三个条件全加',c:'#14b8a6',
+    {n:'⑤ 前2D数根 + 上面三个条件全加',d:'点数、单双、不重复,三个条件都要满足。买的号最少。',c:'#14b8a6',
       mk:function(R){ return function(s){ var v=sm(s,0,3),o=odd(s); return !!R.f[dr(sm(s,0,1))]&&v>=12&&v<=24&&o>=1&&o<=3&&da(s)===24; }; }},
-    {n:'⑥ 前2D数根 + 后2D数根',d:'前后2D数根都一样才买(最严)',c:'#ef4444',
+    {n:'⑥ 前2D数根 + 后2D数根',d:'前两位的数根一样,而且后两位的数根也一样,才买。条件最严,买的号第二少。',c:'#ef4444',
       mk:function(R){ return function(s){ return !!R.f[dr(sm(s,0,1))]&&!!R.b[dr(sm(s,2,3))]; }; }}
   ];
   function roots(i){ var f={},b={}; per[i].nums.forEach(function(s){ f[dr(sm(s,0,1))]=1; b[dr(sm(s,2,3))]=1; }); return {f:f,b:b}; }
@@ -23030,20 +23030,21 @@ function zoMyPlayVisual(){
   function streak(cells,want){ var mx=0,c=0; cells.forEach(function(x){ if(x.ok===want){c++; if(c>mx)mx=c;} else c=0; }); return mx; }
   function curStreak(cells){ var k=cells.length-1,v=cells[k].ok,c=0; while(k>=0&&cells[k].ok===v){c++;k--;} return (v?'连中 ':'连没中 ')+c+' 期'; }
   var h='<div class="card" style="border:2px solid #6366f1"><h3 style="color:#4338ca">📊 '+mk+' · 最近 '+N+' 期,几种选法对比(绿=中了头二三,灰=没中)</h3>';
-  h+='<div style="font-size:13px;color:#64748b;margin-bottom:8px">每一小格 = 一期。从左到右:旧 → 新(最右边是最近一期)。<b>点一个格子</b>,下面会展开那一期的详细情况。</div>';
+  h+='<div style="background:#eef2ff;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:14px;color:#312e81;line-height:1.9"><b>这张图在比什么?</b><br>假设每一期,你都用「上一期开的号」来挑这一期要买的号。下面是6种挑法,各自试了最近 '+N+' 期:<br>🟩 <b>绿格 = 那一期,你买的号里中了头奖/二奖/三奖</b><br>⬜ <b>灰格 = 那一期,没中</b><br>从左到右是 旧 → 新,最右边是最近一期。点一个格子,可以看那一期开了什么号。</div>';
   // 每种选法一排
   res.forEach(function(r,ri){
     var avg=Math.round(r.sz/N), hp=Math.round(r.hit/N*100), bp=Math.round(r.base/N*100);
     var half=Math.floor(N/2), h1=r.cells.slice(0,half).filter(function(c){return c.ok;}).length, h2=r.cells.slice(half).filter(function(c){return c.ok;}).length;
     h+='<div style="margin:10px 0;padding:8px 10px;border:1px solid #e2e8f0;border-left:5px solid '+r.p.c+';border-radius:8px">';
-    h+='<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline"><b style="color:'+r.p.c+';font-size:15px">'+r.p.n+'</b><span style="font-size:13px;color:#475569">每期买约 <b>'+avg+'</b> 组 · 中 <b style="font-size:16px;color:#16a34a">'+r.hit+'</b> / '+N+' 期(<b>'+hp+'%</b>)</span></div>';
+    h+='<div style="font-size:16px;margin-bottom:2px"><b style="color:'+r.p.c+'">'+r.p.n+'</b></div>';
     h+='<div style="font-size:12px;color:#94a3b8;margin:2px 0 5px">'+r.p.d+'</div>';
     h+='<div style="display:flex;flex-wrap:wrap;gap:2px">'+r.cells.map(function(c,ci){ var tip=c.date+'  买'+c.n+'组  开:'+c.tg.join(' ')+(c.ok?'  ✅中:'+c.got.join(' '):'  没中'); return '<span onclick="mpvPick('+ri+','+ci+')" title="'+tip+'" style="cursor:pointer;display:inline-block;width:14px;height:14px;border-radius:3px;background:'+(c.ok?'#22c55e':'#e2e8f0')+'"></span>'; }).join('')+'</div>';
-    h+='<div style="font-size:12px;color:#64748b;margin-top:4px">前半段(旧) 中 '+h1+'/'+half+' 期 · 后半段(新) 中 '+h2+'/'+(N-half)+' 期 · 随便买同样多组,平均会中 '+bp+'% → '+(Math.abs(hp-bp)<5?'<b>差不多</b>':(hp>bp?'<b style="color:#16a34a">稍高</b>':'<b style="color:#dc2626">稍低</b>'))+'</div>';
+    var more=hp-bp, tag=(Math.abs(more)<5)?'和「随便买同样多的号」差不多':(more>0?'比「随便买同样多的号」稍微好一点':'比「随便买同样多的号」稍微差一点');
+    h+='<div style="font-size:14px;color:#334155;margin-top:6px;padding:6px 10px;background:#f8fafc;border-radius:6px">👉 这种挑法,每期买约 <b>'+avg+'</b> 组(= RM'+avg+'),'+N+' 期里有 <b style="color:#16a34a">'+r.hit+'</b> 期中了(<b>'+hp+'%</b>)。<br>如果你每期是闭着眼睛随便买 '+avg+' 组,平均大约会中 <b>'+bp+'%</b>。→ <b>'+tag+'</b>。</div>';
     h+='</div>';
   });
   h+='<div id="mpv-detail" style="display:none;position:sticky;bottom:0;background:#fff;border:2px solid #6366f1;border-radius:10px;padding:10px 12px;margin:8px 0;box-shadow:0 -2px 8px rgba(0,0,0,.12)"></div>';
-  h+='<div style="background:#f8fafc;border-radius:8px;padding:10px 12px;font-size:14px;color:#334155;line-height:1.8">👀 <b>怎么看:</b>绿格多 = 常中。每期买得越少,绿格也越少。</div>';
+  h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:14px;color:#78350f;line-height:1.9">📌 <b>看完这6排,你会发现:</b><br>• 买的号越多(上面几排),绿格越多;买的号越少(下面几排),绿格就越少。<br>• 每一排最后那句话,是拿它跟「随便买同样多的号」比。大部分是「差不多」——就是说,<b>中不中,主要看你买了几组,不是看用哪种挑法</b>。<br>• 所以挑哪一种,看你想花多少钱。</div>';
   h+='</div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
