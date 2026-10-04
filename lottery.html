@@ -254,6 +254,7 @@ tr:hover td{background:#fafaf5}
 <div id="scene-decision" class="scene-panel active">
   <div class="subtabs">
     <div class="subtab active" data-tab="overview" onclick="switchSubtab(this)">🎯 一键总览</div>
+    <div class="subtab" data-tab="myplay" onclick="switchSubtab(this)" style="background:#fef3c7;border-color:#f59e0b;font-weight:800">🎲 我的玩法</div>
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
     <div class="subtab" data-tab="listcmp" onclick="switchSubtab(this)">🧮 号码对比</div>
@@ -846,6 +847,22 @@ function renderPatternTrend(){
 
 <!-- TAB: 2D追踪 -->
 
+
+<!-- TAB: 我的玩法(跟上期2D数根,一键) -->
+<div id="tab-myplay" class="panel" style="padding:12px">
+  <div class="card" style="border:2px solid #f59e0b">
+    <h3 style="color:#b45309">🎲 我的玩法 · 跟上期的前2D / 后2D 数根</h3>
+    <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:10px">玩法:看<b>上一期</b>头二三的前2D、后2D数根 → 这一期就挑<b>同样数根</b>的号。<br>选好市场,按下面按钮,就会直接告诉你。</div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
+      <div><label style="font-size:13px;color:#b45309;font-weight:700;display:block">市场</label>
+        <select id="mp-market" style="font-size:16px;padding:6px 10px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+      <div><label style="font-size:13px;color:#b45309;font-weight:700;display:block">想买多少组</label>
+        <select id="mp-size" style="font-size:16px;padding:6px 10px"><option value="all">不限(全部)</option><option value="200">约200组</option><option value="300">约300组</option><option value="500">约500组</option><option value="800" selected>约800组</option></select></div>
+      <button class="btn" style="background:#f59e0b;color:#fff;font-size:18px;font-weight:800;padding:12px 28px" onclick="zoMyPlay()">🎲 给我号码</button>
+    </div>
+  </div>
+  <div id="mp-out"></div>
+</div>
 
 <!-- TAB: 查一个号 -->
 <div id="tab-numlookup" class="panel" style="padding:12px">
@@ -22956,6 +22973,76 @@ function zoScoreTopN(){
   h+='<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;font-size:12px;color:#334155">👉 看「平均名次」最直接:信号真有用,开出的号会常排在前面(远小于5000);≈5000就是这些信号合起来也只是乱排。</div>';
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'sc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#b45309;font-weight:700">逐期明细 ▾</span><div id="sc-det" style="max-height:380px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#b45309;position:sticky;top:0;background:#fffbeb"><th style="text-align:left;padding:3px 6px">源期→下期</th><th style="text-align:left;padding:3px 6px">开号(名次)</th><th style="padding:3px 6px">信号数</th><th style="padding:3px 6px">中?</th></tr>';
   det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #fde68a;background:'+(x.hit?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.s.slice(5)+'→'+x.n.slice(5)+'</td><td style="padding:3px 6px;font-family:monospace">'+x.rk.map(function(o){ return (o.r<=TOP?'<b style="color:#16a34a">':'<span style="color:#94a3b8">')+o.s+'(第'+o.r+')'+(o.r<=TOP?'</b>':'</span>'); }).join(' ')+'</td><td style="text-align:center;padding:3px 6px;color:#94a3b8">'+x.ns+'</td><td style="text-align:center;padding:3px 6px">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+  h+='</table></div></div></div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🎲 我的玩法:跟上期前2D/后2D数根 → 本期号码 + 回测(一句话)
+function mpCopy(sep,btn){ var a=window.__mpList||[]; if(!a.length){alert('没有号码');return;} var t=a.join(sep==='nl'?'\n':' '); var done=function(){ if(btn){var o=btn.textContent;btn.textContent='✅ 已复制';setTimeout(function(){btn.textContent=o;},1500);} }; if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done).catch(done);}else{var ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);done();} }
+function zoMyPlay(){
+  var out=document.getElementById('mp-out'); if(!out) return;
+  var mk=(document.getElementById('mp-market')||{value:'万能'}).value;
+  var want=(document.getElementById('mp-size')||{value:'800'}).value; var cap=(want==='all')?0:parseInt(want,10);
+  function pad(n){ return String(n).padStart(4,'0'); }
+  function dr(x){ return x===0?0:(x%9===0?9:x%9); }
+  function sm(s,a,b){ var t=0; for(var i=a;i<=b;i++)t+=+s[i]; return t; }
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  var per=m.map(function(d){ return {date:d.date,nums:[0,1,2].map(function(p){return d.nums[p];}).filter(function(v){return v!=null&&v!=='';}).map(pad).filter(function(s){return /^\d{4}$/.test(s);})}; }).filter(function(x){return x.nums.length;});
+  if(per.length<30){ out.innerHTML='<div class="card"><div class="warn">'+mk+' 的成绩不够,没法算。</div></div>'; return; }
+  function roots(i){ var f={},b={}; per[i].nums.forEach(function(s){ f[dr(sm(s,0,1))]=1; b[dr(sm(s,2,3))]=1; }); return {f:f,b:b}; }
+  // 压缩用的条件阶梯(由松到紧,逐级加,直到组数≤想要的)
+  var LAD=[
+    function(s){ var v=sm(s,0,3); return v>=12&&v<=24; },
+    function(s){ var a=sm(s,0,2),b=sm(s,1,3); return a>=10&&a<=18&&b>=10&&b<=18; },
+    function(s){ var o=0; for(var k=0;k<4;k++)if((+s[k])%2)o++; return o>=1&&o<=3; },
+    function(s){ var c=(typeof zoDaCount==='function')?zoDaCount(s):24; return c===24||c===12; },
+    function(s){ return ((typeof zoDaCount==='function')?zoDaCount(s):24)===24; },
+    function(s){ var v=sm(s,0,3); return v>=14&&v<=22; },
+    function(s){ var a=sm(s,0,2),b=sm(s,1,3); return a>=11&&a<=17&&b>=11&&b<=17; }
+  ];
+  function pick(R){ var arr=[]; for(var n=0;n<10000;n++){ var s=pad(n); if(R.f[dr(sm(s,0,1))]&&R.b[dr(sm(s,2,3))]) arr.push(s); }
+    var used=0;
+    if(cap>0){
+      // 逐级加条件,但「再加一级会掉到想要数量的 80% 以下」就不加了;最后差一点点用「按号码本身固定打散」补到刚好
+      for(var L=0;L<LAD.length&&arr.length>cap;L++){ var nx=arr.filter(LAD[L]); if(nx.length<cap*0.8){ break; } arr=nx; used=L+1; }
+      if(arr.length>cap){ var H=function(s){ return (parseInt(s,10)*7919+13)%10007; }; arr=arr.slice().sort(function(x,y){return H(x)-H(y);}).slice(0,cap).sort(); used=used||1; }
+    }
+    return {arr:arr,used:used}; }
+  // 回测:最近200期,每期用「上一期」的数根挑号,看这一期头二三有没有中
+  var T=Math.min(200,per.length-1), hit=0, szSum=0, base=0, det=[];
+  for(var i=per.length-1-T;i<per.length-1;i++){
+    var R=roots(i), P=pick(R), set={}; P.arr.forEach(function(x){set[x]=1;});
+    var tg=per[i+1], got=tg.nums.filter(function(s){return set[s];});
+    var ok=got.length>0; if(ok)hit++; szSum+=P.arr.length; base+=1-Math.pow(1-P.arr.length/10000,tg.nums.length);
+    det.push({src:per[i],tgt:tg,R:R,n:P.arr.length,got:got,ok:ok});
+  }
+  var hp=hit/T*100, bp=base/T*100;
+  // 本期
+  var L=per.length-1, RN=roots(L), PN=pick(RN); window.__mpList=PN.arr;
+  var fk=Object.keys(RN.f).sort().join('、'), bk=Object.keys(RN.b).sort().join('、');
+  var last=per[L], ex=last.nums.map(function(s){ return s.slice(0,2)+'→'+dr(sm(s,0,1)); }).join('　');
+  var diff=hp-bp, verdict=(Math.abs(diff)<4)?'跟随便买差不多':(diff>0?'比随便买稍好':'比随便买稍差');
+  var h='';
+  h+='<div class="card" style="border:2px solid #16a34a;background:#f0fdf4">';
+  h+='<div style="font-size:15px;color:#166534;font-weight:800;margin-bottom:6px">① 上一期('+last.date+')开的是</div>';
+  h+='<div style="font-size:20px;font-family:monospace;font-weight:800;color:#1e3a5f;margin-bottom:6px">'+last.nums.join('　')+'</div>';
+  h+='<div style="font-size:14px;color:#475569;line-height:1.9">前2D:'+last.nums.map(function(s){return s.slice(0,2);}).join('、')+' → 数根 <b style="font-size:17px;color:#b45309">'+fk+'</b><br>后2D:'+last.nums.map(function(s){return s.slice(2,4);}).join('、')+' → 数根 <b style="font-size:17px;color:#be185d">'+bk+'</b></div>';
+  h+='</div>';
+  h+='<div class="card" style="border:2px solid #f59e0b">';
+  h+='<div style="font-size:15px;color:#b45309;font-weight:800;margin-bottom:6px">② 这一期,你可以买这 <span style="font-size:24px">'+PN.arr.length+'</span> 组'+(PN.used?'<span style="font-size:12px;color:#94a3b8;font-weight:400">(已按你要的数量自动收窄)</span>':'')+'</div>';
+  h+='<div style="font-size:13px;color:#475569;margin-bottom:6px">条件:前2D数根是 '+fk+',而且后2D数根是 '+bk+'</div>';
+  h+='<div style="margin-bottom:8px"><button class="btn" style="background:#16a34a;color:#fff;font-size:16px;font-weight:800;padding:10px 22px" onclick="mpCopy(\'nl\',this)">📋 复制全部(一行一个)</button> <button class="btn" style="font-size:14px;padding:10px 16px" onclick="mpCopy(\'sp\',this)">📋 复制(空格隔开)</button></div>';
+  h+='<div style="font-family:monospace;font-size:15px;line-height:2;max-height:200px;overflow:auto;background:#fff;border:1px solid #fde68a;border-radius:8px;padding:8px 10px">'+PN.arr.slice(0,400).map(function(x){return '<span style="display:inline-block;background:#fef3c7;border-radius:5px;padding:0 7px;margin:2px;font-weight:700">'+x+'</span>';}).join('')+(PN.arr.length>400?'<div style="font-size:12px;color:#94a3b8;margin-top:4px">只显示前400个,全部请按上面复制</div>':'')+'</div>';
+  h+='</div>';
+  h+='<div class="card" style="border:2px solid #6366f1">';
+  h+='<div style="font-size:15px;color:#4338ca;font-weight:800;margin-bottom:6px">③ 这个玩法以前灵不灵?(最近 '+T+' 期试过)</div>';
+  h+='<div style="font-size:15px;color:#1e293b;line-height:2">每期平均买 <b>'+Math.round(szSum/T)+'</b> 组<br>这 '+T+' 期里,有 <b style="font-size:20px;color:#4338ca">'+hit+'</b> 期中了头二三(<b>'+hp.toFixed(0)+'%</b>)<br>如果每期随便买同样多组,大约会中 <b>'+bp.toFixed(0)+'%</b></div>';
+  h+='<div style="margin-top:8px;padding:8px 12px;border-radius:8px;background:'+(Math.abs(diff)<4?'#f1f5f9':(diff>0?'#dcfce7':'#fee2e2'))+';font-size:15px;font-weight:700">👉 结果:'+verdict+'</div>';
+  h+='<div style="font-size:13px;color:#64748b;margin-top:6px">意思:中不中,主要看你买几组;跟着数根选,并没有比随便选更容易中。当娱乐玩就好。</div>';
+  h+='<div style="margin-top:8px"><span onclick="var e=document.getElementById(\'mp-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#4338ca;font-weight:700;font-size:14px">▶ 点这里看每一期的结果</span><div id="mp-det" style="display:none;max-height:360px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:#4338ca;background:#eef2ff;position:sticky;top:0"><th style="text-align:left;padding:4px 6px">日期</th><th style="text-align:left;padding:4px 6px">上一期的数根(前/后)</th><th style="padding:4px 6px">买几组</th><th style="text-align:left;padding:4px 6px">这期开的</th><th style="padding:4px 6px">中?</th></tr>';
+  det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #e0e7ff;background:'+(x.ok?'#f0fdf4':'#fff')+'"><td style="padding:4px 6px;white-space:nowrap;color:#64748b">'+x.tgt.date.slice(5)+'</td><td style="padding:4px 6px;color:#64748b">'+Object.keys(x.R.f).sort().join('')+' / '+Object.keys(x.R.b).sort().join('')+'</td><td style="text-align:center;padding:4px 6px;color:#94a3b8">'+x.n+'</td><td style="padding:4px 6px;font-family:monospace">'+x.tgt.nums.map(function(s){return x.got.indexOf(s)>=0?'<b style="color:#16a34a">'+s+'✅</b>':'<span style="color:#94a3b8">'+s+'</span>';}).join(' ')+'</td><td style="text-align:center;padding:4px 6px;font-size:16px">'+(x.ok?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div></div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
