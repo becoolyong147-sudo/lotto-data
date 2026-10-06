@@ -1898,6 +1898,7 @@ async function bootstrapV51(){
       const _localAdded = await autoImportFetchedResults(); // V63: 本地 auto_results.json(只增不覆盖)
       let _ghAdded=0; try{ _ghAdded = await autoImportFetchedResults(_GH_RAW+Date.now()); }catch(e){} // 启动时也从GitHub拉最新
       const _autoAdded = _localAdded + _ghAdded;
+      try{ await zoMergeSmallPrizes(); }catch(e){}   // 补历史特别奖/安慰奖(small_prizes.json)
       loadSavedResults();
       // ⏱️ 开着时每10分钟自动从GitHub拉一次最新成绩(有新的就补上+提示,不刷新页面)
       try{ if(!window.__ghPollTimer){ window.__ghPollTimer=setInterval(async function(){ try{ var k=await autoImportFetchedResults(_GH_RAW+Date.now()); if(k>0){ loadSavedResults(); var nd2=getNewResults(); var nc2=Object.values(nd2).reduce((a,v)=>a+v.length,0); var tt2=Object.values(DB).reduce((a,v)=>a+v.length,0); var el2=document.getElementById('data-count'); if(el2)el2.textContent='历史'+(tt2-nc2)+'期 + 新增'+nc2+'期'; } }catch(e){} }, 600000); } }catch(e){}
@@ -6121,9 +6122,8 @@ async function autoImportFetchedResults(srcUrl){
       if(!p || !p.market || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;
       const nums = (p.nums||[]).slice(0,3).map(n=>String(n).padStart(4,'0'));
       if(nums.length<3 || nums.some(n=>!/^\d{4}$/.test(n))) continue;
-      // 🩹 清洗:抓取源有时把头二三误混进特别/安慰奖 → 剔掉(同期一个号不会既是头二三又是特/安)
-      const _top = new Set(nums);
-      const sp = clean4d(p.sp).filter(n=>!_top.has(n)), cs = clean4d(p.cs).filter(n=>!_top.has(n));
+      // 小奖原样保留(新加坡等允许同一号既在头二三又在安慰奖;头三误混问题已在抓取脚本源头解决)
+      const sp = clean4d(p.sp), cs = clean4d(p.cs);
       const ex = (data[p.market]||[]).find(x=>x.date===p.date);
       if(ex){
         let touched=false;
@@ -6161,6 +6161,32 @@ async function autoImportFetchedResults(srcUrl){
     return added + enriched;
   }catch(e){ console.warn('[V63 auto-import] 失败:', e); return 0; }
 }
+// 🎁 历史小奖合并:small_prizes.json(4d2ulive 补抓的 特别奖10+安慰奖10) → 补到 DB / 新成绩里已存在的同一期
+// 只补 sp/cs,绝不动头二三;头二三对不上的期整期跳过(不信任)。结果放内存(不写 localStorage,避免撑爆)。
+async function zoMergeSmallPrizes(){
+  try{
+    const r = await fetch('small_prizes.json?t='+Date.now(), {cache:'no-store'}); if(!r.ok) return 0;
+    const j = await r.json(); const draws=(j&&j.draws)||[]; if(!draws.length) return 0;
+    const nd = (typeof getNewResults==='function')?getNewResults():{};
+    const pad = v=>String(v).padStart(4,'0');
+    let filled=0, mismatch=0, missing=0; const idx={};
+    function put(m,d){ idx[m+'|'+d.date]=d; }
+    Object.keys(nd).forEach(m=>(nd[m]||[]).forEach(d=>put(m,d)));
+    Object.keys(DB).forEach(m=>(DB[m]||[]).forEach(d=>{ if(!idx[m+'|'+d.date]) put(m,d); }));
+    for(const p of draws){
+      const t = idx[p.market+'|'+p.date]; if(!t){ missing++; continue; }
+      const mine=(t.nums||[]).slice(0,3).map(pad).join(','), theirs=(p.nums||[]).slice(0,3).map(pad).join(',');
+      if(mine!==theirs){ mismatch++; continue; }               // 头二三对不上 → 不信任这期的小奖
+      const sp=(p.sp||[]).map(pad), cs=(p.cs||[]).map(pad);
+      if((!t.sp||t.sp.length<sp.length) && sp.length){ t.sp=sp; filled++; }
+      if((!t.cs||t.cs.length<cs.length) && cs.length){ t.cs=cs; }
+    }
+    window.__smallPrizeInfo={filled:filled, mismatch:mismatch, missing:missing, total:draws.length};
+    console.log('[小奖合并] 补了',filled,'期;头二三对不上跳过',mismatch,';库里没有该期',missing,';文件共',draws.length);
+    return filled;
+  }catch(e){ console.warn('[小奖合并] 失败',e); return 0; }
+}
+// 🎁 历史小奖合并(下面)
 // 🔄 一键从 GitHub 拉最新成绩（云端 auto_fetch 抓的，绕过本地文件/缓存）
 async function zoPullLatestFromGitHub(btn){
   const RAW='https://raw.githubusercontent.com/becoolyong147-sudo/lotto-data/main/auto_results.json?t='+Date.now();

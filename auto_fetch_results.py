@@ -90,12 +90,13 @@ def fetch_huat5(sess, market, code):
         if cur:
             groups.append(cur)
         entry = {"market": market, "date": d, "draw": draw, "nums": nums}
-        top = set(nums)  # 双保险: 头三不该出现在特别/安慰里
+        # 注: 头三取自第1行, 小奖取自其后的行, 结构上不会混入; 不要再「剔头二三」——
+        #     新加坡规则允许同一个号既是二奖又在安慰奖(如 2026-10-03 的 0529), 剔掉会少号
         if len(groups) > 0 and groups[0]:
-            sp = [x for x in groups[0][:13] if x not in top]
+            sp = groups[0][:13]
             if sp: entry["sp"] = sp
         if len(groups) > 1 and groups[1]:
-            cs = [x for x in groups[1][:13] if x not in top]
+            cs = groups[1][:13]
             if cs: entry["cs"] = cs
         out.append(entry)
     return out
