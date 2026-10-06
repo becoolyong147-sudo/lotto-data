@@ -905,6 +905,23 @@ function renderPatternTrend(){
     </div>
     <div id="m2c-out" style="margin-top:10px"></div>
   </div>
+  <div class="card" style="border:2px solid #0f766e;margin-top:12px">
+    <h3 style="color:#0f766e">🗺️ 大蓝图 · 0000 到 9999 全部号码</h3>
+    <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:8px">10000 个号码按顺序排好,一格一个号,每行 100 个(第一行 0000–0099,第二行 0100–0199 …)。用颜色告诉你每个号的情况。<b>鼠标放在格子上</b>可以看号码和详情。</div>
+    <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">颜色表示什么</label>
+        <select id="bp-mode" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px">
+          <option value="cnt">A. 开过几次(越深越多,空白=从没开过)</option>
+          <option value="gap">B. 隔了多久没开(红=刚开,灰=很久,空白=从没开过)</option>
+        </select></div>
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">最近开的号用红框标出</label>
+        <select id="bp-recent" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="0">不标</option><option value="1">最近1期</option><option value="5">最近5期</option><option value="10" selected>最近10期</option><option value="30">最近30期</option></select></div>
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">格子大小</label>
+        <select id="bp-size" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="6">小</option><option value="9" selected>中</option><option value="13">大</option></select></div>
+      <button class="btn" style="background:#0f766e;color:#fff;font-size:17px;font-weight:800;padding:11px 24px" onclick="zoBlueprint()">🗺️ 画蓝图</button>
+    </div>
+    <div id="bp-out" style="margin-top:10px"></div>
+  </div>
 </div>
 
 <!-- TAB: 查一个号 -->
@@ -23072,6 +23089,46 @@ function zoMyPlayVisual(){
       '<td style="text-align:center;padding:6px 8px;font-size:18px">'+(x.ok?'✅':'❌')+'</td></tr>';
   });
   h+='</table></div></div>';
+  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// 🗺️ 大蓝图:0000-9999 一格一个号,按颜色看 开过几次 / 隔多久,最近开的号红框
+function zoBlueprint(){
+  var out=document.getElementById('bp-out'); if(!out) return;
+  var mk=(document.getElementById('mp-market')||{value:'万能'}).value;
+  var mode=(document.getElementById('bp-mode')||{value:'cnt'}).value;
+  var R=parseInt((document.getElementById('bp-recent')||{value:'10'}).value,10)||0;
+  var Z=parseInt((document.getElementById('bp-size')||{value:'9'}).value,10)||9;
+  function pad(n){ return String(n).padStart(4,'0'); }
+  var H=zoNum4Hist(mk), cnt=H.cnt, last=H.last;
+  // 期数序(用于「隔了几期」)
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, m=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
+  m=m.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  var total=m.length, idxOf={}; m.forEach(function(d,i){ idxOf[d.date]=i; });
+  var latestDate=m.length?String(m[m.length-1].date):'';
+  // 最近R期开的号 → 奖位
+  var recent={}; if(R>0){ m.slice(-R).forEach(function(d,k,arr){ [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s=pad(v); (recent[s]=recent[s]||[]).push(String(d.date).slice(5)+['头','二','三'][pi]); }); }); }
+  var maxC=0, never=0, opened=0; for(var n0=0;n0<10000;n0++){ var c0=cnt[pad(n0)]||0; if(c0>maxC)maxC=c0; if(c0===0)never++; else opened++; }
+  function col(s){
+    if(mode==='cnt'){ var c=cnt[s]||0; if(!c) return '#f1f5f9'; var t=Math.min(c,4)/4; /* 1次浅 → 4次+深 */ var L=Math.round(86-t*50); return 'hsl(173,60%,'+L+'%)'; }
+    var li=last[s]; if(li==null) return '#f1f5f9';
+    var gp=total-1-idxOf[li]; if(gp==null||isNaN(gp)) return '#cbd5e1';
+    if(gp<=30) return '#ef4444'; if(gp<=120) return '#f97316'; if(gp<=400) return '#facc15'; if(gp<=1200) return '#84cc16'; if(gp<=2500) return '#38bdf8'; return '#94a3b8'; }
+  function tip(s){ var c=cnt[s]||0, li=last[s]; var t=s+'  开过'+c+'次'; if(li!=null){ var gp=total-1-idxOf[li]; t+='  上次 '+li+'(隔'+(isNaN(gp)?'?':gp)+'期)'; } else t+='  从没开过'; if(recent[s]) t+='  ★最近:'+recent[s].join(' '); return t; }
+  // 画:用 canvas 太小看不了详情,用 div 网格(10000 个小格) —— 一次性拼字符串
+  var G=100, cell=Z, gap=1, W=G*(cell+gap);
+  var html='<div style="position:relative;width:'+W+'px;line-height:0;font-size:0">';
+  var parts=[]; for(var r=0;r<G;r++){ for(var c=0;c<G;c++){ var s=pad(r*G+c); var rc=recent[s]?'box-shadow:inset 0 0 0 2px #dc2626,0 0 0 1px #fff;position:relative;z-index:2;':''; parts.push('<span title="'+tip(s)+'" style="display:inline-block;width:'+cell+'px;height:'+cell+'px;margin:0 '+gap+'px '+gap+'px 0;background:'+col(s)+';'+rc+'"></span>'); } }
+  html+=parts.join('')+'</div>';
+  var legend = mode==='cnt'
+    ? '<span><span style="display:inline-block;width:14px;height:14px;background:#f1f5f9;border:1px solid #cbd5e1;vertical-align:middle"></span> 从没开过 '+never+' 个</span> <span><span style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,76%);vertical-align:middle"></span> 开过1次</span> <span><span style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,56%);vertical-align:middle"></span> 2次</span> <span><span style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,36%);vertical-align:middle"></span> 4次以上</span>'
+    : ['#ef4444|最近30期内','#f97316|31–120期','#facc15|121–400期','#84cc16|401–1200期','#38bdf8|1201–2500期','#94a3b8|2500期以上','#f1f5f9|从没开过'].map(function(x){ var q=x.split('|'); return '<span><span style="display:inline-block;width:14px;height:14px;background:'+q[0]+';border:1px solid #cbd5e1;vertical-align:middle"></span> '+q[1]+'</span>'; }).join(' ');
+  var h='<div class="card" style="border:2px solid #0f766e"><h3 style="color:#0f766e">🗺️ '+mk+' · 大蓝图 · '+(mode==='cnt'?'开过几次':'隔了多久没开')+'</h3>';
+  h+='<div style="font-size:14px;margin-bottom:6px">'+mk+' 共 <b>'+total+'</b> 期,每期头二三 3 个号。10000 个号里:<b style="color:#0f766e">'+opened+'</b> 个开过,<b style="color:#94a3b8">'+never+'</b> 个从没开过。最多的一个号开过 <b>'+maxC+'</b> 次。</div>';
+  h+='<div style="font-size:13px;color:#475569;display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'+legend+(R?' <span><span style="display:inline-block;width:14px;height:14px;box-shadow:inset 0 0 0 2px #dc2626;vertical-align:middle"></span> 最近'+R+'期开的号</span>':'')+'</div>';
+  h+='<div style="font-size:12px;color:#94a3b8;margin-bottom:6px">位置:横着数是个位和十位(0–99),竖着往下是千位和百位。第 r 行第 c 列 = 号码 r×100+c 。例如第 12 行第 34 列 = 1234。把鼠标放在格子上看详情。</div>';
+  h+='<div style="overflow:auto;max-height:78vh;border:1px solid #e2e8f0;padding:4px;background:#fff">'+html+'</div></div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🎯 主打+条件:2D目标 → 要买的4D号(前/中/后任一段在目标里 + 点数/单双/不重复),逐期回测
