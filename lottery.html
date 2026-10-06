@@ -12501,6 +12501,9 @@ function zo2DRootBacktest(){
     <div class="ig"><label>数根×1D 组合模式</label>
       <select id="rd-mode"><option value="mix">混合数根</option><option value="split">数根分前后</option><option value="pair">前后数根匹配</option></select>
     </div>
+    <div class="ig"><label>缺席集显示</label>
+      <select id="rd-show"><option value="d2" selected>推荐2D(双缺)</option><option value="d1">原来的1D</option></select>
+    </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#c2410c;color:#fff;padding:9px 16px" onclick="zoRootExcludeBacktest()">🚫 排除法回测(2D+3D数根·排刚出的)</button></div>
@@ -23719,7 +23722,11 @@ function zoRootDigitComboBacktest(){
     tot++; if(wHit)hit++; bs+=1-Math.pow(1-bp.all,nc);
     if(mode==='split'){ tF++; if(wF)hF++; bF+=1-Math.pow(1-bp.front,nc); tMid++; if(wM)hMid++; bMid+=1-Math.pow(1-bp.mid,nc); tB++; if(wB)hB++; bB+=1-Math.pow(1-bp.back,nc); }
     var absStr='根['+(mode==='mix'?('混'+Object.keys(R.M).join('')):('前'+Object.keys(R.F).join('')+' 中'+Object.keys(R.Mid).join('')+' 后'+Object.keys(R.B).join('')))+'] 1D['+POS.map(function(p,q){return p+Object.keys(D.A[q]).join('');}).join(' ')+']';
-    det.push({date:tgt.date, abs:absStr, marks:marks, hit:wHit});
+    // 推荐2D(双缺):数根缺 且 两位数字都缺 → 写成 04xx / x31x / xx58
+    function dbl2d(rootSet,a,b){ var o=[]; for(var u=0;u<=9;u++)for(var v=0;v<=9;v++){ if(rootSet[dr(u+v)]&&D.A[a][u]&&D.A[b][v]) o.push(''+u+v); } return o; }
+    var Fr=(mode==='mix')?R.M:R.F, Br=(mode==='mix')?R.M:R.B;
+    var recF=dbl2d(Fr,0,1), recM=(mode==='mix')?[]:dbl2d(R.Mid,1,2), recB=dbl2d(Br,2,3);
+    det.push({date:tgt.date, abs:absStr, rec:{f:recF,m:recM,b:recB}, marks:marks, hit:wHit});
   }
   function verdict(t,hp,bp2){ var se=Math.sqrt((bp2/100)*(1-bp2/100)/Math.max(t,1))*100, lead=hp-bp2; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#7c3aed'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
   var modeLbl={mix:'混合数根',split:'数根分前后',pair:'前后数根匹配'}[mode];
@@ -23819,7 +23826,12 @@ function zoRootDigitComboBacktest(){
   // 逐期明细
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rdc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700">逐期明细（全部 '+tot+' 期，点可收起）▾</span>';
   h+='<div id="rdc-det" style="display:block;max-height:440px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#7c3aed;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席集(根/1D)</th><th style="text-align:left;padding:3px 6px">命中奖号(原因)</th><th style="padding:3px 6px">中?</th></tr>';
-  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+x.abs+'</td><td style="padding:3px 6px;font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+  var showFmt=(document.getElementById('rd-show')||{value:'d2'}).value;
+  function recHtml(x){ var f=x.rec.f.map(function(t){return t+'xx';}), mm=x.rec.m.map(function(t){return 'x'+t+'x';}), b=x.rec.b.map(function(t){return 'xx'+t;});
+    var rt=x.abs.match(/^根\[[^\]]*\]/); rt=rt?rt[0]:'';
+    function row(lbl,col,arr){ return arr.length?('<div style="margin-top:2px"><b style="color:'+col+'">'+lbl+'('+arr.length+')</b> <span style="font-family:monospace">'+arr.join(' ')+'</span></div>'):''; }
+    return '<div style="color:#64748b">'+rt+'</div>'+row('前','#0f766e',f)+row('中','#b45309',mm)+row('后','#be185d',b); }
+  det.slice().reverse().forEach(function(x){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+(showFmt==='d2'?recHtml(x):x.abs)+'</td><td style="padding:3px 6px;font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——两个缺席条件叠加会让命中率变低(更难中)，但不代表能预测。诚实验证用。</div>';
   h+='</div>';
