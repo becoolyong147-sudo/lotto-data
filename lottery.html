@@ -914,6 +914,10 @@ function renderPatternTrend(){
           <option value="seq">顺序排(一行100个,0000→9999)</option>
           <option value="blk" selected>按前2D分块(每块10×10 = 同一个前2D的100个号)</option>
         </select></div>
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">从哪一年</label>
+        <select id="bp-y1" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="0">最早</option></select></div>
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">到哪一年</label>
+        <select id="bp-y2" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="9999">最新</option></select></div>
       <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">颜色表示什么</label>
         <select id="bp-mode" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px">
           <option value="cnt">开过几次(越深越多,空白=从没开过)</option>
@@ -23113,12 +23117,21 @@ function zoBlueprint(){
   var layout=V('bp-layout','blk'), mode=V('bp-mode','cnt'), mine=V('bp-mine','none');
   var R=parseInt(V('bp-recent','1'),10)||0, Z=parseInt(V('bp-size','9'),10)||9;
   function pad(n){ return String(n).padStart(4,'0'); }
-  var H=zoNum4Hist(mk), cnt=H.cnt, last=H.last;
-  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, m=[];
-  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
-  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
-  m=m.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  var nd=(typeof getNewResults==='function')?getNewResults():{}, seen={}, mAll=[];
+  (nd[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mAll.push(d);} });
+  ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;mAll.push(d);} });
+  mAll=mAll.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
+  // 年份下拉(只在第一次/换市场时按这家的年份范围重建)
+  var yMin=+String(mAll[0].date).slice(0,4), yMax=+String(mAll[mAll.length-1].date).slice(0,4);
+  var s1=document.getElementById('bp-y1'), s2=document.getElementById('bp-y2');
+  if(s1&&s2&&s1.getAttribute('data-mk')!==mk){ var o1='<option value="0">最早('+yMin+')</option>', o2='<option value="9999">最新('+yMax+')</option>'; for(var yy=yMin;yy<=yMax;yy++){ o1+='<option value="'+yy+'">'+yy+'</option>'; o2+='<option value="'+yy+'">'+yy+'</option>'; } s1.innerHTML=o1; s2.innerHTML=o2; s1.setAttribute('data-mk',mk); s2.value='9999'; s1.value='0'; }
+  var Y1=parseInt(V('bp-y1','0'),10)||0, Y2=parseInt(V('bp-y2','9999'),10)||9999; if(Y1&&Y2<9999&&Y1>Y2){ var tmpY=Y1; Y1=Y2; Y2=tmpY; }
+  var m=mAll.filter(function(d){ var y=+String(d.date).slice(0,4); return (!Y1||y>=Y1)&&y<=Y2; });
+  if(!m.length){ out.innerHTML='<div class="warn">'+Y1+'–'+Y2+' 年之间没有 '+mk+' 的成绩。</div>'; return; }
+  var cnt={}, last={};
+  m.forEach(function(d){ [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s0=pad(v); if(!/^\d{4}$/.test(s0))return; cnt[s0]=(cnt[s0]||0)+1; last[s0]=String(d.date); }); });
   var total=m.length, idxOf={}; m.forEach(function(d,i){ idxOf[d.date]=i; });
+  var yLabel=(Y1?Y1:yMin)+' 至 '+(Y2<9999?Y2:yMax)+' 年';
   var skipLast=(mine==='mp'||mine==='m2c')?1:0;   // 亮出我的号时,最新一期是「挑号的依据」,不算(否则它一定在里面,误导)
   var recent={}; if(R>0){ m.slice(Math.max(0,m.length-R-skipLast), m.length-skipLast).forEach(function(d){ [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s=pad(v); (recent[s]=recent[s]||[]).push(String(d.date).slice(5)+['头','二','三'][pi]); }); }); }
   // 我要买的号
@@ -23160,8 +23173,8 @@ function zoBlueprint(){
   var legend = mode==='cnt'
     ? '<span><i style="display:inline-block;width:14px;height:14px;background:#f1f5f9;border:1px solid #cbd5e1;vertical-align:middle"></i> 从没开过 '+never+' 个</span> <span><i style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,76%);vertical-align:middle"></i> 开过1次</span> <span><i style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,56%);vertical-align:middle"></i> 2次</span> <span><i style="display:inline-block;width:14px;height:14px;background:hsl(173,60%,36%);vertical-align:middle"></i> 4次以上</span>'
     : ['#ef4444|最近30期内','#f97316|31–120期','#facc15|121–400期','#84cc16|401–1200期','#38bdf8|1201–2500期','#94a3b8|2500期以上','#f1f5f9|从没开过'].map(function(x){ var q=x.split('|'); return '<span><i style="display:inline-block;width:14px;height:14px;background:'+q[0]+';border:1px solid #cbd5e1;vertical-align:middle"></i> '+q[1]+'</span>'; }).join(' ');
-  var h='<div class="card" style="border:2px solid #0f766e"><h3 style="color:#0f766e">🗺️ '+mk+' · 大蓝图 · '+(mode==='cnt'?'开过几次':'隔了多久没开')+' · '+(layout==='blk'?'按前2D分块':'顺序排')+'</h3>';
-  h+='<div style="font-size:14px;margin-bottom:6px">'+mk+' 共 <b>'+total+'</b> 期。10000 个号里:<b style="color:#0f766e">'+opened+'</b> 个开过,<b style="color:#94a3b8">'+never+'</b> 个从没开过,最多的一个开过 <b>'+maxC+'</b> 次。</div>';
+  var h='<div class="card" style="border:2px solid #0f766e"><h3 style="color:#0f766e">🗺️ '+mk+' · '+yLabel+' · 大蓝图 · '+(mode==='cnt'?'开过几次':'隔了多久没开')+' · '+(layout==='blk'?'按前2D分块':'顺序排')+'</h3>';
+  h+='<div style="font-size:14px;margin-bottom:6px">'+mk+' <b>'+yLabel+'</b> 共 <b>'+total+'</b> 期(只算这段年份)。10000 个号里:<b style="color:#0f766e">'+opened+'</b> 个开过,<b style="color:#94a3b8">'+never+'</b> 个从没开过,最多的一个开过 <b>'+maxC+'</b> 次。</div>';
   h+='<div style="font-size:13px;color:#475569;display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'+legend+(R?' <span><i style="display:inline-block;width:14px;height:14px;box-shadow:inset 0 0 0 3px #dc2626;vertical-align:middle"></i> '+(skipLast?'(最新一期除外)':'')+'最近'+R+'期开的号</span>':'')+(mineSet?' <span><i style="display:inline-block;width:14px;height:14px;outline:2px solid #1d4ed8;outline-offset:-2px;vertical-align:middle"></i> 我要买的('+mineName+' '+mineN+'个),其余变淡</span>':'')+'</div>';
   if(mine==='lh'){ h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px;color:#7c2d12">🧘 <b>十八罗汉怎么算:</b>把4D号去掉任意一位,剩下3个数字(不分顺序)属于哪一组罗汉,这个号就算属于它。例:1467 去掉6 → 147 → 第1罗汉。<br>'+mineName+' 共 <b>'+mineN+'</b> 个号('+Math.round(mineN/100)+'%)。蓝框 = 属于这个罗汉的号。</div>'; }
   if(mineSet){ var inMine=0, tot=0; Object.keys(recent).forEach(function(k){ tot++; if(mineSet[k]) inMine++; });
