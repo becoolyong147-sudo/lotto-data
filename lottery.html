@@ -924,7 +924,10 @@ function renderPatternTrend(){
           <option value="none">不亮</option>
           <option value="mp">跟上期数根(🎲给我号码)</option>
           <option value="m2c">主打+条件(🎯主打+条件)</option>
+          <option value="lh">十八罗汉(选下面的罗汉)</option>
         </select></div>
+      <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">选哪个罗汉</label>
+        <select id="bp-lh" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="0">全部18个罗汉</option><option value="1">第1罗汉 · 147/047/247</option><option value="2">第2罗汉 · 137/157</option><option value="3">第3罗汉 · 148/146</option><option value="4">第4罗汉 · 258/158/358</option><option value="5">第5罗汉 · 248/268</option><option value="6">第6罗汉 · 259/279</option><option value="7">第7罗汉 · 269/369/469</option><option value="8">第8罗汉 · 359/379</option><option value="9">第9罗汉 · 368/360</option><option value="10">第10罗汉 · 123/023/223</option><option value="11">第11罗汉 · 113/133</option><option value="12">第12罗汉 · 124/122</option><option value="13">第13罗汉 · 456/356/556</option><option value="14">第14罗汉 · 446/466</option><option value="15">第15罗汉 · 457/455</option><option value="16">第16罗汉 · 789/689/889</option><option value="17">第17罗汉 · 799/779</option><option value="18">第18罗汉 · 780/788</option></select></div>
       <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">最近开的号用红框标出</label>
         <select id="bp-recent" onchange="zoBlueprint()" style="font-size:15px;padding:6px 8px"><option value="0">不标</option><option value="1" selected>最近1期</option><option value="5">最近5期</option><option value="10">最近10期</option><option value="30">最近30期</option></select></div>
       <div><label style="font-size:13px;color:#0f766e;font-weight:700;display:block">格子大小</label>
@@ -23116,11 +23119,16 @@ function zoBlueprint(){
   ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
   m=m.filter(function(d){return d.nums&&!String(d.date).endsWith('-00');}).sort(function(a,b){return String(a.date).localeCompare(String(b.date));});
   var total=m.length, idxOf={}; m.forEach(function(d,i){ idxOf[d.date]=i; });
-  var skipLast=(mine!=='none')?1:0;   // 亮出我的号时,最新一期是「挑号的依据」,不算(否则它一定在里面,误导)
+  var skipLast=(mine==='mp'||mine==='m2c')?1:0;   // 亮出我的号时,最新一期是「挑号的依据」,不算(否则它一定在里面,误导)
   var recent={}; if(R>0){ m.slice(Math.max(0,m.length-R-skipLast), m.length-skipLast).forEach(function(d){ [0,1,2].forEach(function(pi){ var v=d.nums[pi]; if(v==null||v==='')return; var s=pad(v); (recent[s]=recent[s]||[]).push(String(d.date).slice(5)+['头','二','三'][pi]); }); }); }
   // 我要买的号
   var mineSet=null, mineN=0, mineName='';
-  if(mine!=='none'){ var L=(mine==='mp')?window.__mpList:window.__m2cList; mineName=(mine==='mp')?'跟上期数根':'主打+条件';
+  if(mine==='lh'){
+    var which=parseInt(V('bp-lh','0'),10)||0; mineName=which?('第'+which+'罗汉'):'全部18罗汉';
+    if(typeof window.LH_MATCH!=='function'){ out.innerHTML='<div class="warn">十八罗汉还没加载,请先打开一次「🧘 十八罗汉」页面再回来。</div>'; return; }
+    mineSet={}; for(var q=0;q<10000;q++){ var sq=pad(q); var hs=window.LH_MATCH(sq); if(which){ if(hs.some(function(h){return h.index===which;})) mineSet[sq]=1; } else if(hs.length) mineSet[sq]=1; }
+    mineN=Object.keys(mineSet).length;
+  } else if(mine!=='none'){ var L=(mine==='mp')?window.__mpList:window.__m2cList; mineName=(mine==='mp')?'跟上期数根':'主打+条件';
     if(!L||!L.length){ out.innerHTML='<div class="warn">还没有「'+mineName+'」的号码。请先到上面按一次「'+(mine==='mp'?'🎲 给我号码':'🎯 看回测')+'」,再回来画蓝图。</div>'; return; }
     mineSet={}; L.forEach(function(x){mineSet[x]=1;}); mineN=L.length; }
   var maxC=0, never=0, opened=0; for(var n0=0;n0<10000;n0++){ var c0=cnt[pad(n0)]||0; if(c0>maxC)maxC=c0; if(c0===0)never++; else opened++; }
@@ -23144,8 +23152,8 @@ function zoBlueprint(){
     for(var f=0;f<100;f++){
       var inner=[]; for(var k=0;k<100;k++){ var s2=pad(f*100+k); inner.push('<span style="display:inline-block;margin:0 '+gp+'px '+gp+'px 0">'+cell(s2)+'</span>'); }
       // 方块头:前2D + 开过几个
-      var opn=0; for(var q=0;q<100;q++){ if(cnt[pad(f*100+q)]) opn++; }
-      blocks.push('<div style="display:inline-block;vertical-align:top;margin:0 '+pad2+'px '+pad2+'px 0"><div style="font-size:11px;font-family:monospace;color:#0f766e;line-height:1.3;font-weight:700">'+String(f).padStart(2,'0')+'<span style="color:#94a3b8;font-weight:400"> '+opn+'/100</span></div><div style="width:'+BW+'px;line-height:0;font-size:0;border:1px solid #cbd5e1">'+inner.join('')+'</div></div>');
+      var opn=0, buyN=0; for(var q=0;q<100;q++){ var sq2=pad(f*100+q); if(cnt[sq2]) opn++; if(mineSet&&mineSet[sq2]) buyN++; }
+      blocks.push('<div style="display:inline-block;vertical-align:top;margin:0 '+pad2+'px '+pad2+'px 0"><div style="font-size:11px;font-family:monospace;color:#0f766e;line-height:1.3;font-weight:700">'+String(f).padStart(2,'0')+'<span style="color:#94a3b8;font-weight:400"> 开过'+opn+'</span>'+(mineSet?' <span style="color:#1d4ed8;font-weight:700">买'+buyN+'</span>':'')+'</div><div style="width:'+BW+'px;line-height:0;font-size:0;border:1px solid #cbd5e1">'+inner.join('')+'</div></div>');
     }
     html='<div style="font-size:0">'+blocks.join('')+'</div>';
   }
@@ -23155,9 +23163,10 @@ function zoBlueprint(){
   var h='<div class="card" style="border:2px solid #0f766e"><h3 style="color:#0f766e">🗺️ '+mk+' · 大蓝图 · '+(mode==='cnt'?'开过几次':'隔了多久没开')+' · '+(layout==='blk'?'按前2D分块':'顺序排')+'</h3>';
   h+='<div style="font-size:14px;margin-bottom:6px">'+mk+' 共 <b>'+total+'</b> 期。10000 个号里:<b style="color:#0f766e">'+opened+'</b> 个开过,<b style="color:#94a3b8">'+never+'</b> 个从没开过,最多的一个开过 <b>'+maxC+'</b> 次。</div>';
   h+='<div style="font-size:13px;color:#475569;display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'+legend+(R?' <span><i style="display:inline-block;width:14px;height:14px;box-shadow:inset 0 0 0 3px #dc2626;vertical-align:middle"></i> '+(skipLast?'(最新一期除外)':'')+'最近'+R+'期开的号</span>':'')+(mineSet?' <span><i style="display:inline-block;width:14px;height:14px;outline:2px solid #1d4ed8;outline-offset:-2px;vertical-align:middle"></i> 我要买的('+mineName+' '+mineN+'个),其余变淡</span>':'')+'</div>';
+  if(mine==='lh'){ h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px;color:#7c2d12">🧘 <b>十八罗汉怎么算:</b>把4D号去掉任意一位,剩下3个数字(不分顺序)属于哪一组罗汉,这个号就算属于它。例:1467 去掉6 → 147 → 第1罗汉。<br>'+mineName+' 共 <b>'+mineN+'</b> 个号('+Math.round(mineN/100)+'%)。蓝框 = 属于这个罗汉的号。</div>'; }
   if(mineSet){ var inMine=0, tot=0; Object.keys(recent).forEach(function(k){ tot++; if(mineSet[k]) inMine++; });
-    h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px;color:#1e3a8a">🔎 最新一期是「挑号的依据」,不算。再往前 '+R+' 期开的 '+tot+' 个号里,有 <b>'+inMine+'</b> 个在你要买的号里(蓝框 + 红框重叠的格子)。<div style="font-size:12px;color:#64748b;margin-top:2px">用这个看:如果当时就买这批号,过去几期会不会买到。随机的话大约 '+Math.round(mineN/100)+'% 左右。</div></div>'; }
-  h+='<div style="font-size:12px;color:#94a3b8;margin-bottom:6px">'+(layout==='blk'?'每一小块 = 一个前2D(块左上角的数字,例 36),块里 100 格 = 这个前2D 配上 00–99 的后2D。块旁的 “37/100” = 这块里开过几个号。':'一行 100 个:第 r 行第 c 列 = 号码 r×100+c。')+'把鼠标放在格子上看详情。</div>';
+    h+='<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:14px;color:#1e3a8a">🔎 '+(skipLast?'最新一期是「挑号的依据」,不算。再往前 ':'最近 ')+R+' 期开的 '+tot+' 个号里,有 <b>'+inMine+'</b> 个在你要买的号里(蓝框 + 红框重叠的格子)。<div style="font-size:12px;color:#64748b;margin-top:2px">随机的话大约 '+Math.round(mineN/100)+'% 左右(= '+Math.round(tot*mineN/10000*10)/10+' 个)。</div></div>'; }
+  h+='<div style="font-size:12px;color:#94a3b8;margin-bottom:6px">'+(layout==='blk'?'每一小块 = 一个前2D(块左上角的数字,例 36),块里 100 格 = 这个前2D 配上 00–99 的后2D。块旁边写着:「开过37」= 这块100个号里开过37个;「买60」(亮出我的号时才有)= 这块里你要买60个。':'一行 100 个:第 r 行第 c 列 = 号码 r×100+c。')+'把鼠标放在格子上看详情。</div>';
   h+='<div style="overflow:auto;max-height:78vh;border:1px solid #e2e8f0;padding:6px;background:#fff">'+html+'</div></div>';
   out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
 }
