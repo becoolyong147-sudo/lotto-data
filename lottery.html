@@ -12567,7 +12567,6 @@ function zo2DRootBacktest(){
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑪4D数根 <select id="fp-r4mode" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="mix">跟随缺根·合并(前后缺)</option><option value="front">跟随·前2D缺根</option><option value="back">跟随·后2D缺根</option></select></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑫每期上限 <select id="fp-cap" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="0">不限</option><option value="300">300</option><option value="500">500</option><option value="800">800</option><option value="1000">1000</option></select><span style="font-size:10px;color:#64748b"> (⑤开时,超上限自动逐级加条件压下来)</span></span>
     <span style="border-left:1px solid #a5f3fc;padding-left:10px">⑬跟上期数根 <select id="fp-fol" onchange="zoFixedPackBacktest()" style="padding:2px 5px"><option value="off">关</option><option value="both">前2D+后2D 都跟</option><option value="front">只跟前2D数根</option><option value="back">只跟后2D数根</option></select><span style="font-size:10px;color:#64748b"> (上期头二三的前/后2D数根 → 这期同数根)</span></span>
-    <span style="border-left:1px solid #a5f3fc;padding-left:10px">💰下注 头二三每奖RM<input id="fp-st-top" value="0.1" size="3" onchange="zoFixedPackBacktest()" style="padding:2px 4px"> 特别/安慰RM<input id="fp-st-sp" value="0.3" size="3" onchange="zoFixedPackBacktest()" style="padding:2px 4px"> 赔率 头二三×<input id="fp-pay-top" value="6000" size="4" onchange="zoFixedPackBacktest()" style="padding:2px 4px"> 小奖×<input id="fp-pay-sp" value="600" size="4" onchange="zoFixedPackBacktest()" style="padding:2px 4px"></span>
   </div>
   <div id="fp-out" style="margin-top:10px"></div>
 </div>
@@ -22839,7 +22838,7 @@ function zoFixedPackBacktest(){
   m.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
   _pitAll=m.slice(); _pitP=0;
   if(N>0&&m.length>N)m=m.slice(m.length-N);
-  function info(d){ var nums=[]; [0,1,2].forEach(function(p){ var v=d.nums&&d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); var spA=(d.sp||[]).map(pad).filter(function(x){return /^\d{4}$/.test(x);}), csA=(d.cs||[]).map(pad).filter(function(x){return /^\d{4}$/.test(x);}); return {date:d.date,nums:nums,sp:spA,cs:csA}; }
+  function info(d){ var nums=[]; [0,1,2].forEach(function(p){ var v=d.nums&&d.nums[p]; if(v==null||v==='')return; var s=pad(v); if(/^\d{4}$/.test(s))nums.push(s); }); return {date:d.date,nums:nums}; }
   var per=m.map(info).filter(function(x){return x.nums.length>0;});
   if(per.length<5){ out.innerHTML='<div class="warn">'+mk+' 期数太少,无法回测。</div>'; return; }
   // ⑤ 双缺集合(数根两期 per[i],per[i+1] · 1D per[i+1])
@@ -22858,8 +22857,6 @@ function zoFixedPackBacktest(){
   var staticCount=null;
   if(mode5==='off'&&!seaYrOn){ staticCount=0; for(var n0=0;n0<10000;n0++){ if(passStatic(pad(n0)))staticCount++; } }
   var tot=0,hit=0,base=0,szSum=0,det=[],arr=[];
-  var stTop=parseFloat(V('fp-st-top','0.1'))||0, stSm=parseFloat(V('fp-st-sp','0.3'))||0, payTop=parseFloat(V('fp-pay-top','6000'))||0, paySm=parseFloat(V('fp-pay-sp','600'))||0;
-  var pnlCost=0,pnlWin=0,pnlCum=0,cTop=0,cSp=0,cCs=0,noSm=0;
   var loss={},capturable=0,capAll=0;   // 🔎命中归因:开出的号被哪个单一条件卡掉
   var startI=(mode5!=='off'||r4On)?1:0;
   var exclN=parseInt(V('fp-excln','50'),10)||0;   // 0=永久排除, 否则近N期内排除、过后回池
@@ -22896,8 +22893,8 @@ function zoFixedPackBacktest(){
     }
     // 命中判定 + 原因
     function pass5(s){ if(mode5==='off')return true; var f=s.slice(0,2),b=s.slice(2,4); if(mode5==='split')return !!(dq.front[f]&&dq.back[b]); return !!(dq.front[f]||dq.back[b]); }
-    var marks=[], smallHit={sp:[],cs:[]};
-    function judgeOne(s,kind){
+    var marks=[];
+    tgt.nums.forEach(function(s){
       var d=[+s[0],+s[1],+s[2],+s[3]], fa=[];
       if(cP4){ var v=d[0]+d[1]+d[2]+d[3]; if(v<p4a||v>p4b)fa.push('p4'); }
       if(cP3f){ var v3=d[0]+d[1]+d[2]; if(v3<p3fa||v3>p3fb)fa.push('p3f'); }
@@ -22912,20 +22909,14 @@ function zoFixedPackBacktest(){
       if(exclOn && !passExcl(s))fa.push('excl');
       if(mode5!=='off' && !pass5(s))fa.push('r1d');
       if(lvUsed){ for(var L2=0;L2<lvUsed;L2++){ if(!CAPLAD[L2].f(s)){ fa.push('cap'); break; } } }
-      if(kind){ if(fa.length===0) smallHit[kind].push(s); return; }
       capturable++;
       if(fa.length===0){ capAll++; marks.push(s); }
       else if(fa.length===1){ loss[fa[0]]=(loss[fa[0]]||0)+1; }
-    }
-    tgt.nums.forEach(function(s){ judgeOne(s,null); });
-    (tgt.sp||[]).forEach(function(s){ judgeOne(s,'sp'); }); (tgt.cs||[]).forEach(function(s){ judgeOne(s,'cs'); });
+    });
     var hh=marks.length>0;
     tot++; if(hh)hit++; szSum+=candSize; arr.push(hh);
     base+=1-Math.pow(1-Math.min(candSize,10000)/10000, nc);
-    var nTop=marks.length, nSp=smallHit.sp.length, nCs=smallHit.cs.length, hasSm=((tgt.sp||[]).length>0);
-    var cost=candSize*(stTop*3+stSm), win=nTop*stTop*payTop+(nSp+nCs)*stSm*paySm; pnlCost+=cost; pnlWin+=win; pnlCum+=win-cost;
-    cTop+=nTop; cSp+=nSp; cCs+=nCs; if(!hasSm) noSm++;
-    det.push({date:tgt.date, marks:marks, hit:hh, sz:candSize, sp:smallHit.sp, cs:smallHit.cs, hasSm:hasSm, cost:cost, win:win, cum:pnlCum});
+    det.push({date:tgt.date, marks:marks, hit:hh, sz:candSize});
   }
   function streaks(a){ var mw=0,ml=0,cw=0,cl=0; a.forEach(function(h){if(h){cw++;cl=0;if(cw>mw)mw=cw;}else{cl++;cw=0;if(cl>ml)ml=cl;}}); var i=a.length-1,sg=0,n=0; if(i>=0){sg=a[i]?1:-1;while(i>=0&&(a[i]?1:-1)===sg){n++;i--;}} return {mw:mw,ml:ml,cur:sg*n}; }
   var hp=tot?hit/tot*100:0, bp=tot?base/tot*100:0, avg=tot?Math.round(szSum/tot):0, st=streaks(arr);
@@ -22983,13 +22974,9 @@ function zoFixedPackBacktest(){
   var lparts=Object.keys(loss).filter(function(k){return loss[k]>0;}).sort(function(a,b){return loss[b]-loss[a];}).map(function(k){return '<b style="color:#dc2626">'+(LN[k]||k)+' 卡掉 '+loss[k]+' 个</b>';});
   h+='<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#9a3412">🔎 <b>命中归因</b>(为什么❌):开出的号共 <b>'+capturable+'</b> 个,全条件通过(=✅命中) <b style="color:#16a34a">'+capAll+'</b> 个。'+(lparts.length?('<br>被<b>单一条件</b>卡掉(去掉它这号就能中):'+lparts.join(' · ')+'。<br><span style="font-size:11px;color:#c2410c">👉 卡掉最多的那个条件最「贵」——它是❌的主因,想多中就考虑放宽它。</span>'):'<br>没有号是被单一条件卡掉的(要么全过、要么同时被多个条件挡)。')+'</div>';
   // 逐期
-  function rmf(v){ return (v<0?'-':'')+'RM'+Math.abs(v).toFixed(2); }
-  function pc(v){ return '<span style="color:'+(v<0?'#dc2626':v>0?'#16a34a':'#94a3b8')+';font-weight:700">'+(v>0?'+':'')+rmf(v)+'</span>'; }
-  h+='<div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.8">💰 <b>下注盈亏</b>(每个号:头二三每奖 RM'+stTop+' ×3 + 特别/安慰 RM'+stSm+' = RM'+(stTop*3+stSm).toFixed(2)+';赔率 头二三×'+payTop+' 小奖×'+paySm+')<br>共 '+tot+' 期 · 总投入 <b>'+rmf(pnlCost)+'</b> · 总拿回 <b>'+rmf(pnlWin)+'</b> · 净盈亏 '+pc(pnlWin-pnlCost)+'<br><span style="font-size:12px;color:#475569">中奖次数:头二三 '+cTop+' 个 · 特别奖 '+cSp+' 个 · 安慰奖 '+cCs+' 个'+(noSm?(' · 有 '+noSm+' 期没有特别奖/安慰奖记录(只算头二三)'):'')+'</span></div>';
-  h+='<div style="font-size:11px;color:#64748b">颜色:<span style="color:#16a34a;font-weight:700">绿=头二三</span> <span style="color:#d97706;font-weight:700">橙=特别奖</span> <span style="color:#2563eb;font-weight:700">蓝=安慰奖</span>。每个命中的号都满足上面「当前生效条件」的全部条件。</div>';
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'fp-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#0891b2;font-weight:700">逐期明细 ▾</span>';
-  h+='<div id="fp-det" style="display:block;max-height:340px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0891b2"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">命中奖号(满足全部条件)</th><th style="padding:3px 6px">候选</th><th style="padding:3px 6px">投入</th><th style="padding:3px 6px">拿回</th><th style="padding:3px 6px">盈亏</th><th style="padding:3px 6px">累计</th></tr>';
-  det.slice().reverse().forEach(function(x){ var cellN=x.marks.map(function(n){return '<span style="color:#16a34a">'+n+'</span>';}).concat(x.sp.map(function(n){return '<span style="color:#d97706" title="特别奖">'+n+'</span>';})).concat(x.cs.map(function(n){return '<span style="color:#2563eb" title="安慰奖">'+n+'</span>';})); h+='<tr style="border-top:1px solid #e0f2fe;background:'+((x.win>0)?'#ecfeff':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;font-weight:700">'+(cellN.length?cellN.join(' '):'<span style="color:#cbd5e1">—</span>')+(x.hasSm?'':' <span style="font-size:10px;color:#94a3b8;font-weight:400">(无小奖记录)</span>')+'</td><td style="text-align:center;padding:3px 6px;color:#94a3b8">'+x.sz+'</td><td style="text-align:right;padding:3px 6px;color:#64748b">'+rmf(x.cost)+'</td><td style="text-align:right;padding:3px 6px">'+rmf(x.win)+'</td><td style="text-align:right;padding:3px 6px">'+pc(x.win-x.cost)+'</td><td style="text-align:right;padding:3px 6px">'+pc(x.cum)+'</td></tr>'; });
+  h+='<div id="fp-det" style="display:block;max-height:340px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:12px;border-collapse:collapse"><tr style="color:#0891b2"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">命中奖号(满足全部条件)</th><th style="padding:3px 6px">候选</th><th style="padding:3px 6px">中?</th></tr>';
+  det.slice().reverse().forEach(function(x){ h+='<tr style="border-top:1px solid #e0f2fe;background:'+(x.hit?'#ecfeff':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;font-weight:700;color:#0e7490">'+(x.marks.length?x.marks.join(' '):'<span style="color:#cbd5e1">—</span>')+'</td><td style="text-align:center;padding:3px 6px;color:#94a3b8">'+x.sz+'</td><td style="text-align:center;padding:3px 6px;font-size:15px">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">⚠️ 候选=当期满足所有勾选条件的4D数量(⑤开时按双缺拼)。判定2×标准误。诚实验证,不预测。</div>';
   h+='</div>';
