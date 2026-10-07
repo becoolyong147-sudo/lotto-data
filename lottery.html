@@ -12530,6 +12530,10 @@ function zo2DRootBacktest(){
     <div class="ig"><label>缺席集显示</label>
       <select id="rd-show"><option value="d2" selected>推荐2D(双缺)</option><option value="d1">原来的1D</option></select>
     </div>
+    <div class="ig"><label>💰下注 头二三每奖RM</label><input id="rd-st-top" value="0.1" size="4" style="padding:3px 5px">
+      <label>特别/安慰RM</label><input id="rd-st-sp" value="0.3" size="4" style="padding:3px 5px">
+      <label>赔率 头二三×</label><input id="rd-pay-top" value="6000" size="5" style="padding:3px 5px">
+      <label>小奖×</label><input id="rd-pay-sp" value="600" size="4" style="padding:3px 5px"></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#c2410c;color:#fff;padding:9px 16px" onclick="zoRootExcludeBacktest()">🚫 排除法回测(2D+3D数根·排刚出的)</button></div>
@@ -23853,6 +23857,18 @@ function zoRootDigitComboBacktest(){
   h+='<div class="warn">命中＝该期下一期头二三里，<b>至少一个奖号</b>同时满足数根缺席+对应位1D缺席。随机基准为理论近似(根各11%、位=缺数/10)，2×标准误判定。</div>';
   // 逐期明细
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rdc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700">逐期明细（全部 '+tot+' 期，点可收起）▾</span>';
+  // 💰 下注盈亏:买的号=推荐2D覆盖的全部4D(前2D∈前集 或 中2D∈中集 或 后2D∈后集);每个号 头二三每奖RM a ×3 + 特别/安慰 RM b
+  var stTop=parseFloat((document.getElementById('rd-st-top')||{value:'0.1'}).value)||0, stSm=parseFloat((document.getElementById('rd-st-sp')||{value:'0.3'}).value)||0,
+      payTop=parseFloat((document.getElementById('rd-pay-top')||{value:'6000'}).value)||0, paySm=parseFloat((document.getElementById('rd-pay-sp')||{value:'600'}).value)||0;
+  var pCost=0,pWin=0,pCnt={t:0,s:0,c:0},pNoSm=0,pCum=0;
+  det.forEach(function(x){ var rf={},rm={},rb={}; x.rec.f.forEach(function(t){rf[t]=1;}); x.rec.m.forEach(function(t){rm[t]=1;}); x.rec.b.forEach(function(t){rb[t]=1;});
+    var AF=new Uint8Array(100),AM=new Uint8Array(100),AB=new Uint8Array(100); x.rec.f.forEach(function(t){AF[+t]=1;}); x.rec.m.forEach(function(t){AM[+t]=1;}); x.rec.b.forEach(function(t){AB[+t]=1;});
+    var n=0; for(var q=0;q<10000;q++){ if(AF[(q/100)|0]||AM[((q/10)|0)%100]||AB[q%100]) n++; }
+    var L=hitList(x), hasSm=(x.sp||[]).length>0; x.nBuy=n; x.cost=n*(stTop*3+stSm); x.win=L.top.length*stTop*payTop+(L.sp.length+L.cs.length)*stSm*paySm;
+    pCost+=x.cost; pWin+=x.win; pCum+=x.win-x.cost; x.cum=pCum; pCnt.t+=L.top.length; pCnt.s+=L.sp.length; pCnt.c+=L.cs.length; if(!hasSm) pNoSm++; });
+  function rmf(v){ return (v<0?'-':'')+'RM'+Math.abs(v).toFixed(2); }
+  function pcl(v){ return '<span style="color:'+(v<0?'#dc2626':v>0?'#16a34a':'#94a3b8')+';font-weight:700">'+(v>0?'+':'')+rmf(v)+'</span>'; }
+  if((document.getElementById('rd-show')||{value:'d2'}).value==='d2') h+='<div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:8px 10px;margin:6px 0;font-size:13px;line-height:1.8">💰 <b>下注盈亏</b>:把每期推荐2D覆盖的4D全买(每个号 头二三每奖 RM'+stTop+'×3 + 特别/安慰 RM'+stSm+' = RM'+(stTop*3+stSm).toFixed(2)+';赔率 头二三×'+payTop+' 小奖×'+paySm+')<br>共 '+det.length+' 期 · 总投入 <b>'+rmf(pCost)+'</b> · 总拿回 <b>'+rmf(pWin)+'</b> · 净盈亏 '+pcl(pWin-pCost)+'<br><span style="font-size:12px;color:#475569">中:头二三 '+pCnt.t+' 个 · 特别奖 '+pCnt.s+' 个 · 安慰奖 '+pCnt.c+' 个'+(pNoSm?(' · 其中 '+pNoSm+' 期没有小奖记录(只算头二三)'):'')+'</span></div>';
   if((document.getElementById('rd-show')||{value:'d2'}).value==='d2') h+='<div style="font-size:12px;color:#475569;margin-top:6px">推荐2D 亮色 = 下一期开出的号里,这一段2D中了: <span style="background:#16a34a;color:#fff;border-radius:3px;padding:0 5px">头二三</span> <span style="background:#f59e0b;color:#fff;border-radius:3px;padding:0 5px">特别奖(10个)</span> <span style="background:#3b82f6;color:#fff;border-radius:3px;padding:0 5px">安慰奖(10个)</span>。特别奖/安慰奖只有近期才有记录,没记录的期只会亮头二三。</div>';
   h+='<div id="rdc-det" style="display:block;max-height:440px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#7c3aed;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席集(根/1D)</th><th style="text-align:left;padding:3px 6px">命中奖号(原因)</th><th style="padding:3px 6px">中?</th></tr>';
   var showFmt=(document.getElementById('rd-show')||{value:'d2'}).value;
@@ -23872,7 +23888,8 @@ function zoRootDigitComboBacktest(){
     var line='<span style="color:#16a34a;font-weight:700">头二三 '+(x.top3||[]).length+' 个里中 '+nT+'</span>'+(hasSp?(' · <span style="color:#d97706;font-weight:700">特别奖 '+x.sp.length+' 个里中 '+nS+'</span> · <span style="color:#2563eb;font-weight:700">安慰奖 '+(x.cs||[]).length+' 个里中 '+nC+'</span>'):' · <span style="color:#94a3b8">(这期没有特别奖/安慰奖记录)</span>');
     function lst(lbl,col,arr){ return arr.length?('<div style="margin-top:3px"><b style="color:'+col+'">'+lbl+'</b> '+arr.map(function(k){ return '<span style="font-family:monospace;color:#334155">'+k.n+'</span><span style="font-size:11px;color:#94a3b8">('+k.w.join('·')+')</span>'; }).join('　')+'</div>'):''; }
     var detail=lst('头二三','#16a34a',L.top)+lst('特别奖','#d97706',L.sp)+lst('安慰奖','#2563eb',L.cs)||'<div style="color:#94a3b8">没有号码命中</div>';
-    return '<div onclick="var e=document.getElementById(\'rdf-'+ri+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;font-size:12px;line-height:1.6">'+line+' <span style="color:#7c3aed">▶</span></div><div id="rdf-'+ri+'" style="display:none;font-size:12px;margin-top:2px;padding:4px 6px;background:#faf5ff;border-radius:4px">'+detail+'</div>'; }
+    var money='<div style="font-size:12px;margin-top:2px;color:#64748b">买 '+x.nBuy+' 组 · 投入 '+rmf(x.cost)+' · 拿回 '+rmf(x.win)+' · '+pcl(x.win-x.cost)+' · 累计 '+pcl(x.cum)+'</div>';
+    return money+'<div onclick="var e=document.getElementById(\'rdf-'+ri+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;font-size:12px;line-height:1.6">'+line+' <span style="color:#7c3aed">▶</span></div><div id="rdf-'+ri+'" style="display:none;font-size:12px;margin-top:2px;padding:4px 6px;background:#faf5ff;border-radius:4px">'+detail+'</div>'; }
   det.slice().reverse().forEach(function(x,ri){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+(showFmt==='d2'?recHtml(x):x.abs)+'</td><td style="padding:3px 6px;vertical-align:top">'+(showFmt==='d2'?foldHtml(x,ri):('<span style="font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</span>'))+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——两个缺席条件叠加会让命中率变低(更难中)，但不代表能预测。诚实验证用。</div>';
