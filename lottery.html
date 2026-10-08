@@ -254,6 +254,7 @@ tr:hover td{background:#fafaf5}
 <div id="scene-decision" class="scene-panel active">
   <div class="subtabs">
     <div class="subtab active" data-tab="overview" onclick="switchSubtab(this)">🎯 一键总览</div>
+    <div class="subtab" data-tab="shapetrend" onclick="switchSubtab(this);stRun()" style="background:#ecfeff;border-color:#0891b2;font-weight:800">📊 形态走势</div>
     <div class="subtab" data-tab="myplay" onclick="switchSubtab(this)" style="background:#fef3c7;border-color:#f59e0b;font-weight:800">🎲 我的玩法</div>
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
@@ -849,6 +850,21 @@ function renderPatternTrend(){
 
 
 <!-- TAB: 我的玩法(跟上期2D数根,一键) -->
+<div id="tab-shapetrend" class="panel" style="padding:12px">
+  <div class="card" style="border:2px solid #0891b2">
+    <h3 style="color:#0e7490">📊 形态走势 — 单双、上下半年:每个组合开了几次,是不是平均</h3>
+    <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:8px">柱子=这个组合实际开了几次;<b>虚线=「公平的话应该开这么多」</b>。红=明显多于该有的,蓝=明显少,灰=正常范围。头奖、二奖、三奖各一张。</div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:12px;font-weight:700;display:block">市场</label>
+        <select id="st-mk" onchange="stRun()" style="font-size:15px;padding:5px 9px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">看多久</label>
+        <select id="st-win" onchange="stRun()" style="font-size:15px;padding:5px 9px"><option value="0">全部历史</option><option value="730">近2年</option><option value="365" selected>近1年</option><option value="180">近半年</option><option value="90">近3个月</option></select></div>
+      <button class="btn btn-green" style="padding:8px 16px;font-size:14px" onclick="stRun()">📊 生成</button>
+    </div>
+    <div id="st-out" style="margin-top:12px"></div>
+  </div>
+</div>
+
 <div id="tab-myplay" class="panel" style="padding:12px">
   <div class="card" style="border:2px solid #f59e0b">
     <h3 style="color:#b45309">🎲 我的玩法 · 跟上期的前2D / 后2D 数根</h3>
@@ -10873,6 +10889,91 @@ function lcCopyFallback(t){
   document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} ta.remove();
 }
 
+
+// 📊 形态走势:头/二/三奖的 单双排列(16种) 与 上下半年型 —— 实际开了几次 vs 公平应开几次,再配最近30期走向
+var __stPrize=0;
+function stRun(){
+  var out=document.getElementById('st-out'); if(!out) return;
+  var mk=document.getElementById('st-mk').value, win=parseInt(document.getElementById('st-win').value,10)||0;
+  var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3;});
+  m.sort(function(a,b){return String(a.date)<String(b.date)?-1:1;});
+  function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  m=m.filter(function(d){ return [0,1,2].every(function(k){return /^\d{1,4}$/.test(String(d.nums[k]==null?'':d.nums[k]).replace(/\D/g,''))&&String(d.nums[k]).replace(/\D/g,'')!=='';}); });
+  if(m.length<30){ out.innerHTML='<div class="warn">'+mk+' 期数太少。</div>'; return; }
+  var lastDate=String(m[m.length-1].date).slice(0,10), cutoff='';
+  if(win){ var dt=new Date(lastDate); dt.setDate(dt.getDate()-win); cutoff=dt.toISOString().slice(0,10); }
+  // 单双排列
+  function oe(n){ var r=''; for(var i=0;i<4;i++) r+=(+n[i])%2?'单':'双'; return r; }
+  var PATS=[]; for(var q=0;q<16;q++){ var r=''; for(var b=3;b>=0;b--) r+=((q>>b)&1)?'单':'双'; PATS.push(r); }
+  // 半年型(point-in-time):该号历史上 上半年(1-6月) vs 下半年 开过多少次;>1.2倍=偏某半年;没开过=新号
+  var CATS=[['h1','偏上半年'],['h2','偏下半年'],['bal','均衡'],['new','没开过']];
+  var h1=new Int16Array(10000), h2=new Int16Array(10000), catCnt={h1:0,h2:0,bal:0,new:10000};
+  function catOf(n){ var a=h1[n], b=h2[n]; if(a+b===0) return 'new'; if(a>b*1.2) return 'h1'; if(b>a*1.2) return 'h2'; return 'bal'; }
+  var P=[0,1,2].map(function(){ return {oe:{},cat:{},oeExp:1/16,catExp:{h1:0,h2:0,bal:0,new:0},n:0,seq:[]}; });
+  P.forEach(function(x){ PATS.forEach(function(t){x.oe[t]=0;}); CATS.forEach(function(c){x.cat[c[0]]=0;}); });
+  m.forEach(function(d){
+    var inWin=!cutoff||String(d.date).slice(0,10)>=cutoff, half=(+String(d.date).slice(5,7))<=6?1:2;
+    var nums=[0,1,2].map(function(k){return pd(d.nums[k]);});
+    var cats=nums.map(function(n){return catOf(+n);});
+    nums.forEach(function(n,k){
+      var x=P[k], o=oe(n); x.seq.push({date:String(d.date).slice(0,10),num:n,oe:o,cat:cats[k]});
+      if(inWin){ x.oe[o]++; x.cat[cats[k]]++; x.n++; CATS.forEach(function(c){ x.catExp[c[0]]+=catCnt[c[0]]/10000; }); }
+    });
+    nums.forEach(function(n,k){ var v=+n, c0=catOf(v); catCnt[c0]--; if(half===1)h1[v]++; else h2[v]++; catCnt[catOf(v)]++; });
+  });
+  function bars(items,N,latestKey){
+    var mx=0; items.forEach(function(it){ if(it.obs>mx)mx=it.obs; if(it.exp>mx)mx=it.exp; }); mx=mx*1.18||1;
+    return items.map(function(it){
+      var sd=Math.sqrt(Math.max(it.exp*(1-it.exp/Math.max(N,1)),0.0001)), z=(it.obs-it.exp)/sd;
+      var col=z>=2?'#dc2626':z<=-2?'#2563eb':'#94a3b8';
+      return '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px"><div style="width:'+(it.w||64)+'px;text-align:right;color:#334155;white-space:nowrap">'+it.label+'</div>'
+        +'<div style="flex:1;position:relative;height:16px;background:#f1f5f9;border-radius:3px"><div style="height:16px;width:'+(it.obs/mx*100)+'%;background:'+col+';border-radius:3px"></div>'
+        +'<div title="公平应开 '+it.exp.toFixed(1)+' 次" style="position:absolute;top:-2px;bottom:-2px;left:'+(it.exp/mx*100)+'%;border-left:2px dashed #0f172a"></div></div>'
+        +'<div style="width:42px;font-family:monospace;color:'+col+';font-weight:700">'+it.obs+'</div>'
+        +'<div style="width:46px;font-size:11px;color:#0891b2;font-weight:700">'+(it.key===latestKey?'⬅最新':'')+'</div></div>';
+    }).join('');
+  }
+  var PN=['头奖','二奖','三奖'], h='';
+  h+='<div style="font-size:12px;color:#64748b;margin-bottom:6px">'+mk+' · '+(cutoff?cutoff+' ~ ':'')+lastDate+' · 共 '+P[0].n+' 期。柱子右边的数=实际开了几次,黑色虚线=公平应开次数。</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px">';
+  P.forEach(function(x,k){
+    var last=x.seq[x.seq.length-1], N=x.n;
+    var groups=[['4单',0],['3单1双',1],['2单2双',2],['1单3双',3],['4双',4]], gExp=[1,4,6,4,1], gObs=[0,0,0,0,0];
+    PATS.forEach(function(t){ var dn=(t.match(/单/g)||[]).length; gObs[4-dn]+=x.oe[t]; });
+    var gi=(function(){ var dn=(last.oe.match(/单/g)||[]).length; return 4-dn; })();
+    h+='<div style="border:1px solid #cffafe;border-radius:10px;padding:10px;background:#fff">';
+    h+='<div style="font-weight:800;color:#0e7490;font-size:15px">'+PN[k]+' <span style="font-size:12px;color:#64748b;font-weight:400">最新开 '+last.num+'('+last.oe+' · '+(last.cat==='h1'?'偏上半年':last.cat==='h2'?'偏下半年':last.cat==='bal'?'均衡':'新号')+')</span></div>';
+    h+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">① 单双 · 几单几双</div>';
+    h+=bars(groups.map(function(g,i){ return {label:g[0],obs:gObs[i],exp:N*gExp[i]/16,key:'g'+i,w:56}; }),N,'g'+gi);
+    h+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">② 单双 · 16 种具体排列(单=奇数位)</div>';
+    h+=bars(PATS.map(function(t){ return {label:t,obs:x.oe[t],exp:N/16,key:t,w:56}; }),N,last.oe);
+    h+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">③ 上下半年型(开出的号,按它「当时」的历史)</div>';
+    h+=bars(CATS.map(function(c){ return {label:c[1],obs:x.cat[c[0]],exp:x.catExp[c[0]],key:c[0],w:56}; }),N,last.cat);
+    h+='</div>';
+  });
+  h+='</div>';
+  // 走向:最近30期
+  h+='<div style="margin-top:14px;border:2px solid #0891b2;border-radius:10px;padding:10px"><div style="font-weight:800;color:#0e7490;font-size:15px">🌡️ 最近 30 期走向 <span style="font-size:12px;font-weight:400;color:#64748b">(每格=一期,最右=最新;亮=这期开出这个组合)</span></div>';
+  h+='<div style="margin:6px 0">看哪一个奖: '+PN.map(function(n,i){ return '<button class="btn" style="padding:4px 12px;font-size:12px;'+(i===__stPrize?'background:#0891b2;color:#fff':'')+'" onclick="__stPrize='+i+';stRun()">'+n+'</button>'; }).join(' ')+'</div>';
+  var sq=P[__stPrize].seq, L30=sq.slice(-30);
+  function matrix(rowsDef,field){
+    var rows=rowsDef.map(function(r){
+      var gap=0; for(var i=sq.length-1;i>=0;i--){ if(sq[i][field]===r.key)break; gap++; } if(gap===sq.length) gap=sq.length;
+      var cnt=0; sq.forEach(function(e){ if(e[field]===r.key)cnt++; });
+      return {r:r,gap:gap,avg:cnt?Math.round(sq.length/cnt*10)/10:null};
+    });
+    rows.sort(function(a,b){return b.gap-a.gap;});
+    return rows.map(function(o){
+      var cells=L30.map(function(e,i){ var on=e[field]===o.r.key; return '<span title="'+e.date+' '+e.num+'" style="display:inline-block;width:11px;height:14px;margin-right:1px;border-radius:2px;background:'+(on?'#0891b2':'#e2e8f0')+(i===L30.length-1?';outline:1px solid #0f172a':'')+'"></span>'; }).join('');
+      var late=o.avg&&o.gap>=o.avg*1.5;
+      return '<div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:12px"><div style="width:64px;text-align:right">'+o.r.label+'</div><div style="white-space:nowrap">'+cells+'</div><div style="width:150px;color:'+(late?'#dc2626':'#64748b')+'">'+(o.gap===0?'<b>这期刚开</b>':'已 '+o.gap+' 期没开')+(o.avg?' (平均 '+o.avg+' 期一次)':'')+'</div></div>';
+    }).join('');
+  }
+  h+='<div style="font-size:12px;font-weight:700;margin:6px 0 2px">单双 16 种排列(最久没开的排最上面)</div>'+matrix(PATS.map(function(t){return {key:t,label:t};}),'oe');
+  h+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">上下半年型</div>'+matrix(CATS.map(function(c){return {key:c[0],label:c[1]};}),'cat');
+  h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 红字=已经比平均间隔晚了很多期(只是「落后」,不代表下一期会补回来;之前的回测显示补回的机会跟随机差不多)。这里只是让你看清走向。</div></div>';
+  out.innerHTML=h;
+}
 // 💰 对账:你贴的号 × 某一天的开奖 → 头二三/特别奖/安慰奖各中几个、投入、拿回、盈亏
 function payAllDraws(mk){
   var seen={}, m=[];
