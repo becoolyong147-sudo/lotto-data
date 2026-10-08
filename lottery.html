@@ -11014,18 +11014,34 @@ function stRun(){
       return {a:a,c:c};
     }
     function chips(arr,col){ return arr.map(function(l){ return '<span style="display:inline-block;background:'+col+';color:#fff;border-radius:12px;padding:2px 10px;margin:2px 4px 2px 0;font-weight:700">'+l+'</span>'; }).join(''); }
-    h+='<div style="margin-top:14px;border:2px solid #7c3aed;border-radius:10px;padding:10px"><div style="font-weight:800;color:#6d28d9;font-size:15px">🔮 下一期预判 <span style="font-size:12px;font-weight:400;color:#64748b">('+PD.title+')</span></div>';
-    h+='<div style="font-size:12px;color:#64748b;margin:4px 0">两种猜法:<b>落后派</b>=猜最久没开的会补回来;<b>热门派</b>=猜最近 30 期开得最多的会继续。下面「回测」是拿过去的每一期照这个办法猜,看真的中了几次。</div>';
-    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">';
-    [0,1,2].forEach(function(k){
-      var sq=P[k].seq, now=pickAt(sq,sq.length), T0=Math.max(60,sq.length-300), n=0, ha=0, hc=0, ra=0, rc=0;
-      for(var t=T0;t<sq.length;t++){ var pk=pickAt(sq,t), act=sq[t].lab[pdk]; n++; if(pk.a.indexOf(act)>=0)ha++; if(pk.c.indexOf(act)>=0)hc++; pk.a.forEach(function(l){ra+=PD.share[l];}); pk.c.forEach(function(l){rc+=PD.share[l];}); }
-      h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><div style="font-weight:800;color:#6d28d9">'+PN[k]+'</div>'
-        +'<div style="margin-top:4px;font-size:12px;color:#475569">落后派猜:</div>'+chips(now.a,'#7c3aed')
-        +'<div style="margin-top:2px;font-size:12px;color:#475569">热门派猜:</div>'+chips(now.c,'#0891b2')
-        +'<div style="margin-top:6px;font-size:12px;color:#334155;line-height:1.7">回测(过去 '+n+' 期):<br>落后派猜中 <b>'+ha+'</b> 期,<span style="color:#64748b">蒙着猜应该约 '+Math.round(ra)+' 期</span><br>热门派猜中 <b>'+hc+'</b> 期,<span style="color:#64748b">蒙着猜应该约 '+Math.round(rc)+' 期</span></div></div>';
+    var WINS=[90,300,1000], BT=[0,1,2].map(function(k){
+      var sq=P[k].seq, now=pickAt(sq,sq.length), T0=Math.max(60,sq.length-1000), rows=[];
+      for(var t=T0;t<sq.length;t++){ var pk=pickAt(sq,t), act=sq[t].lab[pdk], ra=0, rc=0; pk.a.forEach(function(l){ra+=PD.share[l];}); pk.c.forEach(function(l){rc+=PD.share[l];});
+        rows.push({date:sq[t].date,num:sq[t].num,act:act,a:pk.a,c:pk.c,ha:pk.a.indexOf(act)>=0,hc:pk.c.indexOf(act)>=0,ra:ra,rc:rc}); }
+      var st=WINS.map(function(w){ var r=rows.slice(-w), o={n:r.length,ha:0,hc:0,ra:0,rc:0}; r.forEach(function(x){ if(x.ha)o.ha++; if(x.hc)o.hc++; o.ra+=x.ra; o.rc+=x.rc; }); return o; });
+      return {now:now,rows:rows,st:st};
     });
-    h+='</div></div>';
+    h+='<div style="margin-top:14px;border:2px solid #7c3aed;border-radius:10px;padding:10px"><div style="font-weight:800;color:#6d28d9;font-size:15px">🔮 下一期预判 <span style="font-size:12px;font-weight:400;color:#64748b">('+PD.title+')</span></div>';
+    h+='<div style="font-size:12px;color:#64748b;margin:4px 0">两种猜法:<b>落后派</b>=猜最久没开的会补回来;<b>热门派</b>=猜最近 30 期开得最多的会继续。每个猜法都挑 3 个组合,下一期开出的落在里面就算中。</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">';
+    [0,1,2].forEach(function(k){ var B=BT[k];
+      h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><div style="font-weight:800;color:#6d28d9">'+PN[k]+' <span style="font-size:11px;color:#94a3b8;font-weight:400">下一期猜</span></div>'
+        +'<div style="margin-top:4px;font-size:12px;color:#475569">落后派:</div>'+chips(B.now.a,'#7c3aed')
+        +'<div style="margin-top:2px;font-size:12px;color:#475569">热门派:</div>'+chips(B.now.c,'#0891b2')
+        +'<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px"><tr style="color:#64748b"><td></td>'+B.st.map(function(o){return '<td style="text-align:center">近'+o.n+'期</td>';}).join('')+'</tr>'
+        +'<tr><td style="color:#7c3aed;font-weight:700">落后派中</td>'+B.st.map(function(o){return '<td style="text-align:center"><b>'+o.ha+'</b> <span style="color:#94a3b8">/蒙'+Math.round(o.ra)+'</span></td>';}).join('')+'</tr>'
+        +'<tr><td style="color:#0891b2;font-weight:700">热门派中</td>'+B.st.map(function(o){ var good=o.hc>o.rc*1.1; return '<td style="text-align:center"><b style="color:'+(good?'#16a34a':'#334155')+'">'+o.hc+'</b> <span style="color:#94a3b8">/蒙'+Math.round(o.rc)+'</span></td>';}).join('')+'</tr></table></div>';
+    });
+    h+='</div>';
+    // 逐期明细: 当时猜什么 / 开了什么 / 中没中
+    var BR=BT[__stPrize].rows.slice(-60).reverse();
+    h+='<div style="margin-top:10px"><span onclick="var e=document.getElementById(\'st-pd-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#6d28d9;font-weight:700;font-size:13px">📜 逐期回测:每一期当时猜了什么、开了什么(点开/收起)</span> '
+      +PN.map(function(n,i){ return '<button class="btn" style="padding:3px 10px;font-size:11px;'+(i===__stPrize?'background:#7c3aed;color:#fff':'')+'" onclick="__stPrize='+i+';stRun()">'+n+'</button>'; }).join(' ')+'</div>';
+    h+='<div id="st-pd-det" style="display:none;max-height:380px;overflow:auto;margin-top:6px"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:#6d28d9;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">这一期</th><th style="text-align:left;padding:3px 6px">开出的</th><th style="text-align:left;padding:3px 6px">落后派猜</th><th style="padding:3px 6px">中?</th><th style="text-align:left;padding:3px 6px">热门派猜</th><th style="padding:3px 6px">中?</th></tr>'
+      +BR.map(function(x){ function ch(arr,act){ return arr.map(function(l){ return l===act?'<b style="color:#16a34a;background:#dcfce7;border-radius:3px;padding:0 3px">'+l+'</b>':'<span style="color:#94a3b8">'+l+'</span>'; }).join(' '); }
+        return '<tr style="border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace">'+x.num+' <span style="color:#334155">'+x.act+'</span></td><td style="padding:3px 6px">'+ch(x.a,x.act)+'</td><td style="text-align:center">'+(x.ha?'✅':'❌')+'</td><td style="padding:3px 6px">'+ch(x.c,x.act)+'</td><td style="text-align:center">'+(x.hc?'✅':'❌')+'</td></tr>'; }).join('')
+      +'</table></div>';
+    h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">「/蒙N」=不看任何走势、纯蒙着猜应该中的期数。中的期数明显比它多,才算这个猜法有点东西。</div></div>';
   }
   // 最近30期走向
   var tdim=(__stDim==='all')?'oe16':(__stDim==='half'?'half':DEF.view[__stDim][DEF.view[__stDim].length-1]);
