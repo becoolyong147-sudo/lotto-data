@@ -858,8 +858,7 @@ function renderPatternTrend(){
       <div><label style="font-size:12px;font-weight:700;display:block">市场</label>
         <select id="st-mk" onchange="stRun()" style="font-size:15px;padding:5px 9px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
       <div><label style="font-size:12px;font-weight:700;display:block">看多久</label>
-        <select id="st-win" onchange="stRun()" style="font-size:15px;padding:5px 9px"><option value="0">全部历史</option><option value="730">近2年</option><option value="365" selected>近1年</option><option value="180">近半年</option><option value="90">近3个月</option></select></div>
-      <button class="btn btn-green" style="padding:8px 16px;font-size:14px" onclick="stRun()">📊 生成</button>
+        <select id="st-win" onchange="stRun()" style="font-size:15px;padding:5px 9px"><option value="0">全部历史</option><option value="730">近2年</option><option value="365" selected>近1年</option><option value="180">近半年</option><option value="30">近1个月</option><option value="90">近3个月</option></select></div>
     </div>
     <div id="st-out" style="margin-top:12px"></div>
   </div>
@@ -11002,6 +11001,31 @@ function stRun(){
     late.sort(function(a,b){return b.r-a.r;});
     h+='<div style="font-weight:800;color:#0e7490;font-size:15px;margin:14px 0 4px">🧩 ③ 现在「最久没开」的 8 个组合(跟它自己的平均比)</div>';
     h+=late.slice(0,8).map(function(a){ return '<div style="font-size:13px;margin:2px 0"><span style="display:inline-block;width:48px;font-weight:700">'+PN[a.k]+'</span><span style="color:#64748b">'+a.dim+'</span> · <b>'+a.l+'</b>:已 <b style="color:#dc2626">'+a.gap+'</b> 期没开(平常约 '+Math.round(a.avg)+' 期一次)</div>'; }).join('');
+  }
+  // 🔮 下一期预判 + 回测(落后派=挑最久没开的3类;热门派=挑最近30期最多的3类)
+  var pdk=(__stDim==='all')?'oe16':(__stDim==='half'?null:DEF.view[__stDim][DEF.view[__stDim].length-1]);
+  if(pdk){
+    var PD=D[pdk];
+    function pickAt(sq,end){
+      var last={},cnt={}; PD.order.forEach(function(l){last[l]=-1;cnt[l]=0;});
+      for(var i=0;i<end;i++){ var l=sq[i].lab[pdk]; last[l]=i; if(i>=end-30) cnt[l]++; }
+      var a=PD.order.slice().sort(function(x,y){ return ((end-1-last[y])*PD.share[y])-((end-1-last[x])*PD.share[x]); }).slice(0,3);
+      var c=PD.order.slice().sort(function(x,y){ return cnt[y]-cnt[x]; }).slice(0,3);
+      return {a:a,c:c};
+    }
+    function chips(arr,col){ return arr.map(function(l){ return '<span style="display:inline-block;background:'+col+';color:#fff;border-radius:12px;padding:2px 10px;margin:2px 4px 2px 0;font-weight:700">'+l+'</span>'; }).join(''); }
+    h+='<div style="margin-top:14px;border:2px solid #7c3aed;border-radius:10px;padding:10px"><div style="font-weight:800;color:#6d28d9;font-size:15px">🔮 下一期预判 <span style="font-size:12px;font-weight:400;color:#64748b">('+PD.title+')</span></div>';
+    h+='<div style="font-size:12px;color:#64748b;margin:4px 0">两种猜法:<b>落后派</b>=猜最久没开的会补回来;<b>热门派</b>=猜最近 30 期开得最多的会继续。下面「回测」是拿过去的每一期照这个办法猜,看真的中了几次。</div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px">';
+    [0,1,2].forEach(function(k){
+      var sq=P[k].seq, now=pickAt(sq,sq.length), T0=Math.max(60,sq.length-300), n=0, ha=0, hc=0, ra=0, rc=0;
+      for(var t=T0;t<sq.length;t++){ var pk=pickAt(sq,t), act=sq[t].lab[pdk]; n++; if(pk.a.indexOf(act)>=0)ha++; if(pk.c.indexOf(act)>=0)hc++; pk.a.forEach(function(l){ra+=PD.share[l];}); pk.c.forEach(function(l){rc+=PD.share[l];}); }
+      h+='<div style="border:1px solid #ddd6fe;border-radius:8px;padding:8px;background:#faf5ff"><div style="font-weight:800;color:#6d28d9">'+PN[k]+'</div>'
+        +'<div style="margin-top:4px;font-size:12px;color:#475569">落后派猜:</div>'+chips(now.a,'#7c3aed')
+        +'<div style="margin-top:2px;font-size:12px;color:#475569">热门派猜:</div>'+chips(now.c,'#0891b2')
+        +'<div style="margin-top:6px;font-size:12px;color:#334155;line-height:1.7">回测(过去 '+n+' 期):<br>落后派猜中 <b>'+ha+'</b> 期,<span style="color:#64748b">蒙着猜应该约 '+Math.round(ra)+' 期</span><br>热门派猜中 <b>'+hc+'</b> 期,<span style="color:#64748b">蒙着猜应该约 '+Math.round(rc)+' 期</span></div></div>';
+    });
+    h+='</div></div>';
   }
   // 最近30期走向
   var tdim=(__stDim==='all')?'oe16':(__stDim==='half'?'half':DEF.view[__stDim][DEF.view[__stDim].length-1]);
