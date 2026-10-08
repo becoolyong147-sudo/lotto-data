@@ -10906,10 +10906,12 @@ function stDefs(){
     bs16:{title:'16 种具体排列',order:perm('大','小'),f:function(n){var t='';for(var i=0;i<4;i++)t+=big(+n[i])?'大':'小';return t;}},
     da:{title:'打数(数字有没有重复)',order:['24打·四个都不同','12打·一对','6打·两对','4打·三个同','1打·四个同'],f:function(n){var m={};for(var i=0;i<4;i++)m[n[i]]=(m[n[i]]||0)+1;var k=Object.keys(m).length;if(k===4)return '24打·四个都不同';if(k===3)return '12打·一对';if(k===1)return '1打·四个同';var v=Object.keys(m).map(function(x){return m[x];});return v[0]===2?'6打·两对':'4打·三个同';}},
     rt:{title:'4D数根(四位相加的数根)',order:['根1','根2','根3','根4','根5','根6','根7','根8','根9'],f:function(n){var sm=(+n[0])+(+n[1])+(+n[2])+(+n[3]);return sm===0?'根9':'根'+dr(sm);}},
+    f3:{title:'前3D点数(千百十相加)',order:['0-6','7-10','11-14','15-18','19-22','23-27'],f:function(n){var v=(+n[0])+(+n[1])+(+n[2]);return v<=6?'0-6':v<=10?'7-10':v<=14?'11-14':v<=18?'15-18':v<=22?'19-22':'23-27';}},
+    b3:{title:'后3D点数(百十个相加)',order:['0-6','7-10','11-14','15-18','19-22','23-27'],f:function(n){var v=(+n[1])+(+n[2])+(+n[3]);return v<=6?'0-6':v<=10?'7-10':v<=14?'11-14':v<=18?'15-18':v<=22?'19-22':'23-27';}},
     pt:{title:'点数分段(四位相加)',order:['0-8','9-12','13-16','17-20','21-24','25-28','29-36'],f:function(n){var sm=(+n[0])+(+n[1])+(+n[2])+(+n[3]);return sm<=8?'0-8':sm<=12?'9-12':sm<=16?'13-16':sm<=20?'17-20':sm<=24?'21-24':sm<=28?'25-28':'29-36';}}
   };
   Object.keys(D).forEach(function(k){ var d=D[k], c={}; for(var i=0;i<10000;i++){ var l=d.f(('000'+i).slice(-4)); c[l]=(c[l]||0)+1; } d.share={}; d.order.forEach(function(l){ d.share[l]=(c[l]||0)/10000; }); d.key=k; });
-  __stDimDef={D:D, view:{oe:['oe5','oe16'],bs:['bs5','bs16'],da:['da'],rt:['rt'],pt:['pt']}};
+  __stDimDef={D:D, view:{oe:['oe5','oe16'],bs:['bs5','bs16'],da:['da'],rt:['rt'],pt:['pt'],f3:['f3'],b3:['b3']}};
   return __stDimDef;
 }
 function stSetDim(k){ __stDim=k; stRun(); }
@@ -10954,7 +10956,7 @@ function stRun(){
         +'<div style="width:40px;font-family:monospace;color:'+col+';font-weight:700">'+it.obs+'</div>'
         +'<div style="width:46px;font-size:11px;color:#0891b2;font-weight:700">'+(it.key===latestKey?'⬅最新':'')+'</div></div>'; }).join('');
   }
-  var DIMS=[['oe','单双'],['bs','大小'],['da','打数'],['rt','数根'],['pt','点数'],['half','上下半年'],['all','🧩综合']];
+  var DIMS=[['oe','单双'],['bs','大小'],['da','打数'],['rt','数根'],['pt','点数'],['f3','前3D点数'],['b3','后3D点数'],['half','上下半年'],['all','🧩综合']];
   var h='<div style="margin-bottom:8px">看哪个维度: '+DIMS.map(function(d){ return '<button class="btn" style="padding:5px 12px;font-size:13px;margin:0 3px 3px 0;'+(d[0]===__stDim?'background:#0891b2;color:#fff;font-weight:800':'')+'" onclick="stSetDim(\''+d[0]+'\')">'+d[1]+'</button>'; }).join('')+'</div>';
   h+='<div style="font-size:12px;color:#64748b;margin-bottom:6px">'+mk+' · '+(cutoff?cutoff+' ~ ':'')+lastDate+' · 共 '+P[0].n+' 期。柱子右边的数=实际开了几次,黑色虚线=公平应开次数。</div>';
   // 一个维度 → 三张(头/二/三)
@@ -10976,14 +10978,14 @@ function stRun(){
     var cross={};
     function cnt4(n,w){ var c=0; for(var q=0;q<4;q++){ var d=+n[q]; if(w===1?d%2===1:d>=5) c++; } return c; }
     for(var i=0;i<10000;i++){ var n=('000'+i).slice(-4), a=cnt4(n,1), b=cnt4(n,2); cross[a+','+b]=(cross[a+','+b]||0)+1; }
-    h+='<div style="font-weight:800;color:#0e7490;font-size:15px;margin:4px 0">🧩 ① 单双 × 大小 一起看(横=几个单,竖=几个大)</div><div style="font-size:12px;color:#64748b;margin-bottom:6px">每格=这个组合开了几次;红=明显多、蓝=明显少、灰=正常;格子下面小字=公平应开几次。</div>';
+    h+='<div style="font-weight:800;color:#0e7490;font-size:15px;margin:4px 0">🧩 ① 单双 × 大小 一起看(横=几个单,竖=几个大)</div><div style="font-size:12px;color:#64748b;margin-bottom:6px">每格=开了几次;红=比正常多很多,蓝=比正常少很多,灰=正常。</div>';
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">';
     [0,1,2].forEach(function(k){
       var N=P[k].n, co={}; P[k].seq.forEach(function(e){ if(cutoff&&e.date<cutoff) return; var a=cnt4(e.num,1), b=cnt4(e.num,2); co[a+','+b]=(co[a+','+b]||0)+1; });
       var last=P[k].seq[P[k].seq.length-1], lk=cnt4(last.num,1)+','+cnt4(last.num,2);
       var t='<div style="border:1px solid #cffafe;border-radius:10px;padding:8px;background:#fff"><div style="font-weight:800;color:#0e7490">'+PN[k]+'</div><table style="border-collapse:separate;border-spacing:2px;font-size:11px;width:100%;text-align:center"><tr><td></td>'+[0,1,2,3,4].map(function(a){return '<td style="color:#64748b">'+a+'单</td>';}).join('')+'</tr>';
       for(var b=0;b<=4;b++){ t+='<tr><td style="color:#64748b">'+b+'大</td>'; for(var a=0;a<=4;a++){ var key=a+','+b, ex=N*(cross[key]||0)/10000, ob=co[key]||0, z=zOf(ob,ex,N), cc=colOf(z);
-          t+='<td style="background:'+(cc==='#94a3b8'?'#f1f5f9':cc==='#dc2626'?'#fecaca':'#bfdbfe')+';border-radius:4px;padding:3px 0;'+(key===lk?'outline:2px solid #0891b2;':'')+'"><div style="font-weight:800;color:'+(cc==='#94a3b8'?'#334155':cc)+';font-size:14px">'+ob+'</div><div style="color:#94a3b8;font-size:10px">'+ex.toFixed(1)+'</div></td>'; }
+          t+='<td style="background:'+(cc==='#94a3b8'?'#f1f5f9':cc==='#dc2626'?'#fecaca':'#bfdbfe')+';border-radius:4px;padding:3px 0;'+(key===lk?'outline:2px solid #0891b2;':'')+'"><div style="font-weight:800;color:'+(cc==='#94a3b8'?'#334155':cc)+';font-size:14px">'+ob+'</div></td>'; }
         t+='</tr>'; }
       h+=t+'</table><div style="font-size:11px;color:#0891b2;margin-top:2px">蓝框=最新一期开的('+last.num+')</div></div>';
     });
@@ -10993,13 +10995,13 @@ function stRun(){
     [0,1,2].forEach(function(k){ CATS.forEach(function(q){ var N=P[k].n, ex=P[k].halfExp[q[0]], ob=P[k].obs.half[q[0]]; if(ex>=1) all.push({k:k,dim:'上下半年型',l:q[1],ob:ob,ex:ex,z:zOf(ob,ex,N)}); }); });
     all.sort(function(a,b){return Math.abs(b.z)-Math.abs(a.z);});
     h+='<div style="font-weight:800;color:#0e7490;font-size:15px;margin:14px 0 4px">🧩 ② 现在最「偏」的 10 个组合(所有维度、三个奖一起排)</div>';
-    h+=all.slice(0,10).map(function(a){ var c=a.z>0?'#dc2626':'#2563eb'; return '<div style="font-size:13px;margin:2px 0"><span style="display:inline-block;width:48px;font-weight:700">'+PN[a.k]+'</span><span style="color:#64748b">'+a.dim+'</span> · <b>'+a.l+'</b>:开了 <b style="color:'+c+'">'+a.ob+'</b> 次,公平该开 '+a.ex.toFixed(1)+' 次 <span style="color:'+c+'">'+(a.z>0?'多了':'少了')+Math.abs(a.ob-a.ex).toFixed(1)+'</span></div>'; }).join('');
+    h+=all.slice(0,10).map(function(a){ var c=a.z>0?'#dc2626':'#2563eb'; return '<div style="font-size:13px;margin:2px 0"><span style="display:inline-block;width:48px;font-weight:700">'+PN[a.k]+'</span><span style="color:#64748b">'+a.dim+'</span> · <b>'+a.l+'</b>:开了 <b style="color:'+c+'">'+a.ob+'</b> 次(正常约 '+Math.round(a.ex)+' 次) <span style="color:'+c+';font-weight:700">'+(a.z>0?'偏多':'偏少')+'</span></div>'; }).join('');
     h+='<div style="font-size:11px;color:#94a3b8;margin-top:4px">一共看了 '+all.length+' 个组合,里面本来就会有几个「看起来偏」的(纯随机也会),所以偏不偏要看是不是长期都偏。</div>';
     // 综合 C: 最久没开
     var late=[]; Object.keys(D).forEach(function(dk){ [0,1,2].forEach(function(k){ var sq=P[k].seq; D[dk].order.forEach(function(l){ var sh=D[dk].share[l]; if(sh<0.03) return; var gap=0; for(var i=sq.length-1;i>=0;i--){ if(sq[i].lab[dk]===l) break; gap++; } late.push({k:k,dim:D[dk].title,l:l,gap:gap,avg:1/sh,r:gap*sh}); }); }); });
     late.sort(function(a,b){return b.r-a.r;});
     h+='<div style="font-weight:800;color:#0e7490;font-size:15px;margin:14px 0 4px">🧩 ③ 现在「最久没开」的 8 个组合(跟它自己的平均比)</div>';
-    h+=late.slice(0,8).map(function(a){ return '<div style="font-size:13px;margin:2px 0"><span style="display:inline-block;width:48px;font-weight:700">'+PN[a.k]+'</span><span style="color:#64748b">'+a.dim+'</span> · <b>'+a.l+'</b>:已 <b style="color:#dc2626">'+a.gap+'</b> 期没开(平均每 '+a.avg.toFixed(1)+' 期开一次)</div>'; }).join('');
+    h+=late.slice(0,8).map(function(a){ return '<div style="font-size:13px;margin:2px 0"><span style="display:inline-block;width:48px;font-weight:700">'+PN[a.k]+'</span><span style="color:#64748b">'+a.dim+'</span> · <b>'+a.l+'</b>:已 <b style="color:#dc2626">'+a.gap+'</b> 期没开(平常约 '+Math.round(a.avg)+' 期一次)</div>'; }).join('');
   }
   // 最近30期走向
   var tdim=(__stDim==='all')?'oe16':(__stDim==='half'?'half':DEF.view[__stDim][DEF.view[__stDim].length-1]);
@@ -11012,7 +11014,7 @@ function stRun(){
   h+=rows.map(function(o){
     var cells=L30.map(function(e,i){ var on=e.lab[tdim]===o.l; return '<span title="'+e.date+' '+e.num+'" style="display:inline-block;width:11px;height:14px;margin-right:1px;border-radius:2px;background:'+(on?'#0891b2':'#e2e8f0')+(i===L30.length-1?';outline:1px solid #0f172a':'')+'"></span>'; }).join('');
     var late=o.avg&&o.gap>=o.avg*1.5;
-    return '<div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:12px"><div style="width:'+(tdim==='da'?118:64)+'px;text-align:right">'+tLabel(o.l)+'</div><div style="white-space:nowrap">'+cells+'</div><div style="width:170px;color:'+(late?'#dc2626':'#64748b')+'">'+(o.gap===0?'<b>这期刚开</b>':'已 '+o.gap+' 期没开')+(o.avg?' (平均 '+o.avg+' 期一次)':'')+'</div></div>'; }).join('');
+    return '<div style="display:flex;align-items:center;gap:8px;margin:2px 0;font-size:12px"><div style="width:'+(tdim==='da'?118:64)+'px;text-align:right">'+tLabel(o.l)+'</div><div style="white-space:nowrap">'+cells+'</div><div style="width:170px;color:'+(late?'#dc2626':'#64748b')+'">'+(o.gap===0?'<b>这期刚开</b>':'已 '+o.gap+' 期没开')+'</div></div>'; }).join('');
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 红字=已经比平均间隔晚了很多期(只是「落后」,不代表下一期会补回来;之前的回测显示补回的机会跟随机差不多)。这里只是让你看清走向。</div></div>';
   out.innerHTML=h;
 }
