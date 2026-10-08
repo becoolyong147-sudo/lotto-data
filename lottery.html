@@ -10951,7 +10951,7 @@ function stRun(){
     return items.map(function(it){ var col=colOf(zOf(it.obs,it.exp,N));
       return '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;font-size:12px"><div style="width:'+(it.w||64)+'px;text-align:right;color:#334155;white-space:nowrap">'+it.label+'</div>'
         +'<div style="flex:1;position:relative;height:16px;background:#f1f5f9;border-radius:3px"><div style="height:16px;width:'+(it.obs/mx*100)+'%;background:'+col+';border-radius:3px"></div>'
-        +'<div title="公平应开 '+it.exp.toFixed(1)+' 次" style="position:absolute;top:-2px;bottom:-2px;left:'+(it.exp/mx*100)+'%;border-left:2px dashed #0f172a"></div></div>'
+        +'<div title="公平应开 '+it.exp.toFixed(1)+' 次" style="position:absolute;top:0;bottom:0;left:'+(it.exp/mx*100)+'%;border-left:2px dashed #0f172a"></div></div>'
         +'<div style="width:40px;font-family:monospace;color:'+col+';font-weight:700">'+it.obs+'</div>'
         +'<div style="width:46px;font-size:11px;color:#0891b2;font-weight:700">'+(it.key===latestKey?'⬅最新':'')+'</div></div>'; }).join('');
   }
