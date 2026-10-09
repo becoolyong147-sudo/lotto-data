@@ -10910,9 +10910,10 @@ function stDefs(){
     pt:{title:'点数分段(四位相加)',order:['0-8','9-12','13-16','17-20','21-24','25-28','29-36'],f:function(n){var sm=(+n[0])+(+n[1])+(+n[2])+(+n[3]);return sm<=8?'0-8':sm<=12?'9-12':sm<=16?'13-16':sm<=20?'17-20':sm<=24?'21-24':sm<=28?'25-28':'29-36';}}
   };
   Object.keys(D).forEach(function(k){ var d=D[k], c={}; for(var i=0;i<10000;i++){ var l=d.f(('000'+i).slice(-4)); c[l]=(c[l]||0)+1; } d.share={}; d.order.forEach(function(l){ d.share[l]=(c[l]||0)/10000; }); d.key=k; });
-  __stDimDef={D:D, view:{oe:['oe5','oe16'],bs:['bs5','bs16'],da:['da'],rt:['rt'],pt:['pt'],f3:['f3'],b3:['b3']}};
+  __stDimDef={D:D, view:{oe:['oe16'],bs:['bs16'],da:['da'],rt:['rt'],pt:['pt'],f3:['f3'],b3:['b3']}};
   return __stDimDef;
 }
+function sampleOf(l,dk){ var o=''; for(var i=0;i<4;i++){ var c=l[i]; o+=(dk==='oe16')?(c==='单'?'1':'0'):(c==='大'?'9':'0'); } return o; }
 function stSetDim(k){ __stDim=k; stRun(); }
 function stRun(){
   var out=document.getElementById('st-out'); if(!out) return;
@@ -10966,6 +10967,14 @@ function stRun(){
     if(sets==='half'){
       c+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">开出的号,按它「当时」的历史偏哪个半年</div>'+bars(CATS.map(function(q){ return {label:q[1],obs:x.obs.half[q[0]],exp:x.halfExp[q[0]],key:q[0],w:60}; }),N,last.lab.half);
     } else sets.forEach(function(dk,ix){ var d=D[dk];
+      if(dk==='oe16'||dk==='bs16'){   // 先分5大类,每类下面列具体排列
+        var d5=D[dk==='oe16'?'oe5':'bs5'], ch=dk==='oe16'?'单':'大';
+        c+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">'+(dk==='oe16'?'单双':'大小(大=5-9)')+':先看几'+ch+'几'+(dk==='oe16'?'双':'小')+',下面是它的具体排列</div>';
+        d5.order.forEach(function(g){ var subs=d.order.filter(function(l){ return d5.f(sampleOf(l,dk))===g; });
+          c+='<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:4px">'+bars([{label:'<b>'+g+'</b>',obs:subs.reduce(function(t,l){return t+x.obs[dk][l];},0),exp:N*d5.share[g],key:'g:'+g,w:60}],N,'g:'+D[dk==='oe16'?'oe5':'bs5'].f(last.num))+'</div>'
+            +'<div style="margin-left:14px">'+bars(subs.map(function(l){ return {label:l,obs:x.obs[dk][l],exp:N*d.share[l],key:l,w:60}; }),N,last.lab[dk])+'</div>'; });
+        return;
+      }
       c+='<div style="font-size:12px;font-weight:700;margin:8px 0 2px">'+(sets.length>1?(ix===0?'① ':'② '):'')+d.title+'</div>'+bars(d.order.map(function(l){ return {label:l,obs:x.obs[dk][l],exp:N*d.share[l],key:l,w:dk==='da'?118:60}; }),N,last.lab[dk]); });
     return c+'</div>';
   }
