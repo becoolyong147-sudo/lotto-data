@@ -259,8 +259,6 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
     <div class="subtab" data-tab="listcmp" onclick="switchSubtab(this)">🧮 号码对比</div>
-    <div class="subtab" data-tab="decompose" onclick="switchSubtab(this)">🔢 号码分解</div>
-    <div class="subtab" data-tab="wizard" onclick="switchSubtab(this)">⚡ 四步选号</div>
   </div>
 </div>
 
@@ -449,7 +447,6 @@ tr:hover td{background:#fafaf5}
     </div>
   </div>
   <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn btn-green" onclick="zoneSendToWizard()" style="padding:7px 16px;font-size:12px">⚡ 把当前筛选条件发送到四步选号</button>
     <button class="btn" onclick="zoneRunBacktest()" style="padding:7px 16px;font-size:12px">🧪 回测当前筛选过去N期命中率</button>
   </div>
 </div>
@@ -737,113 +734,6 @@ function renderPatternTrend(){
   </div>
   <div id="added-list" class="added-list"></div>
 </div>
-</div>
-
-<!-- TAB: 号码分解 -->
-<div id="tab-decompose" class="panel">
-<div class="card">
-  <h3>🔢 号码分解 + 分身排行</h3>
-  <div class="row">
-    <div class="ig" style="flex:1"><label>4D 号码</label><input type="text" id="inp-num" maxlength="4" placeholder="如 9128" oninput="this.value=this.value.replace(/\D/g,'')"/></div>
-    <div class="ig" style="flex:1"><label>市场</label><select id="inp-market"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
-    <div class="ig"><label>奖位</label><select id="inp-prize"><option value="all">头二三奖</option><option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option></select></div>
-    <button class="btn" onclick="doDecompose()">🔍 分解</button>
-  </div>
-  <!-- 2D 锁定筛选 -->
-  <div style="margin-top:10px;background:#f0fff4;border-radius:8px;padding:10px;border:1px solid #86efac">
-    <div style="font-size:11px;font-weight:700;color:#166534;margin-bottom:8px">🎯 2D 锁定 — 今日已知部分 → 亮出接近要开的分身</div>
-    <div class="row">
-      <div class="ig">
-        <label>锁定2D号码（自动检查前/中/后）</label>
-        <input type="text" id="inp-lock-2d" maxlength="2" placeholder="如 28" style="width:80px" oninput="this.value=this.value.replace(/\D/g,'')"/>
-      </div>
-      <div class="ig">
-        <label>冷度门槛（高亮条件）</label>
-        <select id="inp-cold-thresh">
-          <option value="1" selected>≥ 1倍（超过平均间隔即算）</option>
-          <option value="1.5">≥ 1.5倍</option>
-          <option value="2">≥ 2倍</option>
-          <option value="3">≥ 3倍</option>
-          <option value="5">≥ 5倍</option>
-        </select>
-      </div>
-    </div>
-    <div class="warn" style="margin-top:6px">💡 输入2D后，系统自动检查 <b>前2D / 中2D / 后2D</b> 三个位置，符合位置 <b>+</b> 超过平均间隔未出现 → 🔥 接近要开</div>
-  </div>
-</div>
-<div id="decompose-result" style="display:none">
-  <div class="card"><h3>概览</h3><div class="g4" id="basic-stats"></div></div>
-  <div class="card"><h3>4D 层</h3><div id="layer-4d"></div></div>
-  <!-- NEW: Permutation Rankings -->
-  <div class="card" id="perm-rank-card">
-    <h3>🏆 分身排行榜 — 全排列历史频次 + 冷度</h3>
-    <div id="perm-rank-result"></div>
-  </div>
-  <div class="card"><h3>3D 层</h3><div id="layer-3d"></div></div>
-  <div class="card"><h3>2D 层</h3><div id="layer-2d"></div></div>
-  <div class="card"><h3>历史记录（按奖位）</h3><div id="layer-history"></div></div>
-</div>
-</div>
-
-<!-- TAB: 四步选号向导 (v61) -->
-<div id="tab-wizard" class="panel" style="padding:12px">
-
-<div class="card" style="background:linear-gradient(135deg,#1e3a5f 0%,#1e40af 100%);color:#fff;margin-bottom:10px">
-  <div style="font-size:16px;font-weight:800;margin-bottom:4px">⚡ 四步选号向导</div>
-  <div style="font-size:12px;color:#93c5fd;line-height:1.6">
-    Step 1 锁数根方向 → Step 2 筛后3D候选 → Step 3 配首位(1D) → Step 4 输出号码
-  </div>
-</div>
-
-<div class="card" id="wiz-ctrl">
-  <div class="row" style="gap:10px;flex-wrap:wrap">
-    <div class="ig"><label>市场</label>
-      <select id="wiz-market">
-        <option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option>
-      </select>
-    </div>
-    <div class="ig"><label>奖位</label>
-      <select id="wiz-prize">
-        <option value="0">头奖</option><option value="1">二奖</option><option value="2">三奖</option>
-      </select>
-    </div>
-    <div class="ig"><label>参考期数</label>
-      <select id="wiz-window">
-        <option value="20">最近20期</option>
-        <option value="30" selected>最近30期</option>
-        <option value="50">最近50期</option>
-      </select>
-    </div>
-    <div class="ig" style="justify-content:flex-end">
-      <button class="btn btn-green" onclick="wizRun()" style="padding:9px 24px;font-size:14px">▶ 开始分析</button>
-    </div>
-  </div>
-</div>
-
-<!-- Step 1 -->
-<div class="lab-step" id="wiz-s1" style="display:none">
-  <h4><span class="step-num" id="wiz-s1-num">1</span>第一步：锁数根方向</h4>
-  <div id="wiz-s1-body"></div>
-</div>
-
-<!-- Step 2 -->
-<div class="lab-step" id="wiz-s2" style="display:none">
-  <h4><span class="step-num" id="wiz-s2-num">2</span>第二步：筛后3D候选</h4>
-  <div id="wiz-s2-body"></div>
-</div>
-
-<!-- Step 3 -->
-<div class="lab-step" id="wiz-s3" style="display:none">
-  <h4><span class="step-num" id="wiz-s3-num">3</span>第三步：配首位（1D）</h4>
-  <div id="wiz-s3-body"></div>
-</div>
-
-<!-- Step 4 -->
-<div class="lab-step" id="wiz-s4" style="display:none">
-  <h4><span class="step-num" id="wiz-s4-num">4</span>第四步：最终号码</h4>
-  <div id="wiz-s4-body"></div>
-</div>
-
 </div>
 
 <!-- TAB: 2D追踪 -->
@@ -8729,13 +8619,11 @@ function doBacktest(){
         <button class="btn btn-green" onclick="doAbsent()" style="padding:9px 18px;font-size:14px">🎯 分析</button>
         <button class="btn" style="background:#b45309;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNextMainShow()">🎯 下一期主打</button>
         <button class="btn" style="background:#0369a1;color:#fff;padding:9px 14px;font-size:14px" onclick="zoQuick2D()">🎯 2D速选</button>
-        <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoNineGridDir()">🎲 九宫格方向</button>
         <button class="btn" style="background:#0f766e;color:#fff;padding:9px 14px;font-size:14px" onclick="zoAbsentPerPeriod()">🔮 推测图</button>
         <button class="btn" style="background:#d97706;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSeasonMemberShow()">🌟 会员版提示</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpHistoryShow()">📜 查回历史</button>
         <button class="btn" style="background:#be185d;color:#fff;padding:9px 14px;font-size:14px" onclick="zoMonthlyReport()">📅 月度报告</button>
         <button class="btn" style="background:#7c3aed;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpecialScan()">🎰 特殊号扫描</button>
-        <button class="btn" style="background:#166534;color:#fff;padding:9px 14px;font-size:14px" onclick="zoSpMatchExport()">📤 导出Excel</button>
         <button class="btn" onclick="document.getElementById('abs-input').value='';document.getElementById('abs-out').innerHTML=''" style="padding:9px 12px">✕ 清除</button>
       </div>
       <div style="font-size:11px;color:#94a3b8;margin:8px 0 3px">🧮 EV计算器 / 🔬 诚实审计 / 📊 市场周期报告 已移到顶部「🧮 诚实工具」区</div>
@@ -8748,8 +8636,6 @@ function doBacktest(){
         <button class="btn" style="background:#b45309;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentPeriodReport()">📅 缺席2D逐期命中账</button>
         <button class="btn" style="background:#1e40af;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneFusion()">🗺️ 缺席2D×分区地图→4D</button>
         <button class="btn" style="background:#0d9488;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentZoneReview()">📋 融合逐期清单(看推荐号)</button>
-        <button class="btn" style="background:#7c3aed;color:#fff;padding:7px 12px;font-size:12px" onclick="zoAbsentBacktest()">🔬 逐期回测</button>
-        <button class="btn" style="background:#be185d;color:#fff;padding:7px 12px;font-size:12px" onclick="zoJackpotCalc()">💎 Jackpot配对计算</button>
       </div>
     </div>
   </div>
@@ -11767,7 +11653,7 @@ function zoAbsentPeriodReport(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var old=document.getElementById('abs-pr-card'); if(old) old.remove();
   var src=(document.getElementById('abs-source')||{value:'manual'}).value;
-  if(src!=='auto'){ out.insertAdjacentHTML('beforeend','<div id="abs-pr-card" class="card" style="margin-top:8px"><div class="warn">逐期命中账需要历史期数：请把「数据来源」切到 <b>📚 从历史自动取</b>，选市场/期数后再点本按钮。</div></div>'); return; }
+  if(src!=='auto'){ var _se=document.getElementById('abs-source'); if(_se){ _se.value='auto'; try{ _se.dispatchEvent(new Event('change')); }catch(e){} } }
   var mk=document.getElementById('abs-market').value;
   var n=parseInt(document.getElementById('abs-periods').value,10)||10;
   var chk=function(id){var e=document.getElementById(id);return e?e.checked:false;};
@@ -13495,7 +13381,7 @@ let CURRENT_SCENE='decision';
 
 // Map: which scene contains which tabs
 const SCENE_MAP={
-  decision:['overview','numlookup','filter','listcmp','decompose','wizard'],
+  decision:['overview','numlookup','filter','listcmp'],
   analysis:['season','zodiac','numsort','luohan','absent'],
   data:['add','dataexport']
 };
@@ -13778,7 +13664,7 @@ function renderShapeTrans(market,prize){
 }
 
 // ===== V22 inserts workbench into SCENE_MAP at runtime (fixes scene routing) =====
-SCENE_MAP.decision = ['overview','workbench','flow','filter','decompose'];
+SCENE_MAP.decision = ['overview','workbench','flow','filter'];
 TAB_TO_SCENE['workbench'] = 'decision';
 TAB_TO_SCENE['overview'] = 'decision';
 
