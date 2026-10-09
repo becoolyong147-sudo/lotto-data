@@ -755,6 +755,30 @@ function renderPatternTrend(){
 </div>
 
 <div id="tab-myplay" class="panel" style="padding:12px">
+  <div class="card" style="border:3px solid #16a34a">
+    <h3 style="color:#15803d">🎯 我的功课 · 本期缺席推荐的2D + 条件 → 留下的号码</h3>
+    <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:8px">用<b>本期头二三</b>算出缺席(数根+数字),推荐<b>前2D / 中2D / 后2D</b>;再叠上你的条件(前3D点数、后3D点数、单双),<b>留下来的号码就是下一期的功课</b>。下面还有逐期回测:每一期当时留下什么、开了什么、中没中。</div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="hw-mk" style="font-size:15px;padding:5px 9px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option><option>山打根</option></select></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">数根看最近几期</label><select id="hw-win" style="font-size:15px;padding:5px 9px"><option value="1">1期(只看本期)</option><option value="2" selected>2期</option><option value="3">3期</option></select></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">用哪几段2D</label>
+        <label style="margin-right:8px"><input type="checkbox" id="hw-f" checked> 前2D</label><label style="margin-right:8px"><input type="checkbox" id="hw-m" checked> 中2D</label><label><input type="checkbox" id="hw-b" checked> 后2D</label></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">号码至少中几段</label><select id="hw-seg" style="font-size:15px;padding:5px 9px"><option value="1" selected>1段(任一段)</option><option value="2">2段(同时中两段)</option><option value="3">3段(全中)</option></select></div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:14px">
+      <label><input type="checkbox" id="hw-p3f" checked> 前3D点数 <input id="hw-p3f-a" value="10" size="2" style="padding:2px 4px">–<input id="hw-p3f-b" value="18" size="2" style="padding:2px 4px"></label>
+      <label><input type="checkbox" id="hw-p3b" checked> 后3D点数 <input id="hw-p3b-a" value="10" size="2" style="padding:2px 4px">–<input id="hw-p3b-b" value="18" size="2" style="padding:2px 4px"></label>
+      <span>单双:
+        <label><input type="checkbox" class="hw-oe" value="4"> 4单</label>
+        <label><input type="checkbox" class="hw-oe" value="3" checked> 3单1双</label>
+        <label><input type="checkbox" class="hw-oe" value="2" checked> 2单2双</label>
+        <label><input type="checkbox" class="hw-oe" value="1" checked> 1单3双</label>
+        <label><input type="checkbox" class="hw-oe" value="0"> 4双</label></span>
+      <span>回测<select id="hw-n" style="font-size:14px;padding:3px 6px"><option value="15">15期</option><option value="30" selected>30期</option><option value="60">60期</option><option value="100">100期</option></select></span>
+      <button class="btn btn-green" style="font-size:16px;font-weight:800;padding:10px 22px" onclick="zoHomework()">🎯 生成功课</button>
+    </div>
+    <div id="hw-out" style="margin-top:10px"></div>
+  </div>
   <div class="card" style="border:2px solid #f59e0b">
     <h3 style="color:#b45309">🎲 我的玩法 · 跟上期的前2D / 后2D 数根</h3>
     <div style="font-size:14px;color:#475569;line-height:1.8;margin-bottom:10px">玩法:看<b>上一期</b>头二三的前2D、后2D数根 → 这一期就挑<b>同样数根</b>的号。<br>选好市场,按下面按钮,就会直接告诉你。</div>
@@ -1898,7 +1922,11 @@ function init(){
 
 // ===== LOCAL STORAGE =====
 function getNewResults(){
-  try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}')}catch(e){return{}}
+  try{
+    var o=JSON.parse(localStorage.getItem(LS_KEY)||'{}'), ov=window.__spOverlay;
+    if(ov){ Object.keys(o).forEach(function(mk){ (o[mk]||[]).forEach(function(d){ var x=d&&ov[mk+'|'+d.date]; if(x){ if(!d.sp||d.sp.length<x.sp.length) d.sp=x.sp; if(!d.cs||d.cs.length<x.cs.length) d.cs=x.cs; } }); }); }   // 历史小奖(small_prizes.json)补到新增成绩上
+    return o;
+  }catch(e){return{}}
 }
 function saveNewResults(data){
   localStorage.setItem(LS_KEY, JSON.stringify(data));
@@ -6100,6 +6128,7 @@ async function zoMergeSmallPrizes(){
       const mine=(t.nums||[]).slice(0,3).map(pad).join(','), theirs=(p.nums||[]).slice(0,3).map(pad).join(',');
       if(mine!==theirs){ mismatch++; continue; }               // 头二三对不上 → 不信任这期的小奖
       const sp=(p.sp||[]).map(pad), cs=(p.cs||[]).map(pad);
+      (window.__spOverlay=window.__spOverlay||{})[p.market+'|'+p.date]={sp:sp,cs:cs};
       if((!t.sp||t.sp.length<sp.length) && sp.length){ t.sp=sp; filled++; }
       if((!t.cs||t.cs.length<cs.length) && cs.length){ t.cs=cs; }
     }
@@ -10981,6 +11010,72 @@ function stRun(){
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 红字=已经比平均间隔晚了很多期(只是「落后」,不代表下一期会补回来;之前的回测显示补回的机会跟随机差不多)。这里只是让你看清走向。</div></div>';
   out.innerHTML=h;
 }
+
+// 🎯 我的功课:本期头二三 → 缺席(数根+数字) → 推荐前/中/后2D → 叠条件(前3D点数/后3D点数/单双) → 留下的号码 + 逐期回测
+function zoHomework(){
+  var out=document.getElementById('hw-out'); if(!out) return;
+  function V(id,d){ var e=document.getElementById(id); return e?e.value:d; }
+  function C(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
+  var mk=V('hw-mk','万能'), win=parseInt(V('hw-win','2'),10)||2, NB=parseInt(V('hw-n','30'),10)||30, seg=parseInt(V('hw-seg','1'),10)||1;
+  var enF=C('hw-f'), enM=C('hw-m'), enB=C('hw-b');
+  if(!(enF||enM||enB)){ out.innerHTML='<div class="warn">至少勾一段2D。</div>'; return; }
+  var cP3f=C('hw-p3f'), a3f=parseInt(V('hw-p3f-a','10'),10), b3f=parseInt(V('hw-p3f-b','18'),10), cP3b=C('hw-p3b'), a3b=parseInt(V('hw-p3b-a','10'),10), b3b=parseInt(V('hw-p3b-b','18'),10);
+  var oeOk={}; [].forEach.call(document.querySelectorAll('.hw-oe'),function(e){ if(e.checked) oeOk[e.value]=1; }); var oeOn=Object.keys(oeOk).length>0&&Object.keys(oeOk).length<5;
+  function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return String(a.date)<String(b.date)?-1:1;});
+  var per=m.map(function(d){ var nums=[0,1,2].map(function(k){return pd(d.nums[k]);}); return {date:String(d.date).slice(0,10),nums:nums,sp:(d.sp||[]).map(pd),cs:(d.cs||[]).map(pd)}; }).filter(function(x){ return x.nums.every(function(n){return /^\d{4}$/.test(n);}); });
+  if(per.length<win+5){ out.innerHTML='<div class="warn">'+mk+' 期数太少。</div>'; return; }
+  var drf=(typeof dr==='function')?dr:function(n){ n=Math.abs(n); while(n>9){ var t=0; while(n){t+=n%10;n=(n/10)|0;} n=t; } return n; };
+  // 用第 i 期(及前面共 win 期)算出 前/中/后 推荐2D
+  function recAt(i){
+    var pf={},pm={},pb={}; for(var j=Math.max(0,i-win+1);j<=i;j++) per[j].nums.forEach(function(s){ pf[drf((+s[0])+(+s[1]))]=1; pm[drf((+s[1])+(+s[2]))]=1; pb[drf((+s[2])+(+s[3]))]=1; });
+    var A=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var q=0;q<4;q++) A[q][+s[q]]=1; });
+    var F=new Uint8Array(100),M=new Uint8Array(100),B=new Uint8Array(100), lf=[],lm=[],lb=[];
+    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ var r;
+      r=drf(u+v); var absF=(r>=1&&r<=9&&!pf[r]), absM=(r>=1&&r<=9&&!pm[r]), absB=(r>=1&&r<=9&&!pb[r]);
+      if(absF&&!A[0][u]&&!A[1][v]){ F[u*10+v]=1; lf.push(''+u+v); }
+      if(absM&&!A[1][u]&&!A[2][v]){ M[u*10+v]=1; lm.push(''+u+v); }
+      if(absB&&!A[2][u]&&!A[3][v]){ B[u*10+v]=1; lb.push(''+u+v); } }
+    return {F:F,M:M,B:B,lf:lf,lm:lm,lb:lb};
+  }
+  function candAt(i){
+    var R=recAt(i), list=[];
+    for(var q=0;q<10000;q++){ var d0=(q/1000)|0, d1=((q/100)|0)%10, d2=((q/10)|0)%10, d3=q%10;
+      var hit=(enF&&R.F[d0*10+d1]?1:0)+(enM&&R.M[d1*10+d2]?1:0)+(enB&&R.B[d2*10+d3]?1:0); if(hit<seg) continue;
+      if(cP3f){ var v=d0+d1+d2; if(v<a3f||v>b3f) continue; }
+      if(cP3b){ var w=d1+d2+d3; if(w<a3b||w>b3b) continue; }
+      if(oeOn){ var od=(d0%2)+(d1%2)+(d2%2)+(d3%2); if(!oeOk[od]) continue; }
+      list.push(('000'+q).slice(-4)); }
+    return {R:R,list:list};
+  }
+  function chips(arr,col){ return arr.length?arr.map(function(t){ return '<span style="display:inline-block;background:'+col+';color:#fff;border-radius:4px;padding:0 5px;margin:1px 2px 1px 0;font-family:monospace;font-size:12px">'+t+'</span>'; }).join(''):'<span style="color:#94a3b8">(没有)</span>'; }
+  var last=per.length-1, now=candAt(last);
+  window.__hwList=now.list;
+  var h='<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:10px 12px"><div style="font-size:15px;font-weight:800;color:#15803d">📋 下一期功课(依据 '+per[last].date+' 这一期的头二三 '+per[last].nums.join(' ')+')</div>';
+  h+='<div style="font-size:13px;margin-top:6px"><b style="color:#0f766e">前2D('+now.R.lf.length+')</b> '+chips(enF?now.R.lf:[],'#0f766e')+'</div><div style="font-size:13px"><b style="color:#b45309">中2D('+now.R.lm.length+')</b> '+chips(enM?now.R.lm:[],'#b45309')+'</div><div style="font-size:13px"><b style="color:#be185d">后2D('+now.R.lb.length+')</b> '+chips(enB?now.R.lb:[],'#be185d')+'</div>';
+  h+='<div style="font-size:16px;font-weight:800;margin-top:8px">叠上你的条件后,留下 <span style="color:#dc2626">'+now.list.length+'</span> 个号码</div>';
+  h+='<div style="margin:6px 0"><button class="btn btn-green" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\' \',this)">📋 复制(空格)</button> <button class="btn" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\'\\n\',this)">📋 复制(换行)</button></div>';
+  h+='<div style="font-family:monospace;font-size:13px;line-height:1.9;max-height:160px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">'+(now.list.length?now.list.join(' '):'<span style="color:#94a3b8">没有号码满足全部条件,松一两个条件试试</span>')+'</div></div>';
+  // 逐期回测
+  var rows=[], tot=0, hitP=0, base=0, szSum=0, nSp=0, nCs=0, noSm=0;
+  for(var t=Math.max(win,per.length-NB); t<per.length; t++){
+    var c=candAt(t-1), set={}; c.list.forEach(function(x){set[x]=1;}); var tg=per[t];
+    var top=tg.nums.filter(function(x){return set[x];}), sp=tg.sp.filter(function(x){return set[x];}), cs=tg.cs.filter(function(x){return set[x];}), hasSm=tg.sp.length>0;
+    tot++; if(top.length) hitP++; base+=1-Math.pow(1-Math.min(c.list.length,10000)/10000,3); szSum+=c.list.length; nSp+=sp.length; nCs+=cs.length; if(!hasSm) noSm++;
+    rows.push({date:tg.date,src:per[t-1].date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm}); }
+  h+='<div style="margin-top:12px;border:2px solid #4338ca;border-radius:10px;padding:10px"><div style="font-size:15px;font-weight:800;color:#4338ca">📜 逐期回测(最近 '+tot+' 期,每期都只用「上一期」的头二三来出号)</div>';
+  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">平均每期留 <b>'+Math.round(szSum/Math.max(tot,1))+'</b> 个号 · 头二三中 <b style="color:#16a34a">'+hitP+'</b> 期 / '+tot+' 期(随便买同样个数,该中约 '+Math.round(base)+' 期) · 小奖:特别奖中 <b style="color:#d97706">'+nSp+'</b> 个、安慰奖中 <b style="color:#2563eb">'+nCs+'</b> 个'+(noSm?('(有 '+noSm+' 期没小奖记录)'):'')+'</div>';
+  h+='<div style="max-height:420px;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:#4338ca;background:#eef2ff"><th style="text-align:left;padding:3px 6px">这一期</th><th style="padding:3px 6px">买几个</th><th style="text-align:left;padding:3px 6px">开出的头二三(绿=在你的号里)</th><th style="text-align:left;padding:3px 6px">小奖里中的</th><th style="padding:3px 6px">头二三</th></tr>';
+  rows.slice().reverse().forEach(function(x){
+    var tops=x.nums.map(function(n){ return x.set[n]?'<b style="color:#fff;background:#16a34a;border-radius:3px;padding:0 4px">'+n+'</b>':'<span style="color:#94a3b8">'+n+'</span>'; }).join(' ');
+    var sm=x.sp.map(function(n){return '<b style="color:#d97706">'+n+'</b>';}).concat(x.cs.map(function(n){return '<b style="color:#2563eb">'+n+'</b>';})).join(' ');
+    h+='<tr style="border-top:1px solid #e0e7ff;background:'+(x.top.length?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="text-align:center;padding:3px 6px">'+x.n+'</td><td style="padding:3px 6px;font-family:monospace">'+tops+'</td><td style="padding:3px 6px;font-family:monospace">'+(sm||(x.hasSm?'<span style="color:#cbd5e1">—</span>':'<span style="color:#94a3b8;font-size:10px">(无小奖记录)</span>'))+'</td><td style="text-align:center;padding:3px 6px;font-size:15px">'+(x.top.length?'✅':'❌')+'</td></tr>'; });
+  h+='</table></div><div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号,蓝色=安慰奖中的号。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
+  out.innerHTML=h;
+}
+function hwCopy(sep,btn){ var a=window.__hwList||[]; if(!a.length){ alert('没有号码'); return; } var t=a.join(sep); var done=function(){ if(btn){ var o=btn.textContent; btn.textContent='✅ 已复制'; setTimeout(function(){btn.textContent=o;},1400); } };
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done,function(){}); else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); done(); } }
 // 💰 对账:你贴的号 × 某一天的开奖 → 头二三/特别奖/安慰奖各中几个、投入、拿回、盈亏
 function payAllDraws(mk){
   var seen={}, m=[];
