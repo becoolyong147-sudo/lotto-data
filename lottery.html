@@ -784,10 +784,13 @@ function renderPatternTrend(){
         <label><input type="checkbox" class="hw-da" value="6" checked> 6打</label>
         <label><input type="checkbox" class="hw-da" value="4" checked> 4打</label>
         <label><input type="checkbox" class="hw-da" value="1" checked> 1打</label></span>
-      <span>热度(近 <select id="hw-hot-y" style="font-size:13px;padding:2px 5px"><option value="0.5">半年</option><option value="1" selected>1年</option><option value="2">2年</option><option value="3">3年</option></select> 开过几次):
-        <label><input type="checkbox" class="hw-hot" value="hot" checked> 热(2次以上)</label>
-        <label><input type="checkbox" class="hw-hot" value="warm" checked> 温(1次)</label>
-        <label><input type="checkbox" class="hw-hot" value="cold" checked> 冷(没开过)</label></span>
+      <span>冷热档(跟高级筛选一样):
+        <label><input type="checkbox" class="hw-hot" value="hot" checked> 🔥 热门</label>
+        <label><input type="checkbox" class="hw-hot" value="mid" checked> 🔵 中性</label>
+        <label><input type="checkbox" class="hw-hot" value="cold" checked> ❄️ 冷门</label>
+        <a href="javascript:void(0)" onclick="document.querySelectorAll('.hw-hot').forEach(function(e){e.checked=true;})" style="font-size:12px">全选</a>
+        <a href="javascript:void(0)" onclick="document.querySelectorAll('.hw-hot').forEach(function(e){e.checked=false;})" style="font-size:12px">清除</a>
+        <span style="font-size:11px;color:#64748b">热门=比平均间隔早出现(≤0.5倍);冷门=已久未出现(≥1.5倍)</span></span>
     </div>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:14px">
       <label><input type="checkbox" id="hw-yr"> 号码在 <select id="hw-y1" style="font-size:13px;padding:2px 5px"><option value="0" selected>最早</option><option value="1995">1995</option><option value="1996">1996</option><option value="1997">1997</option><option value="1998">1998</option><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select> 到 <select id="hw-y2" style="font-size:13px;padding:2px 5px"><option value="9999" selected>最新</option><option value="1995">1995</option><option value="1996">1996</option><option value="1997">1997</option><option value="1998">1998</option><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option value="2026">2026</option></select> 年之间开过</label>
@@ -11043,7 +11046,7 @@ function zoHomework(){
   if(!(enF||enM||enB)){ out.innerHTML='<div class="warn">至少勾一段2D。</div>'; return; }
   var cP3f=C('hw-p3f'), a3f=parseInt(V('hw-p3f-a','10'),10), b3f=parseInt(V('hw-p3f-b','18'),10), cP3b=C('hw-p3b'), a3b=parseInt(V('hw-p3b-a','10'),10), b3b=parseInt(V('hw-p3b-b','18'),10);
   var OE=sel('hw-oe'), DA=sel('hw-da'), HOT=sel('hw-hot'), HALF=sel('hw-half'), oeOk=OE.set, oeOn=OE.on;
-  var hotY=parseFloat(V('hw-hot-y','1'))||1, yrOn=C('hw-yr'), Y1=parseInt(V('hw-y1','0'),10)||0, Y2=parseInt(V('hw-y2','9999'),10)||9999; if(Y1&&Y2<9999&&Y1>Y2){ var tY=Y1; Y1=Y2; Y2=tY; }
+  var yrOn=C('hw-yr'), Y1=parseInt(V('hw-y1','0'),10)||0, Y2=parseInt(V('hw-y2','9999'),10)||9999; if(Y1&&Y2<9999&&Y1>Y2){ var tY=Y1; Y1=Y2; Y2=tY; }
   var exOn=C('hw-ex'), exM=parseInt(V('hw-ex-m','3'),10)||0; if(exM<=0) exOn=false;
   function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
   var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
@@ -11066,10 +11069,11 @@ function zoHomework(){
     return {F:F,M:M,B:B,lf:lf,lm:lm,lb:lb};
   }
   // 历史状态(逐期推进,保证每一期只看当时之前的数据)
-  var DT=new Array(10000), H1=new Int16Array(10000), H2=new Int16Array(10000);
-  function advance(i){ var half=(+per[i].date.slice(5,7))<=6; per[i].nums.forEach(function(s){ var q=+s; (DT[q]||(DT[q]=[])).push(per[i].date); if(half)H1[q]++; else H2[q]++; }); }
+  var DT=new Array(10000), H1=new Int16Array(10000), H2=new Int16Array(10000), LI=new Int32Array(10000).fill(-1), FI=new Int32Array(10000).fill(-1), CN=new Int32Array(10000);
+  var CUR=0;
+  function advance(i){ var half=(+per[i].date.slice(5,7))<=6; per[i].nums.forEach(function(s){ var q=+s; (DT[q]||(DT[q]=[])).push(per[i].date); if(half)H1[q]++; else H2[q]++; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); CUR=i; }
   function candAt(i){   // 用第 i 期(含)之前的历史,出下一期的号
-    var R=recAt(i), list=[], cur=per[i].date, hotCut=shiftDate(cur,0,Math.round(hotY*365)), exCut=exOn?shiftDate(cur,exM,0):'';
+    var R=recAt(i), list=[], cur=per[i].date, exCut=exOn?shiftDate(cur,exM,0):'';
     for(var q=0;q<10000;q++){ var d0=(q/1000)|0, d1=((q/100)|0)%10, d2=((q/10)|0)%10, d3=q%10;
       var hit=(enF&&R.F[d0*10+d1]?1:0)+(enM&&R.M[d1*10+d2]?1:0)+(enB&&R.B[d2*10+d3]?1:0); if(hit<seg) continue;
       if(cP3f){ var v=d0+d1+d2; if(v<a3f||v>b3f) continue; }
@@ -11078,7 +11082,7 @@ function zoHomework(){
       if(DA.on&&!DA.set[DAV[q]]) continue;
       var dts=DT[q];
       if(HALF.on){ var a=H1[q], b=H2[q], cat=(a+b===0)?'new':(a>b*1.2?'h1':(b>a*1.2?'h2':'bal')); if(!HALF.set[cat]) continue; }
-      if(HOT.on){ var cn=0; if(dts){ for(var k=dts.length-1;k>=0&&dts[k]>=hotCut;k--) cn++; } var ht=cn>=2?'hot':(cn===1?'warm':'cold'); if(!HOT.set[ht]) continue; }
+      if(HOT.on){ var ht='mid'; if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=Math.round((CUR-LI[q])/avg*100)/100; ht=ratio<=0.5?'hot':(ratio>=1.5?'cold':'mid'); } if(!HOT.set[ht]) continue; }
       if(exOn&&dts&&dts[dts.length-1]>=exCut) continue;
       if(yrOn){ var okY=false; if(dts){ for(var k2=0;k2<dts.length;k2++){ var yy=+dts[k2].slice(0,4); if(yy>=(Y1||0)&&yy<=Y2){ okY=true; break; } } } if(!okY) continue; }
       list.push(('000'+q).slice(-4)); }
