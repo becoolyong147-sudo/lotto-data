@@ -11072,6 +11072,18 @@ function zoHomework(){
   var DT=new Array(10000), H1=new Int16Array(10000), H2=new Int16Array(10000), LI=new Int32Array(10000).fill(-1), FI=new Int32Array(10000).fill(-1), CN=new Int32Array(10000);
   var CUR=0;
   function advance(i){ var half=(+per[i].date.slice(5,7))<=6; per[i].nums.forEach(function(s){ var q=+s; (DT[q]||(DT[q]=[])).push(per[i].date); if(half)H1[q]++; else H2[q]++; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); CUR=i; }
+  function hotOf(q){ if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=Math.round((CUR-LI[q])/avg*100)/100; return ratio<=0.5?'hot':(ratio>=1.5?'cold':'mid'); } return 'mid'; }
+  function halfOf(q){ var a=H1[q], b2=H2[q]; return (a+b2===0)?'new':(a>b2*1.2?'h1':(b2>a*1.2?'h2':'bal')); }
+  var HOTN={hot:'🔥热门',mid:'🔵中性',cold:'❄️冷门'}, HALFN={h1:'偏上半年',h2:'偏下半年',bal:'均衡',new:'没开过'};
+  function whyOf(s,R){   // 这个号为什么留得下来:中了哪几段2D + 满足了哪些条件
+    var q=+s, d0=+s[0],d1=+s[1],d2=+s[2],d3=+s[3], seg=[], cond=[];
+    if(enF&&R.F[d0*10+d1]) seg.push('前'+s.slice(0,2)); if(enM&&R.M[d1*10+d2]) seg.push('中'+s.slice(1,3)); if(enB&&R.B[d2*10+d3]) seg.push('后'+s.slice(2,4));
+    if(cP3f) cond.push('前3D点数 '+(d0+d1+d2)); if(cP3b) cond.push('后3D点数 '+(d1+d2+d3));
+    if(oeOn){ var od=(d0%2)+(d1%2)+(d2%2)+(d3%2); cond.push(od+'单'+(4-od)+'双'); }
+    if(DA.on) cond.push(DAV[q]+'打'); if(HOT.on) cond.push(HOTN[hotOf(q)]); if(HALF.on) cond.push(HALFN[halfOf(q)]);
+    if(exOn) cond.push('近'+exM+'个月没开过'); if(yrOn) cond.push((Y1||'最早')+'–'+(Y2<9999?Y2:'最新')+'年开过');
+    return {seg:seg,cond:cond};
+  }
   function candAt(i){   // 用第 i 期(含)之前的历史,出下一期的号
     var R=recAt(i), list=[], cur=per[i].date, exCut=exOn?shiftDate(cur,exM,0):'';
     for(var q=0;q<10000;q++){ var d0=(q/1000)|0, d1=((q/100)|0)%10, d2=((q/10)|0)%10, d3=q%10;
@@ -11097,7 +11109,8 @@ function zoHomework(){
       var c=candAt(i), set={}; c.list.forEach(function(x){set[x]=1;}); var tg=per[i+1];
       var top=tg.nums.filter(function(x){return set[x];}), sp=tg.sp.filter(function(x){return set[x];}), cs=tg.cs.filter(function(x){return set[x];}), hasSm=tg.sp.length>0;
       tot++; if(top.length) hitP++; base+=1-Math.pow(1-Math.min(c.list.length,10000)/10000,3); szSum+=c.list.length; nSp+=sp.length; nCs+=cs.length; if(!hasSm) noSm++;
-      rows.push({date:tg.date,src:per[i].date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm}); }
+      var why=[]; tg.nums.forEach(function(n,ix){ if(set[n]) why.push({n:n,k:['头奖','二奖','三奖'][ix],c:'#16a34a',w:whyOf(n,c.R)}); }); sp.forEach(function(n){ why.push({n:n,k:'特别奖',c:'#d97706',w:whyOf(n,c.R)}); }); cs.forEach(function(n){ why.push({n:n,k:'安慰奖',c:'#2563eb',w:whyOf(n,c.R)}); });
+      rows.push({date:tg.date,src:per[i].date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm,why:why}); }
   }
   window.__hwList=now.list;
   var h='<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:10px 12px"><div style="font-size:15px;font-weight:800;color:#15803d">📋 下一期功课(依据 '+per[last].date+' 这一期的头二三 '+per[last].nums.join(' ')+')</div>';
@@ -11111,7 +11124,7 @@ function zoHomework(){
   rows.slice().reverse().forEach(function(x){
     var tops=x.nums.map(function(n){ return x.set[n]?'<b style="color:#fff;background:#16a34a;border-radius:3px;padding:0 4px">'+n+'</b>':'<span style="color:#94a3b8">'+n+'</span>'; }).join(' ');
     var sm=x.sp.map(function(n){return '<b style="color:#d97706">'+n+'</b>';}).concat(x.cs.map(function(n){return '<b style="color:#2563eb">'+n+'</b>';})).join(' ');
-    h+='<tr style="border-top:1px solid #e0e7ff;background:'+(x.top.length?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="text-align:center;padding:3px 6px">'+x.n+'</td><td style="padding:3px 6px;font-family:monospace">'+tops+'</td><td style="padding:3px 6px;font-family:monospace">'+(sm||(x.hasSm?'<span style="color:#cbd5e1">—</span>':'<span style="color:#94a3b8;font-size:10px">(无小奖记录)</span>'))+'</td><td style="text-align:center;padding:3px 6px;font-size:15px">'+(x.top.length?'✅':'❌')+'</td></tr>'; });
+    h+='<tr style="border-top:1px solid #e0e7ff;background:'+(x.top.length?'#f0fdf4':'#fff')+'"><td style="padding:3px 6px;white-space:nowrap;color:#64748b">'+x.date+'</td><td style="text-align:center;padding:3px 6px">'+x.n+'</td><td style="padding:3px 6px;font-family:monospace">'+tops+'</td><td style="padding:3px 6px;font-family:monospace">'+(sm||(x.hasSm?'<span style="color:#cbd5e1">—</span>':'<span style="color:#94a3b8;font-size:10px">(无小奖记录)</span>'))+'</td><td style="text-align:center;padding:3px 6px;font-size:15px">'+(x.top.length?'✅':'❌')+'</td></tr>'+(x.why.length?('<tr style="background:'+(x.top.length?'#f0fdf4':'#fff')+'"><td></td><td></td><td colspan="3" style="padding:0 6px 6px;font-size:11px;line-height:1.7">'+x.why.map(function(w){ return '<div><b style="color:'+w.c+'">'+w.k+' '+w.n+'</b> <span style="color:#64748b">靠:</span> '+(w.w.seg.length?'<span style="background:#e0f2fe;border-radius:3px;padding:0 4px">'+w.w.seg.join(' ')+'</span> ':'')+w.w.cond.map(function(t){ return '<span style="background:#f1f5f9;border-radius:3px;padding:0 4px;margin-left:2px">'+t+'</span>'; }).join('')+'</div>'; }).join('')+'</td></tr>'):''); });
   h+='</table></div><div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号,蓝色=安慰奖中的号。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
   out.innerHTML=h;
 }
