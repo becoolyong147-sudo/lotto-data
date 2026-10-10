@@ -10787,8 +10787,9 @@ function lcPerm(n){
   var v=Object.values(c).sort().join('');
   return {'1111':24,'112':12,'22':6,'13':4,'4':1}[v];
 }
-function lcCopy(key,btn){
+function lcCopy(key,btn,sep){
   var t=(window.__lcCopy||{})[key]; if(t==null)return;
+  if(sep) t=t.split('\n').filter(Boolean).join(sep);   // 逗号版: 0693, 0860, 1234
   var old=btn.textContent, done=function(){ btn.textContent='✅ 已复制'; setTimeout(function(){btn.textContent=old;},1400); };
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(function(){ lcCopyFallback(t); done(); }); }
   else { lcCopyFallback(t); done(); }
@@ -11233,7 +11234,7 @@ function lcRun(){
   var h='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">';
   sums.forEach(function(g){ h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px">组'+g.i+' <b style="font-size:16px">'+g.u+'</b> 个'+(g.n!==g.u?' <span style="color:#dc2626">(贴了'+g.n+',组内重复'+(g.n-g.u)+')</span>':'')+'</div>'; });
   [['dup','重复','#b45309',dup],['uniq','没重复','#16a34a',uniq],['all','合并去重','#1e40af',all]].forEach(function(r){
-    h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px">'+r[1]+' <b style="font-size:16px;color:'+r[2]+'">'+r[3].length+'</b> 个 <button class="btn" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="lcCopy(\''+r[0]+'\',this)">📋 复制</button></div>';
+    h+='<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 12px;font-size:12px">'+r[1]+' <b style="font-size:16px;color:'+r[2]+'">'+r[3].length+'</b> 个 <button class="btn" style="padding:2px 8px;font-size:11px;margin-left:4px" onclick="lcCopy(\''+r[0]+'\',this)">📋 复制</button> <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+r[0]+'\',this,\', \')">📋 逗号</button></div>';
   });
   h+='</div>';
 
@@ -11253,7 +11254,7 @@ function lcRun(){
       var key=b[0]+'_'+p[0], title=b[1]+inc18+' '+p[1]+'('+L.length+'个)';
       window.__lcCopy[key]=L.join('\n');
       whole.push(title+'\n'+L.join('\n'));
-      h+='<div style="display:inline-block;vertical-align:top;margin:6px 18px 6px 0"><b style="color:'+(p[0]===24?'#7c3aed':p[0]===12?'#0f766e':'#64748b')+'">'+p[1]+'</b> '+L.length+' 个 <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this)">📋 复制(一行一个)</button>'+
+      h+='<div style="display:inline-block;vertical-align:top;margin:6px 18px 6px 0"><b style="color:'+(p[0]===24?'#7c3aed':p[0]===12?'#0f766e':'#64748b')+'">'+p[1]+'</b> '+L.length+' 个 <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this)">📋 复制(一行一个)</button> <button class="btn" style="padding:2px 8px;font-size:11px" onclick="lcCopy(\''+key+'\',this,\', \')">📋 复制(逗号)</button>'+
         '<textarea readonly rows="8" onclick="this.select()" style="display:block;width:140px;margin-top:4px;font-family:monospace;font-size:13px;color:#334155;line-height:1.5">'+L.join('\n')+'</textarea></div>';
     });
     h+='</div>';
@@ -24891,7 +24892,7 @@ function _summaryBlock(recs){
 }
 
 // ⚡ 一键分析
-window.drQuickFillToday=function(){document.getElementById('dq-date').value=new Date().toISOString().slice(0,10);};
+window.drQuickFillToday=function(){var e=document.getElementById('dq-date'); if(e) e.value=new Date().toISOString().slice(0,10);};
 
 window.drQuickAnalysis=function(){
   const company=document.getElementById('dq-company').value;
