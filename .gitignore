@@ -8,3 +8,6 @@ qa/
 4d_analyzer/
 docs/
 fetch_small_prizes.log
+
+fetch_small_prizes_dragon.log
+small_prizes_dragon.progress.json
