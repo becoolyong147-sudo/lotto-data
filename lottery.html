@@ -11757,7 +11757,7 @@ function q2dBT(){
     {k:'mon',n:'④ 只挑「下一期这个月正好是它爱月」的'},
     {k:'hot',n:'⑤ 只挑历史上「最常开」的一半'}
   ];
-  var R=RULES.map(function(r){ return {k:r.k,n:r.n,per:0,sz:0,hit:0,exp:0,hits:[]}; });
+  var R=RULES.map(function(r){ return {k:r.k,n:r.n,per:0,sz:0,hit:0,exp:0,hits:[],seq:[]}; });
   function mon(d){ return parseInt(d.slice(5,7),10)-1; }
   var skipped=0;
   for(var i=0;i<per.length-1;i++){
@@ -11785,10 +11785,11 @@ function q2dBT(){
     };
     var nk=nx.nums.map(key);
     R.forEach(function(r){
-      var S=sel[r.k]; if(!S.length) return;
+      var S=sel[r.k]; if(!S.length){ r.seq.push({d:nx.date,h:null,n:0}); return; }
       var set={}; S.forEach(function(t){set[t]=1;});
       r.per++; r.sz+=S.length; r.exp+=1-Math.pow(1-S.length/100,3);
       var hs=[]; nk.forEach(function(k,ix){ if(set[k]) hs.push({k:k,n:nx.nums[ix],p:['头奖','二奖','三奖'][ix]}); });
+      r.seq.push({d:nx.date,h:hs.length>0,n:S.length});
       if(hs.length){ r.hit++; r.hits.push({d:nx.date,nums:nx.nums,n:S.length,hs:hs.map(function(h){ var o=st[h.k]; return {k:h.k,n:h.n,p:h.p,o:o}; })}); }
     });
   }
@@ -11805,9 +11806,11 @@ function q2dBT(){
     h+='<div style="font-size:15px;font-weight:800;color:#0f172a">'+r.n+'</div>';
     h+='<div style="font-size:14px;line-height:1.9;color:#334155;margin-top:2px">📦 每期平均挑出 <b>'+avg+'</b> 个 2D(约 '+Math.round(avg*100)+' 个号)<br>🎯 '+r.per+' 期里中了 <b style="color:#15803d">'+r.hit+' 期</b><br>🎲 随便挑同样个数的 2D,大约会中 <b>'+Math.round(r.exp)+' 期</b></div>';
     h+='<div style="margin-top:4px;font-size:14px">'+verdict+'</div>';
+    var SQ=r.seq.slice(-14);
+    h+='<div style="margin-top:6px;font-size:13px;color:#334155">最近 '+SQ.length+' 期(旧→新): '+SQ.map(function(x){ return '<span title="'+x.d+'" style="display:inline-block;padding:0 4px;margin:1px;border-radius:4px;background:'+(x.h===null?'#f1f5f9':(x.h?'#dcfce7':'#fee2e2'))+'">'+x.d.slice(5)+(x.h===null?'—':(x.h?'✅':'❌'))+'</span>'; }).join('')+'</div>';
     var HL=r.hits.slice(-5).reverse();
     if(HL.length){
-      h+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#0369a1;font-size:13px">看最近 '+HL.length+' 次是怎么中的</summary>';
+      h+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#0369a1;font-size:13px">看中的那几次是怎么中的(只列中的,没中的看上面那一行)</summary>';
       HL.forEach(function(x){
         h+='<div style="border-left:4px solid #16a34a;background:#f0fdf4;border-radius:6px;padding:5px 10px;margin-top:5px;font-size:13px;line-height:1.8"><b>'+x.d+'</b> 开出 <span style="font-family:monospace">'+x.nums.join(' · ')+'</span> <span style="color:#64748b">(当时挑了 '+x.n+' 个 2D)</span>'
           +x.hs.map(function(hh){ var o=hh.o, bits=[]; if(o.c>0) bits.push('历史开过 '+o.c+' 次'); else bits.push('从没开过'); if(o.ratio!=null) bits.push('隔了 '+o.gap+' 期没开(平常约 '+Math.round(o.avg)+' 期一次)'); if(o.r12>0) bits.push('近 12 个月开过 '+o.r12+' 次'); return '<div>→ <b style="color:#16a34a">'+hh.p+' '+hh.n+'</b> 的'+WN[WI]+' <b>'+hh.k+'</b> 在名单里;它的脾气:<span style="color:#475569">'+bits.join(',')+'</span></div>'; }).join('')+'</div>';
