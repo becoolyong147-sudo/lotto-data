@@ -6069,7 +6069,7 @@ async function autoImportFetchedResults(srcUrl){
     const clean4d = a => Array.isArray(a) ? a.map(n=>String(n)).filter(n=>/^\d{4}$/.test(n)).slice(0,13) : [];
     let added = 0, enriched = 0; const markets = new Set();
     for(const p of draws){
-      if(!p || !p.market || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;
+      if(!p || !p.market || p.market==='山打根' || !/^20\d{2}-\d{2}-\d{2}$/.test(p.date||'')) continue;   // 山打根已停用
       const nums = (p.nums||[]).slice(0,3).map(n=>String(n).padStart(4,'0'));
       if(nums.length<3 || nums.some(n=>!/^\d{4}$/.test(n))) continue;
       // 小奖原样保留(新加坡等允许同一号既在头二三又在安慰奖;头三误混问题已在抓取脚本源头解决)

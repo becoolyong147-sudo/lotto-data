@@ -116,7 +116,7 @@ def fetch_huat3_range(sess, market, code, fromdate):
 def load_existing():
     try:
         with open(OUT_FILE, encoding="utf-8") as f:
-            return json.load(f).get("draws", [])
+            return [x for x in json.load(f).get("draws", []) if x.get("market") != "山打根"]   # 山打根已停用
     except (OSError, ValueError):
         return []
 
