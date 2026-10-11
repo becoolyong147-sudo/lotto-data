@@ -11165,7 +11165,9 @@ function zoHomework(){
   h+='<div style="margin-top:12px;border:2px solid #4338ca;border-radius:10px;padding:10px"><div style="font-size:15px;font-weight:800;color:#4338ca">📜 逐期回测(最近 '+A.st.tot+' 期,每期都只用「上一期」和当时之前的历史来出号)</div>';
   var hf=A.rows.map(function(x){return x.top.length>0;}), w3=0, w3ok=0, ms=0, cm=0;
   for(var z=0;z<hf.length;z++){ if(hf[z]){ cm=0; } else { cm++; if(cm>ms) ms=cm; } if(z>=2){ w3++; if(hf[z]||hf[z-1]||hf[z-2]) w3ok++; } }
-  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'<br>每连续 3 期里至少中 1 期:<b style="color:'+(w3&&w3ok/w3>=0.99?'#16a34a':'#b45309')+'">'+w3ok+' / '+w3+(w3?(' ('+Math.round(w3ok/w3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+ms+'</b> 期</div>'+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
+  var hf2=A.rows.map(function(x){return x.top.length>0||x.sp.length>0;}), v3=0, v3ok=0, vms=0, vcm=0, vN=0;
+  for(var z2=0;z2<hf2.length;z2++){ if(hf2[z2]){ vcm=0; vN++; } else { vcm++; if(vcm>vms) vms=vcm; } if(z2>=2){ v3++; if(hf2[z2]||hf2[z2-1]||hf2[z2-2]) v3ok++; } }
+  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'<br>每连续 3 期里至少中 1 期:<b style="color:'+(w3&&w3ok/w3>=0.99?'#16a34a':'#b45309')+'">'+w3ok+' / '+w3+(w3?(' ('+Math.round(w3ok/w3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+ms+'</b> 期<br><span style="color:#92400e">算上特别奖(头二三或特别奖任一个中):中 <b>'+vN+'</b> / '+hf2.length+' 期 · 每连续 3 期里至少中 1 期 <b>'+v3ok+' / '+v3+(v3?(' ('+Math.round(v3ok/v3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+vms+'</b> 期</span></div>'+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
 
   // ② 逐个条件拿掉对比
   var tests=[];
