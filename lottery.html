@@ -962,8 +962,8 @@ function renderPatternTrend(){
       <button class="btn" style="padding:7px 12px;font-size:12px" onclick="payLatest()">最新一期</button>
       <div><label style="font-size:12px;font-weight:700;display:block">头二三每奖 RM</label><input id="pay-st-top" value="0.1" size="4" style="padding:3px 5px"></div>
       <div><label style="font-size:12px;font-weight:700;display:block">特别奖 RM</label><input id="pay-st-sp" value="0.3" size="4" style="padding:3px 5px"></div>
-      <div><label style="font-size:12px;font-weight:700;display:block">赔率 头二三×</label><input id="pay-pay-top" value="6000" size="5" style="padding:3px 5px"></div>
-      <div><label style="font-size:12px;font-weight:700;display:block">小奖×</label><input id="pay-pay-sp" value="600" size="4" style="padding:3px 5px"></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">赔率 头二三×</label><input id="pay-pay-top" value="6600" size="5" style="padding:3px 5px"></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">小奖×</label><input id="pay-pay-sp" value="660" size="4" style="padding:3px 5px"></div>
       <button class="btn btn-green" style="padding:9px 18px;font-size:14px" onclick="payRun()">💰 算盈亏</button>
     </div>
     <div id="pay-out" style="margin-top:10px"></div>
@@ -11250,6 +11250,8 @@ function hwCopy(sep,btn){ var a=window.__hwList||[]; if(!a.length){ alert('没�
 function scVisual(){
   var out=document.getElementById('scv-out'); if(!out) return;
   var mk=document.getElementById('scv-mk').value, P=parseInt(document.getElementById('scv-n').value,10)||120;
+  // 💰 赔率/回扣(按你给的): 头二三×6600、特别奖×660;回扣20%;一星期买满3000再多6%
+  var STK_TOP=0.1, STK_SP=0.3, PAY_TOP=6600, PAY_SP=660, REB=0.20, BONUS=0.06, WEEK_MIN=3000, PER_NUM=STK_TOP*3+STK_SP;
   function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
   var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
   m.sort(function(a,b){return String(a.date)<String(b.date)?-1:1;});
@@ -11260,6 +11262,7 @@ function scVisual(){
   for(var q=0;q<10000;q++){ var a=(q/1000)|0,b=((q/100)|0)%10,c=((q/10)|0)%10,d=q%10; PT[q]=a+b+c+d; var u={}; u[a]=1;u[b]=1;u[c]=1;u[d]=1; var k=Object.keys(u).length; DA[q]=(k===4)?24:(k===3)?12:(k===1)?1:((a===b&&c===d)||(a===c&&b===d)||(a===d&&b===c))?6:4; }
   var CN=new Int32Array(10000),FI=new Int32Array(10000).fill(-1),LI=new Int32Array(10000).fill(-1);
   function adv(i){ per[i].nums.forEach(function(s){ var q=+s; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); }
+  function pt2(a,b2){ return (a%2?'单':'双')+(b2%2?'单':'双'); }
   function recAt(i,win){
     var pf={},pm={},pb={}; for(var j=Math.max(0,i-win+1);j<=i;j++) per[j].nums.forEach(function(s){ pf[drf((+s[0])+(+s[1]))]=1; pm[drf((+s[1])+(+s[2]))]=1; pb[drf((+s[2])+(+s[3]))]=1; });
     var A=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var k=0;k<4;k++) A[k][+s[k]]=1; });
@@ -11269,66 +11272,74 @@ function scVisual(){
     return {F:F,M:M,B:B};
   }
   function zgAt(i){
-    var roots={}, pats=[], cnt={}, ex={}, set=new Uint8Array(100);
-    function pt(a,b2){ return (a%2?'O':'E')+(b2%2?'O':'E'); }
-    per[i].nums.forEach(function(s){ var r=drf((+s[0])+(+s[1])); if(r>=1&&r<=9) roots[r]=1; var p=pt(+s[0],+s[1]); if(pats.indexOf(p)<0){ pats.push(p); cnt[p]=0; } ex[s.slice(0,2)]=1; });
-    for(var j=Math.max(0,i-2);j<=i;j++) per[j].nums.forEach(function(s){ var p=pt(+s[0],+s[1]); if(cnt[p]!=null) cnt[p]++; });
+    var roots={}, pats=[], cnt={}, ex={}, set=new Uint8Array(100), pn=function(a,b2){return (a%2?'O':'E')+(b2%2?'O':'E');};
+    per[i].nums.forEach(function(s){ var r=drf((+s[0])+(+s[1])); if(r>=1&&r<=9) roots[r]=1; var p=pn(+s[0],+s[1]); if(pats.indexOf(p)<0){ pats.push(p); cnt[p]=0; } ex[s.slice(0,2)]=1; });
+    for(var j=Math.max(0,i-2);j<=i;j++) per[j].nums.forEach(function(s){ var p=pn(+s[0],+s[1]); if(cnt[p]!=null) cnt[p]++; });
     var best=pats[0]; pats.forEach(function(p){ if(cnt[p]>cnt[best]) best=p; });
-    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ if(roots[drf(u+v)]&&pt(u,v)===best&&!ex[''+u+v]) set[u*10+v]=1; }
-    return set;
+    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ if(roots[drf(u+v)]&&pn(u,v)===best&&!ex[''+u+v]) set[u*10+v]=1; }
+    return {set:set,best:(best[0]==='O'?'单':'双')+(best[1]==='O'?'单':'双')};
   }
-  // 随机数(固定种子,每次画出来一样)
   var seed=20261010; function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+  function z4(q){ return ('000'+q).slice(-4); }
   var METHODS=[
-    {n:'缺席推荐2D(任一段) + 4D点数14–21', f:function(i,st){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; if(R.F[(q/100)|0]||R.M[((q/10)|0)%100]||R.B[q%100]) L.push(q); } return L; }},
-    {n:'缺席推荐2D(至少中2段) + 4D点数14–21', f:function(i,st){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; var h=(R.F[(q/100)|0]?1:0)+(R.M[((q/10)|0)%100]?1:0)+(R.B[q%100]?1:0); if(h>=2) L.push(q); } return L; }},
-    {n:'主杆法(上期前2D数根+单双走势) + 后3D 10–18 + 24/12打 + 热门/中性', f:function(i,st){ var Z=zgAt(i), L=[]; for(var q=0;q<10000;q++){ if(!Z[(q/100)|0]) continue; var b3=(((q/100)|0)%10)+(((q/10)|0)%10)+(q%10); if(b3<10||b3>18) continue; if(DA[q]!==24&&DA[q]!==12) continue;
+    {name:'打法① 缺席推荐2D + 点数14–21(买得很多)', run:function(i){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; if(R.F[(q/100)|0]||R.M[((q/10)|0)%100]||R.B[q%100]) L.push(q); } return {L:L,why:function(q){ var s=z4(q), w=[]; if(R.F[(q/100)|0]) w.push('前2D '+s.slice(0,2)); if(R.M[((q/10)|0)%100]) w.push('中2D '+s.slice(1,3)); if(R.B[q%100]) w.push('后2D '+s.slice(2,4)); return w.join(' + ')+' 在缺席推荐里;4D点数 '+PT[q]; }}; }},
+    {name:'打法② 缺席推荐2D(至少中2段) + 点数14–21(买得少一些)', run:function(i){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; var h=(R.F[(q/100)|0]?1:0)+(R.M[((q/10)|0)%100]?1:0)+(R.B[q%100]?1:0); if(h>=2) L.push(q); } return {L:L,why:function(q){ var s=z4(q), w=[]; if(R.F[(q/100)|0]) w.push('前2D '+s.slice(0,2)); if(R.M[((q/10)|0)%100]) w.push('中2D '+s.slice(1,3)); if(R.B[q%100]) w.push('后2D '+s.slice(2,4)); return w.join(' + ')+' 同时在缺席推荐里;4D点数 '+PT[q]; }}; }},
+    {name:'打法③ 你的主杆法(买得最少,约300多个号)', run:function(i){ var Z=zgAt(i), L=[]; for(var q=0;q<10000;q++){ if(!Z.set[(q/100)|0]) continue; var b3=(((q/100)|0)%10)+(((q/10)|0)%10)+(q%10); if(b3<10||b3>18) continue; if(DA[q]!==24&&DA[q]!==12) continue;
         if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=(i-LI[q])/avg; if(ratio>=1.5) continue; }
-        L.push(q); } return L; }}
+        L.push(q); } return {L:L,why:function(q){ var s=z4(q), r=drf((+s[0])+(+s[1])), tag='🔵中性'; if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=(i-LI[q])/avg; if(ratio<=0.5) tag='🔥热门'; } var b3=(+s[1])+(+s[2])+(+s[3]); return '主杆:前2D '+s.slice(0,2)+'(数根'+r+',形态'+Z.best+');后3D点数 '+b3+';'+DA[q]+'打;'+tag; }}; }}
   ];
-  var res=METHODS.map(function(m){ return {name:m.n,real:[],rand:[],sz:0,hitR:0,hitX:0,n:0,cost:0,win:0,rwin:0}; });
+  var res=METHODS.map(function(M){ return {name:M.name,n:0,sz:0,hitR:0,hitX:0,gross:0,win:0,rwin:0,weeks:{},hits:[]}; });
   var startT=per.length-1-P;
+  function weekKey(ds){ var d=new Date(ds+'T00:00:00'); var day=(d.getDay()+6)%7; d.setDate(d.getDate()-day); return d.toISOString().slice(0,10); }
   for(var i=0;i<per.length-1;i++){
     adv(i);
     if(i<startT||i<3) continue;
-    var tg=per[i+1], tn=tg.nums.map(function(x){return +x;}), tsp=tg.sp.map(function(x){return +x;});
+    var tg=per[i+1], tn=tg.nums.map(function(x){return +x;}), tsp=tg.sp.map(function(x){return +x;}), wk=weekKey(tg.date);
     METHODS.forEach(function(M,mi){
-      var L=M.f(i), set={}; L.forEach(function(q){set[q]=1;});
-      var hit=tn.some(function(x){return set[x];}), spHit=!hit&&tsp.some(function(x){return set[x];});
-      var tH=tn.filter(function(x){return set[x];}).length, sH=tsp.filter(function(x){return set[x];}).length;
-      // 随机: 同样个数
-      var picked={}, c=0, N=L.length; while(c<N){ var r=(rnd()*10000)|0; if(!picked[r]){ picked[r]=1; c++; } }
-      var rhit=tn.some(function(x){return picked[x];}), rsp=!rhit&&tsp.some(function(x){return picked[x];});
-      var rtH=tn.filter(function(x){return picked[x];}).length, rsH=tsp.filter(function(x){return picked[x];}).length;
-      var R=res[mi]; R.real.push({d:tg.date,h:hit,s:spHit,n:N}); R.rand.push({d:tg.date,h:rhit,s:rsp,n:N}); R.sz+=N; R.n++; if(hit)R.hitR++; if(rhit)R.hitX++; R.cost+=N*0.6; R.win+=tH*600+sH*180; R.rwin+=rtH*600+rsH*180;
+      var o=M.run(i), L=o.L, set={}; L.forEach(function(q){set[q]=1;});
+      var N=L.length, R=res[mi], tH=[], sH=[];
+      tn.forEach(function(x,ix){ if(set[x]) tH.push({n:x,k:['头奖','二奖','三奖'][ix]}); });
+      tsp.forEach(function(x){ if(set[x]) sH.push({n:x,k:'特别奖'}); });
+      var picked={}, c=0; while(c<N){ var r=(rnd()*10000)|0; if(!picked[r]){ picked[r]=1; c++; } }
+      var rt=tn.filter(function(x){return picked[x];}).length, rs=tsp.filter(function(x){return picked[x];}).length;
+      var gross=N*PER_NUM; R.n++; R.sz+=N; R.gross+=gross; R.weeks[wk]=(R.weeks[wk]||0)+gross;
+      R.win+=tH.length*STK_TOP*PAY_TOP+sH.length*STK_SP*PAY_SP; R.rwin+=rt*STK_TOP*PAY_TOP+rs*STK_SP*PAY_SP;
+      if(tH.length) R.hitR++; if(rt) R.hitX++;
+      if(tH.length||sH.length) R.hits.push({d:tg.date,nums:tg.nums,t:tH,s:sH,n:N,why:tH.concat(sH).map(function(h){ return {n:h.n,k:h.k,w:o.why(h.n)}; })});
     });
   }
-  function strip(arr,col){ return arr.map(function(x){ var bg=x.h?col:'#e2e8f0'; return '<span title="'+x.d+' · 买'+x.n+'个 · '+(x.h?'头二三中':(x.s?'只中特别奖':'没中'))+'" style="flex:1 1 0;min-width:2px;height:18px;border-radius:1px;background:'+bg+';position:relative">'+(x.s?'<i style="position:absolute;left:1px;top:5px;width:4px;height:4px;border-radius:2px;background:#2563eb"></i>':'')+'</span>'; }).join(''); }
   function rm(v){ return 'RM'+Math.round(Math.abs(v)).toLocaleString(); }
-  var NAMES=['打法① 缺席推荐2D + 点数14–21(买得很多)','打法② 缺席推荐2D(至少中2段) + 点数14–21(买得少一些)','打法③ 你的主杆法(最少,约300多个号)'];
-  var totalCost=0,totalWin=0; res.forEach(function(R){ totalCost+=R.cost; totalWin+=R.win; });
-  var back=Math.round(totalWin/Math.max(totalCost,1)*100);
+  var tot={g:0,rb:0,w:0};
+  res.forEach(function(R){ var bonus=0; Object.keys(R.weeks).forEach(function(k){ if(R.weeks[k]>=WEEK_MIN) bonus+=R.weeks[k]*BONUS; }); R.rebate=R.gross*REB+bonus; R.bonus=bonus; R.net=R.gross-R.rebate; R.prof=R.win-R.net; R.rprof=R.rwin-R.net; tot.g+=R.gross; tot.rb+=R.rebate; tot.w+=R.win; });
+  var back=Math.round((tot.w+tot.rb)/Math.max(tot.g,1)*100);
   var h='<div style="background:#fffbeb;border:2px solid #fde68a;border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.9;color:#78350f;margin-bottom:12px">'
-    +'🧾 <b>先说结论</b>:假设你过去 <b>'+P+' 期</b>('+per[startT+1].date+' 到 '+per[per.length-1].date+')每一期都照下面的打法买,<br>'
-    +'<b>每买 100 块,最后大约只拿回 '+back+' 块</b>。三个打法都一样亏。<br>'
-    +'而且「随便买同样个数的号」,结果也差不多。意思是:这些打法<b>没有让你更容易中</b>,只是让你少买点、更好管理。</div>';
-  res.forEach(function(R,ix){
-    var avg=Math.round(R.sz/Math.max(R.n,1)), prof=R.win-R.cost, rprof=R.rwin-R.cost, d=R.hitR-R.hitX, th=Math.max(3,Math.round(P*0.04));
+    +'🧾 <b>先说结论</b>:假设过去 <b>'+P+' 期</b>('+per[startT+1].date+' 到 '+per[per.length-1].date+')每一期都照下面的打法买,<br>'
+    +'<b>每投 100 块,算上回扣,最后大约拿回 '+back+' 块</b>。<br>'
+    +'「随便买同样个数的号」结果也差不多。意思是:这些打法<b>没有让你更容易中</b>,作用是帮你少买点、更好管理。</div>';
+  res.forEach(function(R){
+    var avg=Math.round(R.sz/Math.max(R.n,1)), d=R.hitR-R.hitX, th=Math.max(3,Math.round(P*0.04));
     var verdict=(Math.abs(d)<=th)?'<span style="color:#a16207">🟡 <b>跟随便买差不多</b>。这个打法没有让你更容易中。</span>':(d>0?'<span style="color:#15803d">🟢 这段时间比随便买<b>多中了 '+d+' 期</b>。但只是这一段,别当成一定有效。</span>':'<span style="color:#b91c1c">🔴 这段时间比随便买<b>少中了 '+(-d)+' 期</b>。</span>');
-    h+='<div style="border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#fff">';
-    h+='<div style="font-size:17px;font-weight:800;color:#0f172a">'+NAMES[ix]+'</div>';
+    h+='<div style="border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;margin-bottom:14px;background:#fff">';
+    h+='<div style="font-size:17px;font-weight:800;color:#0f172a">'+R.name+'</div>';
     h+='<div style="font-size:15px;line-height:2;color:#334155;margin-top:4px">'
-      +'📦 每期大约买 <b>'+avg.toLocaleString()+'</b> 个号<br>'
-      +'🎯 '+P+' 期里,有 <b style="color:#15803d">'+R.hitR+' 期</b>中了头二三(大约每 '+(R.hitR?Math.round(P/R.hitR*10)/10:'-')+' 期中 1 期)<br>'
-      +'💰 一共花 <b>'+rm(R.cost)+'</b>,拿回 <b>'+rm(R.win)+'</b>,<b style="color:'+(prof<0?'#dc2626':'#16a34a')+'">'+(prof<0?'亏 ':'赚 ')+rm(prof)+'</b><br>'
-      +'🎲 如果同样买 '+avg.toLocaleString()+' 个<b>随便挑的号</b>:中 <b>'+R.hitX+' 期</b>,'+(rprof<0?'亏 ':'赚 ')+'<b>'+rm(rprof)+'</b></div>';
+      +'📦 每期大约买 <b>'+avg.toLocaleString()+'</b> 个号(每个号 RM'+PER_NUM.toFixed(2)+')<br>'
+      +'🎯 '+P+' 期里,有 <b style="color:#15803d">'+R.hitR+' 期</b>中了头二三<br>'
+      +'💸 一共投 <b>'+rm(R.gross)+'</b> → 回扣 <b>'+rm(R.rebate)+'</b>(20%'+(R.bonus>0?' + 达标6%':'')+') → 实际花 <b>'+rm(R.net)+'</b><br>'
+      +'💰 中奖拿回 <b>'+rm(R.win)+'</b> → <b style="color:'+(R.prof<0?'#dc2626':'#16a34a')+'">'+(R.prof<0?'亏 ':'赚 ')+rm(R.prof)+'</b><br>'
+      +'🎲 同样买 '+avg.toLocaleString()+' 个<b>随便挑的号</b>:中 <b>'+R.hitX+' 期</b>,'+(R.rprof<0?'亏 ':'赚 ')+'<b>'+rm(R.rprof)+'</b></div>';
     h+='<div style="margin-top:6px;font-size:15px">'+verdict+'</div>';
-    h+='<details style="margin-top:8px"><summary style="cursor:pointer;color:#64748b;font-size:13px">想看每一期的中奖情况(一格一期,绿=中)</summary>'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="width:100px;font-size:12px;color:#15803d;font-weight:700">用这个打法</div><div style="flex:1;display:flex;gap:1px">'+strip(R.real,'#16a34a')+'</div></div>'
-      +'<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div style="width:100px;font-size:12px;color:#64748b">随便买</div><div style="flex:1;display:flex;gap:1px">'+strip(R.rand,'#94a3b8')+'</div></div></details>';
+    // 怎么命中的: 最近的命中期,逐个号写明靠什么
+    var HL=R.hits.slice(-12).reverse();
+    h+='<div style="margin-top:10px;font-size:14px;font-weight:800;color:#15803d">✅ 最近是怎么中的(最近 '+HL.length+' 次,新的在上面)</div>';
+    if(!HL.length) h+='<div style="color:#94a3b8;font-size:13px">这段时间没有命中。</div>';
+    HL.forEach(function(x){
+      h+='<div style="border-left:4px solid #16a34a;background:#f0fdf4;border-radius:6px;padding:6px 10px;margin-top:6px;font-size:13px;line-height:1.8">'
+        +'<b>'+x.d+'</b> 开出 <span style="font-family:monospace">'+x.nums.join(' · ')+'</span> <span style="color:#64748b">(当时买了 '+x.n+' 个号)</span>'
+        +x.why.map(function(w){ return '<div>→ <b style="color:'+(w.k==='特别奖'?'#d97706':'#16a34a')+'">'+w.k+' '+z4(w.n)+'</b> 在你买的号里,因为:<span style="color:#475569">'+w.w+'</span></div>'; }).join('')+'</div>';
+    });
     h+='</div>';
   });
-  h+='<div style="font-size:12px;color:#94a3b8;line-height:1.7">算法:每个号 头二三每奖押 RM0.10(三个奖共 RM0.30)+ 特别奖 RM0.30 = RM0.60;头二三每中一个拿 RM600,特别奖每中一个拿 RM180。想改金额,在「🧮 号码对比」页的「💰 对账」里可以改注额和赔率。</div>';
+  h+='<div style="font-size:12px;color:#94a3b8;line-height:1.7">算法:每个号 头二三每奖押 RM0.10(三个奖共 RM0.30)+ 特别奖 RM0.30 = RM0.60;头二三每中一个拿 RM'+(STK_TOP*PAY_TOP)+',特别奖每中一个拿 RM'+(STK_SP*PAY_SP)+'(赔率 6600 / 660);回扣 20%;一个星期投满 RM3000 再多 6%(按周一到周日算)。</div>';
   out.innerHTML=h;
 }
 setTimeout(function(){ try{ var t=document.getElementById('scv-out'); if(t&&!t.innerHTML) scVisual(); }catch(e){} }, 4000);
