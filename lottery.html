@@ -750,8 +750,8 @@ function renderPatternTrend(){
     .sc-s{font-size:11px;color:#94a3b8;margin-top:2px} .sc-t{color:#475569;font-size:12px}
   </style>
   <div class="card" style="border:3px solid #16a34a;margin-bottom:12px">
-    <h3 style="color:#15803d">👀 一期一格,直接看(每格=一期,绿=下一期头二三有中,灰=没中)</h3>
-    <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:6px">每个打法画两条:<b>上面是真的用这个打法</b>,<b>下面是随便买同样个数的号</b>(电脑随机抽)。两条的绿格数量、分布越像,说明这个打法跟随便买没差别。蓝点=这一期只中了特别奖。</div>
+    <h3 style="color:#15803d">👀 如果我照这个打法买,会怎样?</h3>
+    <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:6px">选一个市场和一段时间,下面直接告诉你:花多少钱、中几次、亏多少,还有「随便乱买」会是什么结果。</div>
     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
       <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="scv-mk" onchange="scVisual()" style="font-size:15px;padding:5px 9px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option></select></div>
       <div><label style="font-size:12px;font-weight:700;display:block">看多少期</label><select id="scv-n" onchange="scVisual()" style="font-size:15px;padding:5px 9px"><option value="60">最近 60 期</option><option value="120" selected>最近 120 期</option><option value="165">约 1 年(165 期)</option><option value="330">约 2 年(330 期)</option></select></div>
@@ -11286,7 +11286,7 @@ function scVisual(){
         if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=(i-LI[q])/avg; if(ratio>=1.5) continue; }
         L.push(q); } return L; }}
   ];
-  var res=METHODS.map(function(m){ return {name:m.n,real:[],rand:[],sz:0,hitR:0,hitX:0,n:0}; });
+  var res=METHODS.map(function(m){ return {name:m.n,real:[],rand:[],sz:0,hitR:0,hitX:0,n:0,cost:0,win:0,rwin:0}; });
   var startT=per.length-1-P;
   for(var i=0;i<per.length-1;i++){
     adv(i);
@@ -11295,24 +11295,40 @@ function scVisual(){
     METHODS.forEach(function(M,mi){
       var L=M.f(i), set={}; L.forEach(function(q){set[q]=1;});
       var hit=tn.some(function(x){return set[x];}), spHit=!hit&&tsp.some(function(x){return set[x];});
+      var tH=tn.filter(function(x){return set[x];}).length, sH=tsp.filter(function(x){return set[x];}).length;
       // 随机: 同样个数
       var picked={}, c=0, N=L.length; while(c<N){ var r=(rnd()*10000)|0; if(!picked[r]){ picked[r]=1; c++; } }
       var rhit=tn.some(function(x){return picked[x];}), rsp=!rhit&&tsp.some(function(x){return picked[x];});
-      var R=res[mi]; R.real.push({d:tg.date,h:hit,s:spHit,n:N}); R.rand.push({d:tg.date,h:rhit,s:rsp,n:N}); R.sz+=N; R.n++; if(hit)R.hitR++; if(rhit)R.hitX++;
+      var rtH=tn.filter(function(x){return picked[x];}).length, rsH=tsp.filter(function(x){return picked[x];}).length;
+      var R=res[mi]; R.real.push({d:tg.date,h:hit,s:spHit,n:N}); R.rand.push({d:tg.date,h:rhit,s:rsp,n:N}); R.sz+=N; R.n++; if(hit)R.hitR++; if(rhit)R.hitX++; R.cost+=N*0.6; R.win+=tH*600+sH*180; R.rwin+=rtH*600+rsH*180;
     });
   }
   function strip(arr,col){ return arr.map(function(x){ var bg=x.h?col:'#e2e8f0'; return '<span title="'+x.d+' · 买'+x.n+'个 · '+(x.h?'头二三中':(x.s?'只中特别奖':'没中'))+'" style="flex:1 1 0;min-width:2px;height:18px;border-radius:1px;background:'+bg+';position:relative">'+(x.s?'<i style="position:absolute;left:1px;top:5px;width:4px;height:4px;border-radius:2px;background:#2563eb"></i>':'')+'</span>'; }).join(''); }
-  var h='<div style="font-size:12px;color:#64748b;margin-bottom:8px">'+mk+' · 最近 '+P+' 期('+per[startT+1].date+' ~ '+per[per.length-1].date+')。把鼠标放在格子上能看日期和买了几个号。</div>';
-  res.forEach(function(R){
-    var avg=Math.round(R.sz/Math.max(R.n,1));
-    h+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:10px;background:#fff">';
-    h+='<div style="font-weight:800;color:#0f172a;font-size:14px">'+R.name+' <span style="font-weight:400;color:#64748b;font-size:12px">· 每期买约 '+avg+' 个号</span></div>';
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="width:100px;font-size:12px;color:#15803d;font-weight:700">用这个打法</div><div style="flex:1;display:flex;gap:1px">'+strip(R.real,'#16a34a')+'</div><div style="font-size:13px;font-weight:800;color:#15803d;white-space:nowrap">中 '+R.hitR+' 期</div></div>';
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div style="width:100px;font-size:12px;color:#64748b">随便买同样个数</div><div style="flex:1;display:flex;gap:1px">'+strip(R.rand,'#94a3b8')+'</div><div style="font-size:13px;font-weight:800;color:#64748b;white-space:nowrap">中 '+R.hitX+' 期</div></div>';
-    var d=R.hitR-R.hitX;
-    h+='<div style="font-size:12px;color:#475569;margin-top:6px">'+P+' 期里:用打法中 <b>'+R.hitR+'</b> 期,随便买中 <b>'+R.hitX+'</b> 期 → '+(Math.abs(d)<=Math.max(3,P*0.04)?'<b>差不多</b>(差 '+d+' 期)':(d>0?'<b style="color:#16a34a">多 '+d+' 期</b>':'<b style="color:#dc2626">少 '+(-d)+' 期</b>'))+'</div>';
+  function rm(v){ return 'RM'+Math.round(Math.abs(v)).toLocaleString(); }
+  var NAMES=['打法① 缺席推荐2D + 点数14–21(买得很多)','打法② 缺席推荐2D(至少中2段) + 点数14–21(买得少一些)','打法③ 你的主杆法(最少,约300多个号)'];
+  var totalCost=0,totalWin=0; res.forEach(function(R){ totalCost+=R.cost; totalWin+=R.win; });
+  var back=Math.round(totalWin/Math.max(totalCost,1)*100);
+  var h='<div style="background:#fffbeb;border:2px solid #fde68a;border-radius:12px;padding:12px 14px;font-size:16px;line-height:1.9;color:#78350f;margin-bottom:12px">'
+    +'🧾 <b>先说结论</b>:假设你过去 <b>'+P+' 期</b>('+per[startT+1].date+' 到 '+per[per.length-1].date+')每一期都照下面的打法买,<br>'
+    +'<b>每买 100 块,最后大约只拿回 '+back+' 块</b>。三个打法都一样亏。<br>'
+    +'而且「随便买同样个数的号」,结果也差不多。意思是:这些打法<b>没有让你更容易中</b>,只是让你少买点、更好管理。</div>';
+  res.forEach(function(R,ix){
+    var avg=Math.round(R.sz/Math.max(R.n,1)), prof=R.win-R.cost, rprof=R.rwin-R.cost, d=R.hitR-R.hitX, th=Math.max(3,Math.round(P*0.04));
+    var verdict=(Math.abs(d)<=th)?'<span style="color:#a16207">🟡 <b>跟随便买差不多</b>。这个打法没有让你更容易中。</span>':(d>0?'<span style="color:#15803d">🟢 这段时间比随便买<b>多中了 '+d+' 期</b>。但只是这一段,别当成一定有效。</span>':'<span style="color:#b91c1c">🔴 这段时间比随便买<b>少中了 '+(-d)+' 期</b>。</span>');
+    h+='<div style="border:1px solid #cbd5e1;border-radius:12px;padding:12px 14px;margin-bottom:12px;background:#fff">';
+    h+='<div style="font-size:17px;font-weight:800;color:#0f172a">'+NAMES[ix]+'</div>';
+    h+='<div style="font-size:15px;line-height:2;color:#334155;margin-top:4px">'
+      +'📦 每期大约买 <b>'+avg.toLocaleString()+'</b> 个号<br>'
+      +'🎯 '+P+' 期里,有 <b style="color:#15803d">'+R.hitR+' 期</b>中了头二三(大约每 '+(R.hitR?Math.round(P/R.hitR*10)/10:'-')+' 期中 1 期)<br>'
+      +'💰 一共花 <b>'+rm(R.cost)+'</b>,拿回 <b>'+rm(R.win)+'</b>,<b style="color:'+(prof<0?'#dc2626':'#16a34a')+'">'+(prof<0?'亏 ':'赚 ')+rm(prof)+'</b><br>'
+      +'🎲 如果同样买 '+avg.toLocaleString()+' 个<b>随便挑的号</b>:中 <b>'+R.hitX+' 期</b>,'+(rprof<0?'亏 ':'赚 ')+'<b>'+rm(rprof)+'</b></div>';
+    h+='<div style="margin-top:6px;font-size:15px">'+verdict+'</div>';
+    h+='<details style="margin-top:8px"><summary style="cursor:pointer;color:#64748b;font-size:13px">想看每一期的中奖情况(一格一期,绿=中)</summary>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="width:100px;font-size:12px;color:#15803d;font-weight:700">用这个打法</div><div style="flex:1;display:flex;gap:1px">'+strip(R.real,'#16a34a')+'</div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div style="width:100px;font-size:12px;color:#64748b">随便买</div><div style="flex:1;display:flex;gap:1px">'+strip(R.rand,'#94a3b8')+'</div></div></details>';
     h+='</div>';
   });
+  h+='<div style="font-size:12px;color:#94a3b8;line-height:1.7">算法:每个号 头二三每奖押 RM0.10(三个奖共 RM0.30)+ 特别奖 RM0.30 = RM0.60;头二三每中一个拿 RM600,特别奖每中一个拿 RM180。想改金额,在「🧮 号码对比」页的「💰 对账」里可以改注额和赔率。</div>';
   out.innerHTML=h;
 }
 setTimeout(function(){ try{ var t=document.getElementById('scv-out'); if(t&&!t.innerHTML) scVisual(); }catch(e){} }, 4000);
