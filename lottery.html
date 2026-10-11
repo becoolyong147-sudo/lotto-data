@@ -6050,9 +6050,9 @@ function loadSavedResults(){
       DB[market].unshift(entry);
     });
     DB[market].sort((a,b)=>b.date.localeCompare(a.date));
-    // Update cold stats
-    entries.forEach(entry=>updateColdForNew(market,entry));
+    // (冷热库在全部合并完后一次性重算,不再每期重算一遍)
   }
+  try{ zoRebuildColdBaseFixed(); }catch(e){}
 }
 
 // ===== V63: 自动抓取导入 — auto_fetch_results.py 产出的 auto_results.json =====
@@ -12868,7 +12868,6 @@ function zo2DRootBacktest(){
   <div style="font-size:12px;color:#475569;margin-bottom:8px">范围：2020-01-01 至今 · 5 个市场 · 全 80 列标签 · 每月分隔行</div>
   <button id="export-btn" class="btn-mega" onclick="doExportExcel()">📤 生成 Excel 文件</button>
   <button id="screen-view-btn" class="btn-mega" style="background:#0f766e" onclick="zoScreenView()">📺 屏幕查看（不导出文件）</button>
-  <button class="btn-mega" style="background:#0891b2" onclick="zoDataHealth()">🩺 数据体检（扫9家）</button>
   <div id="export-progress" class="export-progress"></div>
   <div id="data-health-out" style="margin-top:12px"></div>
   <div id="screen-view-result" style="margin-top:12px"></div>
@@ -12921,8 +12920,6 @@ function zo2DRootBacktest(){
     </div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#7c3aed;color:#fff;padding:9px 16px" onclick="zoRootDigitComboBacktest()">🧬 数根×缺席1D 组合回测</button></div>
     <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#0f766e;color:#fff;padding:9px 16px" onclick="zoLink3DBacktest()">🔗 链接3D 逐期回测(前3D/后3D/联合)</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#c2410c;color:#fff;padding:9px 16px" onclick="zoRootExcludeBacktest()">🚫 排除法回测(2D+3D数根·排刚出的)</button></div>
-    <div class="ig" style="align-self:flex-end"><button class="btn" style="background:#b45309;color:#fff;padding:9px 16px" onclick="zoComboMainBacktest()">🎯 主打2D × 数根1D 双推荐回测</button></div>
   </div>
   <div class="warn" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">🧬 组合命中＝一个奖号<b>「2D数根∈缺席根(两期一组算)」</b>且<b>「该位数字∈缺席1D(最新一期算)」</b>两者同时中。混合=前后根合并、任意位；分前后=前根配千百·后根配十个；前后匹配=同一号前后都中(最严)。回测成功率 vs 随机 + 全部逐期细节。</div>
   <div class="warn" style="background:#fffbeb;border-color:#fde68a;color:#78350f">🎯 <b>双推荐回测</b>：只看「下一期主打」(源特别奖)算出的目标2D，跟「数根×缺席1D」(源头二三)算出的双缺目标2D，<b>两边都点到同一个2D</b>时，下一期实际头二三里有没有真的开出——前2D只对千百、后2D只对十个(分前后)。逐期列出实际结果 ✅/❌，不只给百分比。</div>
