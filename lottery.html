@@ -10427,7 +10427,10 @@ function zoQuick2D(){
   function opt(v){ return '<option value="'+v+'"'+(mk===v?' selected':'')+'>'+v+'</option>'; }
   var MN=['1','2','3','4','5','6','7','8','9','10','11','12'];
   function dr2(s){ var t=(+s[0])+(+s[1]); return t===0?0:(t%9===0?9:t%9); }
-  function topco(co,n){ return Object.keys(co).map(function(k){return [k,co[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,n||3).map(function(x){return x[0]+'('+x[1]+')';}).join(' '); }
+  function topco(co,n,wi,t){ return Object.keys(co).map(function(k){return [k,co[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,n||3).map(function(x){
+    var k=x[0], num;   // 直接写出号码:前2D→前2D+后2D=完整4D;后2D→前2D+后2D;中2D→拼成前3D/后3D
+    if(wi===0) num=t+k; else if(wi===2) num=k+t; else if(k.charAt(0)==='前') num=k.slice(1)+t.charAt(1)+'(前3D)'; else num=t.charAt(0)+k.slice(1)+'(后3D)';
+    return num+' ×'+x[1]; }).join('  '); }
   var h='<div class="card" style="border:2px solid #0369a1">';
   h+='<h3 style="color:#075985">🎯 2D深度分析 · '+mk+'（缺席目标2D + 全套脾气）</h3>';
   h+='<div style="margin-bottom:8px">市场 <select id="q2d-mk-sel" onchange="zoQuick2D()" style="font-size:13px;padding:3px 8px;border:1px solid #7dd3fc;border-radius:6px;color:#075985;font-weight:700">'+mkts.map(opt).join('')+'</select></div>';
@@ -10460,7 +10463,7 @@ function zoQuick2D(){
       h+='<td style="padding:3px 6px;text-align:center">'+(r.moTop>=0?MN[r.moTop]+'月':'-')+'</td>';
       h+='<td style="padding:3px 6px;text-align:center;color:'+(e.r12>0?"#dc2626":"#94a3b8")+'">'+(e.r12>0?e.r12+'次':'冷')+'</td>';
       h+='<td style="padding:3px 6px;text-align:center;color:#64748b">'+r.pts+'/'+r.root+'</td>';
-      h+='<td style="padding:3px 6px;font-family:monospace;font-size:10px;color:#475569">'+(topco(e.co,3)||'-')+'</td>';
+      h+='<td style="padding:3px 6px;font-family:monospace;font-size:10px;color:#475569">'+(topco(e.co,3,wi,r.t)||'-')+'</td>';
       h+='</tr>';
     });
     h+='</table></div>';
