@@ -964,6 +964,8 @@ function renderPatternTrend(){
       <div><label style="font-size:12px;font-weight:700;display:block">特别奖 RM</label><input id="pay-st-sp" value="0.3" size="4" style="padding:3px 5px"></div>
       <div><label style="font-size:12px;font-weight:700;display:block">赔率 头二三×</label><input id="pay-pay-top" value="6600" size="5" style="padding:3px 5px"></div>
       <div><label style="font-size:12px;font-weight:700;display:block">小奖×</label><input id="pay-pay-sp" value="660" size="4" style="padding:3px 5px"></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">回扣 %</label><input id="pay-reb" value="20" size="3" style="padding:3px 5px"></div>
+      <div><label style="font-size:12px;font-weight:700;display:block" title="这个星期在今天之前已经投了多少。满3000再多6%">本周已投 RM</label><input id="pay-week" value="0" size="5" style="padding:3px 5px"></div>
       <button class="btn btn-green" style="padding:9px 18px;font-size:14px" onclick="payRun()">💰 算盈亏</button>
     </div>
     <div id="pay-out" style="margin-top:10px"></div>
@@ -10519,9 +10521,12 @@ function zoQuick2D(){
   h+='• <b>倍数</b>看它反不反常(纯记录,不代表会开)　• <b>头/二/三</b>看它偏哪个奖位　• <b>爱月</b>发群话术("这号X月最爱开")<br>';
   h+='• <b>常配</b>最实用:前2D 看它常配哪个后2D → 直接拼完整4D;中2D 看常配前/后 → 拼前3D/后3D<br>';
   h+='• 选好2D后 → 配1D/另一段2D → box。想省钱先用「撞号/筛选」砍小池子。<b>记住:中率高≠赚,配EV看成本。</b>';
+  h+='<div id="q2d-bt" style="margin-top:12px"></div>';
   h+='</div>';
   h+='</div>';
-  out.innerHTML=h; out.scrollIntoView({behavior:'smooth',block:'start'});
+  out.innerHTML=h;
+  try{ q2dBT(); }catch(e){ console.warn('q2dBT',e); }
+  out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 🔢 缺席数根链接·回测：逐期用缺席数根补链凑3D(box)，对下期头二三，看是否比随机强
 function zoRootLinkReview(){
@@ -11373,12 +11378,15 @@ function payRun(){
   var stT=parseFloat(document.getElementById('pay-st-top').value)||0, stS=parseFloat(document.getElementById('pay-st-sp').value)||0,
       pyT=parseFloat(document.getElementById('pay-pay-top').value)||0, pyS=parseFloat(document.getElementById('pay-pay-sp').value)||0;
   var hT=top.filter(function(x){return mine[x];}), hS=sp.filter(function(x){return mine[x];}), hC=cs.filter(function(x){return mine[x];});
-  var cost=my.length*(stT*3+stS), win=hT.length*stT*pyT+(hS.length+hC.length)*stS*pyS, net=win-cost;
+  var gross=my.length*(stT*3+stS), win=hT.length*stT*pyT+(hS.length+hC.length)*stS*pyS;
+  var rebP=parseFloat((document.getElementById('pay-reb')||{value:'20'}).value)||0, wk=parseFloat((document.getElementById('pay-week')||{value:'0'}).value)||0;
+  var bonusOn=(wk+gross)>=3000, rebate=gross*rebP/100+(bonusOn?gross*0.06:0), cost=gross-rebate, net=win-cost;
   function rmf(v){ return (v<0?'-':'')+'RM'+Math.abs(v).toFixed(2); }
   function row(lbl,col,arr,hit){ var hs={}; hit.forEach(function(x){hs[x]=1;}); return '<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b> <span style="font-family:monospace">'+(arr.length?arr.map(function(n){ return hs[n]?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 4px;font-weight:700">'+n+'</span>':n; }).join(' '):'<span style="color:#94a3b8">(没有记录)</span>')+'</span> <span style="color:#64748b">→ 你中 '+hit.length+' 个</span></div>'; }
   var h='<div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:10px 12px;line-height:1.8">';
   h+='<div style="font-size:14px;font-weight:800">'+mk+' · '+dt+(d.draw?' · 第 '+d.draw+' 期':'')+'</div>';
-  h+='<div>你买了 <b>'+my.length+'</b> 个号 × RM'+(stT*3+stS).toFixed(2)+'(头二三 '+stT+'×3 + 特别奖 '+stS+') = 投入 <b>'+rmf(cost)+'</b></div>';
+  h+='<div>你买了 <b>'+my.length+'</b> 个号 × RM'+(stT*3+stS).toFixed(2)+'(头二三 '+stT+'×3 + 特别奖 '+stS+') = 投入 <b>'+rmf(gross)+'</b></div>';
+  h+='<div>回扣 <b>'+rmf(rebate)+'</b>('+rebP+'%'+(bonusOn?' + 本周满 RM3000 再 6%':(wk>0?'(本周累计 '+rmf(wk+gross)+',还没满 3000)':''))+') → 实际花 <b>'+rmf(cost)+'</b></div>';
   h+='<div>拿回 <b>'+rmf(win)+'</b>(头二三 '+hT.length+' 个×'+rmf(stT*pyT)+(hS.length+hC.length?' + 小奖 '+(hS.length+hC.length)+' 个×'+rmf(stS*pyS):'')+')</div>';
   h+='<div style="font-size:16px;font-weight:800;color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rmf(Math.abs(net))+'</div></div>';
   h+=row('头二三','#16a34a',top,hT)+row('特别奖','#d97706',sp,hS);
@@ -11715,6 +11723,101 @@ function zoLinkShow(){
   h+='</div></div>';
   out.innerHTML=h;
   out.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// 🔬 2D深度分析·回测:用「特别奖源的缺席目标2D」+ 各种「脾气」挑2D,过去N期怎么样(人话版)
+function q2dBT(){
+  var box=document.getElementById('q2d-bt'); if(!box) return;
+  var mk=(document.getElementById('q2d-mk-sel')||{value:'万能'}).value;
+  var WI=parseInt((document.getElementById('q2dbt-w')||{value:'0'}).value,10)||0;
+  var P=parseInt((document.getElementById('q2dbt-n')||{value:'165'}).value,10)||165;
+  function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return String(a.date)<String(b.date)?-1:1;});
+  var per=m.map(function(d){ return {date:String(d.date).slice(0,10),nums:[0,1,2].map(function(k){return pd(d.nums[k]);}),sp:(d.sp||[]).map(pd).filter(function(x){return /^\d{4}$/.test(x);})}; }).filter(function(x){ return x.nums.every(function(n){return /^\d{4}$/.test(n);}); });
+  var WN=['前2D','中2D','后2D'], wa=[0,1,2][WI], wb=wa+1;
+  function drr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
+  function key(n){ return n.slice(wa,wb+1); }
+  // 目标2D(特别奖源): 缺根 × (缺数字+最多数字)
+  function targets(g){
+    var roots={}, first={};
+    g.forEach(function(n){ roots[drr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
+    var a2={}; for(var r=1;r<=9;r++) if(!roots[r]) a2[r]=1;
+    var t1={}, most=null, mc=-1; for(var d=0;d<=9;d++) if(!first[''+d]) t1[d]=1;
+    Object.keys(first).forEach(function(k){ if(first[k]>mc){ mc=first[k]; most=k; } }); if(most!=null) t1[most]=1;
+    var ts=[]; Object.keys(t1).forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2[drr((+d1)+d2)]) ts.push(''+d1+d2); } });
+    return ts;
+  }
+  // 历史状态(逐期推进)
+  var occ={}, startT=per.length-1-P;
+  var RULES=[
+    {k:'all',n:'① 全部缺席目标2D(不挑)'},
+    {k:'over',n:'② 只挑「憋得比平常久」的(倍数 ≥ 1.5)'},
+    {k:'r12',n:'③ 只挑「近 12 个月开过」的'},
+    {k:'mon',n:'④ 只挑「下一期这个月正好是它爱月」的'},
+    {k:'hot',n:'⑤ 只挑历史上「最常开」的一半'}
+  ];
+  var R=RULES.map(function(r){ return {k:r.k,n:r.n,per:0,sz:0,hit:0,exp:0,hits:[]}; });
+  function mon(d){ return parseInt(d.slice(5,7),10)-1; }
+  var skipped=0;
+  for(var i=0;i<per.length-1;i++){
+    // 把第 i 期(头二三)记入历史
+    per[i].nums.forEach(function(n){ var k=key(n); (occ[k]||(occ[k]=[])).push(i); });
+    if(i<startT) continue;
+    var cur=per[i], nx=per[i+1];
+    if(cur.sp.length<3){ skipped++; continue; }
+    var tg=targets(cur.sp), cutD=new Date(nx.date+'T00:00:00'); cutD.setDate(cutD.getDate()-365); var cut=cutD.toISOString().slice(0,10);
+    function stat(t){ var a=occ[t]||[], c=a.length, o={c:c,ratio:null,avg:null,gap:null,r12:0,topMon:-1};
+      if(c>=2){ o.avg=(a[c-1]-a[0])/(c-1); o.gap=i-a[c-1]; o.ratio=o.gap/Math.max(o.avg,1e-9); }
+      else if(c===1){ o.gap=i-a[0]; }
+      var mm=new Array(12).fill(0); a.forEach(function(ix){ mm[mon(per[ix].date)]++; if(per[ix].date>=cut) o.r12++; });
+      if(c>0) o.topMon=mm.indexOf(Math.max.apply(null,mm));
+      return o; }
+    var st={}; tg.forEach(function(t){ st[t]=stat(t); });
+    var counts=tg.map(function(t){return st[t].c;}).sort(function(a,b){return a-b;}), med=counts.length?counts[Math.floor(counts.length/2)]:0;
+    var nmon=mon(nx.date);
+    var sel={
+      all:tg,
+      over:tg.filter(function(t){ return st[t].ratio!=null&&st[t].ratio>=1.5; }),
+      r12:tg.filter(function(t){ return st[t].r12>0; }),
+      mon:tg.filter(function(t){ return st[t].topMon===nmon; }),
+      hot:tg.filter(function(t){ return st[t].c>=med&&st[t].c>0; })
+    };
+    var nk=nx.nums.map(key);
+    R.forEach(function(r){
+      var S=sel[r.k]; if(!S.length) return;
+      var set={}; S.forEach(function(t){set[t]=1;});
+      r.per++; r.sz+=S.length; r.exp+=1-Math.pow(1-S.length/100,3);
+      var hs=[]; nk.forEach(function(k,ix){ if(set[k]) hs.push({k:k,n:nx.nums[ix],p:['头奖','二奖','三奖'][ix]}); });
+      if(hs.length){ r.hit++; r.hits.push({d:nx.date,nums:nx.nums,n:S.length,hs:hs.map(function(h){ var o=st[h.k]; return {k:h.k,n:h.n,p:h.p,o:o}; })}); }
+    });
+  }
+  function opt(v,l,cur){ return '<option value="'+v+'"'+(String(cur)===String(v)?' selected':'')+'>'+l+'</option>'; }
+  var h='<div style="border-top:3px solid #0369a1;padding-top:10px"><div style="font-size:16px;font-weight:800;color:#075985">🔬 回测:如果每期都照这个挑 2D,过去会怎样?</div>';
+  h+='<div style="font-size:13px;color:#475569;line-height:1.7;margin:4px 0">每期用<b>上一期特别奖</b>算出「缺席目标 2D」,再用上面表格里的「脾气」挑一挑。买 1 个 2D = 买那一段的 100 个号。看<b>下一期头二三</b>里,有没有哪个号的这一段 2D 在你挑的名单里。</div>';
+  h+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin:6px 0"><select id="q2dbt-w" onchange="q2dBT()" style="font-size:14px;padding:4px 8px">'+opt(0,'看前2D',WI)+opt(1,'看中2D',WI)+opt(2,'看后2D',WI)+'</select>'
+    +'<select id="q2dbt-n" onchange="q2dBT()" style="font-size:14px;padding:4px 8px">'+opt(60,'最近 60 期',P)+opt(165,'约 1 年(165 期)',P)+opt(330,'约 2 年(330 期)',P)+opt(495,'约 3 年(495 期)',P)+'</select></div>';
+  h+='<div style="font-size:12px;color:#64748b;margin-bottom:8px">'+mk+' · '+WN[WI]+' · 从 '+per[Math.max(0,startT+1)].date+' 到 '+per[per.length-1].date+(skipped?('(其中 '+skipped+' 期没有特别奖记录,没法算,已跳过)'):'')+'</div>';
+  R.forEach(function(r){
+    var avg=r.per?Math.round(r.sz/r.per*10)/10:0, d=r.hit-r.exp, th=Math.max(2,r.per*0.04);
+    var verdict=!r.per?'<span style="color:#94a3b8">这段时间这个规则一个 2D 都没挑出来。</span>':(Math.abs(d)<=th?'<span style="color:#a16207">🟡 <b>跟随便挑差不多</b>,这个「脾气」没有帮上忙。</span>':(d>0?'<span style="color:#15803d">🟢 比随便挑<b>多中约 '+Math.round(d)+' 期</b>。别急着当真,只是这一段。</span>':'<span style="color:#b91c1c">🔴 比随便挑<b>少中约 '+Math.round(-d)+' 期</b>。</span>'));
+    h+='<div style="border:1px solid #bae6fd;border-radius:10px;padding:10px 12px;margin-bottom:10px;background:#fff">';
+    h+='<div style="font-size:15px;font-weight:800;color:#0f172a">'+r.n+'</div>';
+    h+='<div style="font-size:14px;line-height:1.9;color:#334155;margin-top:2px">📦 每期平均挑出 <b>'+avg+'</b> 个 2D(约 '+Math.round(avg*100)+' 个号)<br>🎯 '+r.per+' 期里中了 <b style="color:#15803d">'+r.hit+' 期</b><br>🎲 随便挑同样个数的 2D,大约会中 <b>'+Math.round(r.exp)+' 期</b></div>';
+    h+='<div style="margin-top:4px;font-size:14px">'+verdict+'</div>';
+    var HL=r.hits.slice(-5).reverse();
+    if(HL.length){
+      h+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#0369a1;font-size:13px">看最近 '+HL.length+' 次是怎么中的</summary>';
+      HL.forEach(function(x){
+        h+='<div style="border-left:4px solid #16a34a;background:#f0fdf4;border-radius:6px;padding:5px 10px;margin-top:5px;font-size:13px;line-height:1.8"><b>'+x.d+'</b> 开出 <span style="font-family:monospace">'+x.nums.join(' · ')+'</span> <span style="color:#64748b">(当时挑了 '+x.n+' 个 2D)</span>'
+          +x.hs.map(function(hh){ var o=hh.o, bits=[]; if(o.c>0) bits.push('历史开过 '+o.c+' 次'); else bits.push('从没开过'); if(o.ratio!=null) bits.push('隔了 '+o.gap+' 期没开(平常约 '+Math.round(o.avg)+' 期一次)'); if(o.r12>0) bits.push('近 12 个月开过 '+o.r12+' 次'); return '<div>→ <b style="color:#16a34a">'+hh.p+' '+hh.n+'</b> 的'+WN[WI]+' <b>'+hh.k+'</b> 在名单里;它的脾气:<span style="color:#475569">'+bits.join(',')+'</span></div>'; }).join('')+'</div>';
+      });
+      h+='</details>';
+    }
+    h+='</div>';
+  });
+  h+='</div>';
+  box.innerHTML=h;
 }
 // 📤 特安缺席匹配 → Excel(9市场)：前2D/中2D/前1D/后1D + 逐期命中 + 最新主打
 function zoSpMatchCompute(){
