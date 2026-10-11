@@ -955,7 +955,15 @@ function renderPatternTrend(){
   <div class="card" style="border:2px solid #f59e0b">
     <h3>💰 对账 — 贴你买的号,算某一天赚多少</h3>
     <div class="warn" style="margin:6px 0">只算你贴的号、只算选的那一天。头二三每个奖各押一份;特别奖押一份(按小奖赔率)。不算安慰奖。</div>
-    <textarea id="pay-nums" rows="4" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px" placeholder="贴你买的号码,逗号/空格/换行都行"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <select id="pay-saved" onchange="payLoadSaved()" style="font-size:13px;padding:4px 8px;min-width:150px"><option value="">📂 载入已存的号码…</option></select>
+      <input id="pay-name" placeholder="给这组号码起个名字" style="font-size:13px;padding:4px 8px;width:170px">
+      <button class="btn btn-green" style="padding:4px 12px;font-size:12px" onclick="paySaveList()">💾 保存</button>
+      <button class="btn btn-red" style="padding:4px 12px;font-size:12px" onclick="payDelList()">🗑 删除选中的</button>
+      <button class="btn" style="padding:4px 12px;font-size:12px" onclick="payFromHomework()" title="把「我的玩法 → 我的功课」生成的号码带过来">📥 用我的功课号码</button>
+      <span id="pay-save-msg" style="font-size:12px;color:#16a34a"></span>
+    </div>
+    <textarea id="pay-nums" rows="4" oninput="payDraft()" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px" placeholder="贴你买的号码,逗号/空格/换行都行(会自动记住,下次打开还在)"></textarea>
     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:8px">
       <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="pay-mk" onchange="payLatest()"></select></div>
       <div><label style="font-size:12px;font-weight:700;display:block">日期</label><input type="date" id="pay-date"></div>
@@ -11355,7 +11363,35 @@ function payAllDraws(mk){
   ((typeof DB!=='undefined'&&DB[mk])||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1;m.push(d);} });
   return m;
 }
-function payInit(){
+// ---- 对账:存号码(只存在这台设备的浏览器里) ----
+function payLists(){ try{ return JSON.parse(localStorage.getItem('pay_lists')||'{}'); }catch(e){ return {}; } }
+function paySetLists(o){ try{ localStorage.setItem('pay_lists',JSON.stringify(o)); }catch(e){} }
+function payRefreshSaved(sel){
+  var el=document.getElementById('pay-saved'); if(!el) return; var L=payLists(), ks=Object.keys(L);
+  el.innerHTML='<option value="">📂 载入已存的号码…('+ks.length+' 组)</option>'+ks.map(function(k){ var n=(L[k].match(/\d{4}/g)||[]).length; return '<option value="'+k.replace(/"/g,'&quot;')+'"'+(sel===k?' selected':'')+'>'+k+'('+n+'个)</option>'; }).join('');
+}
+function payMsg(t){ var m=document.getElementById('pay-save-msg'); if(m){ m.textContent=t; setTimeout(function(){ m.textContent=''; },2500); } }
+function paySaveList(){
+  var name=(document.getElementById('pay-name').value||'').trim(), txt=document.getElementById('pay-nums').value||'';
+  var nums=(txt.match(/\d{4}/g)||[]);
+  if(!nums.length){ payMsg('先贴号码'); return; }
+  if(!name){ var d=new Date(); name='号码 '+(d.getMonth()+1)+'-'+d.getDate()+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); }
+  var L=payLists(); L[name]=nums.join(' '); paySetLists(L); payRefreshSaved(name); document.getElementById('pay-name').value=''; payMsg('已保存「'+name+'」'+nums.length+' 个');
+}
+function payLoadSaved(){
+  var k=document.getElementById('pay-saved').value; if(!k) return; var L=payLists();
+  if(L[k]!=null){ document.getElementById('pay-nums').value=L[k]; payDraft(); document.getElementById('pay-name').value=k; payMsg('已载入「'+k+'」'); }
+}
+function payDelList(){
+  var k=document.getElementById('pay-saved').value; if(!k){ payMsg('先在左边选一组'); return; }
+  if(!confirm('删除「'+k+'」?')) return; var L=payLists(); delete L[k]; paySetLists(L); payRefreshSaved(); payMsg('已删除');
+}
+function payFromHomework(){
+  var a=window.__hwList||[]; if(!a.length){ payMsg('先到「我的玩法」点一次「生成功课」'); return; }
+  document.getElementById('pay-nums').value=a.join(' '); payDraft(); document.getElementById('pay-name').value='我的功课 '+(new Date().getMonth()+1)+'-'+new Date().getDate(); payMsg('已带入 '+a.length+' 个');
+}
+function payDraft(){ try{ localStorage.setItem('pay_draft',document.getElementById('pay-nums').value); }catch(e){} }
+function payInit(){ try{ var dr0=localStorage.getItem('pay_draft'); var ta0=document.getElementById('pay-nums'); if(ta0&&dr0&&!ta0.value) ta0.value=dr0; }catch(e){} payRefreshSaved();
   var sel=document.getElementById('pay-mk'); if(!sel||sel.options.length) return;
   var ks=(typeof DB!=='undefined')?Object.keys(DB):[]; ks.forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); });
   payLatest();
@@ -11726,6 +11762,12 @@ function zoLinkShow(){
 }
 
 // 🔬 2D深度分析·回测:用「特别奖源的缺席目标2D」+ 各种「脾气」挑2D,过去N期怎么样(人话版)
+function q2dShow(k,ix){
+  var x=(window.__q2dDetail||{})[k+'_'+ix], box=document.getElementById('q2dd-'+k); if(!x||!box) return;
+  var set={}; x.S.forEach(function(t){set[t]=1;});
+  var opened=x.nums.map(function(n,i){ var key=x.nk[i], hit=!!set[key]; return '<span style="margin-right:10px"><b style="font-family:monospace">'+n+'</b> → 这一段 2D <b style="color:'+(hit?'#16a34a':'#dc2626')+'">'+key+'</b>'+(hit?' ✅在名单里':' ❌不在名单里')+'</span>'; }).join('');
+  box.innerHTML='<div style="border:1px solid '+(x.h?'#86efac':'#fecaca')+';background:'+(x.h?'#f0fdf4':'#fef2f2')+';border-radius:8px;padding:6px 10px;font-size:13px;line-height:1.9"><b>'+x.d+'</b> '+(x.h?'✅ 中了':(x.h===null?'这期没挑出任何 2D':'❌ 没中'))+'<br>当时挑了 <b>'+x.n+'</b> 个 2D:<span style="font-family:monospace">'+(x.S.length?x.S.join(' '):'(没有)')+'</span><br>开出的头二三:'+opened+'</div>';
+}
 function q2dBT(){
   var box=document.getElementById('q2d-bt'); if(!box) return;
   var mk=(document.getElementById('q2d-mk-sel')||{value:'万能'}).value;
@@ -11758,6 +11800,7 @@ function q2dBT(){
     {k:'hot',n:'⑤ 只挑历史上「最常开」的一半'}
   ];
   var R=RULES.map(function(r){ return {k:r.k,n:r.n,per:0,sz:0,hit:0,exp:0,hits:[],seq:[]}; });
+  window.__q2dDetail={};
   function mon(d){ return parseInt(d.slice(5,7),10)-1; }
   var skipped=0;
   for(var i=0;i<per.length-1;i++){
@@ -11785,11 +11828,11 @@ function q2dBT(){
     };
     var nk=nx.nums.map(key);
     R.forEach(function(r){
-      var S=sel[r.k]; if(!S.length){ r.seq.push({d:nx.date,h:null,n:0}); return; }
+      var S=sel[r.k]; if(!S.length){ r.seq.push({d:nx.date,h:null,n:0,S:[],nums:nx.nums,nk:nk}); return; }
       var set={}; S.forEach(function(t){set[t]=1;});
       r.per++; r.sz+=S.length; r.exp+=1-Math.pow(1-S.length/100,3);
       var hs=[]; nk.forEach(function(k,ix){ if(set[k]) hs.push({k:k,n:nx.nums[ix],p:['头奖','二奖','三奖'][ix]}); });
-      r.seq.push({d:nx.date,h:hs.length>0,n:S.length});
+      r.seq.push({d:nx.date,h:hs.length>0,n:S.length,S:S.slice().sort(),nums:nx.nums,nk:nk});
       if(hs.length){ r.hit++; r.hits.push({d:nx.date,nums:nx.nums,n:S.length,hs:hs.map(function(h){ var o=st[h.k]; return {k:h.k,n:h.n,p:h.p,o:o}; })}); }
     });
   }
@@ -11807,7 +11850,8 @@ function q2dBT(){
     h+='<div style="font-size:14px;line-height:1.9;color:#334155;margin-top:2px">📦 每期平均挑出 <b>'+avg+'</b> 个 2D(约 '+Math.round(avg*100)+' 个号)<br>🎯 '+r.per+' 期里中了 <b style="color:#15803d">'+r.hit+' 期</b><br>🎲 随便挑同样个数的 2D,大约会中 <b>'+Math.round(r.exp)+' 期</b></div>';
     h+='<div style="margin-top:4px;font-size:14px">'+verdict+'</div>';
     var SQ=r.seq.slice(-14);
-    h+='<div style="margin-top:6px;font-size:13px;color:#334155">最近 '+SQ.length+' 期(旧→新): '+SQ.map(function(x){ return '<span title="'+x.d+'" style="display:inline-block;padding:0 4px;margin:1px;border-radius:4px;background:'+(x.h===null?'#f1f5f9':(x.h?'#dcfce7':'#fee2e2'))+'">'+x.d.slice(5)+(x.h===null?'—':(x.h?'✅':'❌'))+'</span>'; }).join('')+'</div>';
+    SQ.forEach(function(x,ix){ window.__q2dDetail[r.k+'_'+ix]=x; });
+    h+='<div style="margin-top:6px;font-size:13px;color:#334155">最近 '+SQ.length+' 期(旧→新,<b>点一格看那一期</b>): '+SQ.map(function(x,ix){ return '<span onclick="q2dShow(&quot;'+r.k+'&quot;,'+ix+')" title="'+x.d+'" style="cursor:pointer;display:inline-block;padding:0 4px;margin:1px;border-radius:4px;background:'+(x.h===null?'#f1f5f9':(x.h?'#dcfce7':'#fee2e2'))+'">'+x.d.slice(5)+(x.h===null?'—':(x.h?'✅':'❌'))+'</span>'; }).join('')+'</div><div id="q2dd-'+r.k+'" style="margin-top:4px"></div>';
     var HL=r.hits.slice(-5).reverse();
     if(HL.length){
       h+='<details style="margin-top:6px"><summary style="cursor:pointer;color:#0369a1;font-size:13px">看中的那几次是怎么中的(只列中的,没中的看上面那一行)</summary>';
