@@ -14975,12 +14975,12 @@ let ZO_LAYER_ERR={bg:false,dragon:false,fx:false};
     try{ const im=new Image();
       im.onload=function(){ try{ const tc=document.createElement('canvas'); tc.width=tc.height=2; tc.getContext('2d').drawImage(im,0,0); tc.toDataURL(); ok(im); }catch(e){ ok(null); ZO_LAYER_ERR[keyName]=true; } };
       im.onerror=function(){ ok(null); ZO_LAYER_ERR[keyName]=true; };
-      im.src=src+'?t='+Date.now();
+      im.src=src+'?v=2';   // 固定版本号,让浏览器能缓存(以前每次都带时间戳重新下载)
     }catch(e){ ZO_LAYER_ERR[keyName]=true; }
   }
-  load('background.png', im=>{ZO_LAYER_BG=im;}, 'bg');
-  load('dragon.png',     im=>{ZO_LAYER_DRAGON=im;}, 'dragon');
-  load('effects.png',    im=>{ZO_LAYER_FX=im;}, 'fx');
+  load('background.webp', im=>{ZO_LAYER_BG=im;}, 'bg');
+  load('dragon.webp',     im=>{ZO_LAYER_DRAGON=im;}, 'dragon');
+  load('effects.webp',    im=>{ZO_LAYER_FX=im;}, 'fx');
 })();
 function zoDragonReady(){ return !!(ZO_LAYER_DRAGON && ZO_LAYER_DRAGON.complete && ZO_LAYER_DRAGON.naturalWidth); }
 // 预烘焙"带柔和金色边光"的龙(一次)，供每帧快速 drawImage —— 避免每帧 shadowBlur 卡死视频录制
@@ -19111,9 +19111,9 @@ function zoPublishedDateText(item, lang){
 const ZO_PUBLIC_ASSETS = {
   posterBg:'assets/m3-public-review-bg.webp',       // 1080×1350 公开复盘海报背景
   storyBg:'assets/m3-public-review-story-bg.webp',  // 1080×1920 公开复盘视频背景
-  watermark:'assets/m3-dragon-watermark.png',       // 透明金龙水印
-  grid:'assets/m3-data-grid.png',                   // 透明数据网格
-  verified:'assets/m3-verified-mark.png'            // 记录可核对徽章
+  watermark:'assets/m3-dragon-watermark.webp',       // 透明金龙水印
+  grid:'assets/m3-data-grid.webp',                   // 透明数据网格
+  verified:'assets/m3-verified-mark.webp'            // 记录可核对徽章
 };
 const ZO_PUBLIC_IMG = {};
 function zoPublicLoadAssets(){
