@@ -254,7 +254,7 @@ tr:hover td{background:#fafaf5}
 <div id="scene-decision" class="scene-panel active">
   <div class="subtabs">
     <div class="subtab active" data-tab="overview" onclick="switchSubtab(this)">🎯 一键总览</div>
-    <div class="subtab" data-tab="scorecard" onclick="switchSubtab(this)" style="background:#f1f5f9;border-color:#64748b;font-weight:800">📋 回测成绩单</div>
+    <div class="subtab" data-tab="scorecard" onclick="switchSubtab(this);scVisual()" style="background:#f1f5f9;border-color:#64748b;font-weight:800">📋 回测成绩单</div>
     <div class="subtab" data-tab="shapetrend" onclick="switchSubtab(this);stRun()" style="background:#ecfeff;border-color:#0891b2;font-weight:800">📊 形态走势</div>
     <div class="subtab" data-tab="myplay" onclick="switchSubtab(this)" style="background:#fef3c7;border-color:#f59e0b;font-weight:800">🎲 我的玩法</div>
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
@@ -749,6 +749,16 @@ function renderPatternTrend(){
     .sc-tb td{border-top:1px solid #e2e8f0;padding:5px 8px;vertical-align:top} .sc-n{text-align:center;white-space:nowrap}
     .sc-s{font-size:11px;color:#94a3b8;margin-top:2px} .sc-t{color:#475569;font-size:12px}
   </style>
+  <div class="card" style="border:3px solid #16a34a;margin-bottom:12px">
+    <h3 style="color:#15803d">👀 一期一格,直接看(每格=一期,绿=下一期头二三有中,灰=没中)</h3>
+    <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:6px">每个打法画两条:<b>上面是真的用这个打法</b>,<b>下面是随便买同样个数的号</b>(电脑随机抽)。两条的绿格数量、分布越像,说明这个打法跟随便买没差别。蓝点=这一期只中了特别奖。</div>
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="scv-mk" onchange="scVisual()" style="font-size:15px;padding:5px 9px"><option>万能</option><option>跑马</option><option>多多</option><option>新加坡</option><option>豪龙</option><option>沙巴</option><option>9龙</option><option>砂拉越</option></select></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">看多少期</label><select id="scv-n" onchange="scVisual()" style="font-size:15px;padding:5px 9px"><option value="60">最近 60 期</option><option value="120" selected>最近 120 期</option><option value="165">约 1 年(165 期)</option><option value="330">约 2 年(330 期)</option></select></div>
+      <button class="btn btn-green" style="padding:8px 16px;font-size:14px" onclick="scVisual()">🔄 重画</button>
+    </div>
+    <div id="scv-out"></div>
+  </div>
   <div class="card" style="border:3px solid #334155">
     <h3 style="color:#1e293b">📋 回测成绩单 · 到 2026-10-10 为止</h3>
     <div style="font-size:15px;line-height:1.9;color:#334155">
@@ -11235,6 +11245,77 @@ function zoHomework(){
 }
 function hwCopy(sep,btn){ var a=window.__hwList||[]; if(!a.length){ alert('没有号码'); return; } var t=a.join(sep); var done=function(){ if(btn){ var o=btn.textContent; btn.textContent='✅ 已复制'; setTimeout(function(){btn.textContent=o;},1400); } };
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done,function(){}); else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); done(); } }
+
+// 👀 回测成绩单·一期一格:真实打法 vs 随便买同样个数
+function scVisual(){
+  var out=document.getElementById('scv-out'); if(!out) return;
+  var mk=document.getElementById('scv-mk').value, P=parseInt(document.getElementById('scv-n').value,10)||120;
+  function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
+  m.sort(function(a,b){return String(a.date)<String(b.date)?-1:1;});
+  var per=m.map(function(d){ return {date:String(d.date).slice(0,10),nums:[0,1,2].map(function(k){return pd(d.nums[k]);}),sp:(d.sp||[]).map(pd)}; }).filter(function(x){ return x.nums.every(function(n){return /^\d{4}$/.test(n);}); });
+  if(per.length<P+10){ out.innerHTML='<div class="warn">'+mk+' 期数不够。</div>'; return; }
+  var drf=(typeof dr==='function')?dr:function(n){ n=Math.abs(n); while(n>9){ var t=0; while(n){t+=n%10;n=(n/10)|0;} n=t; } return n; };
+  var PT=new Uint8Array(10000), DA=new Uint8Array(10000);
+  for(var q=0;q<10000;q++){ var a=(q/1000)|0,b=((q/100)|0)%10,c=((q/10)|0)%10,d=q%10; PT[q]=a+b+c+d; var u={}; u[a]=1;u[b]=1;u[c]=1;u[d]=1; var k=Object.keys(u).length; DA[q]=(k===4)?24:(k===3)?12:(k===1)?1:((a===b&&c===d)||(a===c&&b===d)||(a===d&&b===c))?6:4; }
+  var CN=new Int32Array(10000),FI=new Int32Array(10000).fill(-1),LI=new Int32Array(10000).fill(-1);
+  function adv(i){ per[i].nums.forEach(function(s){ var q=+s; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); }
+  function recAt(i,win){
+    var pf={},pm={},pb={}; for(var j=Math.max(0,i-win+1);j<=i;j++) per[j].nums.forEach(function(s){ pf[drf((+s[0])+(+s[1]))]=1; pm[drf((+s[1])+(+s[2]))]=1; pb[drf((+s[2])+(+s[3]))]=1; });
+    var A=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var k=0;k<4;k++) A[k][+s[k]]=1; });
+    var F=new Uint8Array(100),M=new Uint8Array(100),B=new Uint8Array(100);
+    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ var r=drf(u+v); if(r<1||r>9) continue;
+      if(!pf[r]&&!A[0][u]&&!A[1][v]) F[u*10+v]=1; if(!pm[r]&&!A[1][u]&&!A[2][v]) M[u*10+v]=1; if(!pb[r]&&!A[2][u]&&!A[3][v]) B[u*10+v]=1; }
+    return {F:F,M:M,B:B};
+  }
+  function zgAt(i){
+    var roots={}, pats=[], cnt={}, ex={}, set=new Uint8Array(100);
+    function pt(a,b2){ return (a%2?'O':'E')+(b2%2?'O':'E'); }
+    per[i].nums.forEach(function(s){ var r=drf((+s[0])+(+s[1])); if(r>=1&&r<=9) roots[r]=1; var p=pt(+s[0],+s[1]); if(pats.indexOf(p)<0){ pats.push(p); cnt[p]=0; } ex[s.slice(0,2)]=1; });
+    for(var j=Math.max(0,i-2);j<=i;j++) per[j].nums.forEach(function(s){ var p=pt(+s[0],+s[1]); if(cnt[p]!=null) cnt[p]++; });
+    var best=pats[0]; pats.forEach(function(p){ if(cnt[p]>cnt[best]) best=p; });
+    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ if(roots[drf(u+v)]&&pt(u,v)===best&&!ex[''+u+v]) set[u*10+v]=1; }
+    return set;
+  }
+  // 随机数(固定种子,每次画出来一样)
+  var seed=20261010; function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+  var METHODS=[
+    {n:'缺席推荐2D(任一段) + 4D点数14–21', f:function(i,st){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; if(R.F[(q/100)|0]||R.M[((q/10)|0)%100]||R.B[q%100]) L.push(q); } return L; }},
+    {n:'缺席推荐2D(至少中2段) + 4D点数14–21', f:function(i,st){ var R=recAt(i,2), L=[]; for(var q=0;q<10000;q++){ if(PT[q]<14||PT[q]>21) continue; var h=(R.F[(q/100)|0]?1:0)+(R.M[((q/10)|0)%100]?1:0)+(R.B[q%100]?1:0); if(h>=2) L.push(q); } return L; }},
+    {n:'主杆法(上期前2D数根+单双走势) + 后3D 10–18 + 24/12打 + 热门/中性', f:function(i,st){ var Z=zgAt(i), L=[]; for(var q=0;q<10000;q++){ if(!Z[(q/100)|0]) continue; var b3=(((q/100)|0)%10)+(((q/10)|0)%10)+(q%10); if(b3<10||b3>18) continue; if(DA[q]!==24&&DA[q]!==12) continue;
+        if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=(i-LI[q])/avg; if(ratio>=1.5) continue; }
+        L.push(q); } return L; }}
+  ];
+  var res=METHODS.map(function(m){ return {name:m.n,real:[],rand:[],sz:0,hitR:0,hitX:0,n:0}; });
+  var startT=per.length-1-P;
+  for(var i=0;i<per.length-1;i++){
+    adv(i);
+    if(i<startT||i<3) continue;
+    var tg=per[i+1], tn=tg.nums.map(function(x){return +x;}), tsp=tg.sp.map(function(x){return +x;});
+    METHODS.forEach(function(M,mi){
+      var L=M.f(i), set={}; L.forEach(function(q){set[q]=1;});
+      var hit=tn.some(function(x){return set[x];}), spHit=!hit&&tsp.some(function(x){return set[x];});
+      // 随机: 同样个数
+      var picked={}, c=0, N=L.length; while(c<N){ var r=(rnd()*10000)|0; if(!picked[r]){ picked[r]=1; c++; } }
+      var rhit=tn.some(function(x){return picked[x];}), rsp=!rhit&&tsp.some(function(x){return picked[x];});
+      var R=res[mi]; R.real.push({d:tg.date,h:hit,s:spHit,n:N}); R.rand.push({d:tg.date,h:rhit,s:rsp,n:N}); R.sz+=N; R.n++; if(hit)R.hitR++; if(rhit)R.hitX++;
+    });
+  }
+  function strip(arr,col){ return arr.map(function(x){ var bg=x.h?col:'#e2e8f0'; return '<span title="'+x.d+' · 买'+x.n+'个 · '+(x.h?'头二三中':(x.s?'只中特别奖':'没中'))+'" style="flex:1 1 0;min-width:2px;height:18px;border-radius:1px;background:'+bg+';position:relative">'+(x.s?'<i style="position:absolute;left:1px;top:5px;width:4px;height:4px;border-radius:2px;background:#2563eb"></i>':'')+'</span>'; }).join(''); }
+  var h='<div style="font-size:12px;color:#64748b;margin-bottom:8px">'+mk+' · 最近 '+P+' 期('+per[startT+1].date+' ~ '+per[per.length-1].date+')。把鼠标放在格子上能看日期和买了几个号。</div>';
+  res.forEach(function(R){
+    var avg=Math.round(R.sz/Math.max(R.n,1));
+    h+='<div style="border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;margin-bottom:10px;background:#fff">';
+    h+='<div style="font-weight:800;color:#0f172a;font-size:14px">'+R.name+' <span style="font-weight:400;color:#64748b;font-size:12px">· 每期买约 '+avg+' 个号</span></div>';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px"><div style="width:100px;font-size:12px;color:#15803d;font-weight:700">用这个打法</div><div style="flex:1;display:flex;gap:1px">'+strip(R.real,'#16a34a')+'</div><div style="font-size:13px;font-weight:800;color:#15803d;white-space:nowrap">中 '+R.hitR+' 期</div></div>';
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-top:4px"><div style="width:100px;font-size:12px;color:#64748b">随便买同样个数</div><div style="flex:1;display:flex;gap:1px">'+strip(R.rand,'#94a3b8')+'</div><div style="font-size:13px;font-weight:800;color:#64748b;white-space:nowrap">中 '+R.hitX+' 期</div></div>';
+    var d=R.hitR-R.hitX;
+    h+='<div style="font-size:12px;color:#475569;margin-top:6px">'+P+' 期里:用打法中 <b>'+R.hitR+'</b> 期,随便买中 <b>'+R.hitX+'</b> 期 → '+(Math.abs(d)<=Math.max(3,P*0.04)?'<b>差不多</b>(差 '+d+' 期)':(d>0?'<b style="color:#16a34a">多 '+d+' 期</b>':'<b style="color:#dc2626">少 '+(-d)+' 期</b>'))+'</div>';
+    h+='</div>';
+  });
+  out.innerHTML=h;
+}
+setTimeout(function(){ try{ var t=document.getElementById('scv-out'); if(t&&!t.innerHTML) scVisual(); }catch(e){} }, 4000);
 // 💰 对账:你贴的号 × 某一天的开奖 → 头二三/特别奖/安慰奖各中几个、投入、拿回、盈亏
 function payAllDraws(mk){
   var seen={}, m=[];
