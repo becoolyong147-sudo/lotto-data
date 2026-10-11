@@ -11163,6 +11163,23 @@ function zoHomework(){
   }
   var last=per.length-1, startT=Math.max(win,per.length-NB);
   // 跑一遍:返回 {now, rows, st}
+  // 这个号为什么没留在名单里:列出没通过的条件
+  function failOf(q,f,cur,exCut,mode,c){
+    var r=[], s4=('000'+q).slice(-4), d0=+s4[0], d1=+s4[1], d2=+s4[2], d3=+s4[3];
+    if(mode==='zg'){ if(c.Z&&!c.Z.set[(q/100)|0]) r.push('前2D '+s4.slice(0,2)+' 不在主杆选出的前2D里'); }
+    else if(mode==='seg'){ var hit=(f.enF&&c.R.F[d0*10+d1]?1:0)+(f.enM&&c.R.M[d1*10+d2]?1:0)+(f.enB&&c.R.B[d2*10+d3]?1:0); if(hit<f.seg) r.push('2D 只中 '+hit+' 段(要至少 '+f.seg+' 段):前'+s4.slice(0,2)+' 中'+s4.slice(1,3)+' 后'+s4.slice(2,4)); }
+    else if(mode==='link'){ if(c.L&&!c.L.set[q]) r.push('不在上期拆出的3D里'); }
+    if(f.p3f){ var v=d0+d1+d2; if(v<f.a3f||v>f.b3f) r.push('前3D点数 '+v+' 不在 '+f.a3f+'–'+f.b3f); }
+    if(f.p3b){ var w=d1+d2+d3; if(w<f.a3b||w>f.b3b) r.push('后3D点数 '+w+' 不在 '+f.a3b+'–'+f.b3b); }
+    if(f.oe.on){ var od=(d0%2)+(d1%2)+(d2%2)+(d3%2); if(!f.oe.set[od]) r.push('单双 '+od+'单'+(4-od)+'双 不在你选的里'); }
+    if(f.da.on&&!f.da.set[DAV[q]]) r.push(DAV[q]+'打 不在你选的里');
+    if(f.half.on&&!f.half.set[halfOf(q)]) r.push(HALFN[halfOf(q)]+' 不在你选的半年型里');
+    if(f.hot.on&&!f.hot.set[hotOf(q)]) r.push(HOTN[hotOf(q)]+' 不在你选的冷热档里');
+    var dts=DT[q];
+    if(f.ex&&dts&&dts[dts.length-1]>=exCut) r.push('最近 '+f.exM+' 个月内开过');
+    if(f.yr){ var okY=false; if(dts){ for(var k2=0;k2<dts.length;k2++){ var yy=+dts[k2].slice(0,4); if(yy>=(f.y1||0)&&yy<=f.y2){ okY=true; break; } } } if(!okY) r.push('这几年里没开过'); }
+    return r;
+  }
   function sim(f,mode,useCond,wantRows){
     resetState(); var rows=[], st={tot:0,hit:0,base:0,sz:0,sp:0,cs:0,noSm:0}, now=null;
     for(var i=0;i<=last;i++){
@@ -11174,7 +11191,9 @@ function zoHomework(){
         st.tot++; if(top.length) st.hit++; st.base+=1-Math.pow(1-Math.min(c.list.length,10000)/10000,3); st.sz+=c.list.length; st.sp+=sp.length; st.cs+=cs.length; if(!hasSm) st.noSm++;
         if(wantRows){
           var why=[]; tg.nums.forEach(function(n,ix){ if(set[n]) why.push({n:n,k:['头奖','二奖','三奖'][ix],c:'#16a34a',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:(mode==='zg'?whyZ(n,c,f):whyOf(n,c.R,f)))}); }); sp.forEach(function(n){ why.push({n:n,k:'特别奖',c:'#d97706',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:(mode==='zg'?whyZ(n,c,f):whyOf(n,c.R,f)))}); });
-          rows.push({date:tg.date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm,why:why,tri:(c.L?c.L.tri:null)}); }
+          var curD=per[i].date, exC=f.ex?shiftDate(curD,f.exM,0):'';
+          var det=tg.nums.map(function(n,ix){ var inn=!!set[n]; return {n:n,k:['头奖','二奖','三奖'][ix],inn:inn,fails:inn?[]:failOf(+n,f,curD,exC,mode,c)}; });
+          rows.push({date:tg.date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm,why:why,det:det,tri:(c.L?c.L.tri:null)}); }
       }
     }
     return {now:now,rows:rows,st:st};
@@ -11202,6 +11221,14 @@ function zoHomework(){
         +(x.why.length?('<tr style="background:'+(x.top.length?'#f0fdf4':'#fff')+'"><td></td><td></td><td colspan="3" style="padding:0 6px 6px;font-size:11px;line-height:1.7">'+x.why.map(function(w){ return '<div><b style="color:'+w.c+'">'+w.k+' '+w.n+'</b> <span style="color:#64748b">靠:</span> '+(w.w.seg.length?w.w.seg.map(function(g){ return '<span style="background:#e0f2fe;border-radius:3px;padding:0 4px;margin-right:2px">'+g+'</span>'; }).join(''):'')+w.w.cond.map(function(c2){ return '<span style="background:#f1f5f9;border-radius:3px;padding:0 4px;margin-left:2px">'+c2+'</span>'; }).join('')+'</div>'; }).join('')+'</td></tr>'):''); });
     return t+'</table></div>';
   }
+  // 一格一期:点开看那一期买了几个、开出的每个号在不在、不在的话差在哪个条件
+  window.__hwRows=window.__hwRows||{};
+  function timeline(rowsArr,key){
+    var SQ=rowsArr.slice(-14); window.__hwRows[key]=SQ;
+    var chips=SQ.map(function(x,ix){ var hit=x.top.length>0, only=!hit&&x.sp.length>0;
+      return '<span onclick="hwShow(&quot;'+key+'&quot;,'+ix+')" title="'+x.date+'" style="cursor:pointer;display:inline-block;padding:1px 5px;margin:2px;border-radius:5px;font-size:13px;background:'+(hit?'#dcfce7':(only?'#dbeafe':'#fee2e2'))+'">'+x.date.slice(5)+(hit?'✅':(only?'🔹':'❌'))+'</span>'; }).join('');
+    return '<div style="margin:8px 0 4px;font-size:13px;color:#334155">最近 '+SQ.length+' 期(旧→新,<b>点一格看那一期</b>):✅=头二三有中 · 🔹=只中特别奖 · ❌=没中</div><div>'+chips+'</div><div id="hw-tl-'+key+'" style="margin:6px 0 10px"></div>';
+  }
   function summary(st){ return '平均每期留 <b>'+Math.round(st.sz/Math.max(st.tot,1))+'</b> 个号 · 头二三中 <b style="color:#16a34a">'+st.hit+'</b> 期 / '+st.tot+' 期(随便买同样个数,该中约 '+Math.round(st.base)+' 期) · 特别奖中 <b style="color:#d97706">'+st.sp+'</b> 个'+(st.noSm?('(有 '+st.noSm+' 期没特别奖记录)'):''); }
 
   // ① 主算法: 缺席推荐2D + 条件
@@ -11224,7 +11251,7 @@ function zoHomework(){
   for(var z=0;z<hf.length;z++){ if(hf[z]){ cm=0; } else { cm++; if(cm>ms) ms=cm; } if(z>=2){ w3++; if(hf[z]||hf[z-1]||hf[z-2]) w3ok++; } }
   var hf2=A.rows.map(function(x){return x.top.length>0||x.sp.length>0;}), v3=0, v3ok=0, vms=0, vcm=0, vN=0;
   for(var z2=0;z2<hf2.length;z2++){ if(hf2[z2]){ vcm=0; vN++; } else { vcm++; if(vcm>vms) vms=vcm; } if(z2>=2){ v3++; if(hf2[z2]||hf2[z2-1]||hf2[z2-2]) v3ok++; } }
-  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'<br>每连续 3 期里至少中 1 期:<b style="color:'+(w3&&w3ok/w3>=0.99?'#16a34a':'#b45309')+'">'+w3ok+' / '+w3+(w3?(' ('+Math.round(w3ok/w3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+ms+'</b> 期<br><span style="color:#92400e">算上特别奖(头二三或特别奖任一个中):中 <b>'+vN+'</b> / '+hf2.length+' 期 · 每连续 3 期里至少中 1 期 <b>'+v3ok+' / '+v3+(v3?(' ('+Math.round(v3ok/v3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+vms+'</b> 期</span></div>'+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
+  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'<br>每连续 3 期里至少中 1 期:<b style="color:'+(w3&&w3ok/w3>=0.99?'#16a34a':'#b45309')+'">'+w3ok+' / '+w3+(w3?(' ('+Math.round(w3ok/w3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+ms+'</b> 期<br><span style="color:#92400e">算上特别奖(头二三或特别奖任一个中):中 <b>'+vN+'</b> / '+hf2.length+' 期 · 每连续 3 期里至少中 1 期 <b>'+v3ok+' / '+v3+(v3?(' ('+Math.round(v3ok/v3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+vms+'</b> 期</span></div>'+timeline(A.rows,'main')+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
 
   // ② 逐个条件拿掉对比
   var tests=[];
@@ -11255,6 +11282,14 @@ function zoHomework(){
   h+=whyTable(Lk.rows);
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:6px">每个中的号后面「靠」写的是:上一期哪个号拆出哪个 3D(例:5087→507)。</div></div>';
   out.innerHTML=h;
+}
+function hwShow(key,ix){
+  var x=((window.__hwRows||{})[key]||[])[ix], box=document.getElementById('hw-tl-'+key); if(!x||!box) return;
+  var lines=(x.det||[]).map(function(d){
+    if(d.inn){ var w=(x.why||[]).filter(function(y){return y.n===d.n;})[0]; var why=w?(w.w.seg.join(' ')+' '+w.w.cond.join(' · ')):''; return '<div>✅ <b>'+d.k+' '+d.n+'</b> 在你买的号里<span style="color:#475569">'+(why?'(靠:'+why+')':'')+'</span></div>'; }
+    return '<div>❌ <b>'+d.k+' '+d.n+'</b> 没买到<span style="color:#b91c1c">:'+(d.fails.length?d.fails.join(';'):'条件都过了,是名单里没排上')+'</span></div>'; }).join('');
+  var sp=(x.sp||[]).length?('<div style="color:#1d4ed8">🔹 特别奖里中了 '+x.sp.join(' ')+'</div>'):'';
+  box.innerHTML='<div style="border:1px solid '+(x.top.length?'#86efac':'#fecaca')+';background:'+(x.top.length?'#f0fdf4':'#fef2f2')+';border-radius:8px;padding:8px 12px;font-size:13px;line-height:1.9"><b>'+x.date+'</b> · 当时买了 <b>'+x.n+'</b> 个号<br>'+lines+sp+'</div>';
 }
 function hwCopy(sep,btn){ var a=window.__hwList||[]; if(!a.length){ alert('没有号码'); return; } var t=a.join(sep); var done=function(){ if(btn){ var o=btn.textContent; btn.textContent='✅ 已复制'; setTimeout(function(){btn.textContent=o;},1400); } };
   if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done,function(){}); else { var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} ta.remove(); done(); } }
