@@ -765,6 +765,11 @@ function renderPatternTrend(){
         <label style="margin-right:8px"><input type="checkbox" id="hw-f" checked> 前2D</label><label style="margin-right:8px"><input type="checkbox" id="hw-m" checked> 中2D</label><label><input type="checkbox" id="hw-b" checked> 后2D</label></div>
       <div><label style="font-size:12px;font-weight:700;display:block">号码至少中几段</label><select id="hw-seg" style="font-size:15px;padding:5px 9px"><option value="1" selected>1段(任一段)</option><option value="2">2段(同时中两段)</option><option value="3">3段(全中)</option></select></div>
     </div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:14px;padding:6px 8px;background:#fefce8;border-radius:8px">
+      <span style="font-weight:800;color:#a16207">选号方法</span>
+      <select id="hw-method" style="font-size:15px;padding:5px 9px"><option value="seg">缺席推荐前/中/后2D(原来的)</option><option value="zg">主杆法(上期前2D数根 + 单双走势)</option></select>
+      <span style="font-size:13px;color:#475569">主杆法:看最近 <input id="hw-zg-k" value="3" size="2" style="padding:2px 4px"> 期的前2D形态 · 去掉最近 <input id="hw-zg-ex" value="1" size="2" style="padding:2px 4px"> 期开过的前2D</span>
+    </div>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:14px">
       <label><input type="checkbox" id="hw-p3f" checked> 前3D点数 <input id="hw-p3f-a" value="10" size="2" style="padding:2px 4px">–<input id="hw-p3f-b" value="18" size="2" style="padding:2px 4px"></label>
       <label><input type="checkbox" id="hw-p3b" checked> 后3D点数 <input id="hw-p3b-a" value="10" size="2" style="padding:2px 4px">–<input id="hw-p3b-b" value="18" size="2" style="padding:2px 4px"></label>
@@ -11020,10 +11025,11 @@ function zoHomework(){
     p3b:C('hw-p3b'), a3b:parseInt(V('hw-p3b-a','10'),10), b3b:parseInt(V('hw-p3b-b','18'),10),
     oe:sel('hw-oe'), da:sel('hw-da'), hot:sel('hw-hot'), half:sel('hw-half'),
     yr:C('hw-yr'), y1:parseInt(V('hw-y1','0'),10)||0, y2:parseInt(V('hw-y2','9999'),10)||9999,
-    ex:C('hw-ex'), exM:parseInt(V('hw-ex-m','3'),10)||0 };
+    ex:C('hw-ex'), exM:parseInt(V('hw-ex-m','3'),10)||0,
+    method:V('hw-method','seg'), zgK:parseInt(V('hw-zg-k','3'),10)||3, zgEx:Math.max(0,parseInt(V('hw-zg-ex','1'),10)||0) };
   if(F.y1&&F.y2<9999&&F.y1>F.y2){ var tY=F.y1; F.y1=F.y2; F.y2=tY; }
   if(F.exM<=0) F.ex=false;
-  if(!(F.enF||F.enM||F.enB)){ out.innerHTML='<div class="warn">至少勾一段2D。</div>'; return; }
+  if(F.method!=='zg'&&!(F.enF||F.enM||F.enB)){ out.innerHTML='<div class="warn">至少勾一段2D。</div>'; return; }
   var linkCond=C('hw-link-cond');
   function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
   var m=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(d){return d&&d.date&&d.nums&&d.nums.length>=3&&!String(d.date).endsWith('-00');});
@@ -11073,16 +11079,30 @@ function zoHomework(){
     if(f.yr){ var okY=false; if(dts){ for(var k2=0;k2<dts.length;k2++){ var yy=+dts[k2].slice(0,4); if(yy>=(f.y1||0)&&yy<=f.y2){ okY=true; break; } } } if(!okY) return false; }
     return true;
   }
+  var OEN={O:'单',E:'双'};
+  function patOf(a,b2){ return (a%2?'O':'E')+(b2%2?'O':'E'); }
+  function patName(p){ return OEN[p[0]]+OEN[p[1]]; }
+  // 主杆法:上一期头二三前2D的数根 = 主杆;看最近K期前2D的单双形态哪个最强;留下「数根在主杆里 + 形态=最强」的前2D(去掉刚开过的)
+  function zgAt(i,f){
+    var roots={}, pats=[], cnt={}, ex={}, set=new Uint8Array(100), l2=[], rootList=[];
+    per[i].nums.forEach(function(s){ var a=+s[0], b2=+s[1], r=drf(a+b2); if(r>=1&&r<=9&&!roots[r]){ roots[r]=1; rootList.push(r); } var p=patOf(a,b2); if(pats.indexOf(p)<0){ pats.push(p); cnt[p]=0; } });
+    for(var j=Math.max(0,i-f.zgK+1);j<=i;j++) per[j].nums.forEach(function(s){ var p=patOf(+s[0],+s[1]); if(cnt[p]!=null) cnt[p]++; });
+    var best=pats[0]; pats.forEach(function(p){ if(cnt[p]>cnt[best]) best=p; });
+    if(f.zgEx>0) for(var j2=Math.max(0,i-f.zgEx+1);j2<=i;j2++) per[j2].nums.forEach(function(s){ ex[s.slice(0,2)]=1; });
+    for(var u=0;u<10;u++) for(var v=0;v<10;v++){ var r2=drf(u+v); if(roots[r2]&&patOf(u,v)===best&&!ex[''+u+v]){ set[u*10+v]=1; l2.push(''+u+v); } }
+    return {roots:rootList,pats:pats,cnt:cnt,best:best,set:set,l2:l2,ex:Object.keys(ex),src:per[i].nums.map(function(s){return s.slice(0,2);})};
+  }
   function candAt(i,f,mode,useCond){
-    var cur=per[i].date, exCut=f.ex?shiftDate(cur,f.exM,0):'', list=[], R=null, L=null;
-    if(mode==='link'){ L=linkAt(i); } else { R=recAt(i); }
+    var cur=per[i].date, exCut=f.ex?shiftDate(cur,f.exM,0):'', list=[], R=null, L=null, Z=null;
+    if(mode==='link'){ L=linkAt(i); } else if(mode==='zg'){ Z=zgAt(i,f); } else { R=recAt(i); }
     for(var q=0;q<10000;q++){
       if(mode==='link'){ if(!L.set[q]) continue; if(useCond&&!passCond(q,f,cur,exCut)) continue; }
+      else if(mode==='zg'){ if(!Z.set[(q/100)|0]) continue; if(!passCond(q,f,cur,exCut)) continue; }
       else { var d0=(q/1000)|0, d1=((q/100)|0)%10, d2=((q/10)|0)%10, d3=q%10;
         var hit=(f.enF&&R.F[d0*10+d1]?1:0)+(f.enM&&R.M[d1*10+d2]?1:0)+(f.enB&&R.B[d2*10+d3]?1:0); if(hit<f.seg) continue;
         if(!passCond(q,f,cur,exCut)) continue; }
       list.push(('000'+q).slice(-4)); }
-    return {R:R,L:L,list:list};
+    return {R:R,L:L,Z:Z,list:list};
   }
   var last=per.length-1, startT=Math.max(win,per.length-NB);
   // 跑一遍:返回 {now, rows, st}
@@ -11096,12 +11116,14 @@ function zoHomework(){
         var top=tg.nums.filter(function(x){return set[x];}), sp=tg.sp.filter(function(x){return set[x];}), cs=[], hasSm=tg.sp.length>0;
         st.tot++; if(top.length) st.hit++; st.base+=1-Math.pow(1-Math.min(c.list.length,10000)/10000,3); st.sz+=c.list.length; st.sp+=sp.length; st.cs+=cs.length; if(!hasSm) st.noSm++;
         if(wantRows){
-          var why=[]; tg.nums.forEach(function(n,ix){ if(set[n]) why.push({n:n,k:['头奖','二奖','三奖'][ix],c:'#16a34a',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:whyOf(n,c.R,f))}); }); sp.forEach(function(n){ why.push({n:n,k:'特别奖',c:'#d97706',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:whyOf(n,c.R,f))}); });
+          var why=[]; tg.nums.forEach(function(n,ix){ if(set[n]) why.push({n:n,k:['头奖','二奖','三奖'][ix],c:'#16a34a',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:(mode==='zg'?whyZ(n,c,f):whyOf(n,c.R,f)))}); }); sp.forEach(function(n){ why.push({n:n,k:'特别奖',c:'#d97706',w:(mode==='link'?{seg:linkWhy(n,i),cond:[]}:(mode==='zg'?whyZ(n,c,f):whyOf(n,c.R,f)))}); });
           rows.push({date:tg.date,n:c.list.length,nums:tg.nums,set:set,top:top,sp:sp,cs:cs,hasSm:hasSm,why:why,tri:(c.L?c.L.tri:null)}); }
       }
     }
     return {now:now,rows:rows,st:st};
   }
+  function whyZ(s,c,f){ var w=whyOf(s,{F:new Uint8Array(100),M:new Uint8Array(100),B:new Uint8Array(100)},{enF:false,enM:false,enB:false,p3f:f.p3f,a3f:f.a3f,b3f:f.b3f,p3b:f.p3b,a3b:f.a3b,b3b:f.b3b,oe:f.oe,da:f.da,hot:f.hot,half:f.half,ex:f.ex,exM:f.exM,yr:f.yr,y1:f.y1,y2:f.y2});
+    var a=+s[0], b2=+s[1]; w.seg=['前'+s.slice(0,2)+' 数根'+drf(a+b2)+' '+patName(patOf(a,b2))]; return w; }
   function whyOf(s,R,f){
     var q=+s, d0=+s[0],d1=+s[1],d2=+s[2],d3=+s[3], seg=[], cond=[];
     if(f.enF&&R.F[d0*10+d1]) seg.push('前'+s.slice(0,2)); if(f.enM&&R.M[d1*10+d2]) seg.push('中'+s.slice(1,3)); if(f.enB&&R.B[d2*10+d3]) seg.push('后'+s.slice(2,4));
@@ -11126,19 +11148,28 @@ function zoHomework(){
   function summary(st){ return '平均每期留 <b>'+Math.round(st.sz/Math.max(st.tot,1))+'</b> 个号 · 头二三中 <b style="color:#16a34a">'+st.hit+'</b> 期 / '+st.tot+' 期(随便买同样个数,该中约 '+Math.round(st.base)+' 期) · 特别奖中 <b style="color:#d97706">'+st.sp+'</b> 个'+(st.noSm?('(有 '+st.noSm+' 期没特别奖记录)'):''); }
 
   // ① 主算法: 缺席推荐2D + 条件
-  var A=sim(F,'seg',true,true), now=A.now, last0=per[last];
+  var MODE=(F.method==='zg')?'zg':'seg';
+  var A=sim(F,MODE,true,true), now=A.now, last0=per[last];
   window.__hwList=now.list;
   var h='<div style="background:#f0fdf4;border:2px solid #86efac;border-radius:10px;padding:10px 12px"><div style="font-size:15px;font-weight:800;color:#15803d">📋 下一期功课(依据 '+last0.date+' 这一期的头二三 '+last0.nums.join(' ')+')</div>';
+  if(MODE==='zg'){ var Z=now.Z;
+    h+='<div style="font-size:13px;margin-top:6px;line-height:1.9"><b>① 主杆</b>:上一期头二三的前2D '+Z.src.map(function(x){return '<b style="font-family:monospace">'+x+'</b>';}).join(' ')+' → 数根 <b style="color:#dc2626">'+Z.roots.join(' ')+'</b></div>';
+    h+='<div style="font-size:13px;line-height:1.9"><b>② 走势</b>:最近 '+F.zgK+' 期的前2D形态 '+Z.pats.map(function(p){ return '<span style="'+(p===Z.best?'background:#fde68a;border-radius:4px;padding:0 5px;font-weight:800':'')+'">'+patName(p)+' '+Z.cnt[p]+'次</span>'; }).join(' · ')+' → 选 <b style="color:#dc2626">'+patName(Z.best)+'</b>(次数最多)</div>';
+    h+='<div style="font-size:13px;line-height:1.9"><b>③ 前2D</b>('+Z.l2.length+'个,已去掉'+(Z.ex.length?'刚开过的 '+Z.ex.join(' '):'无')+') '+chips(Z.l2,'#0f766e')+'</div>';
+  } else {
   h+='<div style="font-size:13px;margin-top:6px"><b style="color:#0f766e">前2D('+now.R.lf.length+')</b> '+chips(F.enF?now.R.lf:[],'#0f766e')+'</div><div style="font-size:13px"><b style="color:#b45309">中2D('+now.R.lm.length+')</b> '+chips(F.enM?now.R.lm:[],'#b45309')+'</div><div style="font-size:13px"><b style="color:#be185d">后2D('+now.R.lb.length+')</b> '+chips(F.enB?now.R.lb:[],'#be185d')+'</div>';
+  }
   h+='<div style="font-size:16px;font-weight:800;margin-top:8px">叠上你的条件后,留下 <span style="color:#dc2626">'+now.list.length+'</span> 个号码</div>';
   h+='<div style="margin:6px 0"><button class="btn btn-green" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\' \',this)">📋 复制(空格)</button> <button class="btn" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\'\\n\',this)">📋 复制(换行)</button></div>';
   h+='<div style="font-family:monospace;font-size:13px;line-height:1.9;max-height:160px;overflow:auto;background:#fff;border-radius:6px;padding:6px 8px">'+(now.list.length?now.list.join(' '):'<span style="color:#94a3b8">没有号码满足全部条件,松一两个条件试试</span>')+'</div></div>';
   h+='<div style="margin-top:12px;border:2px solid #4338ca;border-radius:10px;padding:10px"><div style="font-size:15px;font-weight:800;color:#4338ca">📜 逐期回测(最近 '+A.st.tot+' 期,每期都只用「上一期」和当时之前的历史来出号)</div>';
-  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'</div>'+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
+  var hf=A.rows.map(function(x){return x.top.length>0;}), w3=0, w3ok=0, ms=0, cm=0;
+  for(var z=0;z<hf.length;z++){ if(hf[z]){ cm=0; } else { cm++; if(cm>ms) ms=cm; } if(z>=2){ w3++; if(hf[z]||hf[z-1]||hf[z-2]) w3ok++; } }
+  h+='<div style="font-size:14px;margin:6px 0;line-height:1.8">'+summary(A.st)+'<br>每连续 3 期里至少中 1 期:<b style="color:'+(w3&&w3ok/w3>=0.99?'#16a34a':'#b45309')+'">'+w3ok+' / '+w3+(w3?(' ('+Math.round(w3ok/w3*100)+'%)'):'')+'</b> · 最长连续没中 <b>'+ms+'</b> 期</div>'+whyTable(A.rows)+'<div style="font-size:11px;color:#94a3b8;margin-top:6px">橙色=特别奖中的号(不算安慰奖)。「该中约 N 期」=不用任何方法、随便买同样个数的话大概会中的期数,拿来对比。</div></div>';
 
   // ② 逐个条件拿掉对比
   var tests=[];
-  if(F.seg>1){ var f1=clone(F); f1.seg=1; tests.push(['号码至少中 '+F.seg+' 段 → 改成中 1 段就行',f1]); }
+  if(MODE==='seg'&&F.seg>1){ var f1=clone(F); f1.seg=1; tests.push(['号码至少中 '+F.seg+' 段 → 改成中 1 段就行',f1]); }
   if(F.p3f){ var f2=clone(F); f2.p3f=false; tests.push(['前3D点数 '+F.a3f+'–'+F.b3f,f2]); }
   if(F.p3b){ var f3=clone(F); f3.p3b=false; tests.push(['后3D点数 '+F.a3b+'–'+F.b3b,f3]); }
   if(F.oe.on){ var f4=clone(F); f4.oe=off(); tests.push(['单双限制',f4]); }
@@ -11149,8 +11180,8 @@ function zoHomework(){
   if(F.yr){ var f9=clone(F); f9.yr=false; tests.push(['年份范围(开过)',f9]); }
   if(tests.length){
     var fa0=clone(F); fa0.seg=1; fa0.p3f=false; fa0.p3b=false; fa0.oe=off(); fa0.da=off(); fa0.hot=off(); fa0.half=off(); fa0.ex=false; fa0.yr=false;
-    var rowsT=[['现在的设置(全部条件)',A.st,true]]; tests.forEach(function(t){ rowsT.push(['拿掉:'+t[0],sim(t[1],'seg',true,false).st,false]); });
-    rowsT.push(['全部条件都不要(只留缺席推荐的2D)',sim(fa0,'seg',true,false).st,false]);
+    var rowsT=[['现在的设置(全部条件)',A.st,true]]; tests.forEach(function(t){ rowsT.push(['拿掉:'+t[0],sim(t[1],MODE,true,false).st,false]); });
+    rowsT.push([MODE==='zg'?'全部条件都不要(只留主杆法选出的前2D)':'全部条件都不要(只留缺席推荐的2D)',sim(fa0,MODE,true,false).st,false]);
     h+='<div style="margin-top:12px;border:2px solid #0891b2;border-radius:10px;padding:10px"><div style="font-size:15px;font-weight:800;color:#0e7490">🔍 哪个条件有用?逐个拿掉对比(同样最近 '+A.st.tot+' 期)</div>';
     h+='<table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:6px"><tr style="color:#0e7490;background:#ecfeff"><th style="text-align:left;padding:4px 6px">做法</th><th style="padding:4px 6px">每期留几个</th><th style="padding:4px 6px">头二三中几期</th><th style="padding:4px 6px">随便买同样个数该中</th><th style="padding:4px 6px">比随便买多</th></tr>';
     rowsT.forEach(function(r){ var st=r[1], diff=st.hit-st.base; h+='<tr style="border-top:1px solid #cffafe;background:'+(r[2]?'#f0fdfa':'#fff')+'"><td style="padding:4px 6px;'+(r[2]?'font-weight:700':'')+'">'+r[0]+'</td><td style="text-align:center">'+Math.round(st.sz/Math.max(st.tot,1))+'</td><td style="text-align:center;font-weight:700">'+st.hit+' / '+st.tot+'</td><td style="text-align:center;color:#64748b">'+Math.round(st.base)+'</td><td style="text-align:center;font-weight:700;color:'+(diff>1.5?'#16a34a':diff<-1.5?'#dc2626':'#64748b')+'">'+(diff>0?'+':'')+diff.toFixed(1)+'</td></tr>'; });
