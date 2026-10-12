@@ -24440,6 +24440,7 @@ function zoRootDigitComboBacktest(){
         allStar=allStar.concat(fit.map(function(t){return L.fmt(t);}));
         h+='<div style="font-size:13px;margin-top:3px"><b style="color:'+L.col+'">'+L.lbl+'</b> 推荐 '+L.rec.length+' 个,其中 ⭐ <b>'+fit.length+'</b> 个:'
           +(fit.length?fit.map(function(t){ return '<span style="background:'+L.col+';color:#fff;border-radius:4px;padding:0 5px;margin:1px 2px;font-family:monospace;font-weight:700">⭐'+L.fmt(t)+'</span>'; }).join(''):'<span style="color:#94a3b8">(没有)</span>')+'</div>';
+        if(fit.length){ var fl=fit.join(' '); h+='<div style="margin:2px 0 4px"><button class="btn" style="padding:3px 10px;font-size:11px;background:'+L.col+';color:#fff" onclick="zoSend2DToFilter(\''+fl+'\',\''+mk+'\','+L.wi+')">📤 把这'+fit.length+'个送进高级筛选</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#fff;color:'+L.col+';border:1px solid '+L.col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+fl+'\')">📋复制这'+fit.length+'个(纯2D数字)</button></div>'; }
       });
       if(allStar.length) h+='<div style="margin-top:5px"><button class="btn" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allStar.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制全部⭐('+allStar.length+')\',1200)})">📋复制全部⭐('+allStar.length+')</button></div>';
       h+='</div>';
