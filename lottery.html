@@ -10034,6 +10034,16 @@ function zoCrossPrizeShow(){
   out.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // 把一批2D 按位置(前/中/后)送到「条件筛选 → 位数条件」，归位锁定
+// ⭐ 前/中/后三段的应季2D 一次送进「条件筛选 → 位数条件」(各段的写法 05xx / x06x / xx34,位数条件之间是「或」)
+function zoSendStarsToFilter(pats, mk, nF, nM, nB){
+  try{
+    var fm=document.getElementById('flt-market'); if(fm&&mk) fm.value=mk;
+    var pp=document.getElementById('flt-pos-pattern'); if(pp) pp.value=pats;
+    if(typeof switchTab==='function') switchTab('filter'); else if(typeof showTabPanel==='function') showTabPanel('filter');
+    setTimeout(function(){ var el=document.getElementById('flt-pos-pattern'); if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); el.focus(); } },200);
+    alert('已把 ⭐应季 的 2D 一起送进「条件筛选 → 位数条件」:前2D '+nF+' 个 + 中2D '+nM+' 个 + 后2D '+nB+' 个。\n只要号码的前2D、中2D、后2D 任何一段在里面就算(是「或」)。\n现在再叠加 点数/打数/冷热 等条件 → 点🔍筛选。');
+  }catch(e){ console.warn(e); }
+}
 function zoSend2DToFilter(list2d, mk, wi){
   try{
     var arr=list2d.split(' ').filter(Boolean);
@@ -24433,16 +24443,16 @@ function zoRootDigitComboBacktest(){
       h+='<div style="margin-top:8px;border:2px solid #f59e0b;background:#fffbeb;border-radius:8px;padding:8px 10px">';
       h+='<div style="font-size:13px;font-weight:800;color:#b45309">⭐ 下一期「应季」的 2D(现在是'+thLbl+')</div>';
       h+='<div style="font-size:11px;color:#78350f;margin:2px 0 4px">做法:先用上面的缺席算出推荐 2D,再只留下历史上偏爱'+(th==='h2'?'下':'上')+'半年(开出次数多 1.2 倍以上)的那些。</div>';
-      var allStar=[];
+      var allStar=[], starN=[0,0,0];
       lists.forEach(function(L){
         if(!L.rec.length){ if(L.lbl!=='中2D'||mode!=='mix') h+='<div style="font-size:13px"><b style="color:'+L.col+'">'+L.lbl+'</b> 没有推荐</div>'; return; }
         var fit=L.rec.filter(function(t){ var o=hc[L.wi][t]; if(!o) return false; var lean=o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal'); return lean===th; });
-        allStar=allStar.concat(fit.map(function(t){return L.fmt(t);}));
+        allStar=allStar.concat(fit.map(function(t){return L.fmt(t);})); starN[L.wi]=fit.length;
         h+='<div style="font-size:13px;margin-top:3px"><b style="color:'+L.col+'">'+L.lbl+'</b> 推荐 '+L.rec.length+' 个,其中 ⭐ <b>'+fit.length+'</b> 个:'
           +(fit.length?fit.map(function(t){ return '<span style="background:'+L.col+';color:#fff;border-radius:4px;padding:0 5px;margin:1px 2px;font-family:monospace;font-weight:700">⭐'+L.fmt(t)+'</span>'; }).join(''):'<span style="color:#94a3b8">(没有)</span>')+'</div>';
         if(fit.length){ var fl=fit.join(' '); h+='<div style="margin:2px 0 4px"><button class="btn" style="padding:3px 10px;font-size:11px;background:'+L.col+';color:#fff" onclick="zoSend2DToFilter(\''+fl+'\',\''+mk+'\','+L.wi+')">📤 把这'+fit.length+'个送进高级筛选</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#fff;color:'+L.col+';border:1px solid '+L.col+'" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+fl+'\')">📋复制这'+fit.length+'个(纯2D数字)</button></div>'; }
       });
-      if(allStar.length) h+='<div style="margin-top:5px"><button class="btn" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allStar.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制全部⭐('+allStar.length+')\',1200)})">📋复制全部⭐('+allStar.length+')</button></div>';
+      if(allStar.length) h+='<div style="margin-top:5px"><button class="btn" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allStar.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制全部⭐('+allStar.length+')\',1200)})">📋复制全部⭐('+allStar.length+')</button> <button class="btn" style="padding:3px 10px;font-size:11px;background:#7c3aed;color:#fff" onclick="zoSendStarsToFilter(\''+allStar.join(' ')+'\',\''+mk+'\','+starN[0]+','+starN[1]+','+starN[2]+')">📤 前+中+后 ⭐ 一次全部送进高级筛选('+allStar.length+')</button></div>';
       h+='</div>';
     })();
     // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）；两位都在缺席1D里的高亮（数根+1D双缺=打法目标）
