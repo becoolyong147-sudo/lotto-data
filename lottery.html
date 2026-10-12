@@ -24419,6 +24419,31 @@ function zoRootDigitComboBacktest(){
     if(mode==='mix'){ h+='<div style="font-size:13px;margin-top:4px">缺席根(前后合并)：<b style="color:#6d28d9">'+(Object.keys(Rc.M).join(' ')||'无')+'</b></div>'; }
     else { h+='<div style="font-size:13px;margin-top:4px">前2D缺根：<b style="color:#0f766e">'+(Object.keys(Rc.F).join(' ')||'无')+'</b> · 中2D缺根：<b style="color:#b45309">'+(Object.keys(Rc.Mid).join(' ')||'无')+'</b> · 后2D缺根：<b style="color:#be185d">'+(Object.keys(Rc.B).join(' ')||'无')+'</b></div>'; }
     h+='<div style="font-size:13px;margin-top:2px;font-family:monospace">缺席1D：'+POS.map(function(p,q){return p+'<b style="color:#5b21b6">'+(Object.keys(Dc.A[q]).join('')||'无')+'</b>';}).join(' ')+'</div>';
+    // ⭐ 下一期应季的2D(用本期缺席算出的推荐2D,再留下「历史偏爱现在这半年」的)
+    (function(){
+      var hc=[{},{},{}];
+      per.forEach(function(pp){ var hf=(+String(pp.date).slice(5,7))<=6?'h1':'h2'; pp.top3.forEach(function(s2){ [[0,s2.slice(0,2)],[1,s2.slice(1,3)],[2,s2.slice(2,4)]].forEach(function(kv){ var o=hc[kv[0]][kv[1]]||(hc[kv[0]][kv[1]]={h1:0,h2:0}); o[hf]++; }); }); });
+      var th=((new Date().getMonth()+1)<=6)?'h1':'h2', thLbl=(th==='h1'?'上半年(1–6月)':'下半年(7–12月)');
+      function dblL(ro,s1,s2){ var o=[]; for(var a=0;a<=9;a++)for(var c=0;c<=9;c++){ if(ro[dr(a+c)]&&s1[a]&&s2[c]) o.push(''+a+c); } return o; }
+      var lists=[
+        {lbl:'前2D',col:'#0f766e',wi:0,fmt:function(t){return t+'xx';},rec:dblL(mode==='mix'?Rc.M:Rc.F,Dc.A[0],Dc.A[1])},
+        {lbl:'中2D',col:'#b45309',wi:1,fmt:function(t){return 'x'+t+'x';},rec:(mode==='mix')?[]:dblL(Rc.Mid,Dc.A[1],Dc.A[2])},
+        {lbl:'后2D',col:'#be185d',wi:2,fmt:function(t){return 'xx'+t;},rec:dblL(mode==='mix'?Rc.M:Rc.B,Dc.A[2],Dc.A[3])}
+      ];
+      h+='<div style="margin-top:8px;border:2px solid #f59e0b;background:#fffbeb;border-radius:8px;padding:8px 10px">';
+      h+='<div style="font-size:13px;font-weight:800;color:#b45309">⭐ 下一期「应季」的 2D(现在是'+thLbl+')</div>';
+      h+='<div style="font-size:11px;color:#78350f;margin:2px 0 4px">做法:先用上面的缺席算出推荐 2D,再只留下历史上偏爱'+(th==='h2'?'下':'上')+'半年(开出次数多 1.2 倍以上)的那些。</div>';
+      var allStar=[];
+      lists.forEach(function(L){
+        if(!L.rec.length){ if(L.lbl!=='中2D'||mode!=='mix') h+='<div style="font-size:13px"><b style="color:'+L.col+'">'+L.lbl+'</b> 没有推荐</div>'; return; }
+        var fit=L.rec.filter(function(t){ var o=hc[L.wi][t]; if(!o) return false; var lean=o.h1>o.h2*1.2?'h1':(o.h2>o.h1*1.2?'h2':'bal'); return lean===th; });
+        allStar=allStar.concat(fit.map(function(t){return L.fmt(t);}));
+        h+='<div style="font-size:13px;margin-top:3px"><b style="color:'+L.col+'">'+L.lbl+'</b> 推荐 '+L.rec.length+' 个,其中 ⭐ <b>'+fit.length+'</b> 个:'
+          +(fit.length?fit.map(function(t){ return '<span style="background:'+L.col+';color:#fff;border-radius:4px;padding:0 5px;margin:1px 2px;font-family:monospace;font-weight:700">⭐'+L.fmt(t)+'</span>'; }).join(''):'<span style="color:#94a3b8">(没有)</span>')+'</div>';
+      });
+      if(allStar.length) h+='<div style="margin-top:5px"><button class="btn" style="padding:3px 10px;font-size:11px;background:#f59e0b;color:#fff" onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+allStar.join(' ')+'\').then(()=>{this.textContent=\'✅已复制\';setTimeout(()=>this.textContent=\'📋复制全部⭐('+allStar.length+')\',1200)})">📋复制全部⭐('+allStar.length+')</button></div>';
+      h+='</div>';
+    })();
     // 📋 缺根 → 2D组合（同调字组排一起，如 29·92）；两位都在缺席1D里的高亮（数根+1D双缺=打法目标）
     (function(){
       // s1=第一位(千/十)缺席集, s2=第二位(百/个)缺席集
