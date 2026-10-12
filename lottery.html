@@ -24374,6 +24374,7 @@ function zoRootDigitComboBacktest(){
     return {all:Pf*Pb*pdF*pdB};
   }
   var det=[], tot=0, hit=0, bs=0, tF=0,hF=0,bF=0, tMid=0,hMid=0,bMid=0, tB=0,hB=0,bB=0;
+  var HC2=[{},{},{}], cntUpTo=-1, SS={f:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},m:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},b:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}}};
   for(var i=0;i+W<per.length;i++){
     var R=rootAbsent2(i);              // 数根用 per[i..i+W-1]
     var D=d1Absent1(i+W-1);            // 1D用窗口最新一期 per[i+W-1]
@@ -24388,6 +24389,14 @@ function zoRootDigitComboBacktest(){
     function dbl2d(rootSet,a,b){ var o=[]; for(var u=0;u<=9;u++)for(var v=0;v<=9;v++){ if(rootSet[dr(u+v)]&&D.A[a][u]&&D.A[b][v]) o.push(''+u+v); } return o; }
     var Fr=(mode==='mix')?R.M:R.F, Br=(mode==='mix')?R.M:R.B;
     var recF=dbl2d(Fr,0,1), recM=(mode==='mix')?[]:dbl2d(R.Mid,1,2), recB=dbl2d(Br,2,3);
+    // 分前/中/后 + 应季: 历史偏哪个半年(只用目标期之前的头二三) 和 目标期所在半年一致 = 应季
+    while(cntUpTo<i+W-1){ cntUpTo++; (function(pp){ var hf=(+String(pp.date).slice(5,7))<=6?'h1':'h2'; pp.top3.forEach(function(s2){ [[0,s2.slice(0,2)],[1,s2.slice(1,3)],[2,s2.slice(2,4)]].forEach(function(kv){ var o=HC2[kv[0]][kv[1]]||(HC2[kv[0]][kv[1]]={h1:0,h2:0}); o[hf]++; }); }); })(per[cntUpTo]); }
+    var tHalf=(+String(tgt.date).slice(5,7))<=6?'h1':'h2';
+    [['f',recF,0],['m',recM,1],['b',recB,2]].forEach(function(q){ var key=q[0], rec=q[1], wi=q[2]; if(!rec.length) return;
+      var fit=[], oth=[]; rec.forEach(function(t){ var o=HC2[wi][t], lean='bal'; if(o){ if(o.h1>o.h2*1.2)lean='h1'; else if(o.h2>o.h1*1.2)lean='h2'; } (lean===tHalf?fit:oth).push(t); });
+      var tk=tgt.top3.map(function(n){ return wi===0?n.slice(0,2):(wi===1?n.slice(1,3):n.slice(2,4)); });
+      function acc(g,lst){ if(!lst.length) return; var set={}; lst.forEach(function(t){set[t]=1;}); var o=SS[key][g]; o.per++; o.sz+=lst.length; if(tk.some(function(k){return set[k];})) o.hit++; o.exp+=1-Math.pow(1-lst.length/100,3); }
+      acc('all',rec); acc('fit',fit); acc('oth',oth); });
     det.push({date:tgt.date, abs:absStr, rec:{f:recF,m:recM,b:recB}, marks:marks, hit:wHit, top3:tgt.top3, sp:tgt.sp, cs:tgt.cs});
   }
   function verdict(t,hp,bp2){ var se=Math.sqrt((bp2/100)*(1-bp2/100)/Math.max(t,1))*100, lead=hp-bp2; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#7c3aed'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
@@ -24476,6 +24485,21 @@ function zoRootDigitComboBacktest(){
     : (vd.t.indexOf('🟡')>=0 ? ('亮色目标号 <b>'+hp.toFixed(1)+'%</b> 比随机 <b>'+bp.toFixed(1)+'%</b> 略高，<b>看起来稍稳</b>，但很可能是这段期数的巧合 —— 换市场/换期数再验一次，别急着重注。')
     : ('亮色目标号 <b>'+hp.toFixed(1)+'%</b> 反而比随机 <b>'+bp.toFixed(1)+'%</b> 低，<b>不稳</b>，这套条件在此市场没帮上忙。')));
   h+='<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin:4px 0;font-size:12px;color:#78350f;line-height:1.7">🧠 <b>亮色稳不稳？</b> '+stableTxt+'<br><span style="color:#a16207">提醒：亮色只是「符合规则」，不是「下期一定开」。工具用来缩范围、控成本，不是预测。</span></div>';
+  // 🔎 分前/中/后 + 应季成功率
+  (function(){
+    var halfNow=(new Date().getMonth()+1)<=6?'上半年(1–6月)':'下半年(7–12月)';
+    function cell(o){ if(!o.per) return '<span style="color:#94a3b8">—</span>'; var hp2=o.hit/o.per*100, bp3=o.exp/o.per*100, v=verdict(o.per,hp2,bp3);
+      return '每期约 <b>'+(o.sz/o.per).toFixed(1)+'</b> 个2D<br>中 <b style="color:#7c3aed">'+o.hit+'/'+o.per+'</b> 期(<b>'+hp2.toFixed(1)+'%</b>)<br><span style="color:#64748b">随机 '+bp3.toFixed(1)+'%</span><br><b style="color:'+v.c+'">'+v.t+'</b>'; }
+    var rowsH=[['f','前2D','#0f766e'],['m','中2D','#b45309'],['b','后2D','#be185d']].map(function(r){ var o=SS[r[0]];
+      if(!o.all.per) return '<tr><td style="padding:5px 8px;font-weight:800;color:'+r[2]+'">'+r[1]+'</td><td colspan="3" style="padding:5px 8px;color:#94a3b8">这个模式不分'+r[1]+'(混合模式只有前、后)</td></tr>';
+      return '<tr style="border-top:1px solid #ede9fe"><td style="padding:5px 8px;font-weight:800;color:'+r[2]+';white-space:nowrap">'+r[1]+'</td><td style="padding:5px 8px;font-size:12px;line-height:1.7">'+cell(o.all)+'</td><td style="padding:5px 8px;font-size:12px;line-height:1.7;background:#fffbeb">'+cell(o.fit)+'</td><td style="padding:5px 8px;font-size:12px;line-height:1.7">'+cell(o.oth)+'</td></tr>'; }).join('');
+    h+='<div style="border:2px solid #f59e0b;border-radius:10px;padding:10px 12px;margin:8px 0;background:#fffdf5">'
+      +'<div style="font-size:14px;font-weight:800;color:#b45309">🔎 分开看:前2D、中2D、后2D 各自中多少?「应季」的呢?</div>'
+      +'<div style="font-size:12px;color:#78350f;line-height:1.7;margin:4px 0">每一期用缺席推荐出来的 2D,看<b>下一期头二三</b>里,有没有哪个号的<b>这一段</b>2D 在名单里(前2D 只看前两位,不管中、后)。<br><b>应季</b>=这个 2D 历史上偏爱「下一期所在的那半年」(开出次数多 1.2 倍以上),现在是 '+halfNow+'。</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="background:#fef3c7;color:#92400e"><th style="padding:5px 8px;text-align:left">哪一段</th><th style="padding:5px 8px;text-align:left">推荐的全部 2D</th><th style="padding:5px 8px;text-align:left">其中「应季」的</th><th style="padding:5px 8px;text-align:left">其余(不应季/没偏向)</th></tr>'+rowsH+'</table>'
+      +'<div style="font-size:11px;color:#94a3b8;margin-top:4px">「随机」=从 100 个 2D 里随便挑同样个数的 2D,3 个号至少 1 个落在里面的机会。差在 2 倍标准误以内算 🟢 没差别。</div></div>';
+  })();
+
   if(mode==='split'){
     var hpF=tF?hF/tF*100:0,bpF=tF?bF/tF*100:0,vF=verdict(tF,hpF,bpF), hpMid=tMid?hMid/tMid*100:0,bpMid=tMid?bMid/tMid*100:0,vMid=verdict(tMid,hpMid,bpMid), hpB=tB?hB/tB*100:0,bpB=tB?bB/tB*100:0,vB=verdict(tB,hpB,bpB);
     h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin:6px 0">';
@@ -24488,8 +24512,11 @@ function zoRootDigitComboBacktest(){
   // 逐期明细
   h+='<div style="margin-top:6px"><span onclick="var e=document.getElementById(\'rdc-det\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;color:#7c3aed;font-weight:700">逐期明细（全部 '+tot+' 期，点可收起）▾</span>';
   if((document.getElementById('rd-show')||{value:'d2'}).value==='d2') h+='<div style="font-size:12px;color:#475569;margin-top:6px">推荐2D 亮色 = 下一期开出的号里,这一段2D中了: <span style="background:#16a34a;color:#fff;border-radius:3px;padding:0 5px">头二三</span> <span style="background:#f59e0b;color:#fff;border-radius:3px;padding:0 5px">特别奖(10个)</span>。特别奖只有 2020-06 以后才有记录,没记录的期只会亮头二三。</div>';
+  h+='<div style="margin-top:6px;font-size:13px">只看哪一段: <select id="rd-seg" onchange="zoRootDigitComboBacktest()" style="font-size:13px;padding:3px 8px">'+[['','全部(前/中/后一起)'],['f','只看前2D'],['m','只看中2D'],['b','只看后2D']].map(function(o){ return '<option value="'+o[0]+'"'+((document.getElementById('rd-seg')||{value:''}).value===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select> <span style="color:#64748b;font-size:12px">选了以后,下面只显示这一段的命中,其它段不显示</span></div>';
   h+='<div id="rdc-det" style="display:block;max-height:440px;overflow:auto;margin-top:6px"><table style="width:100%;font-size:11px;border-collapse:collapse"><tr style="color:#7c3aed;background:#f5f3ff"><th style="text-align:left;padding:3px 6px">下一期</th><th style="text-align:left;padding:3px 6px">缺席集(根/1D)</th><th style="text-align:left;padding:3px 6px">命中奖号(原因)</th><th style="padding:3px 6px">中?</th></tr>';
   var showFmt=(document.getElementById('rd-show')||{value:'d2'}).value;
+  var SEGSEL=(document.getElementById('rd-seg')||{value:''}).value, SEGLBL={f:'前',m:'中',b:'后'}[SEGSEL]||'';
+  function segKeep(w){ return !SEGLBL||w.some(function(t){ return t.charAt(0)===SEGLBL; }); }
   // 下一期开出的号:每个2D段 → 命中来源(头二三=绿 特别奖=橙 安慰奖=蓝;优先级 头二三>特别奖>安慰奖)
   var HC={top:{bg:'#16a34a',fg:'#fff',n:'头二三'},sp:{bg:'#f59e0b',fg:'#fff',n:'特别奖'},cs:{bg:'#3b82f6',fg:'#fff',n:'安慰奖'}};
   function segMap(x,a,b){ var mp={}; [['top3','top'],['sp','sp'],['cs','cs']].forEach(function(q){ (x[q[0]]||[]).forEach(function(n){ var k=n.slice(a,b); if(!mp[k]||(q[1]==='top')||(q[1]==='sp'&&mp[k]==='cs')) mp[k]=q[1]; }); }); return mp; }
@@ -24498,16 +24525,18 @@ function zoRootDigitComboBacktest(){
     function row(lbl,col,arr,a,b,fmt){ if(!arr.length) return ''; var mp=segMap(x,a,b), hitN=0;
       var cells=arr.map(function(t){ var src=mp[t], txt=fmt(t); if(src){ hitN++; var c=HC[src]; return '<span title="'+c.n+'命中" style="background:'+c.bg+';color:'+c.fg+';border-radius:3px;padding:0 3px;font-weight:700">'+txt+'</span>'; } return txt; }).join(' ');
       return '<div style="margin-top:2px"><b style="color:'+col+'">'+lbl+'('+arr.length+(hitN?' · 中'+hitN:'')+')</b> <span style="font-family:monospace">'+cells+'</span></div>'; }
-    return '<div style="color:#64748b">'+rt+'</div>'+row('前','#0f766e',x.rec.f,0,2,function(t){return t+'xx';})+row('中','#b45309',x.rec.m,1,3,function(t){return 'x'+t+'x';})+row('后','#be185d',x.rec.b,2,4,function(t){return 'xx'+t;}); }
+    return '<div style="color:#64748b">'+rt+'</div>'+((!SEGLBL||SEGLBL==='前')?row('前','#0f766e',x.rec.f,0,2,function(t){return t+'xx';}):'')+((!SEGLBL||SEGLBL==='中')?row('中','#b45309',x.rec.m,1,3,function(t){return 'x'+t+'x';}):'')+((!SEGLBL||SEGLBL==='后')?row('后','#be185d',x.rec.b,2,4,function(t){return 'xx'+t;}):''); }
   // 命中奖号 → 一句话(头二三/特别奖/安慰奖 各中几个),点开才列具体号和哪一段2D中
   function hitList(x){ var rf={},rm={},rb={}; x.rec.f.forEach(function(t){rf[t]=1;}); x.rec.m.forEach(function(t){rm[t]=1;}); x.rec.b.forEach(function(t){rb[t]=1;});
     var res={top:[],sp:[],cs:[]}; [['top3','top'],['sp','sp'],['cs','cs']].forEach(function(q){ (x[q[0]]||[]).forEach(function(n){ var w=[]; if(rf[n.slice(0,2)])w.push('前'+n.slice(0,2)); if(rm[n.slice(1,3)])w.push('中'+n.slice(1,3)); if(rb[n.slice(2,4)])w.push('后'+n.slice(2,4)); if(w.length) res[q[1]].push({n:n,w:w}); }); }); return res; }
-  function foldHtml(x,ri){ var L=hitList(x), nT=L.top.length, nS=L.sp.length, nC=L.cs.length, hasSp=(x.sp||[]).length>0;
+  function foldHtml(x,ri){ var L=hitList(x); if(SEGLBL){ L={top:L.top.filter(function(k){return segKeep(k.w);}).map(function(k){return {n:k.n,w:k.w.filter(function(t){return t.charAt(0)===SEGLBL;})};}),sp:L.sp.filter(function(k){return segKeep(k.w);}).map(function(k){return {n:k.n,w:k.w.filter(function(t){return t.charAt(0)===SEGLBL;})};}),cs:[]}; }
+    var nT=L.top.length, nS=L.sp.length, nC=L.cs.length, hasSp=(x.sp||[]).length>0;
     var line='<span style="color:#16a34a;font-weight:700">头二三 '+(x.top3||[]).length+' 个里中 '+nT+'</span>'+(hasSp?(' · <span style="color:#d97706;font-weight:700">特别奖 '+x.sp.length+' 个里中 '+nS+'</span>'):' · <span style="color:#94a3b8">(这期没有特别奖记录)</span>');
     function lst(lbl,col,arr){ return arr.length?('<div style="margin-top:3px"><b style="color:'+col+'">'+lbl+'</b> '+arr.map(function(k){ return '<span style="font-family:monospace;color:#334155">'+k.n+'</span><span style="font-size:11px;color:#94a3b8">('+k.w.join('·')+')</span>'; }).join('　')+'</div>'):''; }
     var detail=lst('头二三','#16a34a',L.top)+lst('特别奖','#d97706',L.sp)||'<div style="color:#94a3b8">没有号码命中</div>';
     return '<div onclick="var e=document.getElementById(\'rdf-'+ri+'\');e.style.display=e.style.display===\'none\'?\'block\':\'none\'" style="cursor:pointer;font-size:12px;line-height:1.6">'+line+' <span style="color:#7c3aed">▶</span></div><div id="rdf-'+ri+'" style="display:none;font-size:12px;margin-top:2px;padding:4px 6px;background:#faf5ff;border-radius:4px">'+detail+'</div>'; }
-  det.slice().reverse().forEach(function(x,ri){ h+='<tr style="background:'+(x.hit?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+(showFmt==='d2'?recHtml(x):x.abs)+'</td><td style="padding:3px 6px;vertical-align:top">'+(showFmt==='d2'?foldHtml(x,ri):('<span style="font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</span>'))+'</td><td style="padding:3px 6px;text-align:center">'+(x.hit?'✅':'❌')+'</td></tr>'; });
+  function segHit(x){ if(!SEGLBL) return x.hit; return hitList(x).top.some(function(k){ return segKeep(k.w); }); }
+  det.slice().reverse().forEach(function(x,ri){ var xh=segHit(x); h+='<tr style="background:'+(xh?'#f5f3ff':'#fff')+';border-top:1px solid #ede9fe"><td style="padding:3px 6px;white-space:nowrap">'+x.date+'</td><td style="padding:3px 6px;font-family:monospace;color:#64748b">'+(showFmt==='d2'?recHtml(x):x.abs)+'</td><td style="padding:3px 6px;vertical-align:top">'+(showFmt==='d2'?foldHtml(x,ri):('<span style="font-family:monospace;color:#5b21b6;font-weight:700">'+(x.marks.join('<br>')||'—')+'</span>'))+'</td><td style="padding:3px 6px;text-align:center">'+(xh?'✅':'❌')+'</td></tr>'; });
   h+='</table></div></div>';
   h+='<div style="font-size:11px;color:#94a3b8;margin-top:8px">⚠️ 大概率是 🟢跟随机没差别——两个缺席条件叠加会让命中率变低(更难中)，但不代表能预测。诚实验证用。</div>';
   h+='</div>';
