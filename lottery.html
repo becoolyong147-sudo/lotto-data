@@ -24374,7 +24374,7 @@ function zoRootDigitComboBacktest(){
     return {all:Pf*Pb*pdF*pdB};
   }
   var det=[], tot=0, hit=0, bs=0, tF=0,hF=0,bF=0, tMid=0,hMid=0,bMid=0, tB=0,hB=0,bB=0;
-  var HC2=[{},{},{}], cntUpTo=-1, SS={f:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},m:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},b:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}}};
+  var STAR={per:0,hit:0,exp:0,recent:[]}, HC2=[{},{},{}], cntUpTo=-1, SS={f:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},m:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}},b:{all:{per:0,sz:0,hit:0,exp:0},fit:{per:0,sz:0,hit:0,exp:0},oth:{per:0,sz:0,hit:0,exp:0}}};
   for(var i=0;i+W<per.length;i++){
     var R=rootAbsent2(i);              // 数根用 per[i..i+W-1]
     var D=d1Absent1(i+W-1);            // 1D用窗口最新一期 per[i+W-1]
@@ -24398,6 +24398,7 @@ function zoRootDigitComboBacktest(){
       var tk=tgt.top3.map(function(n){ return wi===0?n.slice(0,2):(wi===1?n.slice(1,3):n.slice(2,4)); });
       function acc(g,lst){ if(!lst.length) return; var set={}; lst.forEach(function(t){set[t]=1;}); var o=SS[key][g]; o.per++; o.sz+=lst.length; if(tk.some(function(k){return set[k];})) o.hit++; o.exp+=1-Math.pow(1-lst.length/100,3); }
       FIT[key]=fit; acc('all',rec); acc('fit',fit); acc('oth',oth); });
+    (function(){ var any=false, has=false, pn=1; [['f',0],['m',1],['b',2]].forEach(function(q){ var L2=FIT[q[0]]; if(!L2.length) return; has=true; var set2={}; L2.forEach(function(t){set2[t]=1;}); var hh=tgt.top3.some(function(n){ var k=q[1]===0?n.slice(0,2):(q[1]===1?n.slice(1,3):n.slice(2,4)); return set2[k]; }); if(hh) any=true; pn*=Math.pow(1-L2.length/100,3); }); if(has){ STAR.per++; if(any) STAR.hit++; STAR.exp+=1-pn; STAR.recent.push({d:tgt.date,h:any}); } })();
     det.push({date:tgt.date, abs:absStr, rec:{f:recF,m:recM,b:recB}, fit:FIT, marks:marks, hit:wHit, top3:tgt.top3, sp:tgt.sp, cs:tgt.cs});
   }
   function verdict(t,hp,bp2){ var se=Math.sqrt((bp2/100)*(1-bp2/100)/Math.max(t,1))*100, lead=hp-bp2; return t<20?{t:'🔵样本少',c:'#64748b'}:(lead>2*se?{t:'🟡比随机高',c:'#7c3aed'}:(lead<-2*se?{t:'🔴比随机差',c:'#dc2626'}:{t:'🟢跟随机没差别',c:'#16a34a'})); }
@@ -24502,7 +24503,7 @@ function zoRootDigitComboBacktest(){
     h+='<div style="border:2px solid #f59e0b;border-radius:10px;padding:10px 12px;margin:8px 0;background:#fffdf5">'
       +'<div style="font-size:15px;font-weight:800;color:#b45309">🔎 分开看前 / 中 / 后,「应季」的成功率</div>'
       +'<div style="font-size:13px;color:#78350f;line-height:1.7;margin-top:4px">⭐<b>应季</b> = 这个 2D 历史上偏爱「下一期所在的那半年」(现在是 '+halfNow+'),所以在下面逐期表里,应季的 2D 前面会有 ⭐。看前 2D 只看前两位,不管中、后。</div>'
-      +parts+'</div>';
+      +parts+(STAR.per?('<div style="border-left:5px solid #f59e0b;background:#fffbeb;border-radius:8px;padding:8px 12px;margin-top:10px;font-size:14px;line-height:1.9"><b style="color:#b45309;font-size:15px">⭐ 只专注应季的,前/中/后三段一起算</b><br>'+'🎯 '+STAR.per+' 期里,下一期头二三至少有一个号的前、中或后 2D 落在 ⭐ 名单里:<b style="color:#b45309">'+STAR.hit+' 期</b>(<b>'+Math.round(STAR.hit/STAR.per*100)+'%</b> 的期数,<b>不是每一期</b>)<br>'+'🎲 随便挑同样个数的 2D:大约 '+Math.round(STAR.exp)+' 期('+Math.round(STAR.exp/STAR.per*100)+'%)<br>'+'📅 最近 '+Math.min(20,STAR.recent.length)+' 期:'+STAR.recent.slice(-20).map(function(x){ return '<span style="display:inline-block;padding:0 4px;margin:1px;border-radius:4px;background:'+(x.h?'#dcfce7':'#fee2e2')+'">'+x.d.slice(5)+(x.h?'✅':'❌')+'</span>'; }).join('')+'</div>'):'')+'</div>';
   })();
 
   if(mode==='split'){
