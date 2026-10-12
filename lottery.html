@@ -809,6 +809,7 @@ function renderPatternTrend(){
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:14px;padding:6px 8px;background:#fefce8;border-radius:8px">
       <span style="font-weight:800;color:#a16207">选号方法</span>
       <select id="hw-method" style="font-size:15px;padding:5px 9px"><option value="seg">缺席推荐前/中/后2D(原来的)</option><option value="zg">主杆法(上期前2D数根 + 单双走势)</option></select>
+      <label style="font-size:14px;color:#92400e;font-weight:700" title="只留下「历史上偏爱下一期所在那半年」的前/中/后2D(只对「缺席推荐」方法有效)"><input type="checkbox" id="hw-star"> ⭐ 只用应季的2D</label>
       <span style="font-size:13px;color:#475569">主杆法:看最近 <input id="hw-zg-k" value="3" size="2" style="padding:2px 4px"> 期的前2D形态 · 去掉最近 <input id="hw-zg-ex" value="1" size="2" style="padding:2px 4px"> 期开过的前2D</span>
     </div>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:8px;font-size:14px">
@@ -11083,7 +11084,7 @@ function zoHomework(){
     oe:sel('hw-oe'), da:sel('hw-da'), hot:sel('hw-hot'), half:sel('hw-half'),
     yr:C('hw-yr'), y1:parseInt(V('hw-y1','0'),10)||0, y2:parseInt(V('hw-y2','9999'),10)||9999,
     ex:C('hw-ex'), exM:parseInt(V('hw-ex-m','3'),10)||0,
-    method:V('hw-method','seg'), zgK:parseInt(V('hw-zg-k','3'),10)||3, zgEx:Math.max(0,parseInt(V('hw-zg-ex','1'),10)||0) };
+    method:V('hw-method','seg'), star:C('hw-star'), zgK:parseInt(V('hw-zg-k','3'),10)||3, zgEx:Math.max(0,parseInt(V('hw-zg-ex','1'),10)||0) };
   if(F.y1&&F.y2<9999&&F.y1>F.y2){ var tY=F.y1; F.y1=F.y2; F.y2=tY; }
   if(F.exM<=0) F.ex=false;
   if(F.method!=='zg'&&!(F.enF||F.enM||F.enB)){ out.innerHTML='<div class="warn">至少勾一段2D。</div>'; return; }
@@ -11116,9 +11117,9 @@ function zoHomework(){
   }
   function linkWhy(n,i){ var w=[]; per[i].nums.forEach(function(s){ for(var p=0;p<4;p++){ var t=drop(s,p); for(var pos=0;pos<4;pos++) if(drop(n,pos)===t){ w.push(s+'→'+t); return; } } }); return w; }
   // 历史状态(逐期推进)
-  var DT,H1,H2,LI,FI,CN,CUR=0;
-  function resetState(){ DT=new Array(10000); H1=new Int16Array(10000); H2=new Int16Array(10000); LI=new Int32Array(10000).fill(-1); FI=new Int32Array(10000).fill(-1); CN=new Int32Array(10000); CUR=0; }
-  function advance(i){ var half=(+per[i].date.slice(5,7))<=6; per[i].nums.forEach(function(s){ var q=+s; (DT[q]||(DT[q]=[])).push(per[i].date); if(half)H1[q]++; else H2[q]++; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); CUR=i; }
+  var DT,H1,H2,LI,FI,CN,CUR=0,HF1,HF2;
+  function resetState(){ HF1=[new Int16Array(100),new Int16Array(100),new Int16Array(100)]; HF2=[new Int16Array(100),new Int16Array(100),new Int16Array(100)]; DT=new Array(10000); H1=new Int16Array(10000); H2=new Int16Array(10000); LI=new Int32Array(10000).fill(-1); FI=new Int32Array(10000).fill(-1); CN=new Int32Array(10000); CUR=0; }
+  function advance(i){ var half=(+per[i].date.slice(5,7))<=6; per[i].nums.forEach(function(s){ var A=half?HF1:HF2; A[0][+s.slice(0,2)]++; A[1][+s.slice(1,3)]++; A[2][+s.slice(2,4)]++; }); per[i].nums.forEach(function(s){ var q=+s; (DT[q]||(DT[q]=[])).push(per[i].date); if(half)H1[q]++; else H2[q]++; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); CUR=i; }
   function hotOf(q){ if(CN[q]>=2){ var avg=(LI[q]-FI[q])/(CN[q]-1), ratio=Math.round((CUR-LI[q])/avg*100)/100; return ratio<=0.5?'hot':(ratio>=1.5?'cold':'mid'); } return 'mid'; }
   function halfOf(q){ var a=H1[q], b2=H2[q]; return (a+b2===0)?'new':(a>b2*1.2?'h1':(b2>a*1.2?'h2':'bal')); }
   var HOTN={hot:'🔥热门',mid:'🔵中性',cold:'❄️冷门'}, HALFN={h1:'偏上半年',h2:'偏下半年',bal:'均衡',new:'没开过'};
@@ -11149,9 +11150,14 @@ function zoHomework(){
     for(var u=0;u<10;u++) for(var v=0;v<10;v++){ var r2=drf(u+v); if(roots[r2]&&patOf(u,v)===best&&!ex[''+u+v]){ set[u*10+v]=1; l2.push(''+u+v); } }
     return {roots:rootList,pats:pats,cnt:cnt,best:best,set:set,l2:l2,ex:Object.keys(ex),src:per[i].nums.map(function(s){return s.slice(0,2);})};
   }
+  // ⭐ 只留「应季」的2D:历史上偏爱下一期所在那半年(开出次数多1.2倍以上)
+  function starFilter(R,i){ var dt=(i<per.length-1)?per[i+1].date:new Date().toISOString().slice(0,10), th=(+dt.slice(5,7))<=6?'h1':'h2';
+    var o={F:new Uint8Array(100),M:new Uint8Array(100),B:new Uint8Array(100),lf:[],lm:[],lb:[]};
+    [['F','lf',0],['M','lm',1],['B','lb',2]].forEach(function(q){ for(var v=0;v<100;v++){ if(!R[q[0]][v]) continue; var a=HF1[q[2]][v], b2=HF2[q[2]][v], lean=a>b2*1.2?'h1':(b2>a*1.2?'h2':'bal'); if(lean===th){ o[q[0]][v]=1; o[q[1]].push(('0'+v).slice(-2)); } } });
+    return o; }
   function candAt(i,f,mode,useCond){
     var cur=per[i].date, exCut=f.ex?shiftDate(cur,f.exM,0):'', list=[], R=null, L=null, Z=null;
-    if(mode==='link'){ L=linkAt(i); } else if(mode==='zg'){ Z=zgAt(i,f); } else { R=recAt(i); }
+    if(mode==='link'){ L=linkAt(i); } else if(mode==='zg'){ Z=zgAt(i,f); } else { R=recAt(i); if(f.star) R=starFilter(R,i); }
     for(var q=0;q<10000;q++){
       if(mode==='link'){ if(!L.set[q]) continue; if(useCond&&!passCond(q,f,cur,exCut)) continue; }
       else if(mode==='zg'){ if(!Z.set[(q/100)|0]) continue; if(!passCond(q,f,cur,exCut)) continue; }
@@ -11241,7 +11247,7 @@ function zoHomework(){
     h+='<div style="font-size:13px;line-height:1.9"><b>② 走势</b>:最近 '+F.zgK+' 期的前2D形态 '+Z.pats.map(function(p){ return '<span style="'+(p===Z.best?'background:#fde68a;border-radius:4px;padding:0 5px;font-weight:800':'')+'">'+patName(p)+' '+Z.cnt[p]+'次</span>'; }).join(' · ')+' → 选 <b style="color:#dc2626">'+patName(Z.best)+'</b>(次数最多)</div>';
     h+='<div style="font-size:13px;line-height:1.9"><b>③ 前2D</b>('+Z.l2.length+'个,已去掉'+(Z.ex.length?'刚开过的 '+Z.ex.join(' '):'无')+') '+chips(Z.l2,'#0f766e')+'</div>';
   } else {
-  h+='<div style="font-size:13px;margin-top:6px"><b style="color:#0f766e">前2D('+now.R.lf.length+')</b> '+chips(F.enF?now.R.lf:[],'#0f766e')+'</div><div style="font-size:13px"><b style="color:#b45309">中2D('+now.R.lm.length+')</b> '+chips(F.enM?now.R.lm:[],'#b45309')+'</div><div style="font-size:13px"><b style="color:#be185d">后2D('+now.R.lb.length+')</b> '+chips(F.enB?now.R.lb:[],'#be185d')+'</div>';
+  h+='<div style="font-size:13px;margin-top:6px"><b style="color:#0f766e">前2D('+(F.star?'⭐应季 ':'')+now.R.lf.length+')</b> '+chips(F.enF?now.R.lf:[],'#0f766e')+'</div><div style="font-size:13px"><b style="color:#b45309">中2D('+(F.star?'⭐应季 ':'')+now.R.lm.length+')</b> '+chips(F.enM?now.R.lm:[],'#b45309')+'</div><div style="font-size:13px"><b style="color:#be185d">后2D('+(F.star?'⭐应季 ':'')+now.R.lb.length+')</b> '+chips(F.enB?now.R.lb:[],'#be185d')+'</div>';
   }
   h+='<div style="font-size:16px;font-weight:800;margin-top:8px">叠上你的条件后,留下 <span style="color:#dc2626">'+now.list.length+'</span> 个号码</div>';
   h+='<div style="margin:6px 0"><button class="btn btn-green" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\' \',this)">📋 复制(空格)</button> <button class="btn" style="padding:5px 12px;font-size:13px" onclick="hwCopy(\'\\n\',this)">📋 复制(换行)</button></div>';
