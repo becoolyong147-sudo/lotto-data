@@ -259,6 +259,7 @@ tr:hover td{background:#fafaf5}
     <div class="subtab" data-tab="myplay" onclick="switchSubtab(this)" style="background:#fef3c7;border-color:#f59e0b;font-weight:800">🎲 我的玩法</div>
     <div class="subtab" data-tab="numlookup" onclick="switchSubtab(this)">🔍 查一个号</div>
     <div class="subtab" data-tab="filter" onclick="switchSubtab(this)">🧰 条件筛选</div>
+    <div class="subtab" data-tab="betlog" onclick="switchSubtab(this);blInit()" style="background:#e0f2fe;border-color:#0ea5e9;font-weight:800">📒 下注记录</div>
     <div class="subtab" data-tab="listcmp" onclick="switchSubtab(this)">🧮 号码对比</div>
   </div>
 </div>
@@ -936,6 +937,43 @@ function renderPatternTrend(){
 </div>
 
 <!-- TAB: 号码对比（贴几组号 → 重复/没重复 → 点数×打数分组 → 复制发WhatsApp） -->
+<div id="tab-betlog" class="panel" style="padding:12px">
+  <div class="card" style="border:3px solid #0ea5e9">
+    <h3 style="color:#0369a1">📒 我的下注记录 — 每期记下你真正买的号,开奖后自动对账</h3>
+    <div style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:8px">买之前(或买完)把号码记进来,开奖后这里会自动告诉你:中了什么、拿回多少、这一期赚还是亏;下面再帮你把所有期加起来,和「随便买同样个数」比一比。<br><b style="color:#b45309">记录只存在这台电脑的浏览器里</b>,换电脑或清浏览器就没了,记得不时点最下面的「📤 导出备份」。</div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+      <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="bl-mk" style="font-size:15px;padding:5px 9px"></select></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">哪一天开奖</label><input type="date" id="bl-date" style="font-size:15px;padding:4px 8px"></div>
+      <div><label style="font-size:12px;font-weight:700;display:block">备注(可不填)</label><input id="bl-note" placeholder="例:主杆法 / ⭐应季" style="font-size:14px;padding:5px 8px;width:180px"></div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 6px">
+      <button class="btn" style="padding:4px 12px;font-size:12px" onclick="blFromHw()">📥 用我的功课号码</button>
+      <select id="bl-saved" onchange="blFromSaved()" style="font-size:13px;padding:4px 8px"><option value="">📂 载入「对账」里存的号码…</option></select>
+      <span id="bl-msg" style="font-size:13px;color:#16a34a"></span>
+    </div>
+    <textarea id="bl-nums" rows="4" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px" placeholder="贴你这一期买的号码,逗号/空格/换行都行"></textarea>
+    <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-green" style="font-size:16px;font-weight:800;padding:9px 22px" onclick="blSave()">💾 记下这一期</button>
+      <details><summary style="cursor:pointer;font-size:13px;color:#64748b">⚙️ 注额 / 赔率 / 回扣(改了会记住)</summary>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:13px">
+          <label>头二三每奖 RM <input id="bl-st-top" value="0.1" size="3" onchange="blSaveSet();blRender()"></label>
+          <label>特别奖 RM <input id="bl-st-sp" value="0.3" size="3" onchange="blSaveSet();blRender()"></label>
+          <label>头二三赔率 × <input id="bl-pay-top" value="6600" size="5" onchange="blSaveSet();blRender()"></label>
+          <label>特别奖赔率 × <input id="bl-pay-sp" value="660" size="4" onchange="blSaveSet();blRender()"></label>
+          <label>回扣 <input id="bl-reb" value="20" size="2" onchange="blSaveSet();blRender()"> %</label>
+          <label>一星期满 RM <input id="bl-wk" value="3000" size="5" onchange="blSaveSet();blRender()"> 再多 <input id="bl-wkb" value="6" size="2" onchange="blSaveSet();blRender()"> %</label>
+        </div>
+      </details>
+    </div>
+    <div id="bl-out" style="margin-top:12px"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px dashed #bae6fd;padding-top:8px">
+      <button class="btn" style="padding:5px 12px;font-size:13px" onclick="blExport()">📤 导出备份(存成文件)</button>
+      <label class="btn" style="padding:5px 12px;font-size:13px;cursor:pointer">📥 导入备份<input type="file" accept=".json" style="display:none" onchange="blImport(this)"></label>
+      <span style="font-size:12px;color:#94a3b8">导入会把文件里的记录加进来(同一笔不会重复)。</span>
+    </div>
+  </div>
+</div>
+
 <div id="tab-listcmp" class="panel" style="padding:12px">
   <div class="card">
     <h3>🧮 号码对比 — 贴几组号,找重复 / 没重复,按点数和打数分好,一键复制发 WhatsApp</h3>
@@ -11038,6 +11076,99 @@ function scVisual(){
   out.innerHTML=h;
 }
 setTimeout(function(){ try{ var t=document.getElementById('scv-out'); if(t&&!t.innerHTML) scVisual(); }catch(e){} }, 4000);
+
+// ===== 📒 下注记录:存真实买的号,开奖后自动对账(只算头二三+特别奖) =====
+var BL_KEY='bet_log_v1', BL_SET='bet_log_set_v1';
+function blGet(){ try{ return JSON.parse(localStorage.getItem(BL_KEY)||'[]'); }catch(e){ return []; } }
+function blPut(a){ try{ localStorage.setItem(BL_KEY,JSON.stringify(a)); return true; }catch(e){ alert('存不进去:'+e.message); return false; } }
+function blMsg(t,c){ var m=document.getElementById('bl-msg'); if(m){ m.style.color=c||'#16a34a'; m.textContent=t; setTimeout(function(){ m.textContent=''; },3000); } }
+function blV(id,d){ var e=document.getElementById(id); var v=e?parseFloat(e.value):NaN; return isNaN(v)?d:v; }
+function blSettings(){ return {stTop:blV('bl-st-top',0.1),stSp:blV('bl-st-sp',0.3),payTop:blV('bl-pay-top',6600),paySp:blV('bl-pay-sp',660),reb:blV('bl-reb',20),wk:blV('bl-wk',3000),wkb:blV('bl-wkb',6)}; }
+function blSaveSet(){ try{ localStorage.setItem(BL_SET,JSON.stringify(blSettings())); }catch(e){} }
+function blLoadSet(){ try{ var o=JSON.parse(localStorage.getItem(BL_SET)||'null'); if(!o) return; [['bl-st-top','stTop'],['bl-st-sp','stSp'],['bl-pay-top','payTop'],['bl-pay-sp','paySp'],['bl-reb','reb'],['bl-wk','wk'],['bl-wkb','wkb']].forEach(function(q){ var e=document.getElementById(q[0]); if(e&&o[q[1]]!=null) e.value=o[q[1]]; }); }catch(e){} }
+function blInit(){
+  var sel=document.getElementById('bl-mk'); if(!sel) return;
+  if(!sel.options.length){ ((typeof DB!=='undefined')?Object.keys(DB):[]).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); }); }
+  var d=document.getElementById('bl-date'); if(d&&!d.value) d.value=new Date().toISOString().slice(0,10);
+  var sv=document.getElementById('bl-saved'); if(sv&&typeof payLists==='function'){ var L=payLists(); sv.innerHTML='<option value="">📂 载入「对账」里存的号码…('+Object.keys(L).length+' 组)</option>'+Object.keys(L).map(function(k){ return '<option value="'+k.replace(/"/g,'&quot;')+'">'+k+'</option>'; }).join(''); }
+  blLoadSet(); blRender();
+}
+function blFromHw(){ var a=window.__hwList||[]; if(!a.length){ blMsg('先到「🎲 我的玩法」点一次「🎯 生成功课」','#b45309'); return; } document.getElementById('bl-nums').value=a.join(' '); var mk=(document.getElementById('hw-mk')||{}).value; if(mk) document.getElementById('bl-mk').value=mk; blMsg('已带入功课号码 '+a.length+' 个'); }
+function blFromSaved(){ var k=document.getElementById('bl-saved').value; if(!k) return; var L=(typeof payLists==='function')?payLists():{}; if(L[k]!=null){ document.getElementById('bl-nums').value=L[k]; blMsg('已载入「'+k+'」'); } }
+function blSave(){
+  var nums={}; (document.getElementById('bl-nums').value.match(/\d{4}/g)||[]).forEach(function(x){ nums[x]=1; }); var arr=Object.keys(nums).sort();
+  if(!arr.length){ blMsg('先贴号码','#dc2626'); return; }
+  var mk=document.getElementById('bl-mk').value, date=document.getElementById('bl-date').value;
+  if(!date){ blMsg('选一下开奖日期','#dc2626'); return; }
+  var S=blSettings(), a=blGet();
+  a.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), mk:mk, date:date, nums:arr, stTop:S.stTop, stSp:S.stSp, note:(document.getElementById('bl-note').value||'').trim(), at:new Date().toISOString()});
+  if(blPut(a)){ document.getElementById('bl-nums').value=''; blMsg('已记下:'+mk+' '+date+' 共 '+arr.length+' 个号'); blRender(); }
+}
+function blDel(id){ var a=blGet(), x=a.filter(function(e){return e.id===id;})[0]; if(!x) return; if(!confirm('删掉这一笔?('+x.mk+' '+x.date+','+x.nums.length+' 个号)')) return; blPut(a.filter(function(e){return e.id!==id;})); blRender(); }
+function blToggle(id){ var e=document.getElementById('bln-'+id); if(e) e.style.display=e.style.display==='none'?'block':'none'; }
+function blExport(){
+  var a=blGet(); if(!a.length){ alert('还没有记录'); return; }
+  var blob=new Blob([JSON.stringify({type:'bet_log',v:1,exported:new Date().toISOString(),entries:a},null,1)],{type:'application/json'});
+  var fn='下注记录_'+new Date().toISOString().slice(0,10)+'.json';
+  if(typeof zoSaveBlob==='function') zoSaveBlob(blob,fn); else { var u=URL.createObjectURL(blob), l=document.createElement('a'); l.href=u; l.download=fn; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function(){URL.revokeObjectURL(u);},1500); }
+}
+function blImport(inp){
+  var f=inp.files&&inp.files[0]; if(!f) return; var rd=new FileReader();
+  rd.onload=function(){ try{ var o=JSON.parse(rd.result), list=(o&&o.entries)||[]; var a=blGet(), have={}; a.forEach(function(e){have[e.id]=1;}); var add=0;
+      list.forEach(function(e){ if(e&&e.id&&e.mk&&e.date&&e.nums&&!have[e.id]){ a.push(e); have[e.id]=1; add++; } });
+      blPut(a); blRender(); alert('导入完成:加了 '+add+' 笔(重复的跳过)'); }catch(e){ alert('文件读不了:'+e.message); } inp.value=''; };
+  rd.readAsText(f);
+}
+function blRender(){
+  var out=document.getElementById('bl-out'); if(!out) return;
+  var S=blSettings(), a=blGet(); if(!a.length){ out.innerHTML='<div style="color:#94a3b8;font-size:14px">还没有记录。贴上你这一期买的号,点「💾 记下这一期」。</div>'; return; }
+  function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  function rm(v){ return 'RM'+(Math.round(Math.abs(v)*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function weekKey(ds){ var d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
+  var today=new Date().toISOString().slice(0,10), cache={};
+  function draw(mk,date){ var k=mk+'|'+date; if(cache[k]!==undefined) return cache[k]; var d=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(x){return String(x.date).slice(0,10)===date&&x.nums&&x.nums.length>=3;})[0]||null; cache[k]=d; return d; }
+  // 每星期一共投多少(用来判断达标)
+  var wkTot={}; a.forEach(function(e){ var g=e.nums.length*(e.stTop*3+e.stSp); var w=weekKey(e.date); wkTot[w]=(wkTot[w]||0)+g; });
+  var rows=a.slice().sort(function(x,y){ return x.date<y.date?1:(x.date>y.date?-1:(x.at<y.at?1:-1)); });
+  var T={n:0,wait:0,none:0,g:0,rb:0,win:0,top:0,sp:0,anyP:0,exp:0}, M={g:0,rb:0,win:0,n:0}, curMon=today.slice(0,7);
+  var html='';
+  rows.forEach(function(e){
+    var g=e.nums.length*(e.stTop*3+e.stSp), bonus=(wkTot[weekKey(e.date)]>=S.wk)?S.wkb:0, rb=g*(S.reb+bonus)/100, set={}; e.nums.forEach(function(x){set[x]=1;});
+    var d=draw(e.mk,e.date), body='', mark='';
+    if(!d){
+      if(e.date>=today){ T.wait++; mark='⏳'; body='<span style="color:#64748b">等开奖</span>'; } else { T.none++; mark='❔'; body='<span style="color:#b45309">这一天找不到 '+e.mk+' 的开奖成绩(可能日期选错,或成绩还没更新)</span>'; }
+    } else {
+      var top=[0,1,2].map(function(k){return pd(d.nums[k]);}), sp=(d.sp||[]).map(pd).filter(function(x){return /^\d{4}$/.test(x);});
+      var hT=[], hS=[]; top.forEach(function(n,k){ if(set[n]) hT.push(['头奖','二奖','三奖'][k]+' '+n); }); sp.forEach(function(n){ if(set[n]) hS.push(n); });
+      var win=hT.length*e.stTop*S.payTop+hS.length*e.stSp*S.paySp, net=win-(g-rb);
+      T.n++; T.g+=g; T.rb+=rb; T.win+=win; T.top+=hT.length; T.sp+=hS.length; if(hT.length||hS.length) T.anyP++;
+      T.exp+=e.nums.length*(3/10000*e.stTop*S.payTop+(sp.length||10)/10000*e.stSp*S.paySp);
+      if(e.date.slice(0,7)===curMon){ M.n++; M.g+=g; M.rb+=rb; M.win+=win; }
+      mark=hT.length?'✅':(hS.length?'🔹':'❌');
+      body='开出 <span style="font-family:monospace">'+top.map(function(n){ return set[n]?'<b style="background:#16a34a;color:#fff;border-radius:3px;padding:0 4px">'+n+'</b>':n; }).join(' · ')+'</span>'
+        +(hS.length?' · 特别奖中 <b style="color:#d97706;font-family:monospace">'+hS.join(' ')+'</b>':(sp.length?'':' <span style="color:#94a3b8;font-size:11px">(没有特别奖记录)</span>'))
+        +'<br>投 '+rm(g)+' → 回扣 '+rm(rb)+(bonus?'(含周满 '+S.wkb+'%)':'')+' → 实际花 '+rm(g-rb)+' · 拿回 <b>'+rm(win)+'</b> · <b style="color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rm(net)+'</b>'
+        +(hT.length?'<br><span style="color:#16a34a">✅ 中了 '+hT.join('、')+'</span>':'');
+    }
+    html+='<div style="border-left:5px solid '+(mark==='✅'?'#16a34a':(mark==='🔹'?'#f59e0b':(mark==='❌'?'#cbd5e1':'#93c5fd')))+';background:#fff;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:14px;line-height:1.8">'
+      +'<span style="font-size:16px">'+mark+'</span> <b>'+e.date+'</b> · '+e.mk+' · 买了 <b>'+e.nums.length+'</b> 个号'+(e.note?' · <span style="color:#7c3aed">'+e.note.replace(/</g,'&lt;')+'</span>':'')
+      +' <a href="javascript:void(0)" onclick="blToggle(\''+e.id+'\')" style="font-size:12px">看我的号</a> · <a href="javascript:void(0)" onclick="blDel(\''+e.id+'\')" style="font-size:12px;color:#dc2626">删除</a><br>'+body
+      +'<div id="bln-'+e.id+'" style="display:none;font-family:monospace;font-size:12px;color:#475569;max-height:120px;overflow:auto;background:#f8fafc;border-radius:6px;padding:4px 8px;margin-top:4px">'+e.nums.join(' ')+'</div></div>';
+  });
+  var net=T.win-(T.g-T.rb), mNet=M.win-(M.g-M.rb), expNet=T.exp-(T.g-T.rb);
+  var sum='<div style="background:#f0f9ff;border:2px solid #7dd3fc;border-radius:12px;padding:12px 14px;font-size:15px;line-height:2;color:#0c4a6e">'
+    +'📒 一共记了 <b>'+a.length+'</b> 笔:已开奖 <b>'+T.n+'</b> 笔'+(T.wait?',等开奖 '+T.wait+' 笔':'')+(T.none?',<span style="color:#b45309">找不到成绩 '+T.none+' 笔</span>':'')+'<br>';
+  if(T.n){
+    sum+='💸 一共投 <b>'+rm(T.g)+'</b> → 回扣 <b>'+rm(T.rb)+'</b> → 实际花 <b>'+rm(T.g-T.rb)+'</b><br>'
+      +'💰 中奖拿回 <b>'+rm(T.win)+'</b> → <b style="font-size:17px;color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rm(net)+'</b><br>'
+      +'🎯 '+T.n+' 笔里,有 <b>'+T.anyP+'</b> 笔中奖:头二三一共中 <b style="color:#16a34a">'+T.top+'</b> 个,特别奖一共中 <b style="color:#d97706">'+T.sp+'</b> 个<br>'
+      +'🎲 如果每次都<b>随便买同样个数</b>的号,平均大约拿回 '+rm(T.exp)+',结果是'+(expNet<0?'亏 ':'赚 ')+rm(expNet)+' → 你'+(net>=expNet?'<b style="color:#16a34a">比随便买多 '+rm(net-expNet)+'</b>':'<b style="color:#dc2626">比随便买少 '+rm(expNet-net)+'</b>')
+      +'<span style="font-size:12px;color:#64748b">(笔数少的时候,差别主要是运气)</span>';
+    if(M.n) sum+='<br>📅 这个月('+curMon+'):'+M.n+' 笔,实际花 '+rm(M.g-M.rb)+',拿回 '+rm(M.win)+' → <b style="color:'+(mNet<0?'#dc2626':'#16a34a')+'">'+(mNet<0?'亏 ':'赚 ')+rm(mNet)+'</b>';
+  }
+  sum+='</div><div style="font-size:12px;color:#64748b;margin:8px 0 2px">✅=头二三有中 · 🔹=只中特别奖 · ❌=没中 · ⏳=等开奖 · ❔=找不到成绩;新的在上面</div>';
+  out.innerHTML=sum+html;
+}
 // 💰 对账:你贴的号 × 某一天的开奖 → 头二三/特别奖/安慰奖各中几个、投入、拿回、盈亏
 function payAllDraws(mk){
   var seen={}, m=[];
