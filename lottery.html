@@ -1691,6 +1691,25 @@ let DB={}, FREQ={}, CHAIN2={}, COLD_BASE={};
 const LS_KEY='lottery_new_results';
 
 function dr(n){while(n>=10){n=String(n).split('').reduce((a,c)=>a+parseInt(c),0)}return n}
+// ===== 🧭 统一算法:缺席推荐 2D(全站共用,改这里所有页面一起变) =====
+//  A = 数根+双缺(我的功课 / 组合回测 / ⭐应季 / 回测成绩单):数根=最近几期没出现的根;两位数字都要是「最新一期」那一位没出现过的
+//  B = 特别奖源(下一期主打 / 查回历史 / 2D速选 / 2D深度分析):用特别奖10个算缺根;第一位=那一位没出现的数字+出现最多的那个;第二位不限
+var ABS2D={
+  rootsAbsent:function(nums){ var pf={},pm={},pb={}; nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; });
+    var F={},Mid={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pm[r])Mid[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; }
+    return {F:F,Mid:Mid,B:B,M:M,nF:Object.keys(F).length,nMid:Object.keys(Mid).length,nB:Object.keys(B).length,nM:Object.keys(M).length}; },
+  digitsAbsent:function(nums){ var pr=[{},{},{},{}]; nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}], n=[0,0,0,0];
+    for(var q=0;q<4;q++){ for(var dg=0;dg<=9;dg++){ if(!pr[q][dg]){A[q][dg]=1;n[q]++;} } } return {A:A,n:n}; },
+  dbl:function(rootSet,digA,digB){ var o=[]; for(var u=0;u<=9;u++)for(var v=0;v<=9;v++){ if(rootSet[dr(u+v)]&&digA[u]&&digB[v]) o.push(''+u+v); } return o; },
+  A:function(rootNums,digitNums){ var R=ABS2D.rootsAbsent(rootNums), D=ABS2D.digitsAbsent(digitNums);
+    var o={F:new Uint8Array(100),M:new Uint8Array(100),B:new Uint8Array(100),lf:ABS2D.dbl(R.F,D.A[0],D.A[1]),lm:ABS2D.dbl(R.Mid,D.A[1],D.A[2]),lb:ABS2D.dbl(R.B,D.A[2],D.A[3])};
+    o.lf.forEach(function(t){o.F[+t]=1;}); o.lm.forEach(function(t){o.M[+t]=1;}); o.lb.forEach(function(t){o.B[+t]=1;}); return o; },
+  B:function(g,wa,wb){ var roots={},first={}; g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
+    var a2=[]; for(var r=1;r<=9;r++) if(!roots[r]) a2.push(r); var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d]) a1.push(''+d);
+    var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} }); var t1=a1.concat(most!=null?[most]:[]);
+    var ts={}; t1.forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1; } });
+    return {a2:a2,a1:a1,most:most,t1:t1,tg:Object.keys(ts)}; }
+};
 function ds(s){return String(s).split('').reduce((a,c)=>a+parseInt(c),0)}
 function pz(n){return String(n).padStart(4,'0')}
 
@@ -8714,7 +8733,7 @@ function zoSpHistoryShow(){
   var out=document.getElementById('abs-out'); if(!out) return;
   var mk=(document.getElementById('abs-market')||{value:'万能'}).value;
   var dr=zoNMdr, pad=function(n){return String(n).padStart(4,'0');};
-  function an2(g,wa,wb){ var rt={},fs={}; g.forEach(function(n){ rt[dr((+n[wa])+(+n[wb]))]=1; fs[n[wa]]=(fs[n[wa]]||0)+1; }); var a2=[],a1=[]; for(var r=1;r<=9;r++) if(!rt[r])a2.push(r); for(var d=0;d<=9;d++) if(!fs[''+d])a1.push(''+d); var mo=null,mc=-1; Object.keys(fs).forEach(function(k){if(fs[k]>mc){mc=fs[k];mo=k;}}); var t1=a1.concat(mo!=null?[mo]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){if(a2.indexOf(dr((+d1)+d2))>=0)ts[''+d1+d2]=1;}}); return {a2:a2.join(','),tg:Object.keys(ts).sort()}; }
+  function an2(g,wa,wb){ var o=ABS2D.B(g,wa,wb); return {a2:o.a2.join(','),tg:o.tg.slice().sort()}; }   // 统一算法 B
   function an1(g,pos){ var fs={}; g.forEach(function(n){ fs[n[pos]]=(fs[n[pos]]||0)+1; }); var a1=[]; for(var d=0;d<=9;d++) if(!fs[''+d])a1.push(''+d); var mo=null,mc=-1; Object.keys(fs).forEach(function(k){if(fs[k]>mc){mc=fs[k];mo=k;}}); return {a1:a1.join(','),most:mo,set:a1.concat(mo!=null?[mo]:[])}; }
   var newData=(typeof getNewResults==='function')?getNewResults():{}; var seen={}, merged=[];
   (newData[mk]||[]).forEach(function(d){ if(d&&d.date&&!seen[d.date]){seen[d.date]=1; merged.push(d);} });
@@ -10181,7 +10200,7 @@ function zoRootLinkReview(){
   function pad(n){return String(n).padStart(4,'0');}
   function dr(x){ return x===0?0:(x%9===0?9:x%9); }
   function dr2(x,y){ return dr((+x)+(+y)); }
-  function an2(g,wa,wb){ var roots={},first={}; g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; }); var a2=[]; for(var r=1;r<=9;r++) if(!roots[r])a2.push(r); var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d])a1.push(''+d); var most=null,mc=-1; Object.keys(first).forEach(function(k){if(first[k]>mc){mc=first[k];most=k;}}); var t1=a1.concat(most!=null?[most]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1;}}); return {a2:a2, tg:Object.keys(ts)}; }
+  function an2(g,wa,wb){ var o=ABS2D.B(g,wa,wb); return {a2:o.a2, tg:o.tg}; }   // 统一算法 B
   function s3(s){ return s.split('').sort().join(''); }
   var recs=[], methodHit=0, randHit=0, n=0, sumCand=0;
   for(var i=0;i<m.length-1;i++){
@@ -10264,7 +10283,7 @@ function zoRootLink4DReview(){
   function pad(n){return String(n).padStart(4,'0');}
   function dr(x){ return x===0?0:(x%9===0?9:x%9); }
   function dr2(x,y){ return dr((+x)+(+y)); }
-  function an2(g,wa,wb){ var roots={},first={}; g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; }); var a2=[]; for(var r=1;r<=9;r++) if(!roots[r])a2.push(r); var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d])a1.push(''+d); var most=null,mc=-1; Object.keys(first).forEach(function(k){if(first[k]>mc){mc=first[k];most=k;}}); var t1=a1.concat(most!=null?[most]:[]); var ts={}; t1.forEach(function(d1){for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1;}}); return {a2:a2, tg:Object.keys(ts)}; }
+  function an2(g,wa,wb){ var o=ABS2D.B(g,wa,wb); return {a2:o.a2, tg:o.tg}; }   // 统一算法 B
   var recs=[], A={hit:0,rand:0,cand:0,p:[0,0,0]}, B={hit:0,rand:0,cand:0,p:[0,0,0]}, n=0;
   for(var i=0;i<m.length-1;i++){
     var d=m[i]; if(!(d.sp&&d.sp.length))continue;
@@ -10730,15 +10749,9 @@ function zoHomework(){
   function daOf(q){ var d0=(q/1000)|0,d1=((q/100)|0)%10,d2=((q/10)|0)%10,d3=q%10, c={}; c[d0]=(c[d0]||0)+1; c[d1]=(c[d1]||0)+1; c[d2]=(c[d2]||0)+1; c[d3]=(c[d3]||0)+1; var k=Object.keys(c).length; if(k===4)return 24; if(k===3)return 12; if(k===1)return 1; return (c[d0]===2||c[d1]===2)?6:4; }
   var DAV=new Uint8Array(10000); for(var qd=0;qd<10000;qd++) DAV[qd]=daOf(qd);
   function shiftDate(iso,months,days){ var d=new Date(iso+'T00:00:00'); if(months) d.setMonth(d.getMonth()-months); if(days) d.setDate(d.getDate()-days); return d.toISOString().slice(0,10); }
-  function recAt(i){
-    var pf={},pm={},pb={}; for(var j=Math.max(0,i-win+1);j<=i;j++) per[j].nums.forEach(function(s){ pf[drf((+s[0])+(+s[1]))]=1; pm[drf((+s[1])+(+s[2]))]=1; pb[drf((+s[2])+(+s[3]))]=1; });
-    var A=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var q=0;q<4;q++) A[q][+s[q]]=1; });
-    var Fa=new Uint8Array(100),Ma=new Uint8Array(100),Ba=new Uint8Array(100), lf=[],lm=[],lb=[];
-    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ var r=drf(u+v), ok=(r>=1&&r<=9);
-      if(ok&&!pf[r]&&!A[0][u]&&!A[1][v]){ Fa[u*10+v]=1; lf.push(''+u+v); }
-      if(ok&&!pm[r]&&!A[1][u]&&!A[2][v]){ Ma[u*10+v]=1; lm.push(''+u+v); }
-      if(ok&&!pb[r]&&!A[2][u]&&!A[3][v]){ Ba[u*10+v]=1; lb.push(''+u+v); } }
-    return {F:Fa,M:Ma,B:Ba,lf:lf,lm:lm,lb:lb};
+  function recAt(i){   // 统一算法 A
+    var rn=[]; for(var j=Math.max(0,i-win+1);j<=i;j++) rn=rn.concat(per[j].nums);
+    return ABS2D.A(rn, per[i].nums);
   }
   // 拆3D:上一期头二三每个4D去掉一位 → 4个3D;再看哪些4D「包含」这些3D(按顺序)
   function drop(s,p){ return s.slice(0,p)+s.slice(p+1); }
@@ -10949,13 +10962,9 @@ function scVisual(){
   var CN=new Int32Array(10000),FI=new Int32Array(10000).fill(-1),LI=new Int32Array(10000).fill(-1);
   function adv(i){ per[i].nums.forEach(function(s){ var q=+s; if(FI[q]<0)FI[q]=i; LI[q]=i; CN[q]++; }); }
   function pt2(a,b2){ return (a%2?'单':'双')+(b2%2?'单':'双'); }
-  function recAt(i,win){
-    var pf={},pm={},pb={}; for(var j=Math.max(0,i-win+1);j<=i;j++) per[j].nums.forEach(function(s){ pf[drf((+s[0])+(+s[1]))]=1; pm[drf((+s[1])+(+s[2]))]=1; pb[drf((+s[2])+(+s[3]))]=1; });
-    var A=[{},{},{},{}]; per[i].nums.forEach(function(s){ for(var k=0;k<4;k++) A[k][+s[k]]=1; });
-    var F=new Uint8Array(100),M=new Uint8Array(100),B=new Uint8Array(100);
-    for(var u=0;u<10;u++)for(var v=0;v<10;v++){ var r=drf(u+v); if(r<1||r>9) continue;
-      if(!pf[r]&&!A[0][u]&&!A[1][v]) F[u*10+v]=1; if(!pm[r]&&!A[1][u]&&!A[2][v]) M[u*10+v]=1; if(!pb[r]&&!A[2][u]&&!A[3][v]) B[u*10+v]=1; }
-    return {F:F,M:M,B:B};
+  function recAt(i,win){   // 统一算法 A
+    var rn=[]; for(var j=Math.max(0,i-win+1);j<=i;j++) rn=rn.concat(per[j].nums);
+    return ABS2D.A(rn, per[i].nums);
   }
   function zgAt(i){
     var roots={}, pats=[], cnt={}, ex={}, set=new Uint8Array(100), pn=function(a,b2){return (a%2?'O':'E')+(b2%2?'O':'E');};
@@ -11454,15 +11463,7 @@ function q2dBT(){
   function drr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
   function key(n){ return n.slice(wa,wb+1); }
   // 目标2D(特别奖源): 缺根 × (缺数字+最多数字)
-  function targets(g){
-    var roots={}, first={};
-    g.forEach(function(n){ roots[drr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
-    var a2={}; for(var r=1;r<=9;r++) if(!roots[r]) a2[r]=1;
-    var t1={}, most=null, mc=-1; for(var d=0;d<=9;d++) if(!first[''+d]) t1[d]=1;
-    Object.keys(first).forEach(function(k){ if(first[k]>mc){ mc=first[k]; most=k; } }); if(most!=null) t1[most]=1;
-    var ts=[]; Object.keys(t1).forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2[drr((+d1)+d2)]) ts.push(''+d1+d2); } });
-    return ts;
-  }
+  function targets(g){ return ABS2D.B(g,wa,wb).tg; }   // 统一算法 B
   // 历史状态(逐期推进)
   var occ={}, startT=per.length-1-P;
   var RULES=[
@@ -11543,16 +11544,7 @@ function q2dBT(){
 function zoSpMatchCompute(){
   function dr(x){ if(x===0)return 0; var r=x%9; return r===0?9:r; }
   function pad(n){ return String(n).padStart(4,'0'); }
-  function an2(g,wa,wb){
-    var roots={},first={};
-    g.forEach(function(n){ roots[dr((+n[wa])+(+n[wb]))]=1; first[n[wa]]=(first[n[wa]]||0)+1; });
-    var a2=[]; for(var r=1;r<=9;r++) if(!roots[r]) a2.push(r);
-    var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d]) a1.push(''+d);
-    var most=null,mc=-1; Object.keys(first).forEach(function(k){ if(first[k]>mc){mc=first[k];most=k;} });
-    var t1=a1.concat(most!=null?[most]:[]);
-    var ts={}; t1.forEach(function(d1){ for(var d2=0;d2<=9;d2++){ if(a2.indexOf(dr((+d1)+d2))>=0) ts[''+d1+d2]=1; } });
-    return {a2:a2.join(','),t1:t1.join(','),tg:Object.keys(ts).sort()};
-  }
+  function an2(g,wa,wb){ var o=ABS2D.B(g,wa,wb); return {a2:o.a2.join(','),t1:o.t1.join(','),tg:o.tg.slice().sort()}; }   // 统一算法 B
   function an1(g,pos){
     var first={}; g.forEach(function(n){ first[n[pos]]=(first[n[pos]]||0)+1; });
     var a1=[]; for(var d=0;d<=9;d++) if(!first[''+d]) a1.push(''+d);
@@ -22288,9 +22280,9 @@ function zoRootDigitComboBacktest(){
   if(per.length<W+2){ out.innerHTML='<div class="warn">'+mk+' 有'+srcLbl+'的期数太少('+per.length+')，窗口'+W+'期无法组合回测。'+(SRC==='sp'?'（特别奖只在近期有，选「头二三」）':'')+'</div>'; return; }
   var POS=['千','百','十','个'];
   // 数根缺席：给起点idx（用 per[idx..idx+W-1]，W=回看窗口）→ {front,back,mix} 缺席根集合(1-9)
-  function rootAbsent2(a){ var pf={},pm={},pb={}; for(var w=0;w<W;w++){ var pp=per[a+w]; if(!pp)continue; pp.nums.forEach(function(s){ pf[dr((+s[0])+(+s[1]))]=1; pm[dr((+s[1])+(+s[2]))]=1; pb[dr((+s[2])+(+s[3]))]=1; }); } var F={},Mid={},B={},M={}; for(var r=1;r<=9;r++){ if(!pf[r])F[r]=1; if(!pm[r])Mid[r]=1; if(!pb[r])B[r]=1; if(!pf[r]&&!pb[r])M[r]=1; } return {F:F,Mid:Mid,B:B,M:M,nF:Object.keys(F).length,nMid:Object.keys(Mid).length,nB:Object.keys(B).length,nM:Object.keys(M).length}; }
+  function rootAbsent2(a){ var ns=[]; for(var w=0;w<W;w++){ var pp=per[a+w]; if(pp) ns=ns.concat(pp.nums); } return ABS2D.rootsAbsent(ns); }   // 统一算法 A
   // 一期1D缺席：给期idx → 每位缺席数字集合(0-9)
-  function d1Absent1(a){ var pr=[{},{},{},{}]; per[a].nums.forEach(function(s){ for(var q=0;q<4;q++)pr[q][+s[q]]=1; }); var A=[{},{},{},{}], n=[0,0,0,0]; for(var q=0;q<4;q++){ for(var dg=0;dg<=9;dg++){ if(!pr[q][dg]){A[q][dg]=1;n[q]++;} } } return {A:A,n:n}; }
+  function d1Absent1(a){ return ABS2D.digitsAbsent(per[a].nums); }   // 统一算法 A
   // 评估一个奖号在给定缺席集下是否命中(按模式)，返回 {hit, why}
   function evalNum(s, R, D){
     var fr=dr((+s[0])+(+s[1])), br=dr((+s[2])+(+s[3]));
@@ -22332,7 +22324,7 @@ function zoRootDigitComboBacktest(){
     if(mode==='split'){ tF++; if(wF)hF++; bF+=1-Math.pow(1-bp.front,nc); tMid++; if(wM)hMid++; bMid+=1-Math.pow(1-bp.mid,nc); tB++; if(wB)hB++; bB+=1-Math.pow(1-bp.back,nc); }
     var absStr='根['+(mode==='mix'?('混'+Object.keys(R.M).join('')):('前'+Object.keys(R.F).join('')+' 中'+Object.keys(R.Mid).join('')+' 后'+Object.keys(R.B).join('')))+'] 1D['+POS.map(function(p,q){return p+Object.keys(D.A[q]).join('');}).join(' ')+']';
     // 推荐2D(双缺):数根缺 且 两位数字都缺 → 写成 04xx / x31x / xx58
-    function dbl2d(rootSet,a,b){ var o=[]; for(var u=0;u<=9;u++)for(var v=0;v<=9;v++){ if(rootSet[dr(u+v)]&&D.A[a][u]&&D.A[b][v]) o.push(''+u+v); } return o; }
+    function dbl2d(rootSet,a,b){ return ABS2D.dbl(rootSet,D.A[a],D.A[b]); }
     var Fr=(mode==='mix')?R.M:R.F, Br=(mode==='mix')?R.M:R.B;
     var recF=dbl2d(Fr,0,1), recM=(mode==='mix')?[]:dbl2d(R.Mid,1,2), recB=dbl2d(Br,2,3);
     // 分前/中/后 + 应季: 历史偏哪个半年(只用目标期之前的头二三) 和 目标期所在半年一致 = 应季
@@ -22364,7 +22356,7 @@ function zoRootDigitComboBacktest(){
       var hc=[{},{},{}];
       per.forEach(function(pp){ var hf=(+String(pp.date).slice(5,7))<=6?'h1':'h2'; pp.top3.forEach(function(s2){ [[0,s2.slice(0,2)],[1,s2.slice(1,3)],[2,s2.slice(2,4)]].forEach(function(kv){ var o=hc[kv[0]][kv[1]]||(hc[kv[0]][kv[1]]={h1:0,h2:0}); o[hf]++; }); }); });
       var th=((new Date().getMonth()+1)<=6)?'h1':'h2', thLbl=(th==='h1'?'上半年(1–6月)':'下半年(7–12月)');
-      function dblL(ro,s1,s2){ var o=[]; for(var a=0;a<=9;a++)for(var c=0;c<=9;c++){ if(ro[dr(a+c)]&&s1[a]&&s2[c]) o.push(''+a+c); } return o; }
+      function dblL(ro,s1,s2){ return ABS2D.dbl(ro,s1,s2); }
       var lists=[
         {lbl:'前2D',col:'#0f766e',wi:0,fmt:function(t){return t+'xx';},rec:dblL(mode==='mix'?Rc.M:Rc.F,Dc.A[0],Dc.A[1])},
         {lbl:'中2D',col:'#b45309',wi:1,fmt:function(t){return 'x'+t+'x';},rec:(mode==='mix')?[]:dblL(Rc.Mid,Dc.A[1],Dc.A[2])},
@@ -22425,7 +22417,7 @@ function zoRootDigitComboBacktest(){
         h+=block(Object.keys(Rc.B),'#be185d','后2D缺根(十个)',A[2],A[3],2);
         // 🔗 链接3D：前2D+中2D 共用「百」→前3D(千百十)；中2D+后2D 共用「十」→后3D(百十个)，都取双缺件
         (function(){
-          function dbl(ro,s1,s2){ var o=[]; for(var a=0;a<=9;a++)for(var b=0;b<=9;b++){ if(ro[dr(a+b)]&&s1[a]&&s2[b]) o.push(''+a+b); } return o; }
+          function dbl(ro,s1,s2){ return ABS2D.dbl(ro,s1,s2); }
           var f2=dbl(Rc.F,A[0],A[1]), m2=dbl(Rc.Mid,A[1],A[2]), b2=dbl(Rc.B,A[2],A[3]);
           var f3={}, b3={};
           f2.forEach(function(f){ m2.forEach(function(m){ if(f[1]===m[0]) f3[f+m[1]]=1; }); });
