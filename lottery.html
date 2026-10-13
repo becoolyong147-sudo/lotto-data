@@ -954,14 +954,12 @@ function renderPatternTrend(){
     <textarea id="bl-nums" rows="4" style="width:100%;box-sizing:border-box;font-family:monospace;font-size:13px" placeholder="贴你这一期买的号码,逗号/空格/换行都行"></textarea>
     <div style="margin-top:8px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button class="btn btn-green" style="font-size:16px;font-weight:800;padding:9px 22px" onclick="blSave()">💾 记下这一期</button>
-      <details><summary style="cursor:pointer;font-size:13px;color:#64748b">⚙️ 注额 / 赔率 / 回扣(改了会记住)</summary>
+      <details open><summary style="cursor:pointer;font-size:13px;color:#0369a1;font-weight:700">🎫 这一期每个号押什么、押多少(改了会记住)</summary>
+        <div id="bl-bets" style="margin-top:6px;background:#f8fafc;border-radius:8px;padding:6px 10px"></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:13px">
-          <label>头二三每奖 RM <input id="bl-st-top" value="0.1" size="3" onchange="blSaveSet();blRender()"></label>
-          <label>特别奖 RM <input id="bl-st-sp" value="0.3" size="3" onchange="blSaveSet();blRender()"></label>
-          <label>头二三赔率 × <input id="bl-pay-top" value="6600" size="5" onchange="blSaveSet();blRender()"></label>
-          <label>特别奖赔率 × <input id="bl-pay-sp" value="660" size="4" onchange="blSaveSet();blRender()"></label>
           <label>回扣 <input id="bl-reb" value="20" size="2" onchange="blSaveSet();blRender()"> %</label>
           <label>一星期满 RM <input id="bl-wk" value="3000" size="5" onchange="blSaveSet();blRender()"> 再多 <input id="bl-wkb" value="6" size="2" onchange="blSaveSet();blRender()"> %</label>
+          <span style="color:#94a3b8">(2D 回扣固定 3%)</span>
         </div>
       </details>
     </div>
@@ -1007,10 +1005,7 @@ function renderPatternTrend(){
       <div><label style="font-size:12px;font-weight:700;display:block">市场</label><select id="pay-mk" onchange="payLatest()"></select></div>
       <div><label style="font-size:12px;font-weight:700;display:block">日期</label><input type="date" id="pay-date"></div>
       <button class="btn" style="padding:7px 12px;font-size:12px" onclick="payLatest()">最新一期</button>
-      <div><label style="font-size:12px;font-weight:700;display:block">头二三每奖 RM</label><input id="pay-st-top" value="0.1" size="4" style="padding:3px 5px"></div>
-      <div><label style="font-size:12px;font-weight:700;display:block">特别奖 RM</label><input id="pay-st-sp" value="0.3" size="4" style="padding:3px 5px"></div>
-      <div><label style="font-size:12px;font-weight:700;display:block">赔率 头二三×</label><input id="pay-pay-top" value="6600" size="5" style="padding:3px 5px"></div>
-      <div><label style="font-size:12px;font-weight:700;display:block">小奖×</label><input id="pay-pay-sp" value="660" size="4" style="padding:3px 5px"></div>
+      <div id="pay-bets" style="flex-basis:100%;background:#f8fafc;border-radius:8px;padding:6px 10px"></div>
       <div><label style="font-size:12px;font-weight:700;display:block">回扣 %</label><input id="pay-reb" value="20" size="3" style="padding:3px 5px"></div>
       <div><label style="font-size:12px;font-weight:700;display:block" title="这个星期在今天之前已经投了多少。满3000再多6%">本周已投 RM</label><input id="pay-week" value="0" size="5" style="padding:3px 5px"></div>
       <button class="btn btn-green" style="padding:9px 18px;font-size:14px" onclick="payRun()">💰 算盈亏</button>
@@ -11077,20 +11072,65 @@ function scVisual(){
 }
 setTimeout(function(){ try{ var t=document.getElementById('scv-out'); if(t&&!t.innerHTML) scVisual(); }catch(e){} }, 4000);
 
+// ===== 🎫 玩法 + 赔率表(每 RM1;按用户给的表)。下注记录 / 对账 共用 =====
+var BET={
+  TYPES:[
+    {k:'Big',g:'4D',d:4,tip:'头二三+特别+安慰',pay:{p1:2750,p2:1100,p3:550,sp:220,cs:66}},
+    {k:'Small',g:'4D',d:4,tip:'只头二三',pay:{p1:3850,p2:2200,p3:1100}},
+    {k:'4A',g:'4D',d:4,tip:'只头奖',pay:{p1:6600}},
+    {k:'4B',g:'4D',d:4,tip:'只二奖',pay:{p2:6600}},
+    {k:'4C',g:'4D',d:4,tip:'只三奖',pay:{p3:6600}},
+    {k:'4D',g:'4D',d:4,tip:'只特别奖',pay:{sp:660}},
+    {k:'4E',g:'4D',d:4,tip:'只安慰奖',pay:{cs:660}},
+    {k:'4F',g:'4D',d:4,tip:'头二三任一',pay:{p1:2200,p2:2200,p3:2200}},
+    {k:'A',g:'3D',d:3,tip:'后三位·头奖',pay:{p1:726}},
+    {k:'ABC',g:'3D',d:3,tip:'后三位·头二三',pay:{p1:242,p2:242,p3:242}},
+    {k:'3B',g:'3D',d:3,tip:'后三位·二奖',pay:{p2:726}},
+    {k:'3C',g:'3D',d:3,tip:'后三位·三奖',pay:{p3:726}},
+    {k:'3D',g:'3D',d:3,tip:'后三位·特别奖',pay:{sp:72.6}},
+    {k:'3E',g:'3D',d:3,tip:'后三位·安慰奖',pay:{cs:72.6}},
+    {k:'2A',g:'2D',d:2,tip:'后两位·头奖',pay:{p1:91.8}},
+    {k:'2C',g:'2D',d:2,tip:'后两位·头二三',pay:{p1:30.6,p2:30.6,p3:30.6}}
+  ],
+  DEF:{'4A':0.1,'4B':0.1,'4C':0.1,'4D':0.3},
+  KEY:'bet_amt_v1',
+  load:function(){ try{ var o=JSON.parse(localStorage.getItem(BET.KEY)||'null'); if(o) return o; }catch(e){} var d={}; Object.keys(BET.DEF).forEach(function(k){d[k]=BET.DEF[k];}); return d; },
+  save:function(o){ try{ localStorage.setItem(BET.KEY,JSON.stringify(o)); }catch(e){} },
+  html:function(pre){ var v=BET.load(), grp={'4D':[],'3D':[],'2D':[]};
+    BET.TYPES.forEach(function(t){ grp[t.g].push('<label style="display:inline-flex;align-items:center;gap:3px;margin:2px 10px 2px 0;font-size:13px"><b>'+t.k+'</b><span style="color:#94a3b8;font-size:11px">('+t.tip+')</span> RM<input id="'+pre+'-'+t.k+'" value="'+(v[t.k]!=null?v[t.k]:'')+'" placeholder="0" size="3" onchange="BET.read(\''+pre+'\',true)" style="padding:2px 4px"></label>'); });
+    return Object.keys(grp).map(function(g){ return '<div style="margin:3px 0"><b style="color:#0369a1;display:inline-block;width:30px">'+g+'</b>'+grp[g].join('')+'</div>'; }).join('')
+      +'<div style="font-size:11px;color:#64748b">每个号押多少钱,不押的留空。3D 用号码的后三位对奖,2D 用后两位。长期每投 RM100 拿回(含回扣26%):Big / 3D 约 98.6 · Small 97.5 · 2D 94.8 · 4A–4F 92。</div>'; },
+  read:function(pre,save){ var o={}; BET.TYPES.forEach(function(t){ var e=document.getElementById(pre+'-'+t.k); var v=e?parseFloat(e.value):NaN; if(v>0) o[t.k]=v; }); if(save) BET.save(o); return o; },
+  perNum:function(a){ var x=0; Object.keys(a).forEach(function(k){ x+=a[k]; }); return x; },
+  desc:function(a){ return Object.keys(a).map(function(k){ return k+' RM'+a[k]; }).join(' · ')||'(没押)'; },
+  // d={top:[头,二,三], sp:[特别奖], cs:[安慰奖]}
+  calc:function(nums,amts,d){
+    var r={gross:0,g4:0,g2:0,win:0,exp:0,hits:[]};
+    BET.TYPES.forEach(function(t){ var a=amts[t.k]; if(!(a>0)) return; var N=nums.length, cut=4-t.d, den=Math.pow(10,t.d), P=t.pay;
+      r.gross+=a*N; if(t.g==='2D') r.g2+=a*N; else r.g4+=a*N;
+      var pz=[]; if(P.p1) pz.push(['头奖',[d.top[0]],P.p1]); if(P.p2) pz.push(['二奖',[d.top[1]],P.p2]); if(P.p3) pz.push(['三奖',[d.top[2]],P.p3]); if(P.sp) pz.push(['特别奖',d.sp||[],P.sp]); if(P.cs) pz.push(['安慰奖',d.cs||[],P.cs]);
+      pz.forEach(function(z){ var list=z[1].filter(function(x){return x&&/^\d{4}$/.test(x);}); r.exp+=a*N*z[2]*list.length/den; var tl={}; list.forEach(function(x){ var k=x.slice(cut); tl[k]=(tl[k]||0)+1; });
+        nums.forEach(function(n){ var c=tl[n.slice(cut)]; if(c){ var w=a*z[2]*c; r.win+=w; r.hits.push({type:t.k,prize:z[0],n:n,amt:a,win:w}); } }); });
+    });
+    return r; },
+  rebate:function(r,reb,bonus){ return r.g4*(reb+bonus)/100 + r.g2*3/100; }
+};
+
 // ===== 📒 下注记录:存真实买的号,开奖后自动对账(只算头二三+特别奖) =====
 var BL_KEY='bet_log_v1', BL_SET='bet_log_set_v1';
 function blGet(){ try{ return JSON.parse(localStorage.getItem(BL_KEY)||'[]'); }catch(e){ return []; } }
 function blPut(a){ try{ localStorage.setItem(BL_KEY,JSON.stringify(a)); return true; }catch(e){ alert('存不进去:'+e.message); return false; } }
 function blMsg(t,c){ var m=document.getElementById('bl-msg'); if(m){ m.style.color=c||'#16a34a'; m.textContent=t; setTimeout(function(){ m.textContent=''; },3000); } }
 function blV(id,d){ var e=document.getElementById(id); var v=e?parseFloat(e.value):NaN; return isNaN(v)?d:v; }
-function blSettings(){ return {stTop:blV('bl-st-top',0.1),stSp:blV('bl-st-sp',0.3),payTop:blV('bl-pay-top',6600),paySp:blV('bl-pay-sp',660),reb:blV('bl-reb',20),wk:blV('bl-wk',3000),wkb:blV('bl-wkb',6)}; }
+function blSettings(){ return {reb:blV('bl-reb',20),wk:blV('bl-wk',3000),wkb:blV('bl-wkb',6)}; }
 function blSaveSet(){ try{ localStorage.setItem(BL_SET,JSON.stringify(blSettings())); }catch(e){} }
-function blLoadSet(){ try{ var o=JSON.parse(localStorage.getItem(BL_SET)||'null'); if(!o) return; [['bl-st-top','stTop'],['bl-st-sp','stSp'],['bl-pay-top','payTop'],['bl-pay-sp','paySp'],['bl-reb','reb'],['bl-wk','wk'],['bl-wkb','wkb']].forEach(function(q){ var e=document.getElementById(q[0]); if(e&&o[q[1]]!=null) e.value=o[q[1]]; }); }catch(e){} }
+function blLoadSet(){ try{ var o=JSON.parse(localStorage.getItem(BL_SET)||'null'); if(!o) return; [['bl-reb','reb'],['bl-wk','wk'],['bl-wkb','wkb']].forEach(function(q){ var e=document.getElementById(q[0]); if(e&&o[q[1]]!=null) e.value=o[q[1]]; }); }catch(e){} }
 function blInit(){
   var sel=document.getElementById('bl-mk'); if(!sel) return;
   if(!sel.options.length){ ((typeof DB!=='undefined')?Object.keys(DB):[]).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); }); }
   var d=document.getElementById('bl-date'); if(d&&!d.value) d.value=new Date().toISOString().slice(0,10);
   var sv=document.getElementById('bl-saved'); if(sv&&typeof payLists==='function'){ var L=payLists(); sv.innerHTML='<option value="">📂 载入「对账」里存的号码…('+Object.keys(L).length+' 组)</option>'+Object.keys(L).map(function(k){ return '<option value="'+k.replace(/"/g,'&quot;')+'">'+k+'</option>'; }).join(''); }
+  var bb=document.getElementById('bl-bets'); if(bb&&!bb.innerHTML) bb.innerHTML=BET.html('bl');
   blLoadSet(); blRender();
 }
 function blFromHw(){ var a=window.__hwList||[]; if(!a.length){ blMsg('先到「🎲 我的玩法」点一次「🎯 生成功课」','#b45309'); return; } document.getElementById('bl-nums').value=a.join(' '); var mk=(document.getElementById('hw-mk')||{}).value; if(mk) document.getElementById('bl-mk').value=mk; blMsg('已带入功课号码 '+a.length+' 个'); }
@@ -11100,8 +11140,9 @@ function blSave(){
   if(!arr.length){ blMsg('先贴号码','#dc2626'); return; }
   var mk=document.getElementById('bl-mk').value, date=document.getElementById('bl-date').value;
   if(!date){ blMsg('选一下开奖日期','#dc2626'); return; }
-  var S=blSettings(), a=blGet();
-  a.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), mk:mk, date:date, nums:arr, stTop:S.stTop, stSp:S.stSp, note:(document.getElementById('bl-note').value||'').trim(), at:new Date().toISOString()});
+  var bets=BET.read('bl',true); if(!Object.keys(bets).length){ blMsg('在下面「押什么、押多少」至少填一种','#dc2626'); return; }
+  var a=blGet();
+  a.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), mk:mk, date:date, nums:arr, bets:bets, note:(document.getElementById('bl-note').value||'').trim(), at:new Date().toISOString()});
   if(blPut(a)){ document.getElementById('bl-nums').value=''; blMsg('已记下:'+mk+' '+date+' 共 '+arr.length+' 个号'); blRender(); }
 }
 function blDel(id){ var a=blGet(), x=a.filter(function(e){return e.id===id;})[0]; if(!x) return; if(!confirm('删掉这一笔?('+x.mk+' '+x.date+','+x.nums.length+' 个号)')) return; blPut(a.filter(function(e){return e.id!==id;})); blRender(); }
@@ -11119,40 +11160,43 @@ function blImport(inp){
       blPut(a); blRender(); alert('导入完成:加了 '+add+' 笔(重复的跳过)'); }catch(e){ alert('文件读不了:'+e.message); } inp.value=''; };
   rd.readAsText(f);
 }
+function blBets(e){ return e.bets||{'4A':e.stTop||0,'4B':e.stTop||0,'4C':e.stTop||0,'4D':e.stSp||0}; }
 function blRender(){
   var out=document.getElementById('bl-out'); if(!out) return;
-  var S=blSettings(), a=blGet(); if(!a.length){ out.innerHTML='<div style="color:#94a3b8;font-size:14px">还没有记录。贴上你这一期买的号,点「💾 记下这一期」。</div>'; return; }
+  var S=blSettings(), a=blGet(); if(!a.length){ out.innerHTML='<div style="color:#94a3b8;font-size:14px">还没有记录。贴上你这一期买的号,选好押什么、押多少,点「💾 记下这一期」。</div>'; return; }
   function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
+  function ok4(x){ return /^\d{4}$/.test(x); }
   function rm(v){ return 'RM'+(Math.round(Math.abs(v)*100)/100).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function weekKey(ds){ var d=new Date(ds+'T00:00:00'); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); }
   var today=new Date().toISOString().slice(0,10), cache={};
   function draw(mk,date){ var k=mk+'|'+date; if(cache[k]!==undefined) return cache[k]; var d=(typeof payAllDraws==='function'?payAllDraws(mk):[]).filter(function(x){return String(x.date).slice(0,10)===date&&x.nums&&x.nums.length>=3;})[0]||null; cache[k]=d; return d; }
-  // 每星期一共投多少(用来判断达标)
-  var wkTot={}; a.forEach(function(e){ var g=e.nums.length*(e.stTop*3+e.stSp); var w=weekKey(e.date); wkTot[w]=(wkTot[w]||0)+g; });
+  var EMPTY={top:['','',''],sp:[],cs:[]}, wkTot={};
+  a.forEach(function(e){ var r0=BET.calc(e.nums,blBets(e),EMPTY); var w=weekKey(e.date); wkTot[w]=(wkTot[w]||0)+r0.g4; });
   var rows=a.slice().sort(function(x,y){ return x.date<y.date?1:(x.date>y.date?-1:(x.at<y.at?1:-1)); });
-  var T={n:0,wait:0,none:0,g:0,rb:0,win:0,top:0,sp:0,anyP:0,exp:0}, M={g:0,rb:0,win:0,n:0}, curMon=today.slice(0,7);
-  var html='';
+  var T={n:0,wait:0,none:0,g:0,rb:0,win:0,top:0,sm:0,anyP:0,exp:0,alt:0}, M={g:0,rb:0,win:0,n:0}, curMon=today.slice(0,7), html='';
   rows.forEach(function(e){
-    var g=e.nums.length*(e.stTop*3+e.stSp), bonus=(wkTot[weekKey(e.date)]>=S.wk)?S.wkb:0, rb=g*(S.reb+bonus)/100, set={}; e.nums.forEach(function(x){set[x]=1;});
-    var d=draw(e.mk,e.date), body='', mark='';
+    var bets=blBets(e), bonus=(wkTot[weekKey(e.date)]>=S.wk)?S.wkb:0, d=draw(e.mk,e.date), mark='', body='';
+    var head='押法:'+BET.desc(bets)+' → 每个号 RM'+BET.perNum(bets).toFixed(2);
     if(!d){
       if(e.date>=today){ T.wait++; mark='⏳'; body='<span style="color:#64748b">等开奖</span>'; } else { T.none++; mark='❔'; body='<span style="color:#b45309">这一天找不到 '+e.mk+' 的开奖成绩(可能日期选错,或成绩还没更新)</span>'; }
     } else {
-      var top=[0,1,2].map(function(k){return pd(d.nums[k]);}), sp=(d.sp||[]).map(pd).filter(function(x){return /^\d{4}$/.test(x);});
-      var hT=[], hS=[]; top.forEach(function(n,k){ if(set[n]) hT.push(['头奖','二奖','三奖'][k]+' '+n); }); sp.forEach(function(n){ if(set[n]) hS.push(n); });
-      var win=hT.length*e.stTop*S.payTop+hS.length*e.stSp*S.paySp, net=win-(g-rb);
-      T.n++; T.g+=g; T.rb+=rb; T.win+=win; T.top+=hT.length; T.sp+=hS.length; if(hT.length||hS.length) T.anyP++;
-      T.exp+=e.nums.length*(3/10000*e.stTop*S.payTop+(sp.length||10)/10000*e.stSp*S.paySp);
-      if(e.date.slice(0,7)===curMon){ M.n++; M.g+=g; M.rb+=rb; M.win+=win; }
-      mark=hT.length?'✅':(hS.length?'🔹':'❌');
-      body='开出 <span style="font-family:monospace">'+top.map(function(n){ return set[n]?'<b style="background:#16a34a;color:#fff;border-radius:3px;padding:0 4px">'+n+'</b>':n; }).join(' · ')+'</span>'
-        +(hS.length?' · 特别奖中 <b style="color:#d97706;font-family:monospace">'+hS.join(' ')+'</b>':(sp.length?'':' <span style="color:#94a3b8;font-size:11px">(没有特别奖记录)</span>'))
-        +'<br>投 '+rm(g)+' → 回扣 '+rm(rb)+(bonus?'(含周满 '+S.wkb+'%)':'')+' → 实际花 '+rm(g-rb)+' · 拿回 <b>'+rm(win)+'</b> · <b style="color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rm(net)+'</b>'
-        +(hT.length?'<br><span style="color:#16a34a">✅ 中了 '+hT.join('、')+'</span>':'');
+      var D={top:[0,1,2].map(function(k){return pd(d.nums[k]);}), sp:(d.sp||[]).map(pd).filter(ok4), cs:(d.cs||[]).map(pd).filter(ok4)};
+      var r=BET.calc(e.nums,bets,D), rb=BET.rebate(r,S.reb,bonus), net=r.win-(r.gross-rb);
+      var alt=BET.calc(e.nums,{Big:BET.perNum(bets)},D), altNet=alt.win-(alt.gross-BET.rebate(alt,S.reb,bonus));
+      var topHit=r.hits.filter(function(h){return h.prize==='头奖'||h.prize==='二奖'||h.prize==='三奖';}), smHit=r.hits.filter(function(h){return h.prize==='特别奖'||h.prize==='安慰奖';});
+      var mine={}; e.nums.forEach(function(x){mine[x]=1;});
+      T.n++; T.g+=r.gross; T.rb+=rb; T.win+=r.win; T.top+=topHit.length; T.sm+=smHit.length; if(r.hits.length) T.anyP++; T.exp+=r.exp; T.alt+=altNet;
+      if(e.date.slice(0,7)===curMon){ M.n++; M.g+=r.gross; M.rb+=rb; M.win+=r.win; }
+      mark=topHit.length?'✅':(smHit.length?'🔹':'❌');
+      body='开出 <span style="font-family:monospace">'+D.top.map(function(n){ return mine[n]?'<b style="background:#16a34a;color:#fff;border-radius:3px;padding:0 4px">'+n+'</b>':n; }).join(' · ')+'</span>'
+        +(D.sp.length?'':' <span style="color:#94a3b8;font-size:11px">(这期没有特别奖/安慰奖记录)</span>')
+        +'<br>投 '+rm(r.gross)+' → 回扣 '+rm(rb)+(bonus?'(含周满 '+S.wkb+'%)':'')+' → 实际花 '+rm(r.gross-rb)+' · 拿回 <b>'+rm(r.win)+'</b> · <b style="color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rm(net)+'</b>'
+        +(r.hits.length?'<br>'+r.hits.map(function(h){ var c=(h.prize==='特别奖')?'#d97706':(h.prize==='安慰奖'?'#2563eb':'#16a34a'); return '<span style="color:'+c+'">✔ '+h.prize+' '+h.n+'('+h.type+' 押 RM'+h.amt+' → 拿 '+rm(h.win)+')</span>'; }).join('　'):'');
     }
     html+='<div style="border-left:5px solid '+(mark==='✅'?'#16a34a':(mark==='🔹'?'#f59e0b':(mark==='❌'?'#cbd5e1':'#93c5fd')))+';background:#fff;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:14px;line-height:1.8">'
       +'<span style="font-size:16px">'+mark+'</span> <b>'+e.date+'</b> · '+e.mk+' · 买了 <b>'+e.nums.length+'</b> 个号'+(e.note?' · <span style="color:#7c3aed">'+e.note.replace(/</g,'&lt;')+'</span>':'')
-      +' <a href="javascript:void(0)" onclick="blToggle(\''+e.id+'\')" style="font-size:12px">看我的号</a> · <a href="javascript:void(0)" onclick="blDel(\''+e.id+'\')" style="font-size:12px;color:#dc2626">删除</a><br>'+body
+      +' <a href="javascript:void(0)" onclick="blToggle(\''+e.id+'\')" style="font-size:12px">看我的号</a> · <a href="javascript:void(0)" onclick="blDel(\''+e.id+'\')" style="font-size:12px;color:#dc2626">删除</a>'
+      +'<br><span style="font-size:12px;color:#64748b">'+head+'</span><br>'+body
       +'<div id="bln-'+e.id+'" style="display:none;font-family:monospace;font-size:12px;color:#475569;max-height:120px;overflow:auto;background:#f8fafc;border-radius:6px;padding:4px 8px;margin-top:4px">'+e.nums.join(' ')+'</div></div>';
   });
   var net=T.win-(T.g-T.rb), mNet=M.win-(M.g-M.rb), expNet=T.exp-(T.g-T.rb);
@@ -11161,12 +11205,12 @@ function blRender(){
   if(T.n){
     sum+='💸 一共投 <b>'+rm(T.g)+'</b> → 回扣 <b>'+rm(T.rb)+'</b> → 实际花 <b>'+rm(T.g-T.rb)+'</b><br>'
       +'💰 中奖拿回 <b>'+rm(T.win)+'</b> → <b style="font-size:17px;color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rm(net)+'</b><br>'
-      +'🎯 '+T.n+' 笔里,有 <b>'+T.anyP+'</b> 笔中奖:头二三一共中 <b style="color:#16a34a">'+T.top+'</b> 个,特别奖一共中 <b style="color:#d97706">'+T.sp+'</b> 个<br>'
-      +'🎲 如果每次都<b>随便买同样个数</b>的号,平均大约拿回 '+rm(T.exp)+',结果是'+(expNet<0?'亏 ':'赚 ')+rm(expNet)+' → 你'+(net>=expNet?'<b style="color:#16a34a">比随便买多 '+rm(net-expNet)+'</b>':'<b style="color:#dc2626">比随便买少 '+rm(expNet-net)+'</b>')
-      +'<span style="font-size:12px;color:#64748b">(笔数少的时候,差别主要是运气)</span>';
+      +'🎯 '+T.n+' 笔里,有 <b>'+T.anyP+'</b> 笔中奖:头二三中 <b style="color:#16a34a">'+T.top+'</b> 次,特别/安慰奖中 <b style="color:#d97706">'+T.sm+'</b> 次<br>'
+      +'🎲 如果每次都<b>随便买同样个数</b>的号(押法一样),平均大约'+(expNet<0?'亏 ':'赚 ')+rm(expNet)+' → 你'+(net>=expNet?'<b style="color:#16a34a">比随便买多 '+rm(net-expNet)+'</b>':'<b style="color:#dc2626">比随便买少 '+rm(expNet-net)+'</b>')+'<span style="font-size:12px;color:#64748b">(笔数少时主要是运气)</span><br>'
+      +'🔁 如果同样的钱<b>全部改买 Big</b>(号码不变):结果会是'+(T.alt<0?'亏 ':'赚 ')+rm(T.alt)+' → '+(T.alt>=net?'<b style="color:#16a34a">比你现在的押法多 '+rm(T.alt-net)+'</b>':'<b style="color:#dc2626">比你现在的押法少 '+rm(net-T.alt)+'</b>');
     if(M.n) sum+='<br>📅 这个月('+curMon+'):'+M.n+' 笔,实际花 '+rm(M.g-M.rb)+',拿回 '+rm(M.win)+' → <b style="color:'+(mNet<0?'#dc2626':'#16a34a')+'">'+(mNet<0?'亏 ':'赚 ')+rm(mNet)+'</b>';
   }
-  sum+='</div><div style="font-size:12px;color:#64748b;margin:8px 0 2px">✅=头二三有中 · 🔹=只中特别奖 · ❌=没中 · ⏳=等开奖 · ❔=找不到成绩;新的在上面</div>';
+  sum+='</div><div style="font-size:12px;color:#64748b;margin:8px 0 2px">✅=头二三有中 · 🔹=只中特别/安慰奖 · ❌=没中 · ⏳=等开奖 · ❔=找不到成绩;新的在上面</div>';
   out.innerHTML=sum+html;
 }
 // 💰 对账:你贴的号 × 某一天的开奖 → 头二三/特别奖/安慰奖各中几个、投入、拿回、盈亏
@@ -11204,7 +11248,7 @@ function payFromHomework(){
   document.getElementById('pay-nums').value=a.join(' '); payDraft(); document.getElementById('pay-name').value='我的功课 '+(new Date().getMonth()+1)+'-'+new Date().getDate(); payMsg('已带入 '+a.length+' 个');
 }
 function payDraft(){ try{ localStorage.setItem('pay_draft',document.getElementById('pay-nums').value); }catch(e){} }
-function payInit(){ try{ var dr0=localStorage.getItem('pay_draft'); var ta0=document.getElementById('pay-nums'); if(ta0&&dr0&&!ta0.value) ta0.value=dr0; }catch(e){} payRefreshSaved();
+function payInit(){ try{ var pb=document.getElementById('pay-bets'); if(pb&&!pb.innerHTML) pb.innerHTML=BET.html('pa'); }catch(e){} try{ var dr0=localStorage.getItem('pay_draft'); var ta0=document.getElementById('pay-nums'); if(ta0&&dr0&&!ta0.value) ta0.value=dr0; }catch(e){} payRefreshSaved();
   var sel=document.getElementById('pay-mk'); if(!sel||sel.options.length) return;
   var ks=(typeof DB!=='undefined')?Object.keys(DB):[]; ks.forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=k; sel.appendChild(o); });
   payLatest();
@@ -11219,27 +11263,24 @@ function payRun(){
   var mk=document.getElementById('pay-mk').value, dt=document.getElementById('pay-date').value;
   var mine={}, list=(document.getElementById('pay-nums').value.match(/\d{4}/g)||[]); list.forEach(function(x){mine[x]=1;}); var my=Object.keys(mine);
   if(!my.length){ out.innerHTML='<div class="warn">先贴你买的号码。</div>'; return; }
+  var amts=BET.read('pa',true); if(!Object.keys(amts).length){ out.innerHTML='<div class="warn">在上面「押什么、押多少」至少填一种。</div>'; return; }
   var d=payAllDraws(mk).filter(function(x){return String(x.date).slice(0,10)===dt;})[0];
   if(!d){ out.innerHTML='<div class="warn">'+mk+' '+dt+' 没有开奖记录(这天不开奖,或成绩还没更新)。</div>'; return; }
   function pd(v){ return String(v==null?'':v).replace(/\D/g,'').padStart(4,'0'); }
-  var top=[0,1,2].map(function(k){return d.nums&&d.nums[k];}).filter(function(v){return v!=null&&v!=='';}).map(pd).filter(function(x){return /^\d{4}$/.test(x);});
-  var sp=(d.sp||[]).map(pd).filter(function(x){return /^\d{4}$/.test(x);}), cs=[];
-  var stT=parseFloat(document.getElementById('pay-st-top').value)||0, stS=parseFloat(document.getElementById('pay-st-sp').value)||0,
-      pyT=parseFloat(document.getElementById('pay-pay-top').value)||0, pyS=parseFloat(document.getElementById('pay-pay-sp').value)||0;
-  var hT=top.filter(function(x){return mine[x];}), hS=sp.filter(function(x){return mine[x];}), hC=cs.filter(function(x){return mine[x];});
-  var gross=my.length*(stT*3+stS), win=hT.length*stT*pyT+(hS.length+hC.length)*stS*pyS;
-  var rebP=parseFloat((document.getElementById('pay-reb')||{value:'20'}).value)||0, wk=parseFloat((document.getElementById('pay-week')||{value:'0'}).value)||0;
-  var bonusOn=(wk+gross)>=3000, rebate=gross*rebP/100+(bonusOn?gross*0.06:0), cost=gross-rebate, net=win-cost;
+  function ok4(x){ return /^\d{4}$/.test(x); }
   function rmf(v){ return (v<0?'-':'')+'RM'+Math.abs(v).toFixed(2); }
-  function row(lbl,col,arr,hit){ var hs={}; hit.forEach(function(x){hs[x]=1;}); return '<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b> <span style="font-family:monospace">'+(arr.length?arr.map(function(n){ return hs[n]?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 4px;font-weight:700">'+n+'</span>':n; }).join(' '):'<span style="color:#94a3b8">(没有记录)</span>')+'</span> <span style="color:#64748b">→ 你中 '+hit.length+' 个</span></div>'; }
+  var D={top:[0,1,2].map(function(k){return pd(d.nums[k]);}), sp:(d.sp||[]).map(pd).filter(ok4), cs:(d.cs||[]).map(pd).filter(ok4)};
+  var r=BET.calc(my,amts,D);
+  var rebP=parseFloat((document.getElementById('pay-reb')||{value:'20'}).value)||0, wk=parseFloat((document.getElementById('pay-week')||{value:'0'}).value)||0;
+  var bonusOn=(wk+r.g4)>=3000, rebate=BET.rebate(r,rebP,bonusOn?6:0), cost=r.gross-rebate, net=r.win-cost;
+  function row(lbl,col,arr){ return '<div style="margin-top:4px"><b style="color:'+col+'">'+lbl+'</b> <span style="font-family:monospace">'+(arr.length?arr.map(function(n){ return mine[n]?'<span style="background:'+col+';color:#fff;border-radius:3px;padding:0 4px;font-weight:700">'+n+'</span>':n; }).join(' '):'<span style="color:#94a3b8">(没有记录)</span>')+'</span></div>'; }
   var h='<div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:10px 12px;line-height:1.8">';
   h+='<div style="font-size:14px;font-weight:800">'+mk+' · '+dt+(d.draw?' · 第 '+d.draw+' 期':'')+'</div>';
-  h+='<div>你买了 <b>'+my.length+'</b> 个号 × RM'+(stT*3+stS).toFixed(2)+'(头二三 '+stT+'×3 + 特别奖 '+stS+') = 投入 <b>'+rmf(gross)+'</b></div>';
-  h+='<div>回扣 <b>'+rmf(rebate)+'</b>('+rebP+'%'+(bonusOn?' + 本周满 RM3000 再 6%':(wk>0?'(本周累计 '+rmf(wk+gross)+',还没满 3000)':''))+') → 实际花 <b>'+rmf(cost)+'</b></div>';
-  h+='<div>拿回 <b>'+rmf(win)+'</b>(头二三 '+hT.length+' 个×'+rmf(stT*pyT)+(hS.length+hC.length?' + 小奖 '+(hS.length+hC.length)+' 个×'+rmf(stS*pyS):'')+')</div>';
+  h+='<div>你买了 <b>'+my.length+'</b> 个号,押法:'+BET.desc(amts)+' → 每个号 RM'+BET.perNum(amts).toFixed(2)+',投入 <b>'+rmf(r.gross)+'</b></div>';
+  h+='<div>回扣 <b>'+rmf(rebate)+'</b>('+rebP+'%'+(bonusOn?' + 本周满 RM3000 再 6%':(wk>0?'(本周累计 '+rmf(wk+r.g4)+',还没满 3000)':''))+(r.g2?';2D 部分 3%':'')+') → 实际花 <b>'+rmf(cost)+'</b></div>';
+  h+='<div>拿回 <b>'+rmf(r.win)+'</b>'+(r.hits.length?':'+r.hits.map(function(x){ return x.prize+' '+x.n+'('+x.type+' 押 RM'+x.amt+' → '+rmf(x.win)+')'; }).join('、'):'')+'</div>';
   h+='<div style="font-size:16px;font-weight:800;color:'+(net<0?'#dc2626':'#16a34a')+'">'+(net<0?'亏 ':'赚 ')+rmf(Math.abs(net))+'</div></div>';
-  h+=row('头二三','#16a34a',top,hT)+row('特别奖','#d97706',sp,hS);
-  if(!sp.length) h+='<div style="font-size:12px;color:#94a3b8;margin-top:4px">这期没有特别奖记录,只能算头二三。</div>';
+  h+=row('头二三','#16a34a',D.top)+row('特别奖','#d97706',D.sp)+row('安慰奖','#2563eb',D.cs);
   out.innerHTML=h;
 }
 setTimeout(function(){ try{ payInit(); }catch(e){} }, 3000);
