@@ -239,7 +239,7 @@ tr:hover td{background:#fafaf5}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
-<h1>🎯 WIN 4D WITH M3 · 号码数据分析系统 <span style="font-size:12px;font-weight:600;color:#94a3b8">v62</span> <span id="data-count">加载中...</span></h1>
+<h1>🎯 WIN 4D WITH M3 · 号码数据分析系统 <span style="font-size:12px;font-weight:600;color:#94a3b8">v62</span> <span id="data-count">加载中...</span> <span id="sync-status" style="font-size:12px;font-weight:600;margin-left:8px;color:#94a3b8"></span></h1>
 
 <!-- V20 Scene-based navigation -->
 <div class="scenes">
@@ -1921,13 +1921,14 @@ async function bootstrapV51(){
       init();
       const _GH_RAW='https://raw.githubusercontent.com/becoolyong147-sudo/lotto-data/main/auto_results.json?t=';
       const _localAdded = await autoImportFetchedResults(); // V63: 本地 auto_results.json(只增不覆盖)
-      let _ghAdded=0; try{ _ghAdded = await autoImportFetchedResults(_GH_RAW+Date.now()); }catch(e){} // 启动时也从GitHub拉最新
+      let _ghAdded=0;   // 云端(GitHub)改到后台拉:不再等它(常要 20 秒)才显示新成绩,拉完由 zoGhBackground 自动更新
       const _autoAdded = _localAdded + _ghAdded;
   try{ zoRebuildColdBaseFixed(); }catch(e){}
       try{ await zoMergeSmallPrizes(); }catch(e){}   // 补历史特别奖/安慰奖(small_prizes.json)
       loadSavedResults();
+      try{ zoSyncStatus('checking'); zoGhBackground(_GH_RAW); }catch(e){}
       // ⏱️ 开着时每10分钟自动从GitHub拉一次最新成绩(有新的就补上+提示,不刷新页面)
-      try{ if(!window.__ghPollTimer){ window.__ghPollTimer=setInterval(async function(){ try{ var k=await autoImportFetchedResults(_GH_RAW+Date.now()); if(k>0){ loadSavedResults(); var nd2=getNewResults(); var nc2=Object.values(nd2).reduce((a,v)=>a+v.length,0); var tt2=Object.values(DB).reduce((a,v)=>a+v.length,0); var el2=document.getElementById('data-count'); if(el2)el2.textContent='历史'+(tt2-nc2)+'期 + 新增'+nc2+'期'; } }catch(e){} }, 600000); } }catch(e){}
+      try{ if(!window.__ghPollTimer){ window.__ghPollTimer=setInterval(async function(){ try{ var k=await autoImportFetchedResults(_GH_RAW+Date.now()); try{ zoSyncStatus(window.__lastImportFail?'fail':'done',k); }catch(e){} if(k>0){ loadSavedResults(); var nd2=getNewResults(); var nc2=Object.values(nd2).reduce((a,v)=>a+v.length,0); var tt2=Object.values(DB).reduce((a,v)=>a+v.length,0); var el2=document.getElementById('data-count'); if(el2)el2.textContent='历史'+(tt2-nc2)+'期 + 新增'+nc2+'期'; } }catch(e){} }, 600000); } }catch(e){}
       if(_autoAdded){
         // 导入后重算计数并刷新总览(init 里那次还没算上刚导入的)
         const nd=getNewResults();
@@ -5968,10 +5969,34 @@ function loadSavedResults(){
 
 // ===== V63: 自动抓取导入 — auto_fetch_results.py 产出的 auto_results.json =====
 // 在 loadSavedResults() 之前调用: 只写 localStorage(只增不覆盖), DB 合并与冷号更新走原有流程
+// ⏳ 顶上的「成绩状态」:正在从云端检查 / 已是最新 / 云端连不上
+function zoSyncStatus(st,n){
+  var el=document.getElementById('sync-status'); if(!el) return;
+  var mx=''; try{ (payAllDraws('万能')||[]).forEach(function(d){ var t=String(d.date).slice(0,10); if(t>mx) mx=t; }); }catch(e){}
+  var t=new Date(), hm=('0'+t.getHours()).slice(-2)+':'+('0'+t.getMinutes()).slice(-2);
+  if(st==='checking'){ el.textContent='⏳ 正在从云端检查最新成绩… · 万能最新 '+mx; el.style.color='#fde68a'; }
+  else if(st==='done'){ el.textContent='✅ 已是最新'+(n>0?'(云端刚补了 '+n+' 期)':'')+' · 万能最新 '+mx+' · '+hm+' 检查'; el.style.color='#bbf7d0'; }
+  else { el.textContent='⚠️ 云端暂时连不上,先用本机成绩 · 万能最新 '+mx; el.style.color='#fca5a5'; }
+}
+// 启动后在后台从 GitHub 拉最新成绩(最多等 25 秒),拉到新的就合并并刷新画面
+async function zoGhBackground(raw){
+  var k=-1;
+  try{ k=await Promise.race([autoImportFetchedResults(raw+Date.now()), new Promise(function(r){ setTimeout(function(){ r(-1); },25000); })]); }catch(e){ k=-1; }
+  if(k<0||window.__lastImportFail){ zoSyncStatus('fail'); return; }
+  if(k>0){
+    try{ loadSavedResults(); }catch(e){}
+    try{ zoRebuildColdBaseFixed(); }catch(e){}
+    try{ await zoMergeSmallPrizes(); }catch(e){}
+    try{ var nd=getNewResults(), nc=Object.values(nd).reduce(function(a,v){return a+v.length;},0), tt=Object.values(DB).reduce(function(a,v){return a+v.length;},0); var el=document.getElementById('data-count'); if(el) el.textContent='历史'+(tt-nc)+'期 + 新增'+nc+'期'; }catch(e){}
+    try{ if(typeof ovRender==='function'&&document.getElementById('tab-overview')) ovRender(); }catch(e){}
+  }
+  zoSyncStatus('done',k);
+}
 async function autoImportFetchedResults(srcUrl){
   try{
     const url = srcUrl || ('auto_results.json?t='+Date.now());
     const r = await fetch(url, {cache:'no-store'});
+    window.__lastImportFail=!r.ok;
     if(!r.ok) return 0;
     const j = await r.json();
     const draws = (j && j.draws) || [];
@@ -6020,7 +6045,7 @@ async function autoImportFetchedResults(srcUrl){
     if(added) _autoImportToast(added, [...markets]);
     console.log('[V63 auto-import] 新增', added, '期, 补充特/安', enriched, '期:', [...markets].join('、'));
     return added + enriched;
-  }catch(e){ console.warn('[V63 auto-import] 失败:', e); return 0; }
+  }catch(e){ window.__lastImportFail=true; console.warn('[V63 auto-import] 失败:', e); return 0; }
 }
 // 🎁 历史小奖合并:small_prizes.json(4d2ulive 补抓的 特别奖10+安慰奖10) → 补到 DB / 新成绩里已存在的同一期
 // 只补 sp/cs,绝不动头二三;头二三对不上的期整期跳过(不信任)。结果放内存(不写 localStorage,避免撑爆)。
