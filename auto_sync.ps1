@@ -17,7 +17,8 @@ function Sync-FromCloud {
     Clear-StuckRebase
     git fetch origin main 2>$null | Out-Null
     # auto_results.json 本机只是「加料」,底以云端为准 → 先把它重置成云端版本,再抓
-    git checkout origin/main -- auto_results.json 2>$null | Out-Null
+    # 2026-10-15: 改成「合并」云端版本(以前是直接盖掉, 本机还没推上去的新成绩会丢)
+    python merge_results.py --from-origin 2>$null | Out-Null
 }
 
 Clear-StuckRebase
@@ -40,10 +41,10 @@ $tries = 0
 while ((Test-Path ".git\rebase-merge") -or (Test-Path ".git\rebase-apply")) {
     $tries++
     if ($tries -gt 8) { break }
-    # 冲突只可能是 auto_results.json: 以云端(ours=rebase 底)为准
+    # 冲突只可能是 auto_results.json: 两边合并(2026-10-15 起; 以前以云端为准会丢掉本机刚抓的)
     $conf = git diff --name-only --diff-filter=U
     foreach ($f in $conf) {
-        if ($f -eq "auto_results.json") { git checkout --ours -- $f 2>$null | Out-Null; git add $f | Out-Null }
+        if ($f -eq "auto_results.json") { python merge_results.py --git-conflict 2>$null | Out-Null; git add $f | Out-Null }   # 两边合并, 谁的新成绩都不丢
         else { git checkout --theirs -- $f 2>$null | Out-Null; git add $f | Out-Null }
     }
     $env:GIT_EDITOR = "true"
