@@ -5,7 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { lookupNumber, latestResults, marketNames } from "./data.js";
 
 const MODEL = process.env.BOT_MODEL || "claude-opus-5-5";
-const RULES = path.join(import.meta.dirname, "rules.md");
+const RULES = path.join(import.meta.dirname, "rules.md"); // 本机自己的规则, 不上传
+const RULES_EXAMPLE = path.join(import.meta.dirname, "rules.example.md");
 const client = new Anthropic();
 
 const tools = [
@@ -46,7 +47,9 @@ function runTool(name, input) {
 
 function systemPrompt() {
   let rules = "";
-  try { rules = fs.readFileSync(RULES, "utf8"); } catch {}
+  try { rules = fs.readFileSync(RULES, "utf8"); } catch {
+    try { rules = fs.readFileSync(RULES_EXAMPLE, "utf8"); } catch {}
+  }
   return [
     "你在帮店主写 WhatsApp 回复草稿。店主会先看过、改过才发出去。",
     "只输出要发给客户的那段话本身, 不要加解释、引号或前言。",

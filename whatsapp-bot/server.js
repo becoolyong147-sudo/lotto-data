@@ -91,7 +91,10 @@ async function makeDraft(d) {
     console.error("AI 出错:", e);
     d.status = "error";
     d.draft = "";
-    d.error = e.status === 401 ? "API key 不对或没设置" : String(e.message || e);
+    const m = String(e.message || e);
+    d.error = e.status === 401 || /authentication method/.test(m)
+      ? "API key 不对或没设置 (看 .env 文件)"
+      : m;
   }
   save();
 }
