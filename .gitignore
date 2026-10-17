@@ -11,3 +11,10 @@ fetch_small_prizes.log
 
 fetch_small_prizes_dragon.log
 small_prizes_dragon.progress.json
+
+# WhatsApp 机器人: 登录资料/密钥/客户聊天不能上传
+whatsapp-bot/node_modules/
+whatsapp-bot/.wwebjs_auth/
+whatsapp-bot/.wwebjs_cache/
+whatsapp-bot/.env
+whatsapp-bot/drafts.json

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WhatsApp 回复助手</title>
+<style>
+  :root { --bg:#f3f5f4; --card:#fff; --ink:#1d2421; --mute:#6b7570; --line:#dfe4e1; --green:#1f9d55; --red:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#111614; --card:#1b2220; --ink:#e7ece9; --mute:#93a09a; --line:#2c3532; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, "Microsoft YaHei", sans-serif; }
+  main { max-width:720px; margin:0 auto; padding:16px; }
+  h1 { font-size:20px; margin:4px 0 12px; }
+  .bar { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:14px; }
+  .bar img { display:block; width:240px; max-width:100%; margin-top:8px; background:#fff; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; background:var(--mute); }
+  .dot.ok { background:var(--green); } .dot.bad { background:var(--red); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:10px; }
+  .card.done { opacity:.55; }
+  .who { font-weight:600; } .when { color:var(--mute); font-size:13px; margin-left:6px; }
+  .msg { margin:6px 0 8px; white-space:pre-wrap; }
+  textarea { width:100%; min-height:70px; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; resize:vertical; }
+  .row { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  button { border:0; border-radius:8px; padding:8px 16px; font:inherit; cursor:pointer; background:var(--line); color:var(--ink); }
+  button.send { background:var(--green); color:#fff; font-weight:600; }
+  button:disabled { opacity:.5; cursor:default; }
+  .tag { font-size:13px; color:var(--mute); }
+  .err { color:var(--red); font-size:13px; }
+  .empty { color:var(--mute); text-align:center; padding:30px 0; }
+  .test { display:flex; gap:8px; margin-top:8px; } .test input { flex:1; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>WhatsApp 回复助手</h1>
+  <div class="bar" id="bar">连接中…</div>
+  <div id="list"></div>
+</main>
+<script>
+const edits = {}; // 你正在改的草稿, 不被刷新盖掉
+const bar = document.getElementById("bar");
+const list = document.getElementById("list");
+let lastKey = "";
+
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const hhmm = (t) => new Date(t).toLocaleString("zh", { month:"numeric", day:"numeric", hour:"2-digit", minute:"2-digit" });
+
+function renderBar(s) {
+  const map = {
+    starting: ["", "正在启动…"], loading: ["", "已扫码, 正在载入聊天…"],
+    ready: ["ok", "已连上 " + (s.me || "")], qr: ["", "用手机 WhatsApp → 已连接的设备 → 连接设备, 扫下面的码"],
+    disconnected: ["bad", "断线了, 请重开程序"], error: ["bad", "出错: " + (s.error || "")],
+  };
+  const [cls, text] = map[s.status] || ["", s.status];
+  let html = `<span class="dot ${cls}"></span>${esc(text)}`;
+  if (s.status === "qr" && s.qr) html += `<img src="${s.qr}" alt="登录二维码">`;
+  if (s.testMode) html += `<div class="test"><input id="tmsg" placeholder="测试: 假装客户发一条消息"><button onclick="testMsg()">发</button></div>`;
+  if (bar.dataset.k !== s.status + s.qr) { bar.innerHTML = html; bar.dataset.k = s.status + s.qr; }
+}
+
+function card(d) {
+  const done = d.status === "sent" || d.status === "skipped";
+  let body;
+  if (d.status === "thinking") body = `<div class="tag">AI 写草稿中…</div>`;
+  else if (d.status === "error") body = `<div class="err">AI 出错: ${esc(d.error)}</div><div class="row"><button onclick="act('${d.id}','redo')">再试</button><button onclick="act('${d.id}','skip')">跳过</button></div>`;
+  else if (d.status === "sent") body = `<div class="tag">✓ 已发: ${esc(d.sent)}</div>`;
+  else if (d.status === "skipped") body = `<div class="tag">已跳过</div>`;
+  else body = `<textarea id="t-${d.id}" oninput="edits['${d.id}']=this.value">${esc(edits[d.id] ?? d.draft)}</textarea>
+    <div class="row"><button class="send" onclick="send('${d.id}')">发送</button><button onclick="act('${d.id}','redo')">重写</button><button onclick="act('${d.id}','skip')">跳过</button></div>`;
+  return `<div class="card ${done ? "done" : ""}"><span class="who">${esc(d.name)}</span><span class="when">${hhmm(d.time)}</span>
+    <div class="msg">${esc(d.body)}</div>${body}</div>`;
+}
+
+async function refresh() {
+  try {
+    const s = await (await fetch("/api/state")).json();
+    renderBar(s);
+    const key = JSON.stringify(s.drafts.map((d) => [d.id, d.status, d.draft]));
+    if (key !== lastKey && !document.activeElement?.id?.startsWith("t-")) {
+      lastKey = key;
+      list.innerHTML = s.drafts.length ? s.drafts.map(card).join("") : `<div class="empty">还没有新消息</div>`;
+    }
+  } catch { bar.innerHTML = `<span class="dot bad"></span>程序没开`; bar.dataset.k = ""; }
+}
+
+async function send(id) {
+  const text = document.getElementById("t-" + id).value;
+  const r = await fetch(`/api/drafts/${id}/send`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ text }) });
+  if (!r.ok) alert("没发出去: " + ((await r.json()).error || r.status));
+  delete edits[id]; document.activeElement.blur(); lastKey = ""; refresh();
+}
+async function act(id, what) {
+  await fetch(`/api/drafts/${id}/${what}`, { method:"POST" });
+  delete edits[id]; lastKey = ""; refresh();
+}
+async function testMsg() {
+  const el = document.getElementById("tmsg");
+  if (!el.value.trim()) return;
+  await fetch("/api/test-message", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ body: el.value }) });
+  el.value = ""; refresh();
+}
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
